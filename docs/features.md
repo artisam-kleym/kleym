@@ -20,4 +20,18 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
-*No features shipped yet. The tracker is at sprint-0 — see `SPEC.md` §11 for the build order.*
+## 2026-08-20 — Claim transaction design verified on testnet (#1)
+
+The sponsored claim flow works end to end for all four permutations: new or existing
+recipient, native or non-native asset. Recipients need no XLM — Kleym sponsors account
+creation and trustlines, and the ephemeral account is disposed of afterwards.
+
+The design in `SPEC.md` §3.3 had to change to get there. It is now two transactions
+rather than one, because Stellar refuses to merge an account in the transaction that
+created it, or while it holds a trustline. §3.3 records the constraint and §3.3.2 the
+cost: an abandoned claim strands sponsor reserves that Kleym cannot recover.
+
+**Verified by:** `pnpm spike` against `horizon-testnet.stellar.org`, 6/6 checks —
+four permutations plus both predicate directions. Exact decimal balance comparison,
+post-merge account existence checked on the ledger, reserve obligation computed from
+live protocol values.

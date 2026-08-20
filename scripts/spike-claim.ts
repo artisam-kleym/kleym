@@ -4,6 +4,10 @@
  * Standalone. No Next.js, no Prisma, no UI. Its only job is to prove, or
  * disprove, the sponsored claim transaction before anything is built on it.
  *
+ * SPEC.md §3.3 as originally written is DISPROVEN — an account cannot be merged
+ * in the transaction that created it, nor while it holds a trustline. This script
+ * now exercises the adopted two-transaction design instead.
+ *
  * Proves four permutations: new/existing recipient x native/non-native asset.
  * Also proves the two predicate directions and the balance-ID extraction path.
  *
@@ -71,9 +75,42 @@ async function hasTrustline(pub: string, asset: Asset): Promise<boolean> {
   )
 }
 
+async function currentLedger(): Promise<number> {
+  const page: any = await server.ledgers().order('desc').limit(1).call()
+  return page.records[0].sequence
+}
+
+/**
+ * AccountMerge compares the account's sequence number against a ceiling derived
+ * from the last closed ledger, so the merge must land in a ledger strictly after
+ * the one that created the account. This wait is structural, not a workaround.
+ */
+async function waitForNextLedger(): Promise<void> {
+  const start = await currentLedger()
+  for (let i = 0; i < 40; i++) {
+    await new Promise((r) => setTimeout(r, 1500))
+    if ((await currentLedger()) > start) return
+  }
+  throw new Error('ledger did not advance')
+}
+
 async function numSponsoring(pub: string): Promise<number> {
   const acct: any = await server.loadAccount(pub)
   return Number(acct.num_sponsoring ?? 0)
+}
+
+/**
+ * Sponsoring an entry does not spend XLM — it raises the sponsor's minimum
+ * balance, locking part of the balance rather than transferring it. Reserve
+ * recovery therefore has to be measured here, not in the balance.
+ */
+async function reserveObligation(pub: string): Promise<Decimal> {
+  const acct: any = await server.loadAccount(pub)
+  const entries = new Decimal(2)
+    .plus(acct.subentry_count ?? 0)
+    .plus(acct.num_sponsoring ?? 0)
+    .minus(acct.num_sponsored ?? 0)
+  return entries.times(await baseReserve())
 }
 
 /** Fee actually charged, read back from the ledger rather than assumed. */
@@ -209,8 +246,59 @@ interface ClaimPlan {
 }
 
 /**
- * Server-side half: inspect the ledger, build the conditional op list, sign as
- * sponsor. Mirrors what POST /api/claims/prepare will do (issue #10).
+ * TX1 — materialise the ephemeral account and, for a non-native asset, its
+ * trustline. Signers: SPONSOR, EPHEMERAL. The recipient is deliberately absent,
+ * so this can be submitted while the recipient is still connecting a wallet.
+ */
+async function materialiseEphemeral(
+  w: World,
+  ephemeralPub: string,
+  ephemeralKp: Keypair,
+  asset: Asset,
+): Promise<{ hash: string; opCount: number }> {
+  const sponsorAcct = await server.loadAccount(w.sponsor.publicKey())
+  const b = new TransactionBuilder(sponsorAcct, {
+    fee: FEE_PER_OP,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+
+  b.addOperation(
+    Operation.beginSponsoringFutureReserves({
+      sponsoredId: ephemeralPub,
+      source: w.sponsor.publicKey(),
+    }),
+  )
+  b.addOperation(
+    Operation.createAccount({
+      destination: ephemeralPub,
+      startingBalance: '0',
+      source: w.sponsor.publicKey(),
+    }),
+  )
+  b.addOperation(Operation.endSponsoringFutureReserves({ source: ephemeralPub }))
+
+  if (!asset.isNative()) {
+    b.addOperation(
+      Operation.beginSponsoringFutureReserves({
+        sponsoredId: ephemeralPub,
+        source: w.sponsor.publicKey(),
+      }),
+    )
+    b.addOperation(Operation.changeTrust({ asset, source: ephemeralPub }))
+    b.addOperation(Operation.endSponsoringFutureReserves({ source: ephemeralPub }))
+  }
+
+  const tx = b.setTimeout(180).build()
+  tx.sign(w.sponsor)
+  tx.sign(ephemeralKp)
+  const res: any = await server.submitTransaction(tx)
+  return { hash: res.hash, opCount: tx.operations.length }
+}
+
+/**
+ * TX2 — claim, forward to the recipient, dispose of the ephemeral account.
+ * Must land in a ledger after TX1. Signers: SPONSOR, EPHEMERAL, and RECIPIENT
+ * only when the recipient is an operation source.
  */
 async function prepareClaim(
   w: World,
@@ -230,38 +318,8 @@ async function prepareClaim(
     networkPassphrase: NETWORK_PASSPHRASE,
   })
 
-  // 1-3: materialise the ephemeral account, sponsored.
-  b.addOperation(
-    Operation.beginSponsoringFutureReserves({
-      sponsoredId: ephemeralPub,
-      source: w.sponsor.publicKey(),
-    }),
-  )
-  b.addOperation(
-    Operation.createAccount({
-      destination: ephemeralPub,
-      startingBalance: '0',
-      source: w.sponsor.publicKey(),
-    }),
-  )
-  b.addOperation(Operation.endSponsoringFutureReserves({ source: ephemeralPub }))
-
-  // 4-6: ephemeral trustline, sponsored.
-  if (nonNative) {
-    b.addOperation(
-      Operation.beginSponsoringFutureReserves({
-        sponsoredId: ephemeralPub,
-        source: w.sponsor.publicKey(),
-      }),
-    )
-    b.addOperation(Operation.changeTrust({ asset, source: ephemeralPub }))
-    b.addOperation(Operation.endSponsoringFutureReserves({ source: ephemeralPub }))
-  }
-
-  // 7: the claim itself.
   b.addOperation(Operation.claimClaimableBalance({ balanceId, source: ephemeralPub }))
 
-  // 8-10: recipient account, sponsored.
   if (!recipientExists) {
     b.addOperation(
       Operation.beginSponsoringFutureReserves({
@@ -279,7 +337,6 @@ async function prepareClaim(
     b.addOperation(Operation.endSponsoringFutureReserves({ source: recipientPub }))
   }
 
-  // 11-13: recipient trustline, sponsored.
   if (nonNative && !recipientTrusts) {
     b.addOperation(
       Operation.beginSponsoringFutureReserves({
@@ -291,27 +348,27 @@ async function prepareClaim(
     b.addOperation(Operation.endSponsoringFutureReserves({ source: recipientPub }))
   }
 
-  // 14-15: forward the asset, then dispose of the ephemeral account so its
-  // sponsored reserves return to the sponsor.
   b.addOperation(
     Operation.payment({ destination: recipientPub, asset, amount, source: ephemeralPub }),
   )
-  b.addOperation(
-    Operation.accountMerge({ destination: recipientPub, source: ephemeralPub }),
-  )
+
+  // AccountMerge refuses an account with subentries, so the ephemeral trustline
+  // must go first. Its sponsored reserve returns to the sponsor here.
+  if (nonNative) {
+    b.addOperation(
+      Operation.changeTrust({ asset, limit: '0', source: ephemeralPub }),
+    )
+  }
+
+  b.addOperation(Operation.accountMerge({ destination: recipientPub, source: ephemeralPub }))
 
   const tx = b.setTimeout(180).build()
   tx.sign(w.sponsor)
 
-  // The recipient is only an operation source when it is being created or given
-  // a trustline. Signing when not required yields tx_bad_auth_extra.
+  // Signing when the recipient is not an operation source yields tx_bad_auth_extra.
   const needsRecipientSignature = !recipientExists || (nonNative && !recipientTrusts)
 
-  return {
-    xdr: tx.toXDR(),
-    needsRecipientSignature,
-    opCount: tx.operations.length,
-  }
+  return { xdr: tx.toXDR(), needsRecipientSignature, opCount: tx.operations.length }
 }
 
 // ── one permutation ──────────────────────────────────────────────────────────
@@ -366,7 +423,15 @@ async function runPermutation(
       recipient: opts.existingRecipient ? await balanceOf(recipient.publicKey(), asset) : new Decimal(0),
       sponsor: await balanceOf(w.sponsor.publicKey(), Asset.native()),
       sponsoring: await numSponsoring(w.sponsor.publicKey()),
+      obligation: await reserveObligation(w.sponsor.publicKey()),
     }
+
+    // TX1: materialise the ephemeral account. No recipient involvement.
+    const tx1 = await materialiseEphemeral(w, ephemeral.publicKey(), ephemeral, asset)
+    detail.push(`TX1 ${tx1.opCount} ops, ${tx1.hash.slice(0, 16)}…`)
+
+    // The merge in TX2 requires a ledger boundary after TX1.
+    await waitForNextLedger()
 
     const plan = await prepareClaim(
       w,
@@ -383,7 +448,7 @@ async function runPermutation(
     if (plan.needsRecipientSignature) tx.sign(recipient)
 
     const res: any = await server.submitTransaction(tx)
-    detail.push(`claim tx ${res.hash.slice(0, 16)}…`)
+    detail.push(`TX2 ${plan.opCount} ops, ${res.hash.slice(0, 16)}…`)
 
     // ── assertions ───────────────────────────────────────────────────────────
 
@@ -408,7 +473,7 @@ async function runPermutation(
     detail.push('ephemeral account merged away')
 
     // 3. Sponsor reserves recovered: no ephemeral sponsorship left behind.
-    const fee = await feeCharged(res.hash)
+    const fee = (await feeCharged(tx1.hash)).plus(await feeCharged(res.hash))
     const sponsorAfter = await balanceOf(w.sponsor.publicKey(), Asset.native())
     const sponsoringAfter = await numSponsoring(w.sponsor.publicKey())
     const reserve = await baseReserve()
@@ -424,15 +489,27 @@ async function runPermutation(
       )
     }
 
-    const expectedSpend = fee.plus(reserve.times(expectedNewSponsorships))
+    // SPEC §10.3: the sponsor's XLM balance must move by fees alone. Every
+    // reserve the ephemeral account consumed has to come back on merge.
     const actualSpend = before.sponsor.minus(sponsorAfter)
-    if (!actualSpend.equals(expectedSpend)) {
+    if (!actualSpend.equals(fee)) {
       throw new Error(
-        `sponsor spent ${actualSpend} XLM, expected ${expectedSpend} (fee ${fee} + ${expectedNewSponsorships} x reserve ${reserve})`,
+        `sponsor balance moved ${actualSpend} XLM, expected fee-only ${fee} — reserve leaked`,
+      )
+    }
+
+    // What legitimately persists is the obligation against the recipient's own
+    // entries; the ephemeral's must be fully released.
+    const obligationAfter = await reserveObligation(w.sponsor.publicKey())
+    const expectedObligation = reserve.times(expectedNewSponsorships)
+    const actualObligation = obligationAfter.minus(before.obligation)
+    if (!actualObligation.equals(expectedObligation)) {
+      throw new Error(
+        `sponsor reserve obligation moved ${actualObligation} XLM, expected ${expectedObligation} (${expectedNewSponsorships} x ${reserve})`,
       )
     }
     detail.push(
-      `sponsor -${actualSpend} XLM = fee ${fee} + ${expectedNewSponsorships} persistent sponsorship(s); ephemeral reserves fully recovered`,
+      `sponsor balance -${actualSpend} XLM (fees only); reserve obligation +${actualObligation} XLM for ${expectedNewSponsorships} recipient entr(y|ies); ephemeral reserves fully recovered`,
     )
 
     return { name: opts.name, passed: true, detail }
@@ -461,6 +538,8 @@ async function runPredicateChecks(w: World): Promise<Result[]> {
       const { balanceId } = await createClaimableBalance(w, eph.publicKey(), asset, amount, past)
 
       const recip = Keypair.random()
+      await materialiseEphemeral(w, eph.publicKey(), eph, asset)
+      await waitForNextLedger()
       const plan = await prepareClaim(w, eph.publicKey(), recip.publicKey(), asset, amount, balanceId)
       const tx = new Transaction(plan.xdr, NETWORK_PASSPHRASE)
       tx.sign(eph)
@@ -533,7 +612,7 @@ async function runPredicateChecks(w: World): Promise<Result[]> {
 // ── main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  log('Kleym — SPEC.md §3.3 claim transaction spike')
+  log('Kleym — claim transaction spike (two-transaction design)')
   log(`horizon: ${HORIZON_URL}`)
 
   const w = await setUpWorld()
@@ -572,7 +651,7 @@ async function main() {
     log('\nSPIKE FAILED. Per AGENT.md §2, stop and report — do not build on this design.')
     process.exit(1)
   }
-  log('\nSpike passed. SPEC.md §3.3 is verified on testnet.')
+  log('\nSpike passed. The two-transaction claim design is verified on testnet.')
 }
 
 main().catch((e) => {
