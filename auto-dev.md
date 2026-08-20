@@ -14,7 +14,7 @@ Before starting, make sure to read these files to get more context:
    already merged. It is the sole gate — an unlabelled issue is not yours to pick up,
    however clear it looks.
 ```
-   REPO=$(git remote get-url origin | sed 's/.*://' | sed 's/.git$//') && gh issue list --repo "$REPO" --label "agent-ready" --state open --json number,title,body,labels,comments --limit 10
+   REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner) && gh issue list --repo "$REPO" --label "agent-ready" --state open --json number,title,body,labels,comments --limit 10
 
 ```
 
