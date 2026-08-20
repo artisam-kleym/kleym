@@ -34,8 +34,24 @@ blobs and prose — not only bare values.
 **Verified by:** all six headers read off a running server; `/claim` confirmed to override
 `Referrer-Policy`; four seed-injection shapes (bare, in a label, in an unknown key, deeply
 nested) all rejected `400` with the field path recorded and the seed absent from both the
-response and the log; a valid request still accepted; 13 unit tests; CI guards confirmed
+response and the log; a valid request still accepted; 18 unit tests; CI guards confirmed
 to fire on planted `unsafe-inline` and `unsafe-eval`.
+## 2026-08-20 — Data model and admin seeding (#3)
+
+The database schema exists: campaigns, links, batches, deliveries, sessions, API keys,
+audit log and idempotency keys, per `SPEC.md` §4. Money columns are `numeric(23,7)`,
+matching Stellar's exact seven-decimal precision — never floating point.
+
+An admin account can be created with `pnpm db:seed`, and only from explicit credentials.
+It refuses to run without `SEED_ADMIN_USERNAME` and `SEED_ADMIN_PASSWORD`, refuses to
+touch a production database unless `ALLOW_PROD_SEED=true`, and never prints the password.
+Re-running rotates the password rather than creating a second admin.
+
+**Verified by:** migration applied against a real Postgres 17 container and the resulting
+columns read back from `information_schema` (`numeric(23,7)`, no float anywhere); all four
+seed refusals exercised directly; seed run twice, confirmed one admin row; password hash
+confirmed `$argon2id$`; the CI schema guard confirmed to fire on a planted `ephemeralSeed`
+field and stay clean on the real schema.
 ## 2026-08-20 — Application scaffold (#2)
 
 The application boots. Next.js 16 App Router with the route-group layout from `AGENT.md`

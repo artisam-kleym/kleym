@@ -47,13 +47,29 @@ changelog before use.
 | `react` / `react-dom` | 19.2.8 |
 | `tailwindcss` | 4.3.3 |
 | `typescript` | **5.9.3** — pinned, see below |
+| `prisma` / `@prisma/client` | 7.9.1 |
+| `argon2` | 0.45.1 |
 | `zod` | 4.4.3 |
 | `@stellar/stellar-sdk` | 16.2.0 |
 | `eslint` | 10.8.1 |
 | `pino` | 10.3.1 |
 | `decimal.js` | 10.6.0 |
 
-Prisma lands with #3 and its version is recorded then.
+#### Prisma 7 deviates from SPEC.md §4 in two places
+
+`SPEC.md` §4 shows a schema written for Prisma 5/6. Two things in it are rejected or
+broken by Prisma 7, so the schema here differs. The **models, fields and indexes are
+unchanged** — only the generator and datasource plumbing.
+
+1. **`url` is gone from the `datasource` block.** Prisma 7 reads the connection string
+   from `prisma.config.ts`. Leaving it in the schema fails validation outright
+   (`P1012`). `DATABASE_URL` is read there straight from the environment rather than
+   through `src/lib/config/env.ts` — the CLI runs outside the app, and pulling in the
+   full Zod schema would make `prisma migrate` require every unrelated key, including
+   `SPONSOR_SECRET_KEY`, to run a migration.
+2. **`prisma-client-js` emits CommonJS only**, so `import { PrismaClient }` fails at
+   runtime under ESM. The generator is `prisma-client` (Prisma 7's own default) with
+   output to `src/generated/prisma`, which is gitignored and rebuilt by `postinstall`.
 
 #### Pinned: TypeScript 5, not 7
 
@@ -63,6 +79,17 @@ Prisma lands with #3 and its version is recorded then.
 
 Per `AGENT.md` §3.1 this is pinned to the lower version with the conflict named rather
 than silently downgraded. Revisit when `typescript-eslint` ships TS 7 support.
+
+#### Pinned: deepmerge-ts >= 8
+
+`prisma@7.9.1 > @prisma/config` depends on `deepmerge-ts@7.1.5`, which carries a **high**
+advisory ([GHSA-ggr8-5vv4-36mx](https://github.com/advisories/GHSA-ggr8-5vv4-36mx) — stack
+exhaustion on recursive object graphs). No fixed Prisma release exists yet; `@prisma/config@latest`
+still pins 7.1.5.
+
+A `pnpm.overrides` entry forces `>=8.0.0`. Verified that `@prisma/config` resolves to 8.0.1
+and that `prisma validate`, `generate`, `migrate deploy` and the seed script all still work
+under it. Remove the override once Prisma ships a release that no longer needs it.
 
 #### Two toolchain notes
 
@@ -83,7 +110,10 @@ docker compose up -d        # Postgres 17 + Redis 7, both with healthchecks
 pnpm dev                    # http://localhost:3000
 ```
 
-Prisma steps (`migrate dev`, `db seed`) arrive with #3.
+```bash
+pnpm db:migrate             # apply migrations
+pnpm db:seed                # requires SEED_ADMIN_USERNAME and SEED_ADMIN_PASSWORD
+```
 
 | Script | Purpose |
 |---|---|
@@ -93,6 +123,9 @@ Prisma steps (`migrate dev`, `db seed`) arrive with #3.
 | `pnpm typecheck` | `tsc --noEmit`, strict |
 | `pnpm lint` | ESLint over `src` and `scripts` |
 | `pnpm test` | Vitest unit tests (no network; integration runs on a schedule) |
+| `pnpm db:migrate` / `db:deploy` | Apply migrations locally / in CI |
+| `pnpm db:seed` | Create the admin user (refuses without explicit credentials) |
+| `pnpm db:generate` | Regenerate the Prisma client |
 | `pnpm spike` | Testnet claim-transaction spike (#1) |
 | `pnpm diagnose` | Isolates the two `AccountMerge` constraints behind the two-transaction design |
 
