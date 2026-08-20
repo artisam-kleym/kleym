@@ -154,7 +154,7 @@ async function main() {
     const balanceId = await mkBalance(eph.publicKey(), usdc, '500.0000000')
 
     let sa = await server.loadAccount(sponsor.publicKey())
-    let tx1 = new TransactionBuilder(sa, { fee: FEE, networkPassphrase: NP })
+    const tx1 = new TransactionBuilder(sa, { fee: FEE, networkPassphrase: NP })
       .addOperation(Operation.beginSponsoringFutureReserves({ sponsoredId: eph.publicKey(), source: sponsor.publicKey() }))
       .addOperation(Operation.createAccount({ destination: eph.publicKey(), startingBalance: '0', source: sponsor.publicKey() }))
       .addOperation(Operation.endSponsoringFutureReserves({ source: eph.publicKey() }))

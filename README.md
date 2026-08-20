@@ -21,6 +21,7 @@ Read [`AGENT.md`](AGENT.md) §1 before writing any line that touches a keypair.
 | [`AGENT.md`](AGENT.md) | Engineering rules and working practice |
 | [`docs/features.md`](docs/features.md) | Running log of shipped features |
 | [`docs/migrations.md`](docs/migrations.md) | Database and migration conventions |
+| [`docs/railway.md`](docs/railway.md) | Deployment topology and secret handling |
 
 ## Stack
 
@@ -35,22 +36,110 @@ Read [`AGENT.md`](AGENT.md) §1 before writing any line that touches a keypair.
 | Wallets | `@creit.tech/stellar-wallets-kit` |
 | Hosting | Railway |
 
-Resolved dependency versions are recorded here once the scaffold lands (#2). Per `AGENT.md` §3.1, versions are resolved at install time — do not assume them from memory.
+### Resolved versions
+
+Resolved at install time, not assumed (`AGENT.md` §3.1). Verified against each library's
+changelog before use.
+
+| Package | Version |
+|---|---|
+| `next` | 16.3.1 |
+| `react` / `react-dom` | 19.2.8 |
+| `tailwindcss` | 4.3.3 |
+| `typescript` | **5.9.3** — pinned, see below |
+| `zod` | 4.4.3 |
+| `@stellar/stellar-sdk` | 16.2.0 |
+| `eslint` | 10.8.1 |
+| `pino` | 10.3.1 |
+| `decimal.js` | 10.6.0 |
+
+Prisma lands with #3 and its version is recorded then.
+
+#### Pinned: TypeScript 5, not 7
+
+`typescript@latest` resolves to 7.0.2, and `typescript-eslint` (a transitive dependency of
+`eslint-config-next`) refuses to load against it: *"typescript-eslint does not support TS
+7.0."* Linting fails outright.
+
+Per `AGENT.md` §3.1 this is pinned to the lower version with the conflict named rather
+than silently downgraded. Revisit when `typescript-eslint` ships TS 7 support.
+
+#### Two toolchain notes
+
+- **Tailwind is v4, which is CSS-first.** There is no `tailwind.config.ts` by default —
+  tokens are declared with `@theme` in `src/app/globals.css`. `BRAND.md` §11 assumes a v3
+  config file and will need reinterpreting in #4; the tokens themselves are unaffected.
+- **`next lint` was removed in Next 16.** The `lint` script calls `eslint` directly, and
+  `eslint-config-next` 16 ships flat config natively (no `FlatCompat`). `eslint-plugin-react`
+  cannot auto-detect the React version under pnpm's layout, so it is pinned in
+  `eslint.config.mjs`.
 
 ## Setup
-
-> Not yet applicable — the application is scaffolded in #2. This section describes the intended shape.
 
 ```bash
 pnpm install
 cp .env.example .env        # fill in every key; startup validates the full set
-docker compose up -d        # Postgres 17 + Redis 7
-pnpm prisma migrate dev
-pnpm prisma db seed         # requires SEED_ADMIN_USERNAME and SEED_ADMIN_PASSWORD
-pnpm dev
+docker compose up -d        # Postgres 17 + Redis 7, both with healthchecks
+pnpm dev                    # http://localhost:3000
 ```
 
+Prisma steps (`migrate dev`, `db seed`) arrive with #3.
+
+| Script | Purpose |
+|---|---|
+| `pnpm dev` | Next.js dev server |
+| `pnpm build` / `pnpm start` | Production build and serve |
+| `pnpm worker` | `kleym-worker` process — BullMQ consumers and cron |
+| `pnpm typecheck` | `tsc --noEmit`, strict |
+| `pnpm lint` | ESLint over `src` and `scripts` |
+| `pnpm spike` | Testnet claim-transaction spike (#1) |
+| `pnpm diagnose` | Isolates the two `AccountMerge` constraints behind the two-transaction design |
+
+Startup validates the whole environment through a Zod schema and exits with a readable
+list of what is missing. It also refuses to boot if any `NEXT_PUBLIC_*` variable *contains*
+a Stellar secret seed — anywhere in the value, not just as the whole of it — since Next.js
+inlines those into the client bundle.
+
+Validation happens on first access rather than at import, so **`pnpm build`, `pnpm typecheck`
+and `pnpm lint` all run with no environment at all.** The sponsor's secret key is needed by
+the running service, never by the build or by CI.
+
 `.env` is gitignored. `SPONSOR_SECRET_KEY` belongs in Railway's secret store and never in the repo.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every pull request to `develop` or `main`.
+
+| Job | Steps |
+|---|---|
+| `check` | `typecheck` · `lint` · `build` · `audit` |
+| `secrets` | schema stores no secrets · no seed extraction in `src/` · no secret-shaped `NEXT_PUBLIC_*` committed · every env secret is redacted |
+
+**The build step runs with no environment on purpose.** Config validation is deferred to
+first access precisely so no secret is needed to compile; if that step ever starts
+requiring one, the decoupling has regressed.
+
+Integration tests are deliberately absent — `AGENT.md` §7.2 forbids tests that submit to
+the public network, and the testnet spike depends on Horizon being reachable, so it runs
+on a schedule rather than per-commit.
+
+### A note on the §1 grep guard
+
+`AGENT.md` §1 suggests grepping for identifier *names*:
+
+```bash
+grep -rn "secretKey\|SECRET_SEED\|\.secret()\|rawSecretKey" src/ prisma/ | grep -v "SPONSOR_SECRET_KEY"
+```
+
+Run literally against this codebase it returns **seven false positives**, every one inside
+the logger's redaction allowlist or the leak-detection regexes — the code whose job is
+preventing leaks. It also would not have caught the real leak fixed in `ff1beb7`, where
+`logger.info({ env })` printed four secrets in plaintext with no offending identifier on
+the line.
+
+CI therefore checks the dangerous *operation* (`.secret()` in `src/`) rather than the
+naming, plus redaction coverage. `scripts/` is exempt: the testnet spike legitimately
+holds ephemeral seeds in memory, exactly as the sender's browser does.
 
 ## Branch model
 

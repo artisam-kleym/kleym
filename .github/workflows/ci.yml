@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# Integration tests are deliberately absent. AGENT.md §7.2 forbids tests that
+# submit to the public network, and the testnet spike depends on Horizon being
+# reachable, so it runs on a schedule rather than per-commit (§7.3).
+
+jobs:
+  check:
+    name: typecheck · lint · build · audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      # No environment is provided on purpose. Config validation is deferred to
+      # first access precisely so the build needs no secrets — if this step ever
+      # starts requiring them, that decoupling has regressed.
+      - name: Build
+        run: pnpm build
+
+      - name: Audit
+        run: pnpm audit --audit-level=moderate
+
+  secrets:
+    name: secret-handling guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # SPEC.md §10.6 — no schema column may store a seed, secret, or mnemonic.
+      - name: Schema stores no secrets
+        run: |
+          if [ ! -f prisma/schema.prisma ]; then
+            echo "no schema yet (#3) — skipping"; exit 0
+          fi
+          # Matches anywhere in the identifier, not just its start. An anchored
+          # alternation passes `ephemeralSeed` and `senderSecret` — and given the
+          # schema already has `ephemeralPublicKey`, a sibling named
+          # `ephemeralSeed` is the most likely form this mistake takes.
+          if grep -inE '^\s*\w*(secret|seed|mnemonic|private)\w*\s' prisma/schema.prisma; then
+            echo "::error::a schema field name suggests secret storage (SPEC.md §4.1)"
+            exit 1
+          fi
+          echo "clean"
+
+      # AGENT.md §1. The literal snippet in AGENT.md greps for identifier NAMES,
+      # which false-positives on the redaction allowlist and the leak-detection
+      # regexes — the very code that prevents leaks. This checks the dangerous
+      # OPERATION instead: extracting a seed from a keypair in application code.
+      # scripts/ is exempt: the testnet spike legitimately holds ephemeral seeds
+      # in memory, exactly as the sender's browser does.
+      - name: No seed extraction in application code
+        run: |
+          if grep -rnE '\.secret\(\)|rawSecretKey' src/ 2>/dev/null; then
+            echo "::error::application code extracts a secret seed (AGENT.md §1)"
+            exit 1
+          fi
+          echo "clean"
+
+      # AGENT.md §5.5 — Next inlines NEXT_PUBLIC_* into the client bundle.
+      # git grep searches tracked files natively. A recursive walk descends into
+      # build output, and `ls-files | xargs grep` muddles exit codes across
+      # batches — 123 means both "no match here" and "match elsewhere".
+      - name: No secret-shaped NEXT_PUBLIC_ values committed
+        run: |
+          if git grep -nE 'NEXT_PUBLIC_[A-Z0-9_]*\s*=\s*.*S[A-Z2-7]{55}'; then
+            echo "::error::a committed NEXT_PUBLIC_ value contains a Stellar secret seed"
+            exit 1
+          fi
+          echo "clean"
+
+      # Regression guard for the leak fixed in ff1beb7, closing the loop: rather
+      # than hardcoding key names here, this checks that every secret-shaped key
+      # in the env schema is classified in SECRET_ENV_KEYS, which the logger
+      # derives its redact paths from. A seventh secret cannot be added without
+      # a decision being recorded.
+      - name: Every env secret is classified and redacted
+        run: |
+          # Keys matching a secret shape that are genuinely NOT secrets.
+          # Adding to this list is a deliberate act, which is the point.
+          NOT_SECRET="SPONSOR_PUBLIC_KEY APP_URL HORIZON_URL"
+
+          registered=$(sed -n '/export const SECRET_ENV_KEYS/,/] as const/p' src/lib/config/env.ts \
+                        | grep -oE "'[A-Z0-9_]+'" | tr -d "'")
+          schema_keys=$(grep -oE '^  [A-Z][A-Z0-9_]*:' src/lib/config/env.ts | tr -d ' :')
+
+          fail=0
+          for key in $schema_keys; do
+            case "$key" in
+              *SECRET*|*PASSWORD*|*TOKEN*|*_KEY|*_URL) ;;
+              *) continue ;;
+            esac
+            echo "$NOT_SECRET" | tr ' ' '\n' | grep -qx "$key" && continue
+            if ! echo "$registered" | grep -qx "$key"; then
+              echo "::error::$key looks like a secret but is not in SECRET_ENV_KEYS (src/lib/config/env.ts). Classify it, or add it to NOT_SECRET in this workflow."
+              fail=1
+            fi
+          done
+
+          # And the logger must actually SPREAD that list into redact.paths.
+          # Grepping for the bare name is not enough — the import line alone
+          # would satisfy it while the usage was gone.
+          if ! grep -qE '\.\.\.SECRET_ENV_KEYS\s*\.flatMap' src/lib/config/logger.ts; then
+            echo "::error::logger.ts no longer derives redact paths from SECRET_ENV_KEYS"
+            fail=1
+          fi
+          exit $fail
