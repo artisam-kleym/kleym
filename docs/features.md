@@ -20,6 +20,23 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-08-20 — Application scaffold (#2)
+
+The application boots. Next.js 16 App Router with the route-group layout from `AGENT.md`
+§8, Tailwind 4, a `kleym-worker` entrypoint, and `docker compose up` giving healthy
+Postgres 17 and Redis 7.
+
+Configuration is validated at startup through a Zod schema: a missing key exits with a
+readable checklist rather than surfacing as an undefined mid-request, and a `NEXT_PUBLIC_*`
+variable holding a Stellar secret refuses to boot at all.
+
+`/api/health` reports liveness with no detail; `/api/ready` reports per-dependency
+reachability and returns 503 until Postgres and Redis are wired in #3.
+
+**Verified by:** `pnpm build`, `pnpm typecheck`, `pnpm lint`, `pnpm audit` all clean;
+containers brought up and confirmed healthy; server started and `/`, `/api/health`,
+`/api/ready` all curled; both env-failure paths exercised directly.
+
 ## 2026-08-20 — Claim transaction design verified on testnet (#1)
 
 The sponsored claim flow works end to end for all four permutations: new or existing

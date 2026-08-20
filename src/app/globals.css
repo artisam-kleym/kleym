@@ -1,0 +1,16 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens land in #4 (BRAND.md). This file holds only what the scaffold
+ * needs to render — do not add component classes here; §11 of BRAND.md
+ * specifies where .glass-card and friends go.
+ */
+@theme {
+  --color-background: #faf9fc;
+  --color-on-surface: #1a1c1e;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-on-surface);
+}
