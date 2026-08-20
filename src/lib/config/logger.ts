@@ -14,9 +14,37 @@ import { env } from './env'
 export const logger = pino({
   level: env.NODE_ENV === 'production' ? 'info' : 'debug',
   // Belt and braces. The allowlist discipline above is the real defence; these
-  // paths are a backstop for accidental object spreads during development.
+  // paths are a backstop for the case where someone forgets it.
+  //
+  // pino's redact paths are EXACT and CASE-SENSITIVE. Lowercase entries such as
+  // `secret` or `*.secretKey` do not match the SCREAMING_SNAKE_CASE names the
+  // environment actually uses, so every real secret in this system needs its
+  // own entry spelled exactly as the variable is named. Add a line here when
+  // adding a secret to the env schema.
   redact: {
     paths: [
+      // The whole config object. `env` is the most spreadable thing in the
+      // codebase and holds every secret at once, so censor it wholesale rather
+      // than relying on the per-key entries below to be exhaustive.
+      'env',
+      '*.env',
+
+      // Environment secrets, by their exact names.
+      'SPONSOR_SECRET_KEY',
+      '*.SPONSOR_SECRET_KEY',
+      'SESSION_SECRET',
+      '*.SESSION_SECRET',
+      'RESEND_API_KEY',
+      '*.RESEND_API_KEY',
+      'SEED_ADMIN_PASSWORD',
+      '*.SEED_ADMIN_PASSWORD',
+      // Both carry credentials in the connection string.
+      'DATABASE_URL',
+      '*.DATABASE_URL',
+      'REDIS_URL',
+      '*.REDIS_URL',
+
+      // Application-level field names.
       'seed',
       '*.seed',
       'secret',
