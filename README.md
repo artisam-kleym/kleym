@@ -80,6 +80,17 @@ unchanged** — only the generator and datasource plumbing.
 Per `AGENT.md` §3.1 this is pinned to the lower version with the conflict named rather
 than silently downgraded. Revisit when `typescript-eslint` ships TS 7 support.
 
+#### Pinned: deepmerge-ts >= 8
+
+`prisma@7.9.1 > @prisma/config` depends on `deepmerge-ts@7.1.5`, which carries a **high**
+advisory ([GHSA-ggr8-5vv4-36mx](https://github.com/advisories/GHSA-ggr8-5vv4-36mx) — stack
+exhaustion on recursive object graphs). No fixed Prisma release exists yet; `@prisma/config@latest`
+still pins 7.1.5.
+
+A `pnpm.overrides` entry forces `>=8.0.0`. Verified that `@prisma/config` resolves to 8.0.1
+and that `prisma validate`, `generate`, `migrate deploy` and the seed script all still work
+under it. Remove the override once Prisma ships a release that no longer needs it.
+
 #### Two toolchain notes
 
 - **Tailwind is v4, which is CSS-first.** There is no `tailwind.config.ts` by default —
