@@ -67,10 +67,20 @@ Before starting, make sure to read these files to get more context:
 ## Scope
 
 This loop handles issues whose implementation is already decided. It does not do
-design, protocol work, or product judgement.
+design or product judgement.
 
 Not eligible for `agent-ready`, regardless of how clear the body reads:
 
-- **#1** — the testnet spike. `AGENT.md` §2 requires stopping and reporting on failure,
-  and the result may change the design of everything downstream.
 - Any issue with an unresolved decision recorded in its comments.
+
+### #1, the testnet spike — in scope, with a hard stop
+
+#1 is eligible, but it is not an ordinary issue. It verifies the claim transaction in
+`SPEC.md` §3.3, which is **unverified** and load-bearing for every issue behind it.
+
+If any of the four permutations fails: **stop.** Do not improvise a workaround, do not
+adjust the op sequence to make an assertion pass, and do not open a PR. Comment on the
+issue with what happened and what you propose instead, per `AGENT.md` §2 and §6.4.
+
+A passing spike opens a PR as normal. A failing spike is a design finding for a human,
+and reporting it accurately is the successful outcome.
