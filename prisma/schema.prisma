@@ -1,0 +1,225 @@
+// Kleym data model — SPEC.md §4.
+//
+// INVARIANTS (SPEC.md §4.1). CI enforces the first two; uphold all four.
+//
+//   1. No column ever stores a seed, secret key, or mnemonic. Ephemeral seeds
+//      live in the sender's browser and in the CSV they download, and nowhere
+//      else. If a field name here suggests otherwise, the schema is wrong.
+//   2. Money columns are Decimal(23,7) — Stellar's precision is exactly seven
+//      decimal places. NEVER Float. Application code uses decimal.js or string
+//      arithmetic, never JavaScript Number.
+//   3. Campaign.csvExportedAt gates activation; a campaign cannot leave
+//      CREATING until it is set.
+//   4. ClaimLink.balanceId stays null until the owning Batch is CONFIRMED.
+//
+// This database is an INDEX AND CACHE over the ledger (SPEC.md §3.5). It is
+// never the authority on whether money moved. Reconciliation resolves every
+// disagreement in the chain's favour.
+
+// Prisma 7's generator. The older `prisma-client-js` emits CJS only, so ESM
+// named imports fail at runtime. SPEC.md §4 predates this; see README.
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Prisma 7 removed `url` from this block — the connection string now lives in
+// prisma.config.ts for Migrate, and reaches PrismaClient through a driver
+// adapter. SPEC.md §4 predates that change; see README for the deviation.
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  SENDER
+}
+
+enum CampaignStatus {
+  DRAFT // created, not yet funded on-chain
+  CREATING // batches being signed/submitted
+  ACTIVE // links live and claimable
+  PARTIAL // some batches failed
+  EXPIRED // past expiresAt, reclaim available
+  RECLAIMED // all unclaimed funds returned
+  CANCELLED
+}
+
+enum LinkStatus {
+  PENDING // row exists, batch not yet confirmed
+  ACTIVE // claimable balance live on ledger
+  CLAIMED
+  EXPIRED
+  RECLAIMED
+  FAILED // batch failed; no on-chain entry
+}
+
+enum BatchStatus {
+  PENDING
+  SUBMITTED
+  CONFIRMED
+  FAILED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  passwordHash String // argon2id
+  role         Role      @default(SENDER)
+  isActive     Boolean   @default(true)
+  failedLogins Int       @default(0)
+  lockedUntil  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  campaigns Campaign[]
+  sessions  Session[]
+  apiKeys   ApiKey[]
+  auditLogs AuditLog[]
+
+  @@index([username])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique // sha256 of the opaque cookie value
+  expiresAt DateTime
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  prefix     String    @unique // first 8 chars, shown in UI
+  keyHash    String // argon2id of the full key
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([prefix])
+}
+
+model Campaign {
+  id              String         @id @default(cuid())
+  userId          String
+  name            String
+  network         String // "testnet" | "public"
+  senderPublicKey String // G... that funded it
+  assetCode       String // "XLM" or e.g. "USDC"
+  assetIssuer     String? // null for native
+  amountPerLink   Decimal        @db.Decimal(23, 7)
+  linkCount       Int
+  expiresAt       DateTime
+  status          CampaignStatus @default(DRAFT)
+  csvExportedAt   DateTime? // hard gate: null blocks activation
+  reserveEstimate Decimal?       @db.Decimal(23, 7)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user    User        @relation(fields: [userId], references: [id])
+  links   ClaimLink[]
+  batches Batch[]
+
+  @@index([userId, status])
+  @@index([expiresAt, status])
+}
+
+model Batch {
+  id              String      @id @default(cuid())
+  campaignId      String
+  sequence        Int // 1-based batch index
+  transactionHash String?     @unique
+  status          BatchStatus @default(PENDING)
+  errorCode       String?
+  submittedAt     DateTime?
+  confirmedAt     DateTime?
+  createdAt       DateTime    @default(now())
+
+  campaign Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  links    ClaimLink[]
+
+  @@unique([campaignId, sequence])
+}
+
+model ClaimLink {
+  id         String  @id @default(cuid())
+  campaignId String
+  batchId    String?
+
+  /// Ephemeral PUBLIC key (G...). The private half NEVER touches this system —
+  /// it exists only in the sender's browser and the CSV they download.
+  ephemeralPublicKey String @unique
+
+  balanceId String?    @unique // set once the batch confirms
+  status    LinkStatus @default(PENDING)
+  label     String? // sender's own note: handle, email, etc.
+
+  claimedBy   String? // recipient G...
+  claimedAt   DateTime?
+  claimTxHash String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaign Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  batch    Batch?    @relation(fields: [batchId], references: [id])
+  delivery Delivery?
+
+  @@index([campaignId, status])
+  @@index([balanceId])
+}
+
+model Delivery {
+  id          String    @id @default(cuid())
+  linkId      String    @unique
+  email       String
+  sentAt      DateTime?
+  openedAt    DateTime?
+  otpHash     String? // argon2id, 6-digit
+  otpExpires  DateTime?
+  otpAttempts Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  link ClaimLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String // "campaign.create", "link.reclaim", ...
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model IdempotencyKey {
+  key         String   @id
+  userId      String
+  requestHash String
+  response    Json?
+  statusCode  Int?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
