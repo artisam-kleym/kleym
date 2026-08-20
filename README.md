@@ -22,6 +22,7 @@ Read [`AGENT.md`](AGENT.md) §1 before writing any line that touches a keypair.
 | [`docs/features.md`](docs/features.md) | Running log of shipped features |
 | [`docs/migrations.md`](docs/migrations.md) | Database and migration conventions |
 | [`docs/railway.md`](docs/railway.md) | Deployment topology and secret handling |
+| [`docs/design-system.md`](docs/design-system.md) | Tokens, components, and the §10 contrast audit |
 
 ## Stack
 
@@ -66,9 +67,9 @@ than silently downgraded. Revisit when `typescript-eslint` ships TS 7 support.
 
 #### Two toolchain notes
 
-- **Tailwind is v4, which is CSS-first.** There is no `tailwind.config.ts` by default —
-  tokens are declared with `@theme` in `src/app/globals.css`. `BRAND.md` §11 assumes a v3
-  config file and will need reinterpreting in #4; the tokens themselves are unaffected.
+- **Tailwind is v4, which is CSS-first.** There is no `tailwind.config.ts` — tokens are
+  declared with `@theme` in `src/app/globals.css`. Resolved in #4; see
+  [`docs/design-system.md`](docs/design-system.md).
 - **`next lint` was removed in Next 16.** The `lint` script calls `eslint` directly, and
   `eslint-config-next` 16 ships flat config natively (no `FlatCompat`). `eslint-plugin-react`
   cannot auto-detect the React version under pnpm's layout, so it is pinned in
