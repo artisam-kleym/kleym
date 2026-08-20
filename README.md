@@ -92,6 +92,7 @@ Prisma steps (`migrate dev`, `db seed`) arrive with #3.
 | `pnpm worker` | `kleym-worker` process — BullMQ consumers and cron |
 | `pnpm typecheck` | `tsc --noEmit`, strict |
 | `pnpm lint` | ESLint over `src` and `scripts` |
+| `pnpm test` | Vitest unit tests (no network; integration runs on a schedule) |
 | `pnpm spike` | Testnet claim-transaction spike (#1) |
 | `pnpm diagnose` | Isolates the two `AccountMerge` constraints behind the two-transaction design |
 
@@ -112,7 +113,7 @@ the running service, never by the build or by CI.
 
 | Job | Steps |
 |---|---|
-| `check` | `typecheck` · `lint` · `build` · `audit` |
+| `check` | `typecheck` · `lint` · `test` · `build` · `audit` · CSP has no inline/eval · `/claim` gets `no-referrer` |
 | `secrets` | schema stores no secrets · no seed extraction in `src/` · no secret-shaped `NEXT_PUBLIC_*` committed · every env secret is redacted |
 
 **The build step runs with no environment on purpose.** Config validation is deferred to

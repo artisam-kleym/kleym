@@ -33,6 +33,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Unit tests
+        run: pnpm test
+
       # No environment is provided on purpose. Config validation is deferred to
       # first access precisely so the build needs no secrets — if this step ever
       # starts requiring them, that decoupling has regressed.
@@ -41,6 +44,29 @@ jobs:
 
       - name: Audit
         run: pnpm audit --audit-level=moderate
+
+      # AGENT.md §5.3 / §5.2. A CSP that allows inline script defeats the point
+      # on /claim, which handles bearer secrets — so this is a static guard, not
+      # something left to a reviewer noticing.
+      - name: CSP allows no inline or eval
+        run: |
+          # Scoped to the CSP array itself. Scanning the whole file matches the
+          # doc block, which names both directives while explaining their
+          # absence — and a guard that fires on correct code gets disabled.
+          if sed -n '/const csp = \[/,/\].join/p' src/middleware.ts \
+               | grep -nE "unsafe-inline|unsafe-eval" | grep -v 'unsafe-hashes'; then
+            echo "::error::CSP permits inline script or eval (AGENT.md §5.3)"
+            exit 1
+          fi
+          echo "clean"
+
+      - name: /claim gets no-referrer
+        run: |
+          if ! grep -q "no-referrer" src/middleware.ts; then
+            echo "::error::/claim must send Referrer-Policy: no-referrer (SPEC.md §3.6)"
+            exit 1
+          fi
+          echo "clean"
 
   secrets:
     name: secret-handling guards
