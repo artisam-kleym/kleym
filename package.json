@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src scripts",
+    "lint": "eslint src scripts tests",
     "typecheck": "tsc --noEmit",
     "spike": "tsx scripts/spike-claim.ts",
     "diagnose": "tsx scripts/spike-diagnose.ts",
@@ -16,7 +16,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:generate": "prisma generate",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "vitest run"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
@@ -25,6 +26,7 @@
     "argon2": "^0.45.1",
     "clsx": "^2.1.1",
     "decimal.js": "^10.6.0",
+    "ioredis": "^6.0.0",
     "next": "^16.3.1",
     "pg": "^8.23.0",
     "pino": "^10.3.1",
@@ -46,7 +48,8 @@
     "prisma": "^7.9.1",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.12",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

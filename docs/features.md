@@ -20,6 +20,27 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-08-21 — Sign-in (#5)
+
+Senders can sign in at `/login`. Sessions are revocable, `/dashboard` and `/admin` are
+gated, and an admin who is deactivated loses access on their next request rather than
+whenever their session happens to expire.
+
+A failed sign-in says the same thing whether the username exists or not, and takes the
+same time either way — otherwise the response is a way to enumerate accounts. Five
+attempts per IP in fifteen minutes, and an account locks after ten failures regardless of
+source; while locked, even the correct password is refused.
+
+Changing a password rotates the current session and revokes every other one. That is the
+point rather than a side effect: if someone else has a session, this is how the owner
+evicts them.
+
+**Verified by:** every criterion exercised against real Postgres and Redis — cookie
+attributes read off the response, unknown-user and wrong-password responses compared
+byte-for-byte and by timing, 6th attempt refused with `Retry-After`, lockout confirmed to
+hold against the correct password, two concurrent sessions reduced to one by a password
+change with the old token replayed and refused, `/admin` returning 404 (not 403) to a
+SENDER, and no password or session token present in any log line.
 ## 2026-08-20 — Design system and landing page (#4)
 
 Kleym has a visual identity: the token set from `BRAND.md`, a component library, the app
