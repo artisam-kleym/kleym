@@ -32,6 +32,22 @@ Fonts are self-hosted, so no route makes a third-party request — a hard requir
 confirmed loading same-origin from `/_next/static/media/`; every colour pairing in
 `BRAND.md` §10 measured, two contrast failures fixed and the remainder documented in
 `docs/design-system.md`; `typecheck`, `lint` and `build` clean.
+## 2026-08-20 — Data model and admin seeding (#3)
+
+The database schema exists: campaigns, links, batches, deliveries, sessions, API keys,
+audit log and idempotency keys, per `SPEC.md` §4. Money columns are `numeric(23,7)`,
+matching Stellar's exact seven-decimal precision — never floating point.
+
+An admin account can be created with `pnpm db:seed`, and only from explicit credentials.
+It refuses to run without `SEED_ADMIN_USERNAME` and `SEED_ADMIN_PASSWORD`, refuses to
+touch a production database unless `ALLOW_PROD_SEED=true`, and never prints the password.
+Re-running rotates the password rather than creating a second admin.
+
+**Verified by:** migration applied against a real Postgres 17 container and the resulting
+columns read back from `information_schema` (`numeric(23,7)`, no float anywhere); all four
+seed refusals exercised directly; seed run twice, confirmed one admin row; password hash
+confirmed `$argon2id$`; the CI schema guard confirmed to fire on a planted `ephemeralSeed`
+field and stay clean on the real schema.
 ## 2026-08-20 — Application scaffold (#2)
 
 The application boots. Next.js 16 App Router with the route-group layout from `AGENT.md`
