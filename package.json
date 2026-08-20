@@ -1,0 +1,20 @@
+{
+  "name": "kleym-spike",
+  "private": true,
+  "type": "module",
+  "description": "Standalone testnet spike for SPEC.md 3.3. Not the application; see issue #1.",
+  "scripts": {
+    "spike": "tsx scripts/spike-claim.ts",
+    "diagnose": "tsx scripts/spike-diagnose.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^16.2.0",
+    "decimal.js": "^10.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
+  }
+}

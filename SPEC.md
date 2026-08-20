@@ -131,9 +131,13 @@ The two predicates are mutually exclusive: the recipient can claim only before e
 
 ### 3.3 The claim transaction
 
-Built server-side, signed by three parties, submitted by the client.
+**Verified on testnet (issue #1).** An earlier single-transaction design was disproven
+and replaced; §3.3.1 records why, because the constraint will look arbitrary otherwise.
 
-**Operations, in order** (conditional ops included only when needed):
+The claim is **two transactions**. Both are built server-side and sourced from SPONSOR,
+which pays both fees.
+
+**TX1 — materialise the ephemeral account.** Signers: SPONSOR, EPHEMERAL.
 
 ```
  1. BeginSponsoringFutureReserves(sponsoredId: ephemeralPubKey)     source: SPONSOR
@@ -144,7 +148,25 @@ Built server-side, signed by three parties, submitted by the client.
  4. BeginSponsoringFutureReserves(sponsoredId: ephemeralPubKey)     source: SPONSOR
  5. ChangeTrust(asset, limit: max)                                   source: EPHEMERAL
  6. EndSponsoringFutureReserves()                                    source: EPHEMERAL
+```
 
+The recipient is deliberately absent from TX1 — it needs only the sponsor and the
+ephemeral key, and the ephemeral key is derivable from the URL fragment as soon as the
+claim page loads.
+
+**Do not submit TX1 on page load.** It is tempting, because it would hide the ledger wait
+entirely. But every abandoned page would then strand sponsor reserves (§3.3.2), and Kleym
+cannot recover them. Merely opening a link would cost 1.0–1.5 XLM of float.
+
+Submit TX1 when the recipient **commits** to claiming — the tap on *Connect Wallet to
+Claim* — so the ledger wait overlaps the wallet modal instead of preceding it. Abandoned
+claims then require deliberate action rather than idle curiosity.
+
+**TX2 — claim, forward, dispose.** Must land in a **later ledger** than TX1 (see
+§3.3.1). Signers: SPONSOR, EPHEMERAL, and RECIPIENT **only when the recipient is an
+operation source**.
+
+```
  7. ClaimClaimableBalance(balanceId)                                 source: EPHEMERAL
 
     — if recipient account does not exist —
@@ -158,24 +180,79 @@ Built server-side, signed by three parties, submitted by the client.
 13. EndSponsoringFutureReserves()                                    source: RECIPIENT
 
 14. Payment(destination: recipientPubKey, asset, amount)            source: EPHEMERAL
-15. AccountMerge(destination: recipientPubKey)                      source: EPHEMERAL
+
+    — if asset is non-native —
+15. ChangeTrust(asset, limit: 0)                                     source: EPHEMERAL
+
+16. AccountMerge(destination: recipientPubKey)                      source: EPHEMERAL
 ```
 
-**Transaction source account:** SPONSOR. The sponsor pays the fee.
+Op 15 is not optional. `AccountMerge` refuses an account holding any subentry, and the
+sponsored trustline is one. Removing it also returns its reserve to the sponsor.
 
-**Signers required:** SPONSOR, EPHEMERAL, RECIPIENT.
+Op 16 releases the ephemeral account's remaining sponsored reserves. Without it every
+claim would permanently leak reserve XLM from the sponsor account.
 
-**Signing sequence:**
-1. Client resolves the link, derives `ephemeralPubKey` from the fragment seed **in the browser**.
-2. Client `POST /api/claims/prepare` with `{ ephemeralPublicKey, recipientPublicKey }`. **The seed is not sent.**
-3. Server inspects the ledger (does the recipient account exist? does it have a trustline?), builds the op list, signs as SPONSOR, returns the partially-signed XDR.
-4. Client signs with the EPHEMERAL key derived from the fragment, in memory.
-5. Client requests a RECIPIENT signature via the wallet kit (Freighter et al).
-6. Client `POST /api/claims/submit` with the fully-signed XDR. Server submits to Horizon and records the result.
+**Do not add a recipient signature when it is not required.** Stellar rejects a
+transaction carrying a signature it does not need with `tx_bad_auth_extra`. For an
+existing recipient that already holds the trustline, TX2 has no recipient-sourced
+operation and the recipient must not sign.
 
-Step 15 merges the ephemeral account away, releasing its sponsored reserves back to the sponsor. Without it, every claim would permanently leak reserve XLM from the sponsor account.
+#### 3.3.1 Why two transactions
 
-**This whole sequence must be validated on testnet before any UI work begins.** It is the single riskiest assumption in the build. Write an integration test that exercises all four permutations: new/existing recipient × native/non-native asset.
+Both constraints are protocol rules on `AccountMerge`, confirmed with isolated controls
+in `scripts/spike-diagnose.ts`. Neither has a workaround.
+
+1. **An account cannot be merged in the transaction that created it.** A new account's
+   sequence number is `currentLedgerSeq << 32`, above the merge ceiling derived from the
+   last closed ledger. Same-transaction merge fails `op_seq_num_too_far`; the identical
+   merge one ledger later succeeds. A later transaction in the *same* ledger is not
+   enough — the boundary is the ledger, roughly five seconds.
+2. **An account holding a trustline cannot be merged.** Fails `op_has_sub_entries`.
+
+#### 3.3.2 The cost: an unrecoverable intermediate state
+
+Two transactions are not atomic. TX1 can land and TX2 never follow — a closed tab, a
+rejected signature, a dropped connection.
+
+The resulting state is safe but untidy: an ephemeral account exists, sponsored by Kleym,
+possibly holding a trustline. **No user funds are at risk** — the claimable balance is
+untouched and still claimable. What is stranded is Kleym's own reserve float: 1.0 XLM
+for the account plus 0.5 for a trustline, at a 0.5 XLM base reserve.
+
+**Kleym cannot recover a stranded account itself.** `AccountMerge` must be signed by the
+ephemeral key, which exists only in the sender's CSV and the recipient's URL. Kleym holds
+the public key alone — the same property that makes a database breach harmless makes this
+cleanup impossible. `RevokeSponsorship` is no escape either: it transfers the reserve
+obligation to an account with a zero balance, which cannot meet it.
+
+The reserve is released when the link is eventually claimed. If it is never claimed, it
+stays locked. This is a permanent cost of the non-custodial guarantee, and §12 states it.
+
+Three consequences the implementation must handle:
+
+- **Do not submit TX1 speculatively** — it fires on the recipient's commitment, never on
+  page load.
+- **Retry is cheap and must be supported.** TX1 need not be repeated; `prepare` checks
+  whether the ephemeral account already exists and skips straight to TX2.
+- **Stranded accounts must be monitored**, since they consume the same sponsor float every
+  claim depends on. See §7.3.
+
+#### 3.3.3 Signing sequence
+
+1. Client derives `ephemeralPubKey` from the fragment seed **in the browser**.
+2. On the recipient's commitment to claim, client `POST /api/claims/prepare`. **The seed
+   is not sent.** Server returns TX1 sponsor-signed, or signals that the ephemeral
+   account already exists and TX1 should be skipped.
+3. Client signs TX1 with the EPHEMERAL key in memory and submits it.
+4. Client waits for the next ledger while the recipient connects a wallet.
+5. Client `POST /api/claims/prepare` again with `{ ephemeralPublicKey, recipientPublicKey }`.
+   Server inspects the ledger — does the recipient account exist? does it hold a
+   trustline? — builds TX2's conditional op list, signs as SPONSOR, and returns the
+   partially-signed XDR together with whether a recipient signature is required.
+6. Client signs with the EPHEMERAL key, then requests a RECIPIENT signature via the
+   wallet kit **only if required**.
+7. Client `POST /api/claims/submit`. Server submits and records the result.
 
 ### 3.4 Reclaim
 
@@ -604,6 +681,7 @@ BullMQ on Redis, consumed by `kleym-worker`.
 | `email-deliver` | Sender action | Send one link email; discard the URL immediately |
 | `reconcile` | Cron, every 5 min | §7.2 |
 | `expiry-sweep` | Cron, hourly | Mark past-expiry links `EXPIRED`, campaigns `EXPIRED` |
+| `ephemeral-watch` | Cron, every 15 min | Detect and report stranded ephemeral accounts — see §7.3 |
 
 ### 7.2 Reconciliation
 
@@ -616,6 +694,31 @@ For each `ACTIVE` campaign:
 5. Any database row claiming `CLAIMED` whose balance still exists on-chain is a **critical** inconsistency: log at `ERROR`, surface on `/admin/reconciliation`, do not auto-correct.
 
 Extracting balance IDs from result XDR is notoriously fiddly. Use the SDK's helper rather than manual XDR walking, and cover it with a test against a known transaction.
+
+### 7.3 Stranded ephemeral account monitor
+
+Required by the two-transaction claim design (§3.3.2). When TX1 lands and TX2 never
+follows, an ephemeral account persists holding sponsored reserves that **Kleym cannot
+reclaim** — the merge needs the ephemeral key, which Kleym deliberately does not hold.
+
+This job detects and reports; it does not sweep. Calling it a sweeper would imply a
+recovery it cannot perform.
+
+For each ephemeral public key whose link is not `CLAIMED` and whose account exists on the
+ledger, older than a threshold (default 1 hour):
+
+1. Confirm the claimable balance still exists. If it does not, the claim actually
+   succeeded and the database is stale — hand off to reconciliation (§7.2).
+2. Confirm the ephemeral account holds no asset balance. A non-zero balance means a
+   partially-applied claim: log at `ERROR` and surface it as a critical inconsistency.
+3. Record the account and its locked reserve.
+
+Surface the count and total locked XLM on `/admin` alongside the sponsor balance. This
+float is unavailable for future claims, so it belongs in the same view as the exhaustion
+warning (§5.4).
+
+Reserves return on their own when a stranded link is eventually claimed. Retrying a claim
+skips TX1 (§3.3.2), so a recipient returning to their link resolves it naturally.
 
 ---
 
@@ -715,9 +818,9 @@ No MinIO. See §2.2 — there is deliberately no object storage in this system.
 The build is complete when all of the following hold.
 
 **Protocol**
-1. Testnet integration test claims successfully in all four permutations: new/existing recipient × native/non-native asset.
+1. Testnet integration test claims successfully in all four permutations: new/existing recipient × native/non-native asset, across both transactions of §3.3.
 2. After a claim, the ephemeral account no longer exists on the ledger.
-3. Sponsor account net XLM change across a full claim cycle is fee-only — no reserve leakage.
+3. Sponsor account net XLM **balance** change across a full claim cycle is fee-only. Sponsoring does not spend XLM — it raises the sponsor's minimum balance — so reserve recovery is asserted on the sponsor's reserve obligation (`2 + subentry_count + num_sponsoring − num_sponsored`) × base reserve, which must rise only by the recipient's own entries. Every ephemeral reserve returns on merge.
 4. A 200-link campaign produces exactly 3 batches and 3 signature prompts.
 5. Reclaim after expiry returns all unclaimed funds and updates every affected row.
 
@@ -740,7 +843,7 @@ The build is complete when all of the following hold.
 
 Each step ends in something checkable. Do not proceed past a failing step.
 
-1. **Testnet spike.** Script the §3.3 claim transaction end-to-end. No UI, no database. Prove all four permutations. *This de-risks the whole project and may change the design — do it first.*
+1. **Testnet spike.** ✅ Done (issue #1). It changed the design: §3.3 is now two transactions. `scripts/spike-claim.ts` proves all four permutations and both predicate directions; `scripts/spike-diagnose.ts` isolates why the single-transaction form cannot work.
 2. Scaffold: Next.js, Prisma, Tailwind, Docker Compose, env validation, seed script.
 3. Auth: login, sessions, password hashing, rate limiting.
 4. Campaign creation: wizard, client-side keygen, batch build/sign/submit, CSV gate.
@@ -761,5 +864,9 @@ State these in the product, not just in this document.
 - **Sponsor exhaustion halts all claims.** Single point of failure in v1. Monitor it.
 - **A leaked link is a bearer instrument.** Anyone holding the URL can claim. Email delivery with OTP mitigates this; direct distribution does not.
 - **Partial batch failure** leaves a campaign in a mixed state requiring sender action.
+- **An abandoned claim strands sponsor reserves.** If TX1 of a claim lands and TX2 never
+  follows, an ephemeral account holds 1.0–1.5 XLM of sponsored reserve. Kleym cannot
+  merge it back, because doing so needs the ephemeral key it deliberately does not hold.
+  The reserve is released when the link is finally claimed. No user funds are affected.
 - **No multi-tenancy.** One user owns their campaigns; no shared organisation access.
 - **Reserve estimates depend on live protocol values** and can shift between quote and signature.
