@@ -20,19 +20,23 @@ export function middleware(request: NextRequest) {
   const nonceBytes = crypto.getRandomValues(new Uint8Array(16))
   const nonce = btoa(String.fromCharCode(...nonceBytes))
 
+  /*
+   * script-src is deliberately NOT 'strict-dynamic'.
+   *
+   * That directive tells a CSP3 browser to ignore 'self' and trust only
+   * nonce-carrying scripts — but statically prerendered routes have their HTML
+   * generated at BUILD time, so a per-request nonce can never appear in it.
+   * The result is every chunk refused and no hydration, while the page still
+   * returns 200. 'self' permits the same-origin chunks instead; the nonce
+   * still covers inline scripts Next emits on dynamic routes.
+   *
+   * Neither inline script nor eval is permitted, per AGENT.md §5.3.
+   *
+   * This comment lives ABOVE the array on purpose: CI scans the array for
+   * those directive names, and prose inside it trips the guard.
+   */
   const csp = [
     "default-src 'self'",
-    /*
-     * NOT 'strict-dynamic'. It tells a CSP3 browser to ignore 'self' and trust
-     * only nonce-carrying scripts — but statically prerendered routes have
-     * their HTML generated at BUILD time, so a per-request nonce can never
-     * appear in it. With 'strict-dynamic' every chunk on a static route is
-     * blocked and the page never hydrates, while still returning 200.
-     *
-     * 'self' permits same-origin chunks; the nonce still covers inline scripts
-     * Next emits on dynamic routes. No 'unsafe-inline', no 'unsafe-eval'
-     * (AGENT.md §5.3).
-     */
     `script-src 'self' 'nonce-${nonce}'`,
     "style-src 'self'",
     "img-src 'self' data:",
