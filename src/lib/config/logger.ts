@@ -9,10 +9,24 @@
  * email link URLs.
  */
 import pino from 'pino'
-import { env, SECRET_ENV_KEYS } from './env'
+import { SECRET_ENV_KEYS } from './env'
+
+/**
+ * Read straight from process.env, NOT through the validated `env` proxy.
+ *
+ * Touching `env` here would validate the whole schema at module scope — and
+ * because route handlers import the logger transitively, that would drag the
+ * full environment (SPONSOR_SECRET_KEY included) back into `next build`. That
+ * is the coupling #20 removed; the CI build-with-no-env step caught it
+ * returning the moment a route pulled the logger in.
+ *
+ * NODE_ENV is neither secret nor worth validating: any value other than
+ * 'production' simply means "not production".
+ */
+const isProduction = process.env.NODE_ENV === 'production'
 
 export const logger = pino({
-  level: env.NODE_ENV === 'production' ? 'info' : 'debug',
+  level: isProduction ? 'info' : 'debug',
   // Belt and braces. The allowlist discipline above is the real defence; these
   // paths are a backstop for the case where someone forgets it.
   //
@@ -53,5 +67,7 @@ export const logger = pino({
     censor: '[redacted]',
   },
   transport:
-    env.NODE_ENV === 'development' ? { target: 'pino-pretty', options: { colorize: true } } : undefined,
+    process.env.NODE_ENV === 'development'
+      ? { target: 'pino-pretty', options: { colorize: true } }
+      : undefined,
 })
