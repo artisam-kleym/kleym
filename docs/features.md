@@ -36,6 +36,18 @@ blobs and prose — not only bare values.
 nested) all rejected `400` with the field path recorded and the seed absent from both the
 response and the log; a valid request still accepted; 18 unit tests; CI guards confirmed
 to fire on planted `unsafe-inline` and `unsafe-eval`.
+## 2026-08-20 — Design system and landing page (#4)
+
+Kleym has a visual identity: the token set from `BRAND.md`, a component library, the app
+shell with its 256px sidebar, and a landing page describing what the product does.
+
+Fonts are self-hosted, so no route makes a third-party request — a hard requirement for
+`/claim`, which handles bearer secrets. The icon font is subsetted from 3.8MB to 24K.
+
+**Verified by:** served HTML inspected for external references — none; all three fonts
+confirmed loading same-origin from `/_next/static/media/`; every colour pairing in
+`BRAND.md` §10 measured, two contrast failures fixed and the remainder documented in
+`docs/design-system.md`; `typecheck`, `lint` and `build` clean.
 ## 2026-08-20 — Data model and admin seeding (#3)
 
 The database schema exists: campaigns, links, batches, deliveries, sessions, API keys,
