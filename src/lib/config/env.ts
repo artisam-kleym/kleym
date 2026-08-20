@@ -75,6 +75,25 @@ const schema = z.object({
     .transform((v) => v === 'true'),
 })
 
+/**
+ * Every environment key whose value must never reach a log line.
+ *
+ * SINGLE SOURCE OF TRUTH. `src/lib/config/logger.ts` derives its redaction
+ * paths from this list, and CI fails if a secret-shaped key is added to the
+ * schema above without being classified here (or explicitly marked non-secret
+ * in the workflow). Adding a secret and forgetting to redact it was a real
+ * leak, not a hypothetical one — see the DATABASE_URL entry.
+ */
+export const SECRET_ENV_KEYS = [
+  'SPONSOR_SECRET_KEY',
+  'SESSION_SECRET',
+  'RESEND_API_KEY',
+  'SEED_ADMIN_PASSWORD',
+  // Both embed credentials in the connection string.
+  'DATABASE_URL',
+  'REDIS_URL',
+] as const
+
 export type Env = z.infer<typeof schema>
 
 /**

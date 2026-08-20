@@ -9,7 +9,7 @@
  * email link URLs.
  */
 import pino from 'pino'
-import { env } from './env'
+import { env, SECRET_ENV_KEYS } from './env'
 
 export const logger = pino({
   level: env.NODE_ENV === 'production' ? 'info' : 'debug',
@@ -29,20 +29,9 @@ export const logger = pino({
       'env',
       '*.env',
 
-      // Environment secrets, by their exact names.
-      'SPONSOR_SECRET_KEY',
-      '*.SPONSOR_SECRET_KEY',
-      'SESSION_SECRET',
-      '*.SESSION_SECRET',
-      'RESEND_API_KEY',
-      '*.RESEND_API_KEY',
-      'SEED_ADMIN_PASSWORD',
-      '*.SEED_ADMIN_PASSWORD',
-      // Both carry credentials in the connection string.
-      'DATABASE_URL',
-      '*.DATABASE_URL',
-      'REDIS_URL',
-      '*.REDIS_URL',
+      // Environment secrets, derived from the single source of truth in
+      // env.ts so this list cannot drift out of step with the schema.
+      ...SECRET_ENV_KEYS.flatMap((key) => [key, `*.${key}`]),
 
       // Application-level field names.
       'seed',

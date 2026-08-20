@@ -54,7 +54,11 @@ jobs:
           if [ ! -f prisma/schema.prisma ]; then
             echo "no schema yet (#3) — skipping"; exit 0
           fi
-          if grep -inE '^\s*(secret|seed|mnemonic|privateKey|secretKey)\w*\s' prisma/schema.prisma; then
+          # Matches anywhere in the identifier, not just its start. An anchored
+          # alternation passes `ephemeralSeed` and `senderSecret` — and given the
+          # schema already has `ephemeralPublicKey`, a sibling named
+          # `ephemeralSeed` is the most likely form this mistake takes.
+          if grep -inE '^\s*\w*(secret|seed|mnemonic|private)\w*\s' prisma/schema.prisma; then
             echo "::error::a schema field name suggests secret storage (SPEC.md §4.1)"
             exit 1
           fi
@@ -75,26 +79,50 @@ jobs:
           echo "clean"
 
       # AGENT.md §5.5 — Next inlines NEXT_PUBLIC_* into the client bundle.
-      # Scans tracked files only: a recursive walk of the working tree also
-      # descends into build output, which is both slow and not what is at risk.
+      # git grep searches tracked files natively. A recursive walk descends into
+      # build output, and `ls-files | xargs grep` muddles exit codes across
+      # batches — 123 means both "no match here" and "match elsewhere".
       - name: No secret-shaped NEXT_PUBLIC_ values committed
         run: |
-          if git ls-files -z | xargs -0 grep -nE 'NEXT_PUBLIC_[A-Z0-9_]*\s*=\s*.*S[A-Z2-7]{55}' 2>/dev/null; then
+          if git grep -nE 'NEXT_PUBLIC_[A-Z0-9_]*\s*=\s*.*S[A-Z2-7]{55}'; then
             echo "::error::a committed NEXT_PUBLIC_ value contains a Stellar secret seed"
             exit 1
           fi
           echo "clean"
 
-      # Regression guard for the leak fixed in ff1beb7: pino redact paths are
-      # exact and case-sensitive, so a secret added to the env schema without a
-      # matching entry would leak silently.
-      - name: Every env secret is redacted
+      # Regression guard for the leak fixed in ff1beb7, closing the loop: rather
+      # than hardcoding key names here, this checks that every secret-shaped key
+      # in the env schema is classified in SECRET_ENV_KEYS, which the logger
+      # derives its redact paths from. A seventh secret cannot be added without
+      # a decision being recorded.
+      - name: Every env secret is classified and redacted
         run: |
-          missing=0
-          for key in SPONSOR_SECRET_KEY SESSION_SECRET RESEND_API_KEY SEED_ADMIN_PASSWORD DATABASE_URL REDIS_URL; do
-            if ! grep -q "'$key'" src/lib/config/logger.ts; then
-              echo "::error::$key is in the env schema but absent from logger redact paths"
-              missing=1
+          # Keys matching a secret shape that are genuinely NOT secrets.
+          # Adding to this list is a deliberate act, which is the point.
+          NOT_SECRET="SPONSOR_PUBLIC_KEY APP_URL HORIZON_URL"
+
+          registered=$(sed -n '/export const SECRET_ENV_KEYS/,/] as const/p' src/lib/config/env.ts \
+                        | grep -oE "'[A-Z0-9_]+'" | tr -d "'")
+          schema_keys=$(grep -oE '^  [A-Z][A-Z0-9_]*:' src/lib/config/env.ts | tr -d ' :')
+
+          fail=0
+          for key in $schema_keys; do
+            case "$key" in
+              *SECRET*|*PASSWORD*|*TOKEN*|*_KEY|*_URL) ;;
+              *) continue ;;
+            esac
+            echo "$NOT_SECRET" | tr ' ' '\n' | grep -qx "$key" && continue
+            if ! echo "$registered" | grep -qx "$key"; then
+              echo "::error::$key looks like a secret but is not in SECRET_ENV_KEYS (src/lib/config/env.ts). Classify it, or add it to NOT_SECRET in this workflow."
+              fail=1
             fi
           done
-          exit $missing
+
+          # And the logger must actually SPREAD that list into redact.paths.
+          # Grepping for the bare name is not enough — the import line alone
+          # would satisfy it while the usage was gone.
+          if ! grep -qE '\.\.\.SECRET_ENV_KEYS\s*\.flatMap' src/lib/config/logger.ts; then
+            echo "::error::logger.ts no longer derives redact paths from SECRET_ENV_KEYS"
+            fail=1
+          fi
+          exit $fail
