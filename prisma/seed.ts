@@ -53,11 +53,17 @@ async function main() {
   try {
     const passwordHash = await argon2.hash(password, ARGON2_OPTIONS)
 
-    // Rule 3 — idempotent. Re-running rotates the password rather than
-    // creating a second admin or silently diverging from the environment.
+    // Rule 3 — idempotent. Re-running rotates the password and re-asserts the
+    // admin role, which is what this script is for.
+    //
+    // It must NOT touch isActive, failedLogins or lockedUntil. Doing so would
+    // let a routine re-seed silently undo a deliberate security action:
+    // reactivating an admin someone disabled (AGENT.md §5.1 — deactivated
+    // users cannot authenticate), or clearing an active lockout after the
+    // 10-failure threshold. A seed script is not an account-recovery tool.
     const admin = await prisma.user.upsert({
       where: { username },
-      update: { passwordHash, role: 'ADMIN', isActive: true, failedLogins: 0, lockedUntil: null },
+      update: { passwordHash, role: 'ADMIN' },
       create: { username, passwordHash, role: 'ADMIN' },
       select: { id: true, username: true, role: true, createdAt: true, updatedAt: true },
     })

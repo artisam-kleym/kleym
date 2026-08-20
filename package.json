@@ -59,6 +59,9 @@
     ],
     "overrides": {
       "deepmerge-ts": ">=8.0.0"
+    },
+    "overridesReason": {
+      "deepmerge-ts": "GHSA-ggr8-5vv4-36mx (high, stack exhaustion) via prisma > @prisma/config, which still pins 7.1.5. Remove when Prisma ships a fixed release. See README."
     }
   },
   "engines": {
