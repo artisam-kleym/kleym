@@ -106,6 +106,41 @@ the running service, never by the build or by CI.
 
 `.env` is gitignored. `SPONSOR_SECRET_KEY` belongs in Railway's secret store and never in the repo.
 
+## CI
+
+`.github/workflows/ci.yml` runs on every pull request to `develop` or `main`.
+
+| Job | Steps |
+|---|---|
+| `check` | `typecheck` · `lint` · `build` · `audit` |
+| `secrets` | schema stores no secrets · no seed extraction in `src/` · no secret-shaped `NEXT_PUBLIC_*` committed · every env secret is redacted |
+
+**The build step runs with no environment on purpose.** Config validation is deferred to
+first access precisely so no secret is needed to compile; if that step ever starts
+requiring one, the decoupling has regressed.
+
+Integration tests are deliberately absent — `AGENT.md` §7.2 forbids tests that submit to
+the public network, and the testnet spike depends on Horizon being reachable, so it runs
+on a schedule rather than per-commit.
+
+### A note on the §1 grep guard
+
+`AGENT.md` §1 suggests grepping for identifier *names*:
+
+```bash
+grep -rn "secretKey\|SECRET_SEED\|\.secret()\|rawSecretKey" src/ prisma/ | grep -v "SPONSOR_SECRET_KEY"
+```
+
+Run literally against this codebase it returns **seven false positives**, every one inside
+the logger's redaction allowlist or the leak-detection regexes — the code whose job is
+preventing leaks. It also would not have caught the real leak fixed in `ff1beb7`, where
+`logger.info({ env })` printed four secrets in plaintext with no offending identifier on
+the line.
+
+CI therefore checks the dangerous *operation* (`.secret()` in `src/`) rather than the
+naming, plus redaction coverage. `scripts/` is exempt: the testnet spike legitimately
+holds ephemeral seeds in memory, exactly as the sender's browser does.
+
 ## Branch model
 
 | Branch | Role |

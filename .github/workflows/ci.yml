@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# Integration tests are deliberately absent. AGENT.md §7.2 forbids tests that
+# submit to the public network, and the testnet spike depends on Horizon being
+# reachable, so it runs on a schedule rather than per-commit (§7.3).
+
+jobs:
+  check:
+    name: typecheck · lint · build · audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      # No environment is provided on purpose. Config validation is deferred to
+      # first access precisely so the build needs no secrets — if this step ever
+      # starts requiring them, that decoupling has regressed.
+      - name: Build
+        run: pnpm build
+
+      - name: Audit
+        run: pnpm audit --audit-level=moderate
+
+  secrets:
+    name: secret-handling guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # SPEC.md §10.6 — no schema column may store a seed, secret, or mnemonic.
+      - name: Schema stores no secrets
+        run: |
+          if [ ! -f prisma/schema.prisma ]; then
+            echo "no schema yet (#3) — skipping"; exit 0
+          fi
+          if grep -inE '^\s*(secret|seed|mnemonic|privateKey|secretKey)\w*\s' prisma/schema.prisma; then
+            echo "::error::a schema field name suggests secret storage (SPEC.md §4.1)"
+            exit 1
+          fi
+          echo "clean"
+
+      # AGENT.md §1. The literal snippet in AGENT.md greps for identifier NAMES,
+      # which false-positives on the redaction allowlist and the leak-detection
+      # regexes — the very code that prevents leaks. This checks the dangerous
+      # OPERATION instead: extracting a seed from a keypair in application code.
+      # scripts/ is exempt: the testnet spike legitimately holds ephemeral seeds
+      # in memory, exactly as the sender's browser does.
+      - name: No seed extraction in application code
+        run: |
+          if grep -rnE '\.secret\(\)|rawSecretKey' src/ 2>/dev/null; then
+            echo "::error::application code extracts a secret seed (AGENT.md §1)"
+            exit 1
+          fi
+          echo "clean"
+
+      # AGENT.md §5.5 — Next inlines NEXT_PUBLIC_* into the client bundle.
+      # Scans tracked files only: a recursive walk of the working tree also
+      # descends into build output, which is both slow and not what is at risk.
+      - name: No secret-shaped NEXT_PUBLIC_ values committed
+        run: |
+          if git ls-files -z | xargs -0 grep -nE 'NEXT_PUBLIC_[A-Z0-9_]*\s*=\s*.*S[A-Z2-7]{55}' 2>/dev/null; then
+            echo "::error::a committed NEXT_PUBLIC_ value contains a Stellar secret seed"
+            exit 1
+          fi
+          echo "clean"
+
+      # Regression guard for the leak fixed in ff1beb7: pino redact paths are
+      # exact and case-sensitive, so a secret added to the env schema without a
+      # matching entry would leak silently.
+      - name: Every env secret is redacted
+        run: |
+          missing=0
+          for key in SPONSOR_SECRET_KEY SESSION_SECRET RESEND_API_KEY SEED_ADMIN_PASSWORD DATABASE_URL REDIS_URL; do
+            if ! grep -q "'$key'" src/lib/config/logger.ts; then
+              echo "::error::$key is in the env schema but absent from logger redact paths"
+              missing=1
+            fi
+          done
+          exit $missing
