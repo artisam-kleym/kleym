@@ -6,8 +6,8 @@
  * not the same as never having seen them.
  */
 import { randomUUID } from 'node:crypto'
-import { findSecretSeed } from '@/lib/validation/stellar'
-import { recordSecurityEvent, seedSubmittedProblem } from './events'
+import { scanForSecretSeed } from '@/lib/validation/stellar'
+import { bodyTooDeepProblem, recordSecurityEvent, seedSubmittedProblem } from './events'
 
 export interface GuardFailure {
   response: Response
@@ -17,17 +17,25 @@ export function guardRequestBody(
   body: unknown,
   context: { route: string; ip: string | null },
 ): GuardFailure | null {
-  const seedPath = findSecretSeed(body)
-  if (seedPath) {
+  const result = scanForSecretSeed(body)
+
+  if (result.outcome === 'seed') {
     const correlationId = randomUUID()
     recordSecurityEvent({
       type: 'SEED_SUBMITTED',
       route: context.route,
-      field: seedPath.join('.') || '(root)',
+      field: result.path.join('.') || '(root)',
       ip: context.ip,
     })
     return { response: seedSubmittedProblem(correlationId) }
   }
+
+  if (result.outcome === 'too-deep') {
+    // Rejected, but NOT a security event: reporting this as SEED_SUBMITTED
+    // would let anyone flood the security log with a nested JSON body.
+    return { response: bodyTooDeepProblem() }
+  }
+
   return null
 }
 

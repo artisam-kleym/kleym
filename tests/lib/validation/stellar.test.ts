@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Keypair } from '@stellar/stellar-sdk'
-import { containsSecretSeed, findSecretSeed } from '@/lib/validation/stellar'
+import { containsSecretSeed, findSecretSeed, scanForSecretSeed } from '@/lib/validation/stellar'
 
 /*
  * Tests live outside src/ deliberately. The CI guard forbids `.secret()` in
@@ -64,5 +64,31 @@ describe('findSecretSeed', () => {
 
   it('returns null for a clean body', () => {
     expect(findSecretSeed({ publicKeys: [PUB], labels: ['alice'] })).toBeNull()
+  })
+})
+
+describe('findSecretSeed depth limit', () => {
+  const nest = (depth: number) => {
+    let node: unknown = 'x'
+    for (let i = 0; i < depth; i += 1) node = { a: node }
+    return node
+  }
+
+  // Regression: an unbounded walk exhausted the stack on a 120KB body and the
+  // endpoint returned 500. This scanner runs before any schema or size limit,
+  // so it is the first thing untrusted input reaches.
+  it.each([1_000, 10_000, 50_000])('survives %i levels of nesting', (depth) => {
+    expect(() => findSecretSeed(nest(depth))).not.toThrow()
+  })
+
+  it('reports over-nesting as too-deep, NOT as a seed', () => {
+    // Reporting this as a seed would fire a false SEED_SUBMITTED security
+    // event, which anyone could then spam with a nested body.
+    expect(scanForSecretSeed(nest(100))).toEqual({ outcome: 'too-deep' })
+    expect(findSecretSeed(nest(100))).toBeNull()
+  })
+
+  it('still finds seeds within the allowed depth', () => {
+    expect(findSecretSeed({ a: { b: { c: SEED } } })).toEqual(['a', 'b', 'c'])
   })
 })

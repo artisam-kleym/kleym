@@ -29,7 +29,14 @@ export async function POST(request: Request) {
   }
 
   // Before Zod: a seed hiding in an unknown key must still be caught.
-  const blocked = guardRequestBody(body, { route: '/api/echo', ip: clientIp(request) })
+  // Wrapped: this is the first code to touch untrusted shape, so an unexpected
+  // throw here must not become a 500.
+  let blocked
+  try {
+    blocked = guardRequestBody(body, { route: '/api/echo', ip: clientIp(request) })
+  } catch {
+    return Response.json({ title: 'Invalid request', status: 400 }, { status: 400 })
+  }
   if (blocked) return blocked.response
 
   const parsed = schema.safeParse(body)

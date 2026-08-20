@@ -22,7 +22,18 @@ export function middleware(request: NextRequest) {
 
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    /*
+     * NOT 'strict-dynamic'. It tells a CSP3 browser to ignore 'self' and trust
+     * only nonce-carrying scripts — but statically prerendered routes have
+     * their HTML generated at BUILD time, so a per-request nonce can never
+     * appear in it. With 'strict-dynamic' every chunk on a static route is
+     * blocked and the page never hydrates, while still returning 200.
+     *
+     * 'self' permits same-origin chunks; the nonce still covers inline scripts
+     * Next emits on dynamic routes. No 'unsafe-inline', no 'unsafe-eval'
+     * (AGENT.md §5.3).
+     */
+    `script-src 'self' 'nonce-${nonce}'`,
     "style-src 'self'",
     "img-src 'self' data:",
     "font-src 'self'", // fonts are self-hosted; no CDN, on any route
@@ -36,6 +47,14 @@ export function middleware(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
+  /*
+   * Next reads the nonce out of a Content-Security-Policy header on the
+   * REQUEST, and stamps it onto the script tags it emits. Without this line
+   * nothing carries a nonce — and because 'strict-dynamic' tells a CSP3 browser
+   * to ignore 'self', every chunk is then blocked and the app never hydrates.
+   * The page still returns 200, which is why a status check does not test this.
+   */
+  requestHeaders.set('Content-Security-Policy', csp)
 
   const response = NextResponse.next({ request: { headers: requestHeaders } })
 

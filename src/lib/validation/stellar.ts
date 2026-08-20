@@ -26,23 +26,54 @@ export function containsSecretSeed(value: unknown): boolean {
   return candidates.some((candidate) => StrKey.isValidEd25519SecretSeed(candidate))
 }
 
-/** Recursively scans a parsed body for any embedded seed. */
-export function findSecretSeed(input: unknown, path: string[] = []): string[] | null {
-  if (containsSecretSeed(input)) return path
+/**
+ * Deepest structure the scanner will walk before refusing.
+ *
+ * This scanner is the FIRST thing to touch attacker-shaped JSON — it runs
+ * before any schema or size constraint applies — so an unbounded walk is a
+ * cheap denial of service: 120 KB of nested objects exhausts the stack.
+ * No legitimate Kleym request is anywhere near this deep.
+ */
+const MAX_SCAN_DEPTH = 32
+
+export type ScanResult =
+  | { outcome: 'clean' }
+  | { outcome: 'seed'; path: string[] }
+  | { outcome: 'too-deep' }
+
+/**
+ * Scans a parsed body for an embedded seed.
+ *
+ * The three outcomes are deliberately distinct. Reporting over-nesting as a
+ * seed would fire a false SEED_SUBMITTED security event on every malformed
+ * body — poisoning the one log that is supposed to mean something, and giving
+ * anyone a way to spam it. Both are rejected; only one is a security event.
+ */
+export function scanForSecretSeed(input: unknown, path: string[] = [], depth = 0): ScanResult {
+  if (depth > MAX_SCAN_DEPTH) return { outcome: 'too-deep' }
+  if (containsSecretSeed(input)) return { outcome: 'seed', path }
+
   if (Array.isArray(input)) {
     for (const [index, item] of input.entries()) {
-      const hit = findSecretSeed(item, [...path, String(index)])
-      if (hit) return hit
+      const hit = scanForSecretSeed(item, [...path, String(index)], depth + 1)
+      if (hit.outcome !== 'clean') return hit
     }
-    return null
+    return { outcome: 'clean' }
   }
+
   if (input && typeof input === 'object') {
     for (const [key, value] of Object.entries(input)) {
-      const hit = findSecretSeed(value, [...path, key])
-      if (hit) return hit
+      const hit = scanForSecretSeed(value, [...path, key], depth + 1)
+      if (hit.outcome !== 'clean') return hit
     }
   }
-  return null
+  return { outcome: 'clean' }
+}
+
+/** Convenience wrapper: the path to a seed, or null. Over-nesting is not a seed. */
+export function findSecretSeed(input: unknown): string[] | null {
+  const result = scanForSecretSeed(input)
+  return result.outcome === 'seed' ? result.path : null
 }
 
 /** A Stellar public key (G...), rejecting anything that is secretly a seed. */

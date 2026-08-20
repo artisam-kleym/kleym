@@ -42,3 +42,16 @@ export function seedSubmittedProblem(correlationId: string): Response {
     { status: 400, headers: { 'content-type': 'application/problem+json' } },
   )
 }
+
+/** Structurally implausible body. Rejected, but not a security event. */
+export function bodyTooDeepProblem(): Response {
+  return new Response(
+    JSON.stringify({
+      type: 'https://kleym.app/problems/malformed-body',
+      title: 'Request body too deeply nested',
+      status: 400,
+      detail: 'The request body exceeds the maximum supported nesting depth.',
+    }),
+    { status: 400, headers: { 'content-type': 'application/problem+json' } },
+  )
+}

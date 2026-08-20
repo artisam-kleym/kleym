@@ -60,6 +60,16 @@ jobs:
           fi
           echo "clean"
 
+      # The demonstration endpoint must not outlive the real one. Without this,
+      # a route that accepts arbitrary JSON quietly becomes permanent.
+      - name: /api/echo is removed once /api/campaigns links exists
+        run: |
+          if [ -d "src/app/api/campaigns" ] && [ -e "src/app/api/echo/route.ts" ]; then
+            echo "::error::/api/echo was a stand-in for #7 and must be deleted now that the campaign routes exist"
+            exit 1
+          fi
+          echo "clean"
+
       - name: /claim gets no-referrer
         run: |
           if ! grep -q "no-referrer" src/middleware.ts; then
