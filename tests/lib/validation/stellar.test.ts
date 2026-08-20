@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { Keypair } from '@stellar/stellar-sdk'
-import { containsSecretSeed, findSecretSeed } from './stellar'
+import { containsSecretSeed, findSecretSeed } from '@/lib/validation/stellar'
+
+/*
+ * Tests live outside src/ deliberately. The CI guard forbids `.secret()` in
+ * application code (AGENT.md §1), and testing seed DETECTION requires a real
+ * seed to detect. Rather than weakening the guard with a *.test.ts exclusion —
+ * which would leave a file-naming hole in it — src/ stays strictly application
+ * code, the same exemption scripts/ already has.
+ */
 
 const kp = Keypair.random()
 const SEED = kp.secret()

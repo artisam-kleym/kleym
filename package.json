@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src scripts",
+    "lint": "eslint src scripts tests",
     "typecheck": "tsc --noEmit",
     "spike": "tsx scripts/spike-claim.ts",
     "diagnose": "tsx scripts/spike-diagnose.ts",

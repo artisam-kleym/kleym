@@ -94,8 +94,11 @@ jobs:
       # which false-positives on the redaction allowlist and the leak-detection
       # regexes — the very code that prevents leaks. This checks the dangerous
       # OPERATION instead: extracting a seed from a keypair in application code.
-      # scripts/ is exempt: the testnet spike legitimately holds ephemeral seeds
-      # in memory, exactly as the sender's browser does.
+      # scripts/ and tests/ are exempt and live outside src/ for that reason:
+      # the testnet spike legitimately holds ephemeral seeds in memory, exactly
+      # as the sender's browser does, and testing seed DETECTION requires a real
+      # seed to detect. Excluding *.test.ts from a scan of src/ instead would
+      # leave a file-naming hole in the guard.
       - name: No seed extraction in application code
         run: |
           if grep -rnE '\.secret\(\)|rawSecretKey' src/ 2>/dev/null; then
