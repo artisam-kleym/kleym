@@ -70,3 +70,30 @@ Material Symbols, subsetted to the icons `BRAND.md` §6 names: **24K rather than
 with the `FILL`, `GRAD`, `opsz` and `wght` axes preserved. Adding an icon means adding it
 to `IconName` **and** regenerating the subset — the font does not contain glyphs that were
 not requested.
+
+
+## Pages that need client JS must not be prerendered
+
+Every page that hydrates sets `export const dynamic = 'force-dynamic'`. This is a
+**requirement of the CSP, not a performance choice.**
+
+A prerendered route's HTML is generated at build time, and it contains React's inline RSC
+flight payload:
+
+```html
+<script>(self.__next_f=self.__next_f||[]).push([0])</script>
+```
+
+That inline script cannot carry a per-request nonce, and `'self'` has never covered inline
+scripts — it covers `src=` chunks. So under a policy without `'unsafe-inline'`, which
+`AGENT.md` §5.3 forbids outright, those scripts are **refused**: `self.__next_f` stays
+empty, no fiber attaches, and React throws #412. The page still returns **200** and serves
+correct-looking HTML while being completely inert.
+
+Making the route dynamic lets the nonce reach every script tag. Verified: both inline
+scripts and all chunk scripts carry the response's own nonce.
+
+The cost is the static optimisation for those pages. There is no third option — the only
+other lever is `'unsafe-inline'`, which is not available here.
+
+CI enforces it, because a 200 response does not reveal the failure.

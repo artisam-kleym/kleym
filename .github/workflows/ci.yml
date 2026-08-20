@@ -70,6 +70,22 @@ jobs:
           fi
           echo "clean"
 
+      # Regression guard for the hydration failure found reviewing #22: a
+      # prerendered route's inline RSC flight payload cannot carry a
+      # per-request nonce, so under this CSP it is refused and the page never
+      # hydrates - while still returning 200, which is why CI did not catch it.
+      - name: Pages that need client JS are not prerendered
+        run: |
+          fail=0
+          for page in "src/app/(public)/page.tsx" "src/app/(public)/claim/page.tsx"; do
+            [ -e "$page" ] || continue
+            if ! grep -q "dynamic = 'force-dynamic'" "$page"; then
+              echo "::error::$page must set force-dynamic, or its inline scripts are CSP-refused and it never hydrates"
+              fail=1
+            fi
+          done
+          exit $fail
+
       - name: /claim gets no-referrer
         run: |
           if ! grep -q "no-referrer" src/middleware.ts; then
