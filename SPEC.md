@@ -1,0 +1,765 @@
+# Kleym — Technical Specification
+
+**Version:** 1.0
+**Status:** Ready for implementation
+**Audience:** Code-generation agent + human reviewers
+
+---
+
+## 1. Overview
+
+Kleym turns Stellar assets into one-time claim links. A sender generates a batch of links, distributes them through whatever channel they already use, and each recipient opens their link, connects a wallet, and claims the asset — without ever handing over a wallet address in advance.
+
+### 1.1 The problem
+
+Distributing crypto to a group means collecting wallet addresses first: a spreadsheet, a form, chasing stragglers, transcription errors that send funds nowhere. Recipients new to Stellar hit a second wall — an unfunded account cannot hold a non-native asset without XLM for reserves and a trustline.
+
+Kleym removes both. The sender never needs an address. The recipient never needs XLM.
+
+### 1.2 Non-custodial guarantee
+
+**Kleym never holds spendable keys.** Ephemeral keypairs are generated in the sender's browser and exist only inside the URL fragments. The database stores the ephemeral *public* key — enough to index and reconcile a link, useless for spending it.
+
+This is the central design constraint. Every other decision in this document defers to it. It means a database breach cannot drain a campaign, and it keeps Kleym infrastructure rather than a money transmitter.
+
+The cost: if the sender loses the CSV, those funds are stranded until expiry and then reclaimed. This is why CSV export is a **hard gate**, not a convenience button.
+
+### 1.3 Scope
+
+**In scope for v1**
+- XLM and any Stellar (SEP-41 / classic) asset
+- Batch link creation with client-side key generation
+- Sponsored claims (account creation + trustline paid by Kleym)
+- Expiry and one-click reclaim
+- Campaign tracking and per-link status
+- Forced CSV export
+- Email delivery of links with OTP-gated retrieval
+- Public REST API with API-key auth
+
+**Out of scope for v1**
+- Multi-tenancy / organisations (single sender account owns its campaigns)
+- Soroban smart contracts
+- Cross-chain anything
+- Fiat on/off ramps
+
+---
+
+## 2. Architecture
+
+### 2.1 Topology
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ Browser (sender)                                          │
+│  • generates ephemeral keypairs        ← SECRETS LIVE HERE│
+│  • signs batch tx via Freighter                           │
+│  • forces CSV download                                    │
+└───────────────┬──────────────────────────────────────────┘
+                │ public keys + metadata only
+                ▼
+┌──────────────────────────────────────────────────────────┐
+│ Next.js (App Router) on Railway                           │
+│  • Route Handlers = API      • Server Components = pages  │
+│  • Prisma → Postgres         • BullMQ → Redis             │
+│  • Sponsor signing key (Railway secret, never in DB)      │
+└──────┬──────────────────┬─────────────────┬──────────────┘
+       │                  │                 │
+       ▼                  ▼                 ▼
+   Postgres            Redis           Stellar Horizon
+   (Railway)          (Railway)          + Soroban RPC
+                          │
+                          ▼
+                    Worker process
+                    (reconciliation, email, expiry sweep)
+```
+
+### 2.2 Services on Railway
+
+| Service | Purpose |
+|---|---|
+| `kleym-web` | Next.js app (pages + API route handlers) |
+| `kleym-worker` | Node process running BullMQ consumers and cron jobs |
+| `postgres` | Railway Postgres plugin — primary datastore |
+| `redis` | Railway Redis plugin — job queue, rate limiting, OTP store |
+
+**No file storage service is provisioned.** The brief mentions one; it is deliberately omitted. The only file Kleym produces is the secrets CSV, and that is generated in the browser via `Blob` + `URL.createObjectURL` and **never uploaded**. Adding object storage would create a place for secrets to accidentally land. If branding assets are needed later, serve them from `/public`.
+
+### 2.3 Trust boundaries
+
+| Boundary | What crosses it | What must never cross |
+|---|---|---|
+| Browser → API | ephemeral **public** keys, labels, campaign metadata, signed XDR | ephemeral seeds, CSV contents |
+| API → Postgres | public keys, balance IDs, statuses | any seed, any secret |
+| URL → Server | *nothing* — the seed lives in the fragment (`#`), which browsers do not transmit | — |
+| Server → Stellar | sponsor-signed XDR | — |
+
+---
+
+## 3. Core protocol design
+
+This section is the load-bearing part of the spec. Implement it exactly.
+
+### 3.1 Why claimable balances need more than a signature
+
+A naive design says: make the ephemeral keypair the claimant, and the recipient signs with it. **This does not work.**
+
+`ClaimClaimableBalanceOp` credits the *claimant account*. The op's source account must exist on the ledger and, for non-native assets, must hold a trustline. An ephemeral keypair has no account. A transaction whose op source does not exist fails with `tx_no_source_account`.
+
+So the claim transaction must materialise the ephemeral account, claim into it, forward the asset onward, and dispose of it — atomically.
+
+### 3.2 Campaign creation (sender side)
+
+For each link, the browser generates a fresh Ed25519 keypair. The batch transaction contains one operation per link:
+
+```
+CreateClaimableBalanceOp
+  asset:   <campaign asset>
+  amount:  <amount per link>
+  claimants: [
+    { destination: <ephemeralPubKey>,  predicate: BEFORE_ABSOLUTE_TIME(expiresAt) },
+    { destination: <senderPubKey>,     predicate: NOT(BEFORE_ABSOLUTE_TIME(expiresAt)) }
+  ]
+```
+
+The two predicates are mutually exclusive: the recipient can claim only before expiry, the sender only after. There is no window in which both can claim, and no window in which neither can.
+
+**Batching.** Stellar permits up to 100 operations per transaction. Kleym uses a batch size of **90** to leave headroom. A 1,000-link campaign is 12 transactions and 12 Freighter signatures. The UI shows batch progress (`Batch 3 / 12 signed`).
+
+**Reserves.** The sender funds the ClaimableBalanceEntry reserve for every link. The multiplier is a function of base reserve and claimant count and **must be read from the current protocol at runtime**, not hardcoded — call `GET /ledgers?order=desc&limit=1` on Horizon and compute from `base_reserve_in_stroops`. Show the total reserve cost in the review step before the sender signs. Do not guess this number in the UI.
+
+**Failure atomicity.** If batch 7 of 12 fails, batches 1–6 are on-chain and real. The campaign record must reflect partial creation: links from failed batches are marked `FAILED` and never appear in the CSV. The UI offers "retry failed batches" which creates a new transaction for only those links.
+
+### 3.3 The claim transaction
+
+Built server-side, signed by three parties, submitted by the client.
+
+**Operations, in order** (conditional ops included only when needed):
+
+```
+ 1. BeginSponsoringFutureReserves(sponsoredId: ephemeralPubKey)     source: SPONSOR
+ 2. CreateAccount(destination: ephemeralPubKey, startingBalance: 0) source: SPONSOR
+ 3. EndSponsoringFutureReserves()                                    source: EPHEMERAL
+
+    — if asset is non-native —
+ 4. BeginSponsoringFutureReserves(sponsoredId: ephemeralPubKey)     source: SPONSOR
+ 5. ChangeTrust(asset, limit: max)                                   source: EPHEMERAL
+ 6. EndSponsoringFutureReserves()                                    source: EPHEMERAL
+
+ 7. ClaimClaimableBalance(balanceId)                                 source: EPHEMERAL
+
+    — if recipient account does not exist —
+ 8. BeginSponsoringFutureReserves(sponsoredId: recipientPubKey)     source: SPONSOR
+ 9. CreateAccount(destination: recipientPubKey, startingBalance: 0) source: SPONSOR
+10. EndSponsoringFutureReserves()                                    source: RECIPIENT
+
+    — if asset is non-native and recipient lacks a trustline —
+11. BeginSponsoringFutureReserves(sponsoredId: recipientPubKey)     source: SPONSOR
+12. ChangeTrust(asset, limit: max)                                   source: RECIPIENT
+13. EndSponsoringFutureReserves()                                    source: RECIPIENT
+
+14. Payment(destination: recipientPubKey, asset, amount)            source: EPHEMERAL
+15. AccountMerge(destination: recipientPubKey)                      source: EPHEMERAL
+```
+
+**Transaction source account:** SPONSOR. The sponsor pays the fee.
+
+**Signers required:** SPONSOR, EPHEMERAL, RECIPIENT.
+
+**Signing sequence:**
+1. Client resolves the link, derives `ephemeralPubKey` from the fragment seed **in the browser**.
+2. Client `POST /api/claims/prepare` with `{ ephemeralPublicKey, recipientPublicKey }`. **The seed is not sent.**
+3. Server inspects the ledger (does the recipient account exist? does it have a trustline?), builds the op list, signs as SPONSOR, returns the partially-signed XDR.
+4. Client signs with the EPHEMERAL key derived from the fragment, in memory.
+5. Client requests a RECIPIENT signature via the wallet kit (Freighter et al).
+6. Client `POST /api/claims/submit` with the fully-signed XDR. Server submits to Horizon and records the result.
+
+Step 15 merges the ephemeral account away, releasing its sponsored reserves back to the sponsor. Without it, every claim would permanently leak reserve XLM from the sponsor account.
+
+**This whole sequence must be validated on testnet before any UI work begins.** It is the single riskiest assumption in the build. Write an integration test that exercises all four permutations: new/existing recipient × native/non-native asset.
+
+### 3.4 Reclaim
+
+After `expiresAt`, the sender's predicate becomes satisfiable. Reclaim is a batched transaction of `ClaimClaimableBalanceOp` with source = SENDER, one per unclaimed link, batched at 90 per transaction, signed in Freighter.
+
+Reclaim must query Horizon for which balance IDs still exist rather than trusting the database, then reconcile the database from that result.
+
+### 3.5 The chain is the source of truth
+
+The database is a cache and an index. It is never the authority on whether money moved.
+
+A reconciliation job (§7.2) queries Horizon for each campaign's balance IDs. A balance ID absent from the ledger was claimed or reclaimed; the operation history reveals which and by whom. Any disagreement between database and chain resolves in favour of the chain, and the discrepancy is logged at `WARN`.
+
+### 3.6 Fragment discipline
+
+The link format is:
+
+```
+https://kleym.app/claim#s=<base64url-encoded-seed>
+```
+
+The seed is after the `#`. Browsers do not send fragments in HTTP requests, so the seed never reaches server logs, referrer headers, or analytics.
+
+**Enforcement rules for the implementing agent:**
+- Never place a seed in a query string, path segment, POST body, cookie, or `localStorage`.
+- Never log a value derived from `window.location.hash`.
+- Set `Referrer-Policy: no-referrer` on the claim route.
+- The claim page must have zero third-party scripts. No analytics, no tag managers, no font CDN — self-host fonts on this route.
+- Call `history.replaceState` after reading the hash to reduce shoulder-surfing and history leakage.
+
+---
+
+## 4. Data model (Prisma)
+
+```prisma
+// schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SENDER
+}
+
+enum CampaignStatus {
+  DRAFT        // created, not yet funded on-chain
+  CREATING     // batches being signed/submitted
+  ACTIVE       // links live and claimable
+  PARTIAL      // some batches failed
+  EXPIRED      // past expiresAt, reclaim available
+  RECLAIMED    // all unclaimed funds returned
+  CANCELLED
+}
+
+enum LinkStatus {
+  PENDING      // row exists, batch not yet confirmed
+  ACTIVE       // claimable balance live on ledger
+  CLAIMED
+  EXPIRED
+  RECLAIMED
+  FAILED       // batch failed; no on-chain entry
+}
+
+enum BatchStatus {
+  PENDING
+  SUBMITTED
+  CONFIRMED
+  FAILED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  passwordHash String                        // argon2id
+  role         Role      @default(SENDER)
+  isActive     Boolean   @default(true)
+  failedLogins Int       @default(0)
+  lockedUntil  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  campaigns    Campaign[]
+  sessions     Session[]
+  apiKeys      ApiKey[]
+  auditLogs    AuditLog[]
+
+  @@index([username])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique               // sha256 of the opaque cookie value
+  expiresAt DateTime
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  prefix     String    @unique              // first 8 chars, shown in UI
+  keyHash    String                         // argon2id of the full key
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([prefix])
+}
+
+model Campaign {
+  id              String         @id @default(cuid())
+  userId          String
+  name            String
+  network         String                        // "testnet" | "public"
+  senderPublicKey String                        // G... that funded it
+  assetCode       String                        // "XLM" or e.g. "USDC"
+  assetIssuer     String?                       // null for native
+  amountPerLink   Decimal        @db.Decimal(23, 7)
+  linkCount       Int
+  expiresAt       DateTime
+  status          CampaignStatus @default(DRAFT)
+  csvExportedAt   DateTime?                     // hard gate: null blocks activation
+  reserveEstimate Decimal?       @db.Decimal(23, 7)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user            User           @relation(fields: [userId], references: [id])
+  links           ClaimLink[]
+  batches         Batch[]
+
+  @@index([userId, status])
+  @@index([expiresAt, status])
+}
+
+model Batch {
+  id              String      @id @default(cuid())
+  campaignId      String
+  sequence        Int                        // 1-based batch index
+  transactionHash String?     @unique
+  status          BatchStatus @default(PENDING)
+  errorCode       String?
+  submittedAt     DateTime?
+  confirmedAt     DateTime?
+  createdAt       DateTime    @default(now())
+
+  campaign        Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  links           ClaimLink[]
+
+  @@unique([campaignId, sequence])
+}
+
+model ClaimLink {
+  id                 String     @id @default(cuid())
+  campaignId         String
+  batchId            String?
+
+  /// Ephemeral PUBLIC key (G...). The corresponding seed NEVER touches this system.
+  ephemeralPublicKey String     @unique
+
+  balanceId          String?    @unique      // set once the batch confirms
+  status             LinkStatus @default(PENDING)
+  label              String?                 // sender's own note: handle, email, etc.
+
+  claimedBy          String?                 // recipient G...
+  claimedAt          DateTime?
+  claimTxHash        String?
+
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  campaign           Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  batch              Batch?     @relation(fields: [batchId], references: [id])
+  delivery           Delivery?
+
+  @@index([campaignId, status])
+  @@index([balanceId])
+}
+
+model Delivery {
+  id          String    @id @default(cuid())
+  linkId      String    @unique
+  email       String
+  sentAt      DateTime?
+  openedAt    DateTime?
+  otpHash     String?                        // argon2id, 6-digit
+  otpExpires  DateTime?
+  otpAttempts Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  link        ClaimLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String                          // "campaign.create", "link.reclaim", ...
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model IdempotencyKey {
+  key         String   @id
+  userId      String
+  requestHash String
+  response    Json?
+  statusCode  Int?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
+```
+
+### 4.1 Schema invariants
+
+The implementing agent must uphold these. Add a CI check that greps for violations.
+
+1. **No column ever stores a seed, secret key, or mnemonic.** `ephemeralPublicKey` is a public key. If a field name suggests otherwise, the schema is wrong.
+2. `Campaign.csvExportedAt` gates activation. A campaign cannot leave `CREATING` until it is set.
+3. `ClaimLink.balanceId` is null until the owning batch is `CONFIRMED`.
+4. Money columns are `Decimal(23,7)` — Stellar's precision is 7 decimal places. **Never `Float`.** In application code use `decimal.js` or string arithmetic; never JavaScript `Number` for amounts.
+
+### 4.2 Seed script
+
+`prisma/seed.ts` creates one admin:
+
+- Username from `SEED_ADMIN_USERNAME`, password from `SEED_ADMIN_PASSWORD`.
+- **Refuse to run if either is unset.** No hardcoded fallback, no `admin/admin`.
+- **Refuse to run in production** unless `ALLOW_PROD_SEED=true` is explicitly set.
+- Idempotent: upsert on username.
+- Print the username; never print the password.
+
+---
+
+## 5. Pages
+
+All routes are Next.js App Router. Design tokens and component conventions are in `BRAND.md`.
+
+### 5.1 Public
+
+| Route | Purpose | Notes |
+|---|---|---|
+| `/` | Landing page | Hero, three value props, three-step flow diagram. Matches provided mock. |
+| `/login` | Sender sign-in | Username + password. Generic error text on failure. |
+| `/claim` | **Recipient claim page** | Reads `#s=...`. Zero third-party scripts. Self-hosted fonts. |
+
+#### `/claim` states
+
+The page is a state machine and every state needs a designed screen:
+
+| State | Screen |
+|---|---|
+| `loading` | Resolving the link |
+| `invalid` | Link is malformed or not recognised |
+| `ready` | "You've received 500.00 USDC from *Sender*" + Connect Wallet to Claim |
+| `otp_required` | Six-digit code entry (email-delivered links only) |
+| `wallet_connecting` | Wallet kit modal |
+| `preparing` | Building your claim |
+| `awaiting_signature` | Confirm in your wallet |
+| `submitting` | Submitting to Stellar |
+| `claimed_success` | Amount, asset, tx hash, link to explorer |
+| `already_claimed` | Claimed on *date* by *G...* |
+| `expired` | This link expired on *date* and funds returned to the sender |
+| `failed` | What went wrong, and a retry action |
+
+The "New to Stellar?" panel is shown in `ready` and explains that Kleym sponsors the account and setup, so no XLM is required.
+
+### 5.2 Sender (authenticated)
+
+| Route | Purpose |
+|---|---|
+| `/dashboard` | Overview: total distributed, active campaigns, pending claims, recent campaigns table |
+| `/campaigns` | Full campaign list with search and status filter |
+| `/campaigns/new` | Three-step wizard (§5.3) |
+| `/campaigns/[id]` | Detail: progress, per-link table, labels, reclaim action |
+| `/campaigns/[id]/links` | Paginated link table with status and claimant |
+| `/settings` | Account, password change, API keys |
+| `/history` | Cross-campaign claim activity |
+
+### 5.3 Campaign wizard
+
+**Step 1 — Asset & amount.** Network, asset (native or code+issuer, validated against the sender's balances), amount per link. Shows the sender's available balance.
+
+**Step 2 — Recipients & expiry.** Link count, expiry datetime, optional label list (paste or CSV upload of labels only — never addresses). Displays total asset cost, total reserve cost, and batch count.
+
+**Step 3 — Review & batch.** This is where secrets are created.
+
+Order of operations in step 3 is mandatory and must not be reordered:
+
+1. Show the security checkpoint warning (see mock: red panel, "We cannot recover them for you if lost").
+2. Generate all keypairs in browser memory.
+3. **Force the CSV download.** The Continue button is disabled until the download fires.
+4. Build and sign batches, showing `Batch n / N signed`.
+5. On completion, offer the CSV again and warn that it will not be available after navigation.
+
+If the user navigates away mid-batch, show a `beforeunload` warning naming the consequence: unsigned links will be lost.
+
+### 5.4 Admin
+
+| Route | Purpose |
+|---|---|
+| `/admin` | System health, sponsor account balance, reconciliation drift |
+| `/admin/users` | User list, activate/deactivate |
+| `/admin/campaigns` | All campaigns, any user |
+| `/admin/reconciliation` | Database vs chain drift report, manual resync trigger |
+| `/admin/audit` | Audit log viewer |
+
+**Sponsor balance monitoring is not optional.** If the sponsor account runs dry, every claim in the system fails. Surface it on `/admin` and alert below a configurable threshold.
+
+---
+
+## 6. API
+
+Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
+
+### 6.1 Conventions
+
+- **Auth:** session cookie (`__Host-kleym_session`, `HttpOnly`, `Secure`, `SameSite=Lax`) for the app; `Authorization: Bearer <api_key>` for the public API.
+- **Validation:** every input parsed with Zod. Reject unknown keys.
+- **Idempotency:** all `POST` that touch chain state require an `Idempotency-Key` header.
+- **Errors:** RFC 9457 problem+json. Never leak stack traces or internal identifiers.
+- **Rate limits:** enforced in Redis, per IP and per user.
+
+### 6.2 Auth
+
+| Method | Path | Body | Notes |
+|---|---|---|---|
+| POST | `/api/auth/login` | `{ username, password }` | 5/15min per IP. Constant-time compare. Generic failure message. Rotate session ID on success. |
+| POST | `/api/auth/logout` | — | Deletes session row. |
+| GET | `/api/auth/session` | — | Current user or 401. |
+| POST | `/api/auth/password` | `{ current, next }` | Invalidates all other sessions. |
+
+### 6.3 Campaigns
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/campaigns` | List, paginated, filterable by status |
+| POST | `/api/campaigns` | Create draft. Body: name, network, asset, amountPerLink, linkCount, expiresAt |
+| GET | `/api/campaigns/[id]` | Detail with aggregate counts |
+| PATCH | `/api/campaigns/[id]` | Rename, cancel draft |
+| POST | `/api/campaigns/[id]/links` | Register ephemeral **public** keys. Body: `{ publicKeys: string[], labels?: string[] }`. **Rejects any 56-char value beginning `S`.** |
+| POST | `/api/campaigns/[id]/batches/prepare` | Returns unsigned XDR for batch `n` |
+| POST | `/api/campaigns/[id]/batches/submit` | Body: `{ sequence, signedXdr }`. Submits, records hash, extracts balance IDs |
+| POST | `/api/campaigns/[id]/export` | Marks `csvExportedAt`. Returns nothing — the CSV is built client-side |
+| POST | `/api/campaigns/[id]/reclaim/prepare` | Unsigned reclaim XDR |
+| POST | `/api/campaigns/[id]/reclaim/submit` | Signed reclaim |
+| GET | `/api/campaigns/[id]/links` | Paginated link rows |
+| PATCH | `/api/campaigns/[id]/links/[linkId]` | Update label only |
+
+**Input guard on `/links`:** any submitted value that parses as a Stellar secret seed must be rejected with `400 SEED_SUBMITTED` and logged as a security event. This is a defence against a future refactor accidentally posting seeds.
+
+### 6.4 Claims (public, unauthenticated)
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/claims/resolve?pk=<G...>` | Link metadata: asset, amount, sender name, status, expiry. Rate-limited 20/min/IP. Returns identical shape for unknown and expired keys to prevent enumeration. |
+| POST | `/api/claims/prepare` | `{ ephemeralPublicKey, recipientPublicKey }` → sponsor-signed XDR |
+| POST | `/api/claims/submit` | `{ ephemeralPublicKey, signedXdr }` → submits, records claim |
+| POST | `/api/claims/otp/request` | Email-delivered links only |
+| POST | `/api/claims/otp/verify` | 6 digits, 5 attempts, 10-minute expiry |
+
+`/api/claims/prepare` must re-verify against the ledger — not the database — that the balance still exists and the predicate is satisfiable. A stale `ACTIVE` row is not authorisation to build a claim.
+
+### 6.5 Delivery
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/campaigns/[id]/deliver` | Queue email sends. Body: `[{ publicKey, email }]`. **The server does not know the link URLs** — the client sends the full URL per recipient, the server queues it for immediate send, and it is never persisted. |
+
+This is the one place a full link transits the server. Mitigations, all mandatory: the URL is passed to the mail provider and discarded, never written to the database, never logged, and the job payload is deleted from Redis on completion. Document this trade-off prominently. If the sender prefers zero exposure, they distribute the CSV themselves.
+
+### 6.6 Public API
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/v1/campaigns` | List |
+| GET | `/api/v1/campaigns/[id]` | Detail and claim stats |
+| GET | `/api/v1/campaigns/[id]/links` | Link statuses |
+
+Read-only in v1. Creation requires a browser because keys are generated client-side. Rate limit 100/min per key.
+
+### 6.7 System
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/health` | Liveness. No auth. No detail. |
+| GET | `/api/ready` | DB + Redis + Horizon reachability. |
+
+---
+
+## 7. Background jobs
+
+BullMQ on Redis, consumed by `kleym-worker`.
+
+### 7.1 Queues
+
+| Queue | Trigger | Work |
+|---|---|---|
+| `batch-confirm` | After submit | Poll Horizon until the tx is in a closed ledger; extract balance IDs from the result XDR; mark links `ACTIVE` |
+| `email-deliver` | Sender action | Send one link email; discard the URL immediately |
+| `reconcile` | Cron, every 5 min | §7.2 |
+| `expiry-sweep` | Cron, hourly | Mark past-expiry links `EXPIRED`, campaigns `EXPIRED` |
+
+### 7.2 Reconciliation
+
+For each `ACTIVE` campaign:
+
+1. Fetch all balance IDs from the database.
+2. Query Horizon `/claimable_balances?claimant=...` and per-ID lookups.
+3. For each ID absent from the ledger, read its operation history to find the `claim_claimable_balance` op — record the claimant and transaction hash.
+4. Update link rows to `CLAIMED` or `RECLAIMED`.
+5. Any database row claiming `CLAIMED` whose balance still exists on-chain is a **critical** inconsistency: log at `ERROR`, surface on `/admin/reconciliation`, do not auto-correct.
+
+Extracting balance IDs from result XDR is notoriously fiddly. Use the SDK's helper rather than manual XDR walking, and cover it with a test against a known transaction.
+
+---
+
+## 8. Third-party services
+
+| Service | Purpose | Config |
+|---|---|---|
+| **Stellar Horizon** | Ledger queries, tx submission | `HORIZON_URL`. Run against testnet by default. |
+| **Freighter + Stellar Wallets Kit** | Sender and recipient signing | `@creit.tech/stellar-wallets-kit` — supports Freighter, xBull, Albedo, Rabet, Lobstr, Hana. Do not integrate Freighter's API directly; the kit gives every other wallet for free. |
+| **Railway** | Hosting, Postgres, Redis | — |
+| **Resend** (or Postmark) | Transactional email | `RESEND_API_KEY`. Chosen for a simple API and no analytics pixel by default — pixels on a claim email would leak. |
+| **Sentry** *(optional)* | Error tracking | **Must not be loaded on `/claim`.** Server-side only. |
+
+No analytics provider is specified. If one is added later, it must be excluded from `/claim` by route config, not by a runtime flag.
+
+---
+
+## 9. Configuration
+
+### 9.1 Environment variables
+
+```bash
+# ─── Core ───────────────────────────────────────────────
+NODE_ENV=development
+APP_URL=http://localhost:3000
+
+# ─── Database ───────────────────────────────────────────
+DATABASE_URL=postgresql://kleym:kleym@localhost:5432/kleym
+
+# ─── Redis ──────────────────────────────────────────────
+REDIS_URL=redis://localhost:6379
+
+# ─── Sessions ───────────────────────────────────────────
+SESSION_SECRET=            # 32+ random bytes, base64
+SESSION_TTL_HOURS=12
+
+# ─── Stellar ────────────────────────────────────────────
+STELLAR_NETWORK=testnet    # testnet | public
+HORIZON_URL=https://horizon-testnet.stellar.org
+NETWORK_PASSPHRASE=Test SDF Network ; September 2015
+
+# Sponsor account — pays recipient reserves and claim fees.
+# Railway secret ONLY. Never in the database, never in git.
+SPONSOR_PUBLIC_KEY=
+SPONSOR_SECRET_KEY=
+SPONSOR_MIN_BALANCE_ALERT=100
+
+# ─── Batching ───────────────────────────────────────────
+MAX_OPS_PER_BATCH=90
+MAX_LINKS_PER_CAMPAIGN=10000
+
+# ─── Email ──────────────────────────────────────────────
+RESEND_API_KEY=
+EMAIL_FROM=noreply@kleym.app
+
+# ─── Seed (dev only) ────────────────────────────────────
+SEED_ADMIN_USERNAME=
+SEED_ADMIN_PASSWORD=
+ALLOW_PROD_SEED=false
+```
+
+`.env.example` ships with every key present and every value blank. `.env` is gitignored. Startup validates the whole set through a Zod schema and exits with a readable error listing missing keys.
+
+### 9.2 Docker Compose (development)
+
+```yaml
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: kleym
+      POSTGRES_PASSWORD: kleym
+      POSTGRES_DB: kleym
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kleym"]
+      interval: 5s
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+
+volumes:
+  pgdata:
+```
+
+No MinIO. See §2.2 — there is deliberately no object storage in this system.
+
+---
+
+## 10. Acceptance criteria
+
+The build is complete when all of the following hold.
+
+**Protocol**
+1. Testnet integration test claims successfully in all four permutations: new/existing recipient × native/non-native asset.
+2. After a claim, the ephemeral account no longer exists on the ledger.
+3. Sponsor account net XLM change across a full claim cycle is fee-only — no reserve leakage.
+4. A 200-link campaign produces exactly 3 batches and 3 signature prompts.
+5. Reclaim after expiry returns all unclaimed funds and updates every affected row.
+
+**Security**
+6. `grep -ri "secret\|seed" prisma/schema.prisma` returns no storage field.
+7. No server log line in a full end-to-end run contains a value derived from a URL fragment.
+8. `/claim` loads zero third-party network requests (verify in devtools).
+9. Posting a valid Stellar seed to `/api/campaigns/[id]/links` returns 400 and logs a security event.
+10. Seed script refuses to run without explicit credentials and refuses production without an explicit flag.
+
+**Product**
+11. The Continue button in wizard step 3 is unreachable until the CSV download has fired.
+12. Every `/claim` state in §5.1 has a designed screen — including `expired` and `already_claimed`.
+13. Reconciliation detects and reports a manually-introduced drift row.
+14. Sponsor balance below threshold produces a visible admin warning.
+
+---
+
+## 11. Build order
+
+Each step ends in something checkable. Do not proceed past a failing step.
+
+1. **Testnet spike.** Script the §3.3 claim transaction end-to-end. No UI, no database. Prove all four permutations. *This de-risks the whole project and may change the design — do it first.*
+2. Scaffold: Next.js, Prisma, Tailwind, Docker Compose, env validation, seed script.
+3. Auth: login, sessions, password hashing, rate limiting.
+4. Campaign creation: wizard, client-side keygen, batch build/sign/submit, CSV gate.
+5. Claim page: resolve, prepare, sign, submit, all states.
+6. Reconciliation and expiry jobs.
+7. Reclaim.
+8. Email delivery and OTP.
+9. Admin and public API.
+10. Harden: headers, CSP, audit logging, load test the batch path.
+
+---
+
+## 12. Known limitations
+
+State these in the product, not just in this document.
+
+- **Lost CSV means stranded funds** until expiry. By design; the alternative is custody.
+- **Sponsor exhaustion halts all claims.** Single point of failure in v1. Monitor it.
+- **A leaked link is a bearer instrument.** Anyone holding the URL can claim. Email delivery with OTP mitigates this; direct distribution does not.
+- **Partial batch failure** leaves a campaign in a mixed state requiring sender action.
+- **No multi-tenancy.** One user owns their campaigns; no shared organisation access.
+- **Reserve estimates depend on live protocol values** and can shift between quote and signature.
