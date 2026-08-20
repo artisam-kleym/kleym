@@ -1,6 +1,6 @@
 # Issue #1 — spike result
 
-**Status: PASSED, 6/6.** The claim design is verified on testnet — but not the design
+**Status: PASSED, 7/7.** The claim design is verified on testnet — but not the design
 `SPEC.md` §3.3 originally specified. That one is disproven. §3.3 has been rewritten.
 
 ```
@@ -8,9 +8,12 @@ PASS  New recipient      x  native (XLM)
 PASS  Existing recipient x  native (XLM)
 PASS  New recipient      x  non-native (USDC)
 PASS  Existing recipient x  non-native (USDC)
+PASS  Signature discipline — over-signed transaction
 PASS  Predicate — recipient blocked after expiry, sender reclaims
 PASS  Predicate — sender blocked before expiry
 ```
+
+`pnpm typecheck` is clean under `strict` with `noUnusedLocals`.
 
 Run with `pnpm spike`. Testnet only.
 
@@ -39,7 +42,10 @@ Two transactions, TX2 in a later ledger than TX1. Full op lists in `SPEC.md` §3
 
 **The recipient signature is conditional.** §3.3 previously said signers are always
 SPONSOR, EPHEMERAL, RECIPIENT. When the recipient already exists *and* holds the trustline
-it is not an operation source, and signing anyway returns `tx_bad_auth_extra`. Affects #10.
+it is not an operation source, and signing anyway returns `tx_bad_auth_extra` — observed,
+not assumed: the spike submits an over-signed transaction, asserts the code, then submits
+the same transaction correctly signed to show the rejection was the signature and not the
+operations. Affects #10.
 
 **§10.3 was measuring the wrong thing.** "Sponsor net XLM change is fee-only" is true of
 the *balance*, but sponsoring never spends XLM — it raises the sponsor's minimum balance.
@@ -69,3 +75,8 @@ obligations computed from live `base_reserve_in_stroops` rather than a constant.
 
 `Transaction.getClaimableBalanceId()` matched the ledger's balance ID on every run,
 settling the §7.2 concern about manual XDR walking.
+
+Negative cases assert the specific result code rather than merely that submission threw.
+A timeout bound, a stale sequence number, or a Horizon 5xx would otherwise be
+indistinguishable from an enforced predicate. Both predicate directions assert
+`op_cannot_claim` on the claim operation; the signature check asserts `tx_bad_auth_extra`.

@@ -119,6 +119,11 @@ async function feeCharged(hash: string): Promise<Decimal> {
   return new Decimal(tx.fee_charged).div(1e7)
 }
 
+/** Operation/transaction result codes from a Horizon rejection, or null. */
+function resultCodes(e: any): { transaction?: string; operations?: string[] } | null {
+  return e?.response?.data?.extras?.result_codes ?? null
+}
+
 function describeError(e: any): string {
   const rc = e?.response?.data?.extras?.result_codes
   if (rc) return JSON.stringify(rc)
@@ -229,7 +234,7 @@ async function createClaimableBalance(
   // SPEC §7.2: use the SDK helper, not manual XDR walking.
   const extractedId = tx.getClaimableBalanceId(0)
 
-  const res: any = await server.submitTransaction(tx)
+  await server.submitTransaction(tx)
 
   // Confirm the locally-derived ID matches what the ledger actually recorded.
   const onChain: any = await server.claimableBalances().claimableBalance(extractedId).call()
@@ -243,6 +248,9 @@ interface ClaimPlan {
   xdr: string
   needsRecipientSignature: boolean
   opCount: number
+  /** Ledger-observed, not inferred from test setup — assertions derive from these. */
+  recipientExists: boolean
+  recipientTrusts: boolean
 }
 
 /**
@@ -368,7 +376,13 @@ async function prepareClaim(
   // Signing when the recipient is not an operation source yields tx_bad_auth_extra.
   const needsRecipientSignature = !recipientExists || (nonNative && !recipientTrusts)
 
-  return { xdr: tx.toXDR(), needsRecipientSignature, opCount: tx.operations.length }
+  return {
+    xdr: tx.toXDR(),
+    needsRecipientSignature,
+    opCount: tx.operations.length,
+    recipientExists,
+    recipientTrusts,
+  }
 }
 
 // ── one permutation ──────────────────────────────────────────────────────────
@@ -480,8 +494,12 @@ async function runPermutation(
 
     // Sponsorships that legitimately persist: the recipient's account and, for a
     // non-native asset, its trustline. Every ephemeral sponsorship must be gone.
+    // Derived from what prepareClaim observed on the ledger, not from this
+    // test's own setup flags, so the assertion stays honest if setup changes.
+    // An account costs TWO base reserves (Stellar's account minimum is
+    // `2 + subentries`), a trustline one.
     const expectedNewSponsorships =
-      (opts.existingRecipient ? 0 : 2) + (!asset.isNative() && !opts.existingRecipient ? 1 : 0)
+      (plan.recipientExists ? 0 : 2) + (!asset.isNative() && !plan.recipientTrusts ? 1 : 0)
     const actualNew = sponsoringAfter - before.sponsoring
     if (actualNew !== expectedNewSponsorships) {
       throw new Error(
@@ -546,14 +564,22 @@ async function runPredicateChecks(w: World): Promise<Result[]> {
       if (plan.needsRecipientSignature) tx.sign(recip)
 
       let claimed = false
+      let codes: ReturnType<typeof resultCodes> = null
       try {
         await server.submitTransaction(tx)
         claimed = true
-      } catch {
-        /* expected */
+      } catch (e) {
+        codes = resultCodes(e)
       }
       if (claimed) throw new Error('recipient claimed a balance after expiry')
-      detail.push('recipient claim after expiry rejected')
+      // "Something threw" is not evidence: a timeout bound, a bad sequence, or a
+      // Horizon 5xx would all look like an enforced predicate. Assert the code.
+      if (codes?.operations?.[0] !== 'op_cannot_claim') {
+        throw new Error(
+          `expected op_cannot_claim on the claim op, got ${JSON.stringify(codes)}`,
+        )
+      }
+      detail.push('recipient claim after expiry rejected with op_cannot_claim')
 
       const sa = await server.loadAccount(w.sender.publicKey())
       const reclaim = new TransactionBuilder(sa, {
@@ -592,14 +618,20 @@ async function runPredicateChecks(w: World): Promise<Result[]> {
       early.sign(w.sender)
 
       let claimed = false
+      let codes: ReturnType<typeof resultCodes> = null
       try {
         await server.submitTransaction(early)
         claimed = true
-      } catch {
-        /* expected */
+      } catch (e) {
+        codes = resultCodes(e)
       }
       if (claimed) throw new Error('sender claimed a balance before expiry')
-      detail.push('sender claim before expiry rejected')
+      if (codes?.operations?.[0] !== 'op_cannot_claim') {
+        throw new Error(
+          `expected op_cannot_claim on the claim op, got ${JSON.stringify(codes)}`,
+        )
+      }
+      detail.push('sender claim before expiry rejected with op_cannot_claim')
       out.push({ name: 'Predicate — before expiry', passed: true, detail })
     } catch (e: any) {
       out.push({ name: 'Predicate — before expiry', passed: false, detail, failure: describeError(e) })
@@ -607,6 +639,65 @@ async function runPredicateChecks(w: World): Promise<Result[]> {
   }
 
   return out
+}
+
+/**
+ * SPEC §3.3 states that signing when the recipient is not an operation source is
+ * rejected. Following `needsRecipientSignature` only ever proves the happy path,
+ * so this exercises the negative directly, then submits the same transaction
+ * correctly signed to show the rejection was about the extra signature and not
+ * some unrelated defect.
+ */
+async function runSignatureDisciplineCheck(w: World): Promise<Result> {
+  const detail: string[] = []
+  const asset = Asset.native()
+  const amount = '25.0000000'
+  try {
+    const eph = Keypair.random()
+    const recipient = Keypair.random()
+    await friendbot(recipient.publicKey()) // existing + native => not an op source
+
+    const expiresAt = new Date(Date.now() + 3600_000)
+    const { balanceId } = await createClaimableBalance(w, eph.publicKey(), asset, amount, expiresAt)
+    await materialiseEphemeral(w, eph.publicKey(), eph, asset)
+    await waitForNextLedger()
+
+    const plan = await prepareClaim(w, eph.publicKey(), recipient.publicKey(), asset, amount, balanceId)
+    if (plan.needsRecipientSignature) {
+      throw new Error('setup wrong: this permutation should not need a recipient signature')
+    }
+
+    const overSigned = new Transaction(plan.xdr, NETWORK_PASSPHRASE)
+    overSigned.sign(eph)
+    overSigned.sign(recipient) // the unnecessary signature under test
+    let accepted = false
+    let codes: ReturnType<typeof resultCodes> = null
+    try {
+      await server.submitTransaction(overSigned)
+      accepted = true
+    } catch (e) {
+      codes = resultCodes(e)
+    }
+    if (accepted) throw new Error('an over-signed transaction was accepted')
+    if (codes?.transaction !== 'tx_bad_auth_extra') {
+      throw new Error(`expected tx_bad_auth_extra, got ${JSON.stringify(codes)}`)
+    }
+    detail.push('unnecessary recipient signature rejected with tx_bad_auth_extra')
+
+    const correct = new Transaction(plan.xdr, NETWORK_PASSPHRASE)
+    correct.sign(eph)
+    await server.submitTransaction(correct)
+    detail.push('same transaction succeeds without it — rejection was the signature, not the ops')
+
+    return { name: 'Signature discipline — over-signed transaction', passed: true, detail }
+  } catch (e: any) {
+    return {
+      name: 'Signature discipline — over-signed transaction',
+      passed: false,
+      detail,
+      failure: describeError(e),
+    }
+  }
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
@@ -629,6 +720,15 @@ async function main() {
   ]) {
     log(`\n▶ ${opts.name}`)
     const r = await runPermutation(w, opts)
+    r.detail.forEach((d) => log(`    ${d}`))
+    if (!r.passed) log(`    FAILED: ${r.failure}`)
+    results.push(r)
+  }
+
+  section('Signature discipline')
+  {
+    const r = await runSignatureDisciplineCheck(w)
+    log(`\n▶ ${r.name}`)
     r.detail.forEach((d) => log(`    ${d}`))
     if (!r.passed) log(`    FAILED: ${r.failure}`)
     results.push(r)

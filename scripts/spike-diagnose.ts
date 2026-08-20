@@ -4,7 +4,7 @@
  */
 import {
   Asset, BASE_FEE, Claimant, Horizon, Keypair, Networks, Operation,
-  Transaction, TransactionBuilder,
+  TransactionBuilder,
 } from '@stellar/stellar-sdk'
 
 const server = new Horizon.Server('https://horizon-testnet.stellar.org')
@@ -17,7 +17,13 @@ const fb = async (p: string) => {
   if (!r.ok) throw new Error(`friendbot ${r.status}`)
 }
 const exists = async (p: string) => {
-  try { await server.loadAccount(p); return true } catch { return false }
+  // Rethrow anything that is not a genuine 404 — swallowing a transient Horizon
+  // error here would report "ephemeral gone: true", which is this script's
+  // entire output.
+  try { await server.loadAccount(p); return true } catch (e: any) {
+    if (e?.response?.status === 404 || e?.name === 'NotFoundError') return false
+    throw e
+  }
 }
 const codes = (e: any) => JSON.stringify(e?.response?.data?.extras?.result_codes ?? e?.message)
 

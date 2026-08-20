@@ -210,7 +210,7 @@ in `scripts/spike-diagnose.ts`. Neither has a workaround.
    enough — the boundary is the ledger, roughly five seconds.
 2. **An account holding a trustline cannot be merged.** Fails `op_has_sub_entries`.
 
-#### 3.3.2 The cost: a recoverable intermediate state
+#### 3.3.2 The cost: an unrecoverable intermediate state
 
 Two transactions are not atomic. TX1 can land and TX2 never follow — a closed tab, a
 rejected signature, a dropped connection.
@@ -695,8 +695,6 @@ For each `ACTIVE` campaign:
 
 Extracting balance IDs from result XDR is notoriously fiddly. Use the SDK's helper rather than manual XDR walking, and cover it with a test against a known transaction.
 
----
-
 ### 7.3 Stranded ephemeral account monitor
 
 Required by the two-transaction claim design (§3.3.2). When TX1 lands and TX2 never
@@ -721,6 +719,8 @@ warning (§5.4).
 
 Reserves return on their own when a stranded link is eventually claimed. Retrying a claim
 skips TX1 (§3.3.2), so a recipient returning to their link resolves it naturally.
+
+---
 
 ## 8. Third-party services
 
