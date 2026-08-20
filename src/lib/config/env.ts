@@ -7,8 +7,20 @@
  */
 import { z } from 'zod'
 
-/** Stellar secret seeds are 56 characters and begin with S. */
+/**
+ * Two regexes, deliberately. Do not collapse them.
+ *
+ * SECRET_SEED is anchored, for validating that SPONSOR_SECRET_KEY *is* a seed
+ * and nothing else. SECRET_SEED_ANYWHERE is unanchored, for detecting a seed
+ * *embedded* in some other value — a connection string, a callback URL, or a
+ * value with a stray trailing newline from a paste into a secret-store field.
+ *
+ * The leak scan below must use the unanchored form. An anchored scan passes on
+ * the most likely shape of the mistake, which is worse than no scan at all
+ * because it records AGENT.md §5.5 as satisfied.
+ */
 const SECRET_SEED = /^S[A-Z2-7]{55}$/
+const SECRET_SEED_ANYWHERE = /S[A-Z2-7]{55}/
 const PUBLIC_KEY = /^G[A-Z2-7]{55}$/
 
 const schema = z.object({
@@ -23,9 +35,19 @@ const schema = z.object({
   REDIS_URL: z.string().min(1),
 
   // Sessions
-  SESSION_SECRET: z
-    .string()
-    .min(32, 'SESSION_SECRET must be at least 32 bytes of base64-encoded randomness'),
+  // Checked in DECODED BYTES, not characters. 32 base64 characters decode to
+  // only 24 bytes, so a .min(32) on the string would pass a secret weaker than
+  // the message promises.
+  SESSION_SECRET: z.string().refine(
+    (v) => {
+      try {
+        return Buffer.from(v, 'base64').length >= 32
+      } catch {
+        return false
+      }
+    },
+    { message: 'SESSION_SECRET must decode to at least 32 bytes (44+ base64 characters)' },
+  ),
   SESSION_TTL_HOURS: z.coerce.number().int().positive().default(12),
 
   // Stellar
@@ -62,8 +84,8 @@ export type Env = z.infer<typeof schema>
  */
 function assertNoPublicSecrets(raw: NodeJS.ProcessEnv): string[] {
   return Object.entries(raw)
-    .filter(([key, value]) => key.startsWith('NEXT_PUBLIC_') && value && SECRET_SEED.test(value))
-    .map(([key]) => `${key}: holds a Stellar secret seed and would be inlined into the client bundle`)
+    .filter(([key, value]) => key.startsWith('NEXT_PUBLIC_') && value && SECRET_SEED_ANYWHERE.test(value))
+    .map(([key]) => `${key}: contains a Stellar secret seed and would be inlined into the client bundle`)
 }
 
 function load(raw: NodeJS.ProcessEnv): Env {
@@ -88,4 +110,35 @@ function load(raw: NodeJS.ProcessEnv): Env {
   return parsed.data
 }
 
-export const env: Env = load(process.env)
+/**
+ * Validation is deferred to first access rather than run at module scope.
+ *
+ * Next evaluates route modules during "Collecting page data", so validating on
+ * import made `pnpm build` require the full runtime environment — including
+ * SPONSOR_SECRET_KEY. That widened the one key that matters most (AGENT.md
+ * §5.5) from the running service's secret store to the build step, its logs,
+ * and its cache, as a side effect rather than a decision.
+ *
+ * Startup still fails fast: the first real read of any key validates the whole
+ * set and exits with the same checklist.
+ */
+let cached: Env | undefined
+
+export const env: Env = new Proxy({} as Env, {
+  get(_target, key: string | symbol) {
+    cached ??= load(process.env)
+    return cached[key as keyof Env]
+  },
+  has(_target, key: string | symbol) {
+    cached ??= load(process.env)
+    return key in cached
+  },
+  ownKeys() {
+    cached ??= load(process.env)
+    return Reflect.ownKeys(cached)
+  },
+  getOwnPropertyDescriptor(_target, key: string | symbol) {
+    cached ??= load(process.env)
+    return Reflect.getOwnPropertyDescriptor(cached, key)
+  },
+})

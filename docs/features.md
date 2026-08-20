@@ -33,7 +33,9 @@ variable holding a Stellar secret refuses to boot at all.
 `/api/health` reports liveness with no detail; `/api/ready` reports per-dependency
 reachability and returns 503 until Postgres and Redis are wired in #3.
 
-**Verified by:** `pnpm build`, `pnpm typecheck`, `pnpm lint`, `pnpm audit` all clean;
+**Verified by:** `pnpm build`, `pnpm typecheck`, `pnpm lint`, `pnpm audit` all clean —
+build and both checks run with a completely empty environment, so no secret is needed to
+compile or to gate a pull request;
 containers brought up and confirmed healthy; server started and `/`, `/api/health`,
 `/api/ready` all curled; both env-failure paths exercised directly.
 

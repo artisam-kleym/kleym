@@ -96,8 +96,13 @@ Prisma steps (`migrate dev`, `db seed`) arrive with #3.
 | `pnpm diagnose` | Isolates the two `AccountMerge` constraints behind the two-transaction design |
 
 Startup validates the whole environment through a Zod schema and exits with a readable
-list of what is missing. It also refuses to boot if any `NEXT_PUBLIC_*` variable holds a
-Stellar secret seed, since Next.js inlines those into the client bundle.
+list of what is missing. It also refuses to boot if any `NEXT_PUBLIC_*` variable *contains*
+a Stellar secret seed — anywhere in the value, not just as the whole of it — since Next.js
+inlines those into the client bundle.
+
+Validation happens on first access rather than at import, so **`pnpm build`, `pnpm typecheck`
+and `pnpm lint` all run with no environment at all.** The sponsor's secret key is needed by
+the running service, never by the build or by CI.
 
 `.env` is gitignored. `SPONSOR_SECRET_KEY` belongs in Railway's secret store and never in the repo.
 
