@@ -52,10 +52,21 @@ reading the thing this refuses.
 **The `.secret()` CI guard forbade the thing the product must do.** It banned seed
 extraction anywhere under `src/`, but `AGENT.md` §1 says seeds are "generated in
 the sender's browser" — which is `src/`. Rather than weaken it, the guard now
-exempts exactly one module and a second guard makes that exemption checkable:
-nothing without `'use client'` may import `lib/campaign/keygen`. It immediately
-caught `download-gate.ts`, which manipulates `document` and `Blob` and had no
-client marker.
+exempts exactly one module, and that module is constrained instead.
+
+The constraint is `import 'client-only'` at the top of `keygen.ts`. That package
+throws under the `react-server` condition, so a server component or route handler
+importing it fails the **build**, by name — enforcement by the compiler rather
+than by a text search. Verified against a planted route handler.
+
+A CI step still runs as the earlier, friendlier signal, and it now matches any
+spelling of the module path. The first version matched `@/lib/campaign/keygen`
+but not `./keygen` — the natural way to write it from inside that directory — so
+a planted server module using the relative form went entirely unseen. It also
+accepts either quote style around `'use client'` and looks past a licence header.
+
+The guard caught `download-gate.ts` on its first run, which manipulates
+`document` and `Blob` and had no client marker.
 
 **The wallet kit brought 34 advisories, one critical.**
 `@creit.tech/stellar-wallets-kit` depends on Trezor, Ledger, WalletConnect and

@@ -348,17 +348,34 @@ jobs:
 
       # What makes the exemption above safe. A seed generated in the browser is
       # the design; the same call reached from a route handler, a worker, or a
-      # server component would put a seed in a response body or a log — so the
-      # only thing that may import it is a 'use client' module.
+      # server component would put a seed in a response body or a log.
+      #
+      # The real enforcement is `import 'client-only'` at the top of keygen.ts:
+      # that module throws under the react-server condition, so a server import
+      # fails the BUILD by name rather than passing a text search. Verified
+      # against a planted route handler — Turbopack refuses it.
+      #
+      # This step is the earlier, friendlier signal. It matches any spelling of
+      # the module path, not one: the first version matched
+      # '@/lib/campaign/keygen' but not './keygen', which is the natural way to
+      # write it from inside that directory, and a planted server module using
+      # the relative form went unseen.
       - name: Browser keygen is unreachable from the server
         run: |
-          KEYGEN='@/lib/campaign/keygen'
           FAILED=0
-          for FILE in $(grep -rl "$KEYGEN" src/ 2>/dev/null); do
+          # Any import whose specifier ends in /keygen, aliased or relative.
+          for FILE in $(grep -rlE "from ['\"][^'\"]*/keygen['\"]" src/ 2>/dev/null); do
             case "$FILE" in
               src/lib/campaign/keygen.ts) continue ;;
             esac
-            if ! head -5 "$FILE" | grep -q "^'use client'"; then
+            # A type-only import is erased and reaches no runtime code.
+            if ! grep -E "from ['\"][^'\"]*/keygen['\"]" "$FILE" | grep -qv 'import type'; then
+              continue
+            fi
+            # Both quote styles, and anywhere in the preamble rather than the
+            # first five lines — a licence header above the directive is not a
+            # security finding, but it would read as a mysterious failure.
+            if ! head -40 "$FILE" | grep -qE "^['\"]use client['\"]"; then
               echo "::error file=$FILE::imports browser keygen without 'use client' (AGENT.md §1)"
               FAILED=1
             fi

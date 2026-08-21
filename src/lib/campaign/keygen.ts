@@ -13,6 +13,16 @@
  * the wizard's job is to make that impossible to stumble into, not to keep a
  * copy somewhere convenient.
  */
+/*
+ * `client-only` makes this the COMPILER's rule rather than a grep's.
+ *
+ * The package resolves to a module that throws under the `react-server`
+ * condition, so any server component or route handler that pulls this in fails
+ * the build by name. A CI grep can only match the spellings someone thought of
+ * — and the first version of that grep matched `@/lib/campaign/keygen` but not
+ * `./keygen`, which is the natural way to write it from inside this directory.
+ */
+import 'client-only'
 import { Keypair } from '@stellar/stellar-sdk'
 
 export interface EphemeralKey {
