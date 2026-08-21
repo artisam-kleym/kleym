@@ -62,6 +62,14 @@ const schema = z.object({
   MAX_OPS_PER_BATCH: z.coerce.number().int().positive().max(100).default(90),
   MAX_LINKS_PER_CAMPAIGN: z.coerce.number().int().positive().default(10_000),
 
+  /*
+   * Per-operation fee, in stroops. The network minimum is 100; the default here
+   * is 10x that so a batch still clears when the ledger is congested and
+   * surge pricing lifts the floor. A batch of 90 costs 0.009 XLM at this rate,
+   * which is not what makes a campaign expensive — the reserves are.
+   */
+  BASE_FEE_STROOPS: z.coerce.number().int().min(100).default(1_000).transform(String),
+
   // Email
   RESEND_API_KEY: z.string().min(1),
   EMAIL_FROM: z.email(),

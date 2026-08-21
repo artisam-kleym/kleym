@@ -140,3 +140,58 @@ cost: an abandoned claim strands sponsor reserves that Kleym cannot recover.
 four permutations plus both predicate directions. Exact decimal balance comparison,
 post-merge account existence checked on the ledger, reserve obligation computed from
 live protocol values.
+
+## 2026-08-21 — Batch build, sign, submit and the batch-confirm worker (#9)
+
+A campaign's registered public keys become live claimable balances on-chain. One
+`CreateClaimableBalance` operation per link, batched at 90 under the protocol's
+ceiling of 100, signed by the sender in their own wallet, submitted by Kleym, and
+confirmed from the ledger rather than from anything the client said.
+
+`POST /api/campaigns/[id]/batches/prepare` returns the unsigned envelope for the
+next batch that still needs signing, with the reserve it locks computed from the
+base reserve read off the last closed ledger. `POST .../batches/submit` re-derives
+the signed envelope against the campaign row before submitting — the operations
+are compared to the campaign's asset, amount, expiry and registered ephemeral keys,
+and the sender's signature is verified. `POST .../batches/retry` re-opens failed
+batches; `GET .../batches` is what "Batch 3 / 12 signed" renders from.
+
+Links become `ACTIVE` only in the `batch-confirm` worker, which waits for the
+transaction to reach a closed ledger, takes the balance IDs out of the result XDR,
+and reads each balance back off the ledger before writing it. A transaction Horizon
+has not indexed yet is retried, never treated as failed — "not found" and "did not
+happen" are different answers, and confusing them would mark funded links `FAILED`.
+
+Partial creation is recorded honestly: when a batch fails its links go to `FAILED`,
+never reach the CSV, and the campaign becomes `PARTIAL`. A fully confirmed campaign
+still waits in `CREATING` until the CSV export is recorded, because the sender holds
+the only copy of every seed.
+
+Two things the verification caught that would otherwise have shipped:
+
+- Comparing `transaction.networkPassphrase` to the expected one checks nothing. An
+  envelope carries no network identifier — `fromXDR` labels the parsed transaction
+  with whatever passphrase it is handed. The network is only mixed in when the
+  signature payload is hashed, so verifying the sender's signature is what actually
+  rejects a wrong-network envelope, and one the sender never signed.
+- Two prepare calls racing from an unplanned campaign both open a serializable
+  transaction; the loser aborts, which is the transaction working. Letting that
+  abort propagate turned an ordinary double-click into a 500.
+
+**Verified by:** 30 unit tests covering the 90/91/200 batching boundaries, both
+predicate directions, reserve arithmetic at a base reserve that is not 0.5, and
+nine envelope-tampering cases (substituted claimants, shifted expiry, altered
+amount, wrong source, wrong signer, wrong network). Balance-ID derivation is
+checked against a real testnet transaction whose IDs were read back from Horizon
+(`tests/fixtures/balance-id.json`, regenerate with `pnpm fixture:balance-id`), and
+against the same IDs parsed out of its result XDR. `pnpm verify:batches` exercises
+the lifecycle against real Postgres — planning, the 7-of-12 partial failure, the
+`balanceId`/`CONFIRMED` invariant, CSV-gated activation, retry touching only failed
+links, and re-submission returning the original result. Each check was confirmed to
+fail against a planted regression before being kept. Both scripts run in CI against
+a real Postgres service.
+
+`pnpm verify:confirm` drives the worker end to end against the fixture's real
+testnet transaction — balance IDs out of the result XDR, each balance read back
+from Horizon, links ACTIVE and mapped to the right ephemeral key, and a second run
+a no-op. It needs the network, so it stays out of the commit gate (AGENT.md §7.2).
