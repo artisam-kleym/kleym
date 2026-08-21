@@ -19,6 +19,7 @@
     "db:generate": "prisma generate",
     "postinstall": "prisma generate",
     "verify:concurrency": "tsx scripts/verify-concurrency.ts",
+    "verify:api-keys": "tsx scripts/verify-api-keys.ts",
     "verify:batches": "tsx scripts/verify-batches.ts",
     "verify:confirm": "tsx scripts/verify-confirm-worker.ts",
     "fixture:balance-id": "tsx scripts/make-balance-id-fixture.ts"

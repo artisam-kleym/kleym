@@ -20,6 +20,131 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-08-21 — Batch build, sign, submit and the batch-confirm worker (#9)
+
+A campaign's registered public keys become live claimable balances on-chain. One
+`CreateClaimableBalance` operation per link, batched at 90 under the protocol's
+ceiling of 100, signed by the sender in their own wallet, submitted by Kleym, and
+confirmed from the ledger rather than from anything the client said.
+
+`POST /api/campaigns/[id]/batches/prepare` returns the unsigned envelope for the
+next batch that still needs signing, with the reserve it locks computed from the
+base reserve read off the last closed ledger. `POST .../batches/submit` re-derives
+the signed envelope against the campaign row before submitting — the operations
+are compared to the campaign's asset, amount, expiry and registered ephemeral keys,
+and the sender's signature is verified. `POST .../batches/retry` re-opens failed
+batches; `GET .../batches` is what "Batch 3 / 12 signed" renders from.
+
+Links become `ACTIVE` only in the `batch-confirm` worker, which waits for the
+transaction to reach a closed ledger, takes the balance IDs out of the result XDR,
+and reads each balance back off the ledger before writing it. A transaction Horizon
+has not indexed yet is retried, never treated as failed — "not found" and "did not
+happen" are different answers, and confusing them would mark funded links `FAILED`.
+
+Partial creation is recorded honestly: when a batch fails its links go to `FAILED`,
+never reach the CSV, and the campaign becomes `PARTIAL`. A fully confirmed campaign
+still waits in `CREATING` until the CSV export is recorded, because the sender holds
+the only copy of every seed.
+
+Two things the verification caught that would otherwise have shipped:
+
+- Comparing `transaction.networkPassphrase` to the expected one checks nothing. An
+  envelope carries no network identifier — `fromXDR` labels the parsed transaction
+  with whatever passphrase it is handed. The network is only mixed in when the
+  signature payload is hashed, so verifying the sender's signature is what actually
+  rejects a wrong-network envelope, and one the sender never signed.
+- Two prepare calls racing from an unplanned campaign both open a serializable
+  transaction; the loser aborts, which is the transaction working. Letting that
+  abort propagate turned an ordinary double-click into a 500.
+
+**Verified by:** 30 unit tests covering the 90/91/200 batching boundaries, both
+predicate directions, reserve arithmetic at a base reserve that is not 0.5, and
+nine envelope-tampering cases (substituted claimants, shifted expiry, altered
+amount, wrong source, wrong signer, wrong network). Balance-ID derivation is
+checked against a real testnet transaction whose IDs were read back from Horizon
+(`tests/fixtures/balance-id.json`, regenerate with `pnpm fixture:balance-id`), and
+against the same IDs parsed out of its result XDR. `pnpm verify:batches` exercises
+the lifecycle against real Postgres — planning, the 7-of-12 partial failure, the
+`balanceId`/`CONFIRMED` invariant, CSV-gated activation, retry touching only failed
+links, and re-submission returning the original result. Each check was confirmed to
+fail against a planted regression before being kept. Both scripts run in CI against
+a real Postgres service.
+
+`pnpm verify:confirm` drives the worker end to end against the fixture's real
+testnet transaction — balance IDs out of the result XDR, each balance read back
+from Horizon, links ACTIVE and mapped to the right ephemeral key, and a second run
+a no-op. It runs the same transaction twice, the second time with links enumerating
+in the opposite order, which is what distinguishes a ledger-derived mapping from a
+positional one. It needs the network, so it stays out of the commit gate
+(AGENT.md §7.2).
+
+### Link ordering
+
+Every query that lists links orders by `(createdAt, id)`, from one shared
+`LINK_ORDER` constant. `createdAt` defaults to `CURRENT_TIMESTAMP`, which in
+Postgres is *transaction* time, so all 90 links registered by one `createMany`
+carry an identical timestamp — and `ORDER BY "createdAt"` over equal keys is not a
+total order. Updating fifteen of ninety links so their tuples relocate returns a
+different permutation from the same query; with the `id` tiebreak it does not.
+
+Because batch membership, operation index and balance-ID mapping are all
+positional, two queries disagreeing about order would write one recipient's
+balance ID onto another recipient's link. The confirm worker no longer relies on
+that agreement at all: it matches each balance to the link whose ephemeral key is
+one of the balance's claimants, so the mapping comes from the chain rather than
+from list position (AGENT.md §4.2).
+
+## 2026-08-21 — Public read-only API v1, API keys, and settings (#16)
+
+Three read-only endpoints under `/api/v1`, authenticated with `Authorization: Bearer`,
+rate limited at 100 requests per minute per key, and scoped to the key's owner in the
+query rather than by a check afterwards.
+
+There is no write endpoint and there will not be one in v1. Creating a campaign means
+generating a keypair per link in the sender's browser; an API that accepted them would
+move secrets through a server. CI fails the build if a `POST`, `PUT`, `PATCH` or
+`DELETE` handler appears under `src/app/api/v1/`, so the boundary is enforced rather
+than remembered.
+
+Keys are issued and revoked on `/settings`, alongside password change. A key is shown
+exactly once — only an argon2id hash is stored, and the settings page renders from a
+query that selects the prefix and timestamps and cannot return the key. Revocation
+takes effect on the next request, because resolution reads `revokedAt` every time
+rather than caching.
+
+Amounts cross the boundary as strings. A JSON number cannot hold Stellar's seven
+decimal places across its range: `922337203685.4775807` — the protocol maximum —
+becomes `922337203685.4775` as a double.
+
+One bug the verification caught, which would have failed roughly half of all issued
+keys: base64url's alphabet contains `_`, and the parser split the key on `_` and
+expected three parts. Any key whose random half happened to contain an underscore was
+rejected as malformed, and the rest worked — which is exactly how that reaches
+production. The prefix is now hex and the key is parsed by a fixed-width pattern that
+takes the secret as everything after the second separator, so its alphabet cannot
+matter.
+
+Every listing orders by `(createdAt, id)` rather than `createdAt` alone — links
+through the shared `LINK_ORDER` constant #9 introduced, campaigns and API keys
+inline for the same reason.
+`createdAt` defaults to `CURRENT_TIMESTAMP`, which in Postgres is *transaction*
+time, so all 90 links registered by one `createMany` carry an identical
+timestamp — and ordering by it is not a total order over them. Under
+`LIMIT`/`OFFSET` that means a consumer walking pages sees some links twice and
+never sees others: measured at 90 rows returned but only ~45 distinct, with
+roughly half the campaign's links unreachable. The `id` tiebreak is a cuid,
+unique always, so it breaks every tie and introduces none.
+
+**Verified by:** 23 unit tests over amount round-tripping at the protocol maximum and
+the problem+json shape of every error path. `pnpm verify:api-keys` runs against real
+Postgres and real Redis — the limiter fails closed, so without a live Redis the checks
+would pass for the wrong reason. It covers key resolution, immediate revocation, the
+key being unrecoverable from any stored column, `lastUsedAt`, the 100/101 boundary with
+a second key on the same account unaffected, and cross-account isolation. Twenty-five
+keys are issued and all must resolve; one key proves nothing when the failure rate is
+50%. Paging is walked twice, once with writes landing between pages and once against
+an idle table. Each check was confirmed to fail against a planted regression.
+
 ## 2026-08-21 — Campaign API (#7)
 
 Senders can create campaigns, register the public half of their claim links, list and
@@ -141,76 +266,3 @@ four permutations plus both predicate directions. Exact decimal balance comparis
 post-merge account existence checked on the ledger, reserve obligation computed from
 live protocol values.
 
-## 2026-08-21 — Batch build, sign, submit and the batch-confirm worker (#9)
-
-A campaign's registered public keys become live claimable balances on-chain. One
-`CreateClaimableBalance` operation per link, batched at 90 under the protocol's
-ceiling of 100, signed by the sender in their own wallet, submitted by Kleym, and
-confirmed from the ledger rather than from anything the client said.
-
-`POST /api/campaigns/[id]/batches/prepare` returns the unsigned envelope for the
-next batch that still needs signing, with the reserve it locks computed from the
-base reserve read off the last closed ledger. `POST .../batches/submit` re-derives
-the signed envelope against the campaign row before submitting — the operations
-are compared to the campaign's asset, amount, expiry and registered ephemeral keys,
-and the sender's signature is verified. `POST .../batches/retry` re-opens failed
-batches; `GET .../batches` is what "Batch 3 / 12 signed" renders from.
-
-Links become `ACTIVE` only in the `batch-confirm` worker, which waits for the
-transaction to reach a closed ledger, takes the balance IDs out of the result XDR,
-and reads each balance back off the ledger before writing it. A transaction Horizon
-has not indexed yet is retried, never treated as failed — "not found" and "did not
-happen" are different answers, and confusing them would mark funded links `FAILED`.
-
-Partial creation is recorded honestly: when a batch fails its links go to `FAILED`,
-never reach the CSV, and the campaign becomes `PARTIAL`. A fully confirmed campaign
-still waits in `CREATING` until the CSV export is recorded, because the sender holds
-the only copy of every seed.
-
-Two things the verification caught that would otherwise have shipped:
-
-- Comparing `transaction.networkPassphrase` to the expected one checks nothing. An
-  envelope carries no network identifier — `fromXDR` labels the parsed transaction
-  with whatever passphrase it is handed. The network is only mixed in when the
-  signature payload is hashed, so verifying the sender's signature is what actually
-  rejects a wrong-network envelope, and one the sender never signed.
-- Two prepare calls racing from an unplanned campaign both open a serializable
-  transaction; the loser aborts, which is the transaction working. Letting that
-  abort propagate turned an ordinary double-click into a 500.
-
-**Verified by:** 30 unit tests covering the 90/91/200 batching boundaries, both
-predicate directions, reserve arithmetic at a base reserve that is not 0.5, and
-nine envelope-tampering cases (substituted claimants, shifted expiry, altered
-amount, wrong source, wrong signer, wrong network). Balance-ID derivation is
-checked against a real testnet transaction whose IDs were read back from Horizon
-(`tests/fixtures/balance-id.json`, regenerate with `pnpm fixture:balance-id`), and
-against the same IDs parsed out of its result XDR. `pnpm verify:batches` exercises
-the lifecycle against real Postgres — planning, the 7-of-12 partial failure, the
-`balanceId`/`CONFIRMED` invariant, CSV-gated activation, retry touching only failed
-links, and re-submission returning the original result. Each check was confirmed to
-fail against a planted regression before being kept. Both scripts run in CI against
-a real Postgres service.
-
-`pnpm verify:confirm` drives the worker end to end against the fixture's real
-testnet transaction — balance IDs out of the result XDR, each balance read back
-from Horizon, links ACTIVE and mapped to the right ephemeral key, and a second run
-a no-op. It runs the same transaction twice, the second time with links enumerating
-in the opposite order, which is what distinguishes a ledger-derived mapping from a
-positional one. It needs the network, so it stays out of the commit gate
-(AGENT.md §7.2).
-
-### Link ordering
-
-Every query that lists links orders by `(createdAt, id)`, from one shared
-`LINK_ORDER` constant. `createdAt` defaults to `CURRENT_TIMESTAMP`, which in
-Postgres is *transaction* time, so all 90 links registered by one `createMany`
-carry an identical timestamp — and `ORDER BY "createdAt"` over equal keys is not a
-total order. Updating fifteen of ninety links so their tuples relocate returns a
-different permutation from the same query; with the `id` tiebreak it does not.
-
-Because batch membership, operation index and balance-ID mapping are all
-positional, two queries disagreeing about order would write one recipient's
-balance ID onto another recipient's link. The confirm worker no longer relies on
-that agreement at all: it matches each balance to the link whose ephemeral key is
-one of the balance's claimants, so the mapping comes from the chain rather than
-from list position (AGENT.md §4.2).
