@@ -19,13 +19,17 @@
     "db:generate": "prisma generate",
     "postinstall": "prisma generate",
     "verify:concurrency": "tsx scripts/verify-concurrency.ts",
-    "verify:api-keys": "tsx scripts/verify-api-keys.ts"
+    "verify:api-keys": "tsx scripts/verify-api-keys.ts",
+    "verify:batches": "tsx scripts/verify-batches.ts",
+    "verify:confirm": "tsx scripts/verify-confirm-worker.ts",
+    "fixture:balance-id": "tsx scripts/make-balance-id-fixture.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "@stellar/stellar-sdk": "^16.2.0",
     "argon2": "^0.45.1",
+    "bullmq": "^6.2.0",
     "clsx": "^2.1.1",
     "decimal.js": "^10.6.0",
     "ioredis": "^6.0.0",

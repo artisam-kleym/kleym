@@ -18,6 +18,7 @@ import {
 import { conflict, notFound, serverError, validationProblem } from '@/lib/api/problems'
 import { registerLinks, isWriteConflict } from '@/lib/api/links'
 import { listQuerySchema, registerLinksSchema, zodErrors } from '@/lib/api/campaigns'
+import { LINK_ORDER } from '@/lib/api/link-order'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -41,7 +42,7 @@ export async function GET(request: Request, { params }: Params) {
       prisma.claimLink.count({ where: { campaignId: id } }),
       prisma.claimLink.findMany({
         where: { campaignId: id },
-        orderBy: { createdAt: 'asc' },
+        orderBy: LINK_ORDER,
         skip: (page - 1) * perPage,
         take: perPage,
         select: {

@@ -19,6 +19,7 @@ const { issueApiKey, resolveApiKey, revokeApiKey, listApiKeys, touchApiKey } = a
   '../src/lib/auth/api-key'
 )
 const { requireApiCaller, API_RATE_LIMIT } = await import('../src/lib/api/v1')
+const { LINK_ORDER } = await import('../src/lib/api/link-order')
 
 let failures = 0
 const check = (name: string, pass: boolean, detail = ''): void => {
@@ -266,7 +267,7 @@ async function pagingIsStable(): Promise<void> {
     for (let page = 1; page <= 9; page += 1) {
       const rows = await prisma.claimLink.findMany({
         where: { campaignId: campaign.id },
-        orderBy: stable ? [{ createdAt: 'asc' }, { id: 'asc' }] : { createdAt: 'asc' },
+        orderBy: stable ? LINK_ORDER : { createdAt: 'asc' },
         take: 10,
         skip: (page - 1) * 10,
         select: { id: true },
