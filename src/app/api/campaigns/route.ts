@@ -41,7 +41,9 @@ export async function GET(request: Request) {
       prisma.campaign.count({ where }),
       prisma.campaign.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        // Total order, so paging cannot drop or duplicate a campaign. Same
+        // reasoning as /api/v1/campaigns/[id]/links.
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * perPage,
         take: perPage,
         select: {
