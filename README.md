@@ -196,6 +196,19 @@ support. Every authentication failure — absent, malformed, wrong, revoked — 
 identical 401; distinguishing them would confirm half of a guess. A campaign belonging
 to another account returns 404, not 403, for the same reason.
 
+## End-to-end tests
+
+```bash
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
+
+Needs Postgres, Redis and a seeded account (`SEED_ADMIN_USERNAME` /
+`SEED_ADMIN_PASSWORD`, matched by `E2E_USERNAME` / `E2E_PASSWORD`). Runs against a
+production build, because the CSP that governs the real page is the one worth
+testing against and `next dev` relaxes it. The two Horizon-backed lookups are
+stubbed, so the suite needs no network beyond localhost.
+
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request to `develop` or `main`.

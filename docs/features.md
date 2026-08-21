@@ -20,6 +20,76 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-08-21 — Campaign wizard, client-side keygen and the CSV hard gate (#8)
+
+`/campaigns/new`, in three steps: asset and amount, recipients and expiry, then
+review and create. This is where every secret the product will ever hold is
+created, and the order in step 3 is fixed — checkpoint warning, generate,
+**export**, sign, offer the export again.
+
+The gate is a piece of state only the download handler can set, after the browser
+has actually been handed the file. Signing is unreachable while it is false, and
+going back — which discards the generated keys — shuts it again, because a file
+downloaded before a regeneration describes keys that no longer exist.
+
+Seeds live in React state and in the downloaded CSV. Nothing else: no
+`localStorage`, no `sessionStorage`, no cookie, no URL, no request body. Only
+`publicHalves` — the G… addresses and the sender's own labels — crosses to the
+server.
+
+Reserve is read from `GET /api/stellar/reserve`, which reads the live
+`base_reserve_in_stroops` off the last closed ledger. The browser cannot ask
+Horizon itself: CSP is `connect-src 'self'`, and relaxing that would open an
+egress path on the same origin that generates the seeds.
+
+Labels refuse anything that parses as a Stellar address or a secret seed, naming
+the line. Only the first column of a pasted row is read — a pasted spreadsheet
+row routinely carries an address in a later column, and reading it would be
+reading the thing this refuses.
+
+### Two things worth recording
+
+**The `.secret()` CI guard forbade the thing the product must do.** It banned seed
+extraction anywhere under `src/`, but `AGENT.md` §1 says seeds are "generated in
+the sender's browser" — which is `src/`. Rather than weaken it, the guard now
+exempts exactly one module, and that module is constrained instead.
+
+The constraint is `import 'client-only'` at the top of `keygen.ts`. That package
+throws under the `react-server` condition, so a server component or route handler
+importing it fails the **build**, by name — enforcement by the compiler rather
+than by a text search. Verified against a planted route handler.
+
+A CI step still runs as the earlier, friendlier signal, and it now matches any
+spelling of the module path. The first version matched `@/lib/campaign/keygen`
+but not `./keygen` — the natural way to write it from inside that directory — so
+a planted server module using the relative form went entirely unseen. It also
+accepts either quote style around `'use client'` and looks past a licence header.
+
+The guard caught `download-gate.ts` on its first run, which manipulates
+`document` and `Blob` and had no client marker.
+
+**The wallet kit brought 34 advisories, one critical.**
+`@creit.tech/stellar-wallets-kit` depends on Trezor, Ledger, WalletConnect and
+Reown adapters, all hard dependencies, so no subset install avoids them. Every
+finding traced to pinned `protobufjs@7.4.0`, `axios@1.16.0` and an old `uuid`, all
+of which have patches within the same major — so they are overridden to patched
+versions with the reasoning recorded in `pnpm.overridesReason`, alongside the
+existing `deepmerge-ts` entry. `pnpm audit --audit-level=moderate` now reports one
+low advisory (`elliptic`, no patch published), below the gate.
+
+Also removed a dead `clientIp` in `lib/security/guard.ts` that read the
+**leftmost** `X-Forwarded-For` entry — the spoofable one #25 fixed. Nothing
+imported it, but it sat next to the guard every route already imports.
+
+**Verified by:** 25 unit tests over keygen, CSV quoting, claim-URL fragment
+placement, label refusal and Decimal cost arithmetic. Four Playwright tests
+against a production build with the real CSP: the gate resists a click, a keyboard
+activation and a dispatched event; the downloaded CSV's seeds appear in no request
+the page made, nor in storage, cookies or the URL; regenerating shuts the gate;
+labels refuse an address. Confirmed to fail against a planted removal of the gate.
+Both CI guards proven against a planted violation and a clean tree.
+
+
 ## 2026-08-21 — Batch build, sign, submit and the batch-confirm worker (#9)
 
 A campaign's registered public keys become live claimable balances on-chain. One

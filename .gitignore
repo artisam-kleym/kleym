@@ -19,3 +19,9 @@ src/generated/
 # AGENT.md; a committed copy of these would go stale against node_modules.
 /AGENTS.md
 /CLAUDE.md
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/e2e/.auth/
