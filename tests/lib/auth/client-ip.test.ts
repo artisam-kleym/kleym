@@ -5,7 +5,7 @@
  * whatever the client sent. Keying a rate limit on that lets anyone pick a
  * fresh bucket per request and never be limited.
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { clientIp, UNKNOWN_IP } from '@/lib/auth/client-ip'
 
 const req = (forwarded?: string) =>
@@ -63,5 +63,29 @@ describe('TRUSTED_PROXY_HOPS misconfiguration', () => {
 
   it('honours a genuine multi-hop setting', () => {
     expect(sanitise('2')).toBe(2)
+  })
+})
+
+describe('clientIp when the chain is shorter than the configured hop count', () => {
+  /*
+   * Misconfiguration must not become a bypass. Clamping to index 0 would hand
+   * back the entry the CLIENT sent, so anyone could choose their own
+   * rate-limit bucket again simply because an operator set the number too
+   * high. The rightmost entry is always proxy-written.
+   */
+  it('falls back to the rightmost entry, never the client-supplied one', async () => {
+    vi.resetModules()
+    vi.stubEnv('TRUSTED_PROXY_HOPS', '99')
+
+    const { clientIp: withTooManyHops } = await import('@/lib/auth/client-ip')
+    const request = new Request('https://kleym.app/', {
+      headers: { 'x-forwarded-for': 'evil-spoof, 203.0.113.9' },
+    })
+
+    expect(withTooManyHops(request)).toBe('203.0.113.9')
+    expect(withTooManyHops(request)).not.toBe('evil-spoof')
+
+    vi.unstubAllEnvs()
+    vi.resetModules()
   })
 })
