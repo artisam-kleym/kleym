@@ -97,3 +97,34 @@ The cost is the static optimisation for those pages. There is no third option �
 other lever is `'unsafe-inline'`, which is not available here.
 
 CI enforces it, because a 200 response does not reveal the failure.
+
+
+## No inline `style` attributes
+
+Every value that would go in `style={{…}}` belongs in `globals.css` as a class instead.
+
+This is the same CSP constraint as the section above, on the other half of the policy.
+Inline style **attributes** are governed by `style-src-attr`, which accepts only
+`'unsafe-inline'` or hashes — **a nonce cannot satisfy it**, because nonces apply to
+`<style>` elements. So under `style-src 'self'` the attribute is parsed into the DOM and
+then silently not applied:
+
+```
+icon:  style="font-size:24px"  ->  computed 16px   (inherited)
+orb :  600x600 pink, blur(100px)  ->  0x0, no background, no filter
+```
+
+The markup looks correct in devtools, the element renders wrong, and nothing errors.
+
+Three consequences for component work:
+
+- **Icon sizes** are the closed `BRAND.md` §6 set, so each is a class: `.icon-14` … `.icon-48`.
+- **Ambient orbs** are fixed shapes: `.orb-dashboard-a`, `.orb-dashboard-b`, `.orb-claim`.
+- **Genuinely dynamic values** need bucketing. The campaign progress bar rounds to 5%
+  (`.progress-0` … `.progress-100`); the exact figure stays in `aria-valuenow` and the
+  label beside it, so nothing a reader or a screen reader perceives is lost.
+
+A value that is truly per-render and must be exact needs a nonced `<style>` element, not
+an attribute. Reach for bucketing first.
+
+CI greps for `style={{` in `src/**/*.tsx`.

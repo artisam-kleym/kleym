@@ -210,6 +210,120 @@
     z-index: -10;
   }
 
+  /*
+   * Everything below replaces a style={...} attribute.
+   *
+   * A CSP with `style-src 'self'` and no `unsafe-inline` refuses inline style
+   * ATTRIBUTES, and a nonce cannot rescue them - nonces apply to <style>
+   * elements, while attributes fall under style-src-attr, which accepts only
+   * 'unsafe-inline' or hashes. The attributes still appeared in the DOM and
+   * were silently not applied: icons rendered at the inherited font size
+   * rather than their BRAND.md 6 size, and the orbs collapsed to 0x0 with no
+   * blur or background.
+   *
+   * So these values live in CSS instead, and AGENT.md 5.3 stays intact.
+   */
+
+  /* BRAND.md 6 icon sizes - the closed set Icon accepts. */
+  .icon-14 {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .icon-16 {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+
+  .icon-18 {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .icon-20 {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .icon-24 {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+  }
+
+  .icon-32 {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .icon-48 {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+  }
+
+  /* BRAND.md 5.8 orbs - fixed shapes, so fixed classes. */
+  .orb-dashboard-a {
+    width: 600px;
+    height: 600px;
+    background: var(--color-accent-pink);
+    filter: blur(100px);
+    top: -200px;
+    right: -150px;
+  }
+
+  .orb-dashboard-b {
+    width: 400px;
+    height: 400px;
+    background: var(--color-accent-yellow);
+    filter: blur(80px);
+    bottom: -120px;
+    left: -100px;
+  }
+
+  .orb-claim {
+    width: 520px;
+    height: 520px;
+    background: var(--color-accent-pink);
+    filter: blur(90px);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  /*
+   * Progress fill in 5% steps. A percentage is genuinely dynamic, so it cannot
+   * become a fixed class without bucketing - but the bar is 6px tall and the
+   * exact figure is carried by aria-valuenow and the label beside it, so the
+   * rounding costs nothing a reader or a screen reader can perceive.
+   */
+  .progress-0 { width: 0%; }
+  .progress-5 { width: 5%; }
+  .progress-10 { width: 10%; }
+  .progress-15 { width: 15%; }
+  .progress-20 { width: 20%; }
+  .progress-25 { width: 25%; }
+  .progress-30 { width: 30%; }
+  .progress-35 { width: 35%; }
+  .progress-40 { width: 40%; }
+  .progress-45 { width: 45%; }
+  .progress-50 { width: 50%; }
+  .progress-55 { width: 55%; }
+  .progress-60 { width: 60%; }
+  .progress-65 { width: 65%; }
+  .progress-70 { width: 70%; }
+  .progress-75 { width: 75%; }
+  .progress-80 { width: 80%; }
+  .progress-85 { width: 85%; }
+  .progress-90 { width: 90%; }
+  .progress-95 { width: 95%; }
+  .progress-100 { width: 100%; }
+
   .pulse-ring::before {
     content: '';
     position: absolute;

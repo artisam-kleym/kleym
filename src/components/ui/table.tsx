@@ -70,8 +70,14 @@ export function ProgressCell({
         className="h-1.5 w-full overflow-hidden rounded-full bg-surface-container-high"
       >
         <div
-          className={clsx('h-full rounded-full', expired ? 'bg-outline-variant' : 'bg-action')}
-          style={{ width: `${percent}%` }}
+          className={clsx(
+            'h-full rounded-full',
+            // Bucketed to 5%: a width is dynamic and cannot be a fixed class
+            // otherwise, and an inline style attribute is CSP-refused. The
+            // exact value stays in aria-valuenow and the label above.
+            `progress-${Math.round(percent / 5) * 5}`,
+            expired ? 'bg-outline-variant' : 'bg-action',
+          )}
         />
       </div>
     </div>

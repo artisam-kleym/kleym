@@ -74,17 +74,37 @@ jobs:
       # prerendered route's inline RSC flight payload cannot carry a
       # per-request nonce, so under this CSP it is refused and the page never
       # hydrates - while still returning 200, which is why CI did not catch it.
+      #
+      # Discovered rather than listed. A hardcoded pair of paths protects only
+      # the two routes that existed when it was written and says nothing about
+      # the next one, which is how this class of bug returns.
       - name: Pages that need client JS are not prerendered
         run: |
           fail=0
-          for page in "src/app/(public)/page.tsx" "src/app/(public)/claim/page.tsx"; do
-            [ -e "$page" ] || continue
-            if ! grep -q "dynamic = 'force-dynamic'" "$page"; then
-              echo "::error::$page must set force-dynamic, or its inline scripts are CSP-refused and it never hydrates"
-              fail=1
-            fi
-          done
+          # Every page that renders a component, i.e. anything but a bare
+          # placeholder, needs its nonce at request time.
+          while IFS= read -r page; do
+            grep -q "dynamic = 'force-dynamic'" "$page" && continue
+            # A page importing nothing from components/ has no inline styles or
+            # client behaviour to lose, so prerendering it is still safe.
+            grep -q "from '@/components" "$page" || continue
+            echo "::error::$page renders components but is prerendered; its inline scripts are CSP-refused and it never hydrates"
+            fail=1
+          done < <(find src/app -name 'page.tsx' -o -name 'layout.tsx' | sort)
+          [ $fail -eq 0 ] && echo "clean"
           exit $fail
+
+      # The inline-style half of the same CSP finding: style attributes are
+      # governed by style-src-attr, which a nonce cannot satisfy, so they are
+      # refused outright and the element renders unstyled while looking fine
+      # in the DOM. Values belong in globals.css instead.
+      - name: No inline style attributes
+        run: |
+          if grep -rn 'style={{' src/ --include='*.tsx'; then
+            echo "::error::inline style attributes are refused by style-src 'self' - use a class in globals.css"
+            exit 1
+          fi
+          echo "clean"
 
       - name: /claim gets no-referrer
         run: |
