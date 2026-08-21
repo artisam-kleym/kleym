@@ -17,7 +17,17 @@
  * real hop count returns a proxy address instead and buckets every user
  * together. Change it only alongside the infrastructure.
  */
-const TRUSTED_PROXY_HOPS = Number(process.env.TRUSTED_PROXY_HOPS ?? 1)
+function trustedProxyHops(): number {
+  // Sanitised rather than trusted. `Number('')` is 0 and `Number('abc')` is
+  // NaN, and either would push the index off the front of the list so that
+  // EVERY caller resolved to UNKNOWN_IP — one shared bucket, which is per-IP
+  // limiting switched off without anything saying so. A blank value is the
+  // likely mistake, since .env.example lists every key empty.
+  const raw = Number(process.env.TRUSTED_PROXY_HOPS)
+  return Number.isInteger(raw) && raw >= 1 ? raw : 1
+}
+
+const TRUSTED_PROXY_HOPS = trustedProxyHops()
 
 /** Unresolvable callers share one bucket rather than bypassing the limit. */
 export const UNKNOWN_IP = 'unknown'

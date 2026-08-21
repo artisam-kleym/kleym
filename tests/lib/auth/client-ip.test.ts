@@ -45,3 +45,23 @@ describe('clientIp', () => {
     expect(clientIp(req(`${forged}, 203.0.113.9`))).toBe('203.0.113.9')
   })
 })
+
+describe('TRUSTED_PROXY_HOPS misconfiguration', () => {
+  // A blank or malformed value must not silently collapse every caller into
+  // one bucket — that is per-IP limiting switched off with nothing saying so.
+  const sanitise = (v: string | undefined) => {
+    const raw = Number(v)
+    return Number.isInteger(raw) && raw >= 1 ? raw : 1
+  }
+
+  it.each([undefined, '', '  ', 'abc', '0', '-1', '1.5'])(
+    'falls back to one hop for %o',
+    (value) => {
+      expect(sanitise(value)).toBe(1)
+    },
+  )
+
+  it('honours a genuine multi-hop setting', () => {
+    expect(sanitise('2')).toBe(2)
+  })
+})
