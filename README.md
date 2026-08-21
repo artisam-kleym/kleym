@@ -122,7 +122,7 @@ pnpm db:seed                # requires SEED_ADMIN_USERNAME and SEED_ADMIN_PASSWO
 | `pnpm build` / `pnpm start` | Production build and serve |
 | `pnpm worker` | `kleym-worker` process — BullMQ consumers and cron |
 | `pnpm typecheck` | `tsc --noEmit`, strict |
-| `pnpm lint` | ESLint over `src` and `scripts` |
+| `pnpm lint` | ESLint over `src`, `scripts` and `tests` |
 | `pnpm test` | Vitest unit tests (no network; integration runs on a schedule) |
 | `pnpm db:migrate` / `db:deploy` | Apply migrations locally / in CI |
 | `pnpm db:seed` | Create the admin user (refuses without explicit credentials) |

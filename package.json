@@ -17,7 +17,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:generate": "prisma generate",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "vitest run"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
@@ -26,6 +27,7 @@
     "argon2": "^0.45.1",
     "clsx": "^2.1.1",
     "decimal.js": "^10.6.0",
+    "ioredis": "^6.0.0",
     "next": "^16.3.1",
     "pg": "^8.23.0",
     "pino": "^10.3.1",
