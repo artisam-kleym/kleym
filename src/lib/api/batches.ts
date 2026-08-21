@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db/client'
 import { env } from '@/lib/config/env'
 import { owned } from './session-guard'
+import { LINK_ORDER } from './link-order'
 import { isWriteConflict } from './links'
 import {
   buildBatchTransaction,
@@ -97,7 +98,7 @@ async function planOnce(campaignId: string): Promise<void> {
 
       const links = await tx.claimLink.findMany({
         where: { campaignId },
-        orderBy: { createdAt: 'asc' },
+        orderBy: LINK_ORDER,
         select: { id: true, ephemeralPublicKey: true },
       })
       if (links.length === 0) return
@@ -154,7 +155,7 @@ export async function prepareBatch(
   const batches = await prisma.batch.findMany({
     where: { campaignId: campaign.id },
     orderBy: { sequence: 'asc' },
-    select: { id: true, sequence: true, status: true, links: { select: { id: true, ephemeralPublicKey: true }, orderBy: { createdAt: 'asc' } } },
+    select: { id: true, sequence: true, status: true, links: { select: { id: true, ephemeralPublicKey: true }, orderBy: LINK_ORDER } },
   })
   if (batches.length === 0) {
     return conflict('This campaign has no registered links to batch.')
@@ -247,7 +248,7 @@ export async function submitBatch(
     where: { campaignId: campaign.id, sequence: input.sequence },
     select: {
       id: true, sequence: true, status: true, transactionHash: true,
-      links: { select: { id: true, ephemeralPublicKey: true }, orderBy: { createdAt: 'asc' } },
+      links: { select: { id: true, ephemeralPublicKey: true }, orderBy: LINK_ORDER },
     },
   })
   if (!batch) return { kind: 'not-found' }
@@ -273,6 +274,7 @@ export async function submitBatch(
     expiresAt: campaign.expiresAt,
     links: batch.links,
     networkPassphrase: env.NETWORK_PASSPHRASE,
+    baseFee: env.BASE_FEE_STROOPS,
   })
   if (!verified.ok) {
     return conflict(`The signed transaction is not the batch that was prepared (${verified.reason}).`)

@@ -202,6 +202,7 @@ describe('verifyBatchTransaction', () => {
     expiresAt: EXPIRES,
     links: batch,
     networkPassphrase: PASSPHRASE,
+    baseFee: '1000',
   }
 
   function signed(overrides: Partial<typeof expected> = {}, signWith = sender) {
@@ -214,7 +215,7 @@ describe('verifyBatchTransaction', () => {
       expiresAt: merged.expiresAt,
       links: merged.links,
       networkPassphrase: merged.networkPassphrase,
-      baseFee: '1000',
+      baseFee: merged.baseFee,
       timeoutSeconds: 300,
     })
     const tx = TransactionBuilder.fromXDR(xdr, merged.networkPassphrase) as Transaction
@@ -325,6 +326,22 @@ describe('verifyBatchTransaction', () => {
     expect(verifyBatchTransaction(tx.toXDR(), expected)).toMatchObject({
       ok: false,
       reason: 'not-signed-by-sender',
+    })
+  })
+
+  /*
+   * The fee is the sender's own money and they signed for it, so this is not a
+   * Kleym-integrity check — it is the "compromised wallet returns a
+   * correctly-shaped batch" case the rest of this function exists for.
+   */
+  it('accepts a fee raised within the surge-pricing allowance', () => {
+    expect(verifyBatchTransaction(signed({ baseFee: '9000' }), expected)).toMatchObject({ ok: true })
+  })
+
+  it('rejects a fee raised far beyond what was prepared', () => {
+    expect(verifyBatchTransaction(signed({ baseFee: '2000000' }), expected)).toMatchObject({
+      ok: false,
+      reason: 'wrong-fee',
     })
   })
 

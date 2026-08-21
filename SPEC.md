@@ -778,6 +778,11 @@ SPONSOR_MIN_BALANCE_ALERT=100
 MAX_OPS_PER_BATCH=90
 MAX_LINKS_PER_CAMPAIGN=10000
 
+# Per-operation fee in stroops. Network minimum is 100; 1000 leaves headroom
+# for surge pricing, and a batch of 90 costs 0.009 XLM at this rate. Raise it
+# if batches start failing with tx_insufficient_fee.
+BASE_FEE_STROOPS=1000
+
 # ─── Email ──────────────────────────────────────────────
 RESEND_API_KEY=
 EMAIL_FROM=noreply@kleym.app

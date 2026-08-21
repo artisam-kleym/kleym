@@ -25,6 +25,8 @@ const { confirmBatch, ensurePlanned, markBatchFailed, retryFailedBatches, submit
   '../src/lib/api/batches'
 )
 const { buildBatchTransaction } = await import('../src/lib/stellar/batch')
+const { registerLinks } = await import('../src/lib/api/links')
+const { LINK_ORDER } = await import('../src/lib/api/link-order')
 
 let failures = 0
 
@@ -64,13 +66,21 @@ async function makeCampaign(userId: string, linkCount: number, sender: Keypair) 
     select: { id: true },
   })
 
-  // Created one at a time so `createdAt` orders them — batch membership and
-  // operation index both follow that order, and createMany does not guarantee it.
-  for (let i = 0; i < linkCount; i += 1) {
-    await prisma.claimLink.create({
-      data: { campaignId: campaign.id, ephemeralPublicKey: Keypair.random().publicKey() },
-    })
-  }
+  /*
+   * Registered through the REAL path, one createMany inside a transaction.
+   *
+   * An earlier version of this fixture inserted links one at a time, which
+   * gave every link a distinct `createdAt` and quietly made the ordering
+   * problem invisible to every check below. A fixture that is easier to reason
+   * about than production is a fixture that tests something else.
+   */
+  const outcome = await registerLinks(
+    campaign.id,
+    userId,
+    Array.from({ length: linkCount }, () => Keypair.random().publicKey()),
+  )
+  if (outcome.kind !== 'ok') throw new Error(`fixture registration failed: ${outcome.kind}`)
+
   return campaign.id
 }
 
@@ -286,6 +296,66 @@ function fakeBalanceId(): string {
   return `00000000${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}`.slice(0, 72)
 }
 
+/**
+ * The ordering the whole positional design rests on.
+ *
+ * `createdAt` defaults to CURRENT_TIMESTAMP, which in Postgres is TRANSACTION
+ * time — so every link registered by one `createMany` shares a timestamp to
+ * the millisecond, and `ORDER BY "createdAt"` over 90 equal keys is not a
+ * total order. Postgres promises nothing about which permutation comes back:
+ * the sort is unstable and its input is whatever the scan produced, which
+ * ordinary row updates change by relocating tuples.
+ *
+ * Not theoretical. Updating a slice of the links so their tuples move is
+ * enough to get a different permutation from the same query.
+ */
+async function linkOrderIsTotal(): Promise<void> {
+  console.log('\n7. Link order is stable across ordinary row rewrites')
+
+  const user = await makeUser()
+  const campaignId = await makeCampaign(user, 90, Keypair.random())
+
+  const rows = await prisma.$queryRawUnsafe<{ createdAt: Date }[]>(
+    'SELECT "createdAt" FROM "ClaimLink" WHERE "campaignId" = $1',
+    campaignId,
+  )
+  const distinct = new Set(rows.map((r) => r.createdAt.toISOString()))
+  check(
+    'the premise holds — links registered together share a timestamp',
+    distinct.size < rows.length,
+    `${distinct.size} distinct timestamps across ${rows.length} links`,
+  )
+
+  const order = async (stable: boolean) =>
+    (
+      await prisma.claimLink.findMany({
+        where: { campaignId },
+        orderBy: stable ? LINK_ORDER : { createdAt: 'asc' },
+        select: { id: true },
+      })
+    )
+      .map((l) => l.id)
+      .join(',')
+
+  const naiveBefore = await order(false)
+  const stableBefore = await order(true)
+
+  // A non-HOT update relocates the tuple, changing what a seq scan feeds the sort.
+  const middle = stableBefore.split(',').slice(30, 45)
+  await prisma.claimLink.updateMany({
+    where: { id: { in: middle } },
+    data: { label: 'relocated'.repeat(200) },
+  })
+
+  const naiveAfter = await order(false)
+  check(
+    'createdAt alone does NOT survive it — the reason this check exists',
+    naiveBefore !== naiveAfter,
+    'the permutation happened to hold; the guarantee still does not exist',
+  )
+  check('LINK_ORDER does survive it', stableBefore === (await order(true)))
+}
+
 async function main(): Promise<void> {
   try {
     await planningIsStable()
@@ -294,6 +364,7 @@ async function main(): Promise<void> {
     await activationWaitsForTheCsv()
     await retryTouchesOnlyFailedLinks()
     await resubmissionIsANoOp()
+    await linkOrderIsTotal()
   } finally {
     await prisma.$disconnect()
   }

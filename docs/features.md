@@ -194,4 +194,23 @@ a real Postgres service.
 `pnpm verify:confirm` drives the worker end to end against the fixture's real
 testnet transaction — balance IDs out of the result XDR, each balance read back
 from Horizon, links ACTIVE and mapped to the right ephemeral key, and a second run
-a no-op. It needs the network, so it stays out of the commit gate (AGENT.md §7.2).
+a no-op. It runs the same transaction twice, the second time with links enumerating
+in the opposite order, which is what distinguishes a ledger-derived mapping from a
+positional one. It needs the network, so it stays out of the commit gate
+(AGENT.md §7.2).
+
+### Link ordering
+
+Every query that lists links orders by `(createdAt, id)`, from one shared
+`LINK_ORDER` constant. `createdAt` defaults to `CURRENT_TIMESTAMP`, which in
+Postgres is *transaction* time, so all 90 links registered by one `createMany`
+carry an identical timestamp — and `ORDER BY "createdAt"` over equal keys is not a
+total order. Updating fifteen of ninety links so their tuples relocate returns a
+different permutation from the same query; with the `id` tiebreak it does not.
+
+Because batch membership, operation index and balance-ID mapping are all
+positional, two queries disagreeing about order would write one recipient's
+balance ID onto another recipient's link. The confirm worker no longer relies on
+that agreement at all: it matches each balance to the link whose ephemeral key is
+one of the balance's claimants, so the mapping comes from the chain rather than
+from list position (AGENT.md §4.2).

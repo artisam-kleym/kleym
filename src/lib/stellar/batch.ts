@@ -155,7 +155,20 @@ export interface ExpectedBatch {
   expiresAt: Date
   links: BatchLink[]
   networkPassphrase: string
+  /** Per-operation fee the envelope was prepared with, in stroops. */
+  baseFee: string
 }
+
+/**
+ * How far above the prepared fee a signed envelope may go.
+ *
+ * The fee is the sender's own money and they signed for it, so an inflated one
+ * is not a Kleym-integrity problem — but a compromised wallet returning a
+ * correctly-shaped batch with an enormous fee is precisely the threat the rest
+ * of this function is written against, and it costs the sender real XLM.
+ * Generous enough that surge pricing or a wallet bumping the fee still clears.
+ */
+const MAX_FEE_MULTIPLE = 10
 
 export type VerifyFailure =
   | 'unparseable'
@@ -165,6 +178,7 @@ export type VerifyFailure =
   | 'wrong-asset'
   | 'wrong-amount'
   | 'wrong-claimants'
+  | 'wrong-fee'
   | 'not-signed-by-sender'
 
 /**
@@ -217,6 +231,16 @@ export function verifyBatchTransaction(
 
   if (transaction.operations.length !== expected.links.length) {
     return { ok: false, reason: 'wrong-operation-count' }
+  }
+
+  /*
+   * `transaction.fee` is the TOTAL, not per-operation: the SDK multiplies the
+   * builder's fee by the operation count. Comparing it against the
+   * per-operation figure would reject every batch of more than one.
+   */
+  const preparedTotalFee = new Decimal(expected.baseFee).times(expected.links.length)
+  if (new Decimal(transaction.fee).greaterThan(preparedTotalFee.times(MAX_FEE_MULTIPLE))) {
+    return { ok: false, reason: 'wrong-fee' }
   }
 
   const expectedAsset = expected.asset

@@ -5,6 +5,11 @@
  * it: balance IDs out of the result XDR, each balance read back from Horizon,
  * links marked ACTIVE. The transaction is the one in tests/fixtures/balance-id.json.
  *
+ * Run twice — once with links enumerating in the transaction's operation order,
+ * once in the opposite order. The second is the real assertion: the mapping
+ * must come from the LEDGER, not from list position, or a reordering silently
+ * writes each link the other one's balance.
+ *
  * Not in per-commit CI — it needs Horizon, and AGENT.md §7.2 keeps network
  * dependence out of the commit gate. Read-only: submits nothing.
  *
@@ -28,6 +33,9 @@ const fixture = JSON.parse(readFileSync('tests/fixtures/balance-id.json', 'utf8'
   balanceIds: string[]
 }
 
+/** Which balance each ephemeral key is actually entitled to, per the ledger. */
+const CORRECT = new Map(fixture.ephemeralPublicKeys.map((key, i) => [key, fixture.balanceIds[i]!]))
+
 let failures = 0
 const check = (name: string, pass: boolean, detail = ''): void => {
   if (pass) console.log(`  PASS  ${name}`)
@@ -37,9 +45,14 @@ const check = (name: string, pass: boolean, detail = ''): void => {
   }
 }
 
-async function main(): Promise<void> {
-  console.log(`\nConfirming testnet transaction ${fixture.transactionHash}`)
-
+/**
+ * Builds a campaign around the fixture's transaction and confirms it.
+ *
+ * Everything is torn down afterwards: `Batch.transactionHash` and
+ * `ClaimLink.ephemeralPublicKey` are both unique, so the two orderings cannot
+ * exist at once.
+ */
+async function runConfirm(reversed: boolean): Promise<void> {
   const user = await prisma.user.create({
     data: { username: `confirm-${randomUUID()}`, passwordHash: 'x', role: 'SENDER' },
     select: { id: true },
@@ -69,42 +82,72 @@ async function main(): Promise<void> {
     select: { id: true },
   })
 
-  // Created in order: operation index i must line up with link i.
-  for (const key of fixture.ephemeralPublicKeys) {
+  const keys = reversed ? [...fixture.ephemeralPublicKeys].reverse() : fixture.ephemeralPublicKeys
+  for (const key of keys) {
     await prisma.claimLink.create({
       data: { campaignId: campaign.id, batchId: batch.id, ephemeralPublicKey: key },
     })
   }
 
-  const outcome = await confirmOne(batch.id)
-  check('the worker confirms the batch', outcome === 'confirmed', outcome)
+  try {
+    const outcome = await confirmOne(batch.id)
+    check('the worker confirms the batch', outcome === 'confirmed', outcome)
 
-  const links = await prisma.claimLink.findMany({
-    where: { campaignId: campaign.id },
-    orderBy: { createdAt: 'asc' },
-    select: { ephemeralPublicKey: true, status: true, balanceId: true },
+    const links = await prisma.claimLink.findMany({
+      where: { campaignId: campaign.id },
+      select: { ephemeralPublicKey: true, status: true, balanceId: true },
+    })
+
+    check('every link is ACTIVE', links.every((l) => l.status === 'ACTIVE'))
+
+    /*
+     * The assertion that distinguishes a ledger-derived mapping from a
+     * positional one: each link must hold the balance ITS OWN key can claim.
+     * A count check cannot see a permutation; this can.
+     */
+    const wrong = links.filter((l) => l.balanceId !== CORRECT.get(l.ephemeralPublicKey))
+    check(
+      'each link holds the balance its own ephemeral key can claim',
+      wrong.length === 0,
+      wrong.map((l) => `${l.ephemeralPublicKey.slice(0, 8)}… -> ${l.balanceId?.slice(0, 14)}…`).join(', '),
+    )
+
+    const row = await prisma.batch.findUniqueOrThrow({
+      where: { id: batch.id },
+      select: { status: true, confirmedAt: true },
+    })
+    check('the batch is CONFIRMED with a timestamp', row.status === 'CONFIRMED' && row.confirmedAt !== null)
+
+    // BullMQ retries after a partial failure; a second run must not double-write.
+    const again = await confirmOne(batch.id)
+    check('a second run is a no-op', again === 'already-settled', again)
+  } finally {
+    await prisma.campaign.delete({ where: { id: campaign.id } })
+    await prisma.user.delete({ where: { id: user.id } })
+  }
+}
+
+async function main(): Promise<void> {
+  console.log(`\nConfirming testnet transaction ${fixture.transactionHash}`)
+
+  /*
+   * Clear anything a previous run left behind. `Batch.transactionHash` and
+   * `ClaimLink.ephemeralPublicKey` are unique, so the fixture's transaction can
+   * only be modelled once at a time — including across invocations.
+   */
+  const stale = await prisma.batch.findMany({
+    where: { transactionHash: fixture.transactionHash },
+    select: { campaignId: true },
   })
+  if (stale.length > 0) {
+    await prisma.campaign.deleteMany({ where: { id: { in: stale.map((b) => b.campaignId) } } })
+  }
 
-  check('every link is ACTIVE', links.every((l) => l.status === 'ACTIVE'))
-  check(
-    'each link carries the balance ID the ledger assigned',
-    JSON.stringify(links.map((l) => l.balanceId)) === JSON.stringify(fixture.balanceIds),
-    JSON.stringify(links.map((l) => l.balanceId)),
-  )
-  check(
-    'and it is mapped to the right ephemeral key',
-    JSON.stringify(links.map((l) => l.ephemeralPublicKey)) === JSON.stringify(fixture.ephemeralPublicKeys),
-  )
+  console.log('\n1. Links in the transaction\'s own operation order')
+  await runConfirm(false)
 
-  const row = await prisma.batch.findUniqueOrThrow({
-    where: { id: batch.id },
-    select: { status: true, confirmedAt: true },
-  })
-  check('the batch is CONFIRMED with a timestamp', row.status === 'CONFIRMED' && row.confirmedAt !== null)
-
-  // Running twice must not double-write — BullMQ retries after a partial failure.
-  const again = await confirmOne(batch.id)
-  check('a second run is a no-op', again === 'already-settled', again)
+  console.log('\n2. The same transaction, links enumerating in the opposite order')
+  await runConfirm(true)
 
   await prisma.$disconnect()
   console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)
