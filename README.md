@@ -136,7 +136,21 @@ a Stellar secret seed — anywhere in the value, not just as the whole of it —
 inlines those into the client bundle.
 
 Validation happens on first access rather than at import, so **`pnpm build`, `pnpm typecheck`
-and `pnpm lint` all run with no environment at all.** The sponsor's secret key is needed by
+and `pnpm lint` all run with no environment at all.**
+
+#### Verifying the no-secret build locally
+
+`env -i pnpm build` is **not sufficient on its own**. Next auto-loads `.env` from disk, and
+a warm `.next` can skip page-data collection entirely — so the check passes while the
+coupling is still there. Remove both first:
+
+```bash
+rm -rf .next && mv .env .env.bak
+env -i PATH="$PATH" HOME="$HOME" pnpm build
+```
+
+This has regressed four times. CI is the reliable check because it starts from a clean
+checkout with no `.env` at all. The sponsor's secret key is needed by
 the running service, never by the build or by CI.
 
 `.env` is gitignored. `SPONSOR_SECRET_KEY` belongs in Railway's secret store and never in the repo.

@@ -9,6 +9,19 @@
 import { z } from 'zod'
 import { Decimal } from 'decimal.js'
 import { env } from '@/lib/config/env'
+
+/*
+ * Read LAZILY, inside a refine, never at schema-construction time.
+ *
+ * `z.number().max(env.MAX_LINKS_PER_CAMPAIGN)` evaluates `env` the moment this
+ * module is imported — and route handlers import it, so `next build` would
+ * validate the whole environment while collecting page data and demand
+ * SPONSOR_SECRET_KEY to compile. That is the coupling #20 removed and the
+ * fourth time it has come back. A refine runs at PARSE time, when the
+ * environment genuinely exists.
+ */
+const withinLinkLimit = (count: number) => count <= env.MAX_LINKS_PER_CAMPAIGN
+const linkLimitMessage = () => `must not exceed MAX_LINKS_PER_CAMPAIGN`
 import { seedFreeString, stellarPublicKey } from '@/lib/validation/stellar'
 
 /**
@@ -52,7 +65,7 @@ export const createCampaignSchema = z
     // Absent for native XLM; required for anything else (refined below).
     assetIssuer: stellarPublicKey.optional(),
     amountPerLink: stellarAmount,
-    linkCount: z.number().int().positive().max(env.MAX_LINKS_PER_CAMPAIGN),
+    linkCount: z.number().int().positive().refine(withinLinkLimit, { message: linkLimitMessage() }),
     expiresAt: z.iso.datetime(),
   })
   .strict()
@@ -86,7 +99,10 @@ export const registerLinksSchema = z
      * secret seed before checking the StrKey — a seed here is a security
      * event, not a validation error (SPEC.md §6.3).
      */
-    publicKeys: z.array(stellarPublicKey).min(1).max(env.MAX_LINKS_PER_CAMPAIGN),
+    publicKeys: z
+      .array(stellarPublicKey)
+      .min(1)
+      .refine((keys) => withinLinkLimit(keys.length), { message: linkLimitMessage() }),
     labels: z.array(seedFreeString.max(200)).optional(),
   })
   .strict()
