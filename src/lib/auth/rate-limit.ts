@@ -49,3 +49,10 @@ export async function rateLimit(
 }
 
 export const LOGIN_RATE_LIMIT = { limit: 5, windowSeconds: 15 * 60 } as const
+
+/**
+ * Not in the AGENT.md §5.6 table, but /api/auth/password verifies the current
+ * password and has no lockout behind it, so it is the one remaining
+ * credential-checking endpoint with nothing in front of it.
+ */
+export const PASSWORD_CHANGE_RATE_LIMIT = { limit: 5, windowSeconds: 15 * 60 } as const

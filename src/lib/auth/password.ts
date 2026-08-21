@@ -16,7 +16,10 @@ const OPTIONS = {
  * does not exist. Without it, "no such user" returns in microseconds while a
  * real user costs ~50ms of argon2 — which is a username oracle.
  */
-let dummyHash: string | undefined
+const dummyHash: Promise<string> = argon2.hash('kleym-timing-equaliser', OPTIONS)
+// Settled at module load, so attach a handler now; the real error surfaces at
+// the await inside verifyDummyPassword, where the caller can turn it into a 500.
+dummyHash.catch(() => undefined)
 
 export async function hashPassword(password: string): Promise<string> {
   return argon2.hash(password, OPTIONS)
@@ -37,7 +40,9 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
  * response time does not distinguish it (AGENT.md §5.1).
  */
 export async function verifyDummyPassword(password: string): Promise<false> {
-  dummyHash ??= await argon2.hash('kleym-timing-equaliser', OPTIONS)
-  await verifyPassword(dummyHash, password)
+  // Started at module load, not on first use. Computing it lazily made the
+  // FIRST unknown-user request pay a hash AND a verify while every later one
+  // paid only the verify — a one-shot asymmetry, but a needless one.
+  await verifyPassword(await dummyHash, password)
   return false
 }

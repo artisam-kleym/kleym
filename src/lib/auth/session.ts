@@ -5,7 +5,7 @@
  * needs revocation, and a JWT cannot be revoked without the very server-side
  * lookup that JWTs exist to avoid.
  */
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db/client'
 import { env } from '@/lib/config/env'
@@ -98,14 +98,6 @@ export async function revokeOtherSessions(userId: string, keepToken: string): Pr
     where: { userId, tokenHash: { not: hashToken(keepToken) } },
   })
   return result.count
-}
-
-/** Constant-time string compare, for anything that must not leak by timing. */
-export function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a)
-  const bufB = Buffer.from(b)
-  if (bufA.length !== bufB.length) return false
-  return timingSafeEqual(bufA, bufB)
 }
 
 export function sessionCookieOptions(expiresAt: Date) {

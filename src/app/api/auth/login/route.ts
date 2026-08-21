@@ -13,17 +13,13 @@ import { createSession, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth/
 import { rateLimit, LOGIN_RATE_LIMIT } from '@/lib/auth/rate-limit'
 import { isLockedOut, recordFailure, clearFailures } from '@/lib/auth/lockout'
 import { invalidCredentials, invalidRequest, serverError, tooManyAttempts } from '@/lib/auth/problems'
+import { clientIp } from '@/lib/auth/client-ip'
 import { cookies } from 'next/headers'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const schema = z.object({ username: z.string().min(1).max(64), password: z.string().min(1).max(512) }).strict()
-
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for')
-  return forwarded?.split(',')[0]?.trim() || 'unknown'
-}
 
 export async function POST(request: Request) {
   const ip = clientIp(request)
@@ -43,7 +39,7 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.findUnique({
       where: { username },
-      select: { id: true, passwordHash: true, isActive: true, failedLogins: true, lockedUntil: true },
+      select: { id: true, passwordHash: true, isActive: true, lockedUntil: true },
     })
 
     // No such user: still burn an argon2 verification, then fail identically.
@@ -68,7 +64,7 @@ export async function POST(request: Request) {
     }
 
     if (!passwordOk) {
-      await recordFailure(user.id, user.failedLogins)
+      await recordFailure(user.id)
       logger.warn({ securityEvent: 'LOGIN_FAILED', ip, reason: 'bad_password' }, 'login failed')
       return invalidCredentials()
     }
