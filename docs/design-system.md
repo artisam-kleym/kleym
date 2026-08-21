@@ -70,3 +70,61 @@ Material Symbols, subsetted to the icons `BRAND.md` §6 names: **24K rather than
 with the `FILL`, `GRAD`, `opsz` and `wght` axes preserved. Adding an icon means adding it
 to `IconName` **and** regenerating the subset — the font does not contain glyphs that were
 not requested.
+
+
+## Pages that need client JS must not be prerendered
+
+Every page that hydrates sets `export const dynamic = 'force-dynamic'`. This is a
+**requirement of the CSP, not a performance choice.**
+
+A prerendered route's HTML is generated at build time, and it contains React's inline RSC
+flight payload:
+
+```html
+<script>(self.__next_f=self.__next_f||[]).push([0])</script>
+```
+
+That inline script cannot carry a per-request nonce, and `'self'` has never covered inline
+scripts — it covers `src=` chunks. So under a policy without `'unsafe-inline'`, which
+`AGENT.md` §5.3 forbids outright, those scripts are **refused**: `self.__next_f` stays
+empty, no fiber attaches, and React throws #412. The page still returns **200** and serves
+correct-looking HTML while being completely inert.
+
+Making the route dynamic lets the nonce reach every script tag. Verified: both inline
+scripts and all chunk scripts carry the response's own nonce.
+
+The cost is the static optimisation for those pages. There is no third option — the only
+other lever is `'unsafe-inline'`, which is not available here.
+
+CI enforces it, because a 200 response does not reveal the failure.
+
+
+## No inline `style` attributes
+
+Every value that would go in `style={{…}}` belongs in `globals.css` as a class instead.
+
+This is the same CSP constraint as the section above, on the other half of the policy.
+Inline style **attributes** are governed by `style-src-attr`, which accepts only
+`'unsafe-inline'` or hashes — **a nonce cannot satisfy it**, because nonces apply to
+`<style>` elements. So under `style-src 'self'` the attribute is parsed into the DOM and
+then silently not applied:
+
+```
+icon:  style="font-size:24px"  ->  computed 16px   (inherited)
+orb :  600x600 pink, blur(100px)  ->  0x0, no background, no filter
+```
+
+The markup looks correct in devtools, the element renders wrong, and nothing errors.
+
+Three consequences for component work:
+
+- **Icon sizes** are the closed `BRAND.md` §6 set, so each is a class: `.icon-14` … `.icon-48`.
+- **Ambient orbs** are fixed shapes: `.orb-dashboard-a`, `.orb-dashboard-b`, `.orb-claim`.
+- **Genuinely dynamic values** need bucketing. The campaign progress bar rounds to 5%
+  (`.progress-0` … `.progress-100`); the exact figure stays in `aria-valuenow` and the
+  label beside it, so nothing a reader or a screen reader perceives is lost.
+
+A value that is truly per-render and must be exact needs a nonced `<style>` element, not
+an attribute. Reach for bucketing first.
+
+CI greps for `style={{` in `src/**/*.tsx`.
