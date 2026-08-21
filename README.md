@@ -155,6 +155,47 @@ the running service, never by the build or by CI.
 
 `.env` is gitignored. `SPONSOR_SECRET_KEY` belongs in Railway's secret store and never in the repo.
 
+## Public API
+
+Read-only. Three endpoints, all scoped to the key's owner.
+
+| Method | Path | Returns |
+|---|---|---|
+| GET | `/api/v1/campaigns` | Campaign list, paginated (`page`, `perPage`, `status`) |
+| GET | `/api/v1/campaigns/{id}` | Campaign detail with claim stats |
+| GET | `/api/v1/campaigns/{id}/links` | Link statuses, paginated |
+
+```bash
+curl -H "Authorization: Bearer klm_1a2b3c4d_..." https://kleym.app/api/v1/campaigns
+```
+
+**Why there is no write endpoint.** Creating a campaign means generating one Ed25519
+keypair per link. Those keys are generated in the sender's browser and exist nowhere
+else — not in the database, not in a log, not in a request body. An API that accepted
+them would move the secrets through a server, which is the one thing this product
+promises not to do. This is a design boundary, not a gap in v1; CI fails the build if
+a `POST`, `PUT`, `PATCH` or `DELETE` handler appears under `src/app/api/v1/`.
+
+**Keys.** Issue and revoke on `/settings`. A key is displayed exactly once, at
+creation — only an argon2id hash is stored, so nothing can hand it back later. The
+8-character prefix is a lookup handle, not a secret, and is what the UI shows
+afterwards. Revocation takes effect on the next request.
+
+**Rate limit.** 100 requests per minute per key, counted per key rather than per
+account: revoking a leaked key must not leave your remaining keys already spent.
+Responses carry `X-RateLimit-Limit` and `X-RateLimit-Remaining`; a 429 carries
+`Retry-After`.
+
+**Amounts are strings.** `"amountPerLink": "2.5000000"`, never `2.5`. A JSON number is
+an IEEE 754 double and cannot hold Stellar's seven decimal places across its full
+range — `922337203685.4775807` becomes `922337203685.4775`. Parse them with a decimal
+library, not `Number`.
+
+**Errors** are RFC 9457 `application/problem+json` with a `correlationId` to quote to
+support. Every authentication failure — absent, malformed, wrong, revoked — returns an
+identical 401; distinguishing them would confirm half of a guess. A campaign belonging
+to another account returns 404, not 403, for the same reason.
+
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request to `develop` or `main`.

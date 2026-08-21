@@ -18,7 +18,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:generate": "prisma generate",
     "postinstall": "prisma generate",
-    "verify:concurrency": "tsx scripts/verify-concurrency.ts"
+    "verify:concurrency": "tsx scripts/verify-concurrency.ts",
+    "verify:api-keys": "tsx scripts/verify-api-keys.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",

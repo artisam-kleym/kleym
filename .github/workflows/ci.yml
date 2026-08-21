@@ -34,8 +34,21 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+      # The rate limiter is one of the things under test, and it fails CLOSED —
+      # without a real Redis every request would be denied and the checks would
+      # pass for the wrong reason.
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
       DATABASE_URL: postgresql://kleym:kleym@localhost:5432/kleym
+      REDIS_URL: redis://localhost:6379
 
     steps:
       - uses: actions/checkout@v4
@@ -51,8 +64,11 @@ jobs:
       - name: Apply migrations
         run: pnpm db:deploy
 
-      - name: Verify
+      - name: Verify idempotency and link-limit concurrency
         run: pnpm verify:concurrency
+
+      - name: Verify API keys, rate limiting and ownership
+        run: pnpm verify:api-keys
 
   check:
     name: typecheck · lint · build · audit
@@ -87,6 +103,17 @@ jobs:
 
       - name: Audit
         run: pnpm audit --audit-level=moderate
+
+      # SPEC.md §6.6: /api/v1 is read-only in v1, by design and not by omission.
+      # Creating a campaign means generating keypairs, which happens in the
+      # sender's browser and must never reach a server (AGENT.md §1). A write
+      # endpoint here is not a feature — it is that guarantee being dropped.
+      - name: The public API has no write endpoints
+        run: |
+          if grep -rnE "^export (async )?function (POST|PUT|PATCH|DELETE)" src/app/api/v1/; then
+            echo "::error::/api/v1 must stay read-only (SPEC.md §6.6)"
+            exit 1
+          fi
 
       # AGENT.md §5.3 / §5.2. A CSP that allows inline script defeats the point
       # on /claim, which handles bearer secrets — so this is a static guard, not

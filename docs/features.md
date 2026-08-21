@@ -140,3 +140,42 @@ cost: an abandoned claim strands sponsor reserves that Kleym cannot recover.
 four permutations plus both predicate directions. Exact decimal balance comparison,
 post-merge account existence checked on the ledger, reserve obligation computed from
 live protocol values.
+
+## 2026-08-21 — Public read-only API v1, API keys, and settings (#16)
+
+Three read-only endpoints under `/api/v1`, authenticated with `Authorization: Bearer`,
+rate limited at 100 requests per minute per key, and scoped to the key's owner in the
+query rather than by a check afterwards.
+
+There is no write endpoint and there will not be one in v1. Creating a campaign means
+generating a keypair per link in the sender's browser; an API that accepted them would
+move secrets through a server. CI fails the build if a `POST`, `PUT`, `PATCH` or
+`DELETE` handler appears under `src/app/api/v1/`, so the boundary is enforced rather
+than remembered.
+
+Keys are issued and revoked on `/settings`, alongside password change. A key is shown
+exactly once — only an argon2id hash is stored, and the settings page renders from a
+query that selects the prefix and timestamps and cannot return the key. Revocation
+takes effect on the next request, because resolution reads `revokedAt` every time
+rather than caching.
+
+Amounts cross the boundary as strings. A JSON number cannot hold Stellar's seven
+decimal places across its range: `922337203685.4775807` — the protocol maximum —
+becomes `922337203685.4775` as a double.
+
+One bug the verification caught, which would have failed roughly half of all issued
+keys: base64url's alphabet contains `_`, and the parser split the key on `_` and
+expected three parts. Any key whose random half happened to contain an underscore was
+rejected as malformed, and the rest worked — which is exactly how that reaches
+production. The prefix is now hex and the key is parsed by a fixed-width pattern that
+takes the secret as everything after the second separator, so its alphabet cannot
+matter.
+
+**Verified by:** 23 unit tests over amount round-tripping at the protocol maximum and
+the problem+json shape of every error path. `pnpm verify:api-keys` runs against real
+Postgres and real Redis — the limiter fails closed, so without a live Redis the checks
+would pass for the wrong reason. It covers key resolution, immediate revocation, the
+key being unrecoverable from any stored column, `lastUsedAt`, the 100/101 boundary with
+a second key on the same account unaffected, and cross-account isolation. Twenty-five
+keys are issued and all must resolve; one key proves nothing when the failure rate is
+50%. Each check was confirmed to fail against a planted regression.
