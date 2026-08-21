@@ -22,7 +22,7 @@ import {
 import { assetOf, baseReserve, horizon, reservePerLink } from '@/lib/stellar/horizon'
 
 /** Kleym always writes two claimants per link — SPEC.md §3.2. */
-const CLAIMANTS_PER_LINK = 2
+export const CLAIMANTS_PER_LINK = 2
 
 /** How long a prepared envelope stays valid for the sender to sign. */
 const SIGNING_WINDOW_SECONDS = 600

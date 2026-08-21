@@ -38,8 +38,3 @@ export function guardRequestBody(
 
   return null
 }
-
-export function clientIp(request: Request): string | null {
-  const forwarded = request.headers.get('x-forwarded-for')
-  return forwarded ? (forwarded.split(',')[0]?.trim() ?? null) : null
-}

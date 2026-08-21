@@ -14,3 +14,9 @@ npm-debug.log*
 
 # Prisma client is generated, not committed
 src/generated/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/e2e/.auth/
