@@ -208,6 +208,100 @@ async function keysCannotCrossAccounts(): Promise<void> {
   check('and bob can still see his own', asBob !== null)
 }
 
+/**
+ * Paging a public API must not drop or duplicate rows.
+ *
+ * `ClaimLink.createdAt` defaults to CURRENT_TIMESTAMP, which in Postgres is
+ * TRANSACTION time — every link registered by one `createMany` shares a
+ * timestamp to the millisecond. `ORDER BY "createdAt"` over 90 equal keys is
+ * not a total order, and under LIMIT/OFFSET an unstable sort means a consumer
+ * walking pages sees one link twice and never sees another.
+ */
+async function pagingIsStable(): Promise<void> {
+  console.log('\n6. Walking pages returns every link exactly once')
+
+  const userId = await makeUser('paging')
+  const { Keypair } = await import('@stellar/stellar-sdk')
+  const { registerLinks } = await import('../src/lib/api/links')
+
+  const campaign = await prisma.campaign.create({
+    data: {
+      userId,
+      name: 'paging',
+      network: 'testnet',
+      senderPublicKey: Keypair.random().publicKey(),
+      assetCode: 'XLM',
+      amountPerLink: '1.0000000',
+      linkCount: 90,
+      expiresAt: new Date(Date.now() + 86_400_000),
+    },
+    select: { id: true },
+  })
+  const registered = await registerLinks(
+    campaign.id,
+    userId,
+    Array.from({ length: 90 }, () => Keypair.random().publicKey()),
+  )
+  if (registered.kind !== 'ok') throw new Error(`fixture registration failed: ${registered.kind}`)
+
+  const stamps = await prisma.$queryRawUnsafe<{ createdAt: Date }[]>(
+    'SELECT "createdAt" FROM "ClaimLink" WHERE "campaignId" = $1',
+    campaign.id,
+  )
+  const distinct = new Set(stamps.map((r) => r.createdAt.toISOString()))
+  check(
+    'the premise holds — links registered together share a timestamp',
+    distinct.size < stamps.length,
+    `${distinct.size} distinct across ${stamps.length}`,
+  )
+
+  /*
+   * The walk writes between pages, modelling ordinary concurrent activity on
+   * the campaign — a batch confirming, a claim landing. That is what changes
+   * the sort's input. With a completely idle table the unstable order may hold
+   * by luck, which is the point: it is luck, not a guarantee.
+   */
+  const walk = async (stable: boolean, disturb = true) => {
+    const seen: string[] = []
+    for (let page = 1; page <= 9; page += 1) {
+      const rows = await prisma.claimLink.findMany({
+        where: { campaignId: campaign.id },
+        orderBy: stable ? [{ createdAt: 'asc' }, { id: 'asc' }] : { createdAt: 'asc' },
+        take: 10,
+        skip: (page - 1) * 10,
+        select: { id: true },
+      })
+      seen.push(...rows.map((r) => r.id))
+      if (disturb) {
+        await prisma.claimLink.updateMany({
+          where: { campaignId: campaign.id, id: { in: rows.map((r) => r.id) } },
+          data: { label: 'walked'.repeat(200) },
+        })
+      }
+    }
+    return seen
+  }
+
+  const naive = await walk(false)
+  const naiveUnique = new Set(naive)
+  console.log(
+    `        (unstable walk: ${naive.length} rows returned, ${naiveUnique.size} distinct — ` +
+      `${90 - naiveUnique.size} link(s) never seen)`,
+  )
+  check(
+    'createdAt alone does NOT survive the walk — the reason this check exists',
+    naiveUnique.size !== 90,
+    `saw ${naive.length} rows, ${naiveUnique.size} distinct — no duplication observed this run`,
+  )
+
+  const stable = await walk(true)
+  check('the tie-broken order returns 90 rows', stable.length === 90, `${stable.length}`)
+  check('all distinct', new Set(stable).size === 90, `${new Set(stable).size}`)
+
+  const undisturbed = await walk(true, false)
+  check('and again with nothing else touching the table', new Set(undisturbed).size === 90)
+}
+
 async function main(): Promise<void> {
   try {
     await keysAuthenticateAndRevoke()
@@ -215,6 +309,7 @@ async function main(): Promise<void> {
     await lastUsedIsRecorded()
     await theLimitIsPerKey()
     await keysCannotCrossAccounts()
+    await pagingIsStable()
   } finally {
     await prisma.$disconnect()
     redis.disconnect()

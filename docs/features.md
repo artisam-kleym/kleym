@@ -171,6 +171,15 @@ production. The prefix is now hex and the key is parsed by a fixed-width pattern
 takes the secret as everything after the second separator, so its alphabet cannot
 matter.
 
+Every listing orders by `(createdAt, id)` rather than `createdAt` alone.
+`createdAt` defaults to `CURRENT_TIMESTAMP`, which in Postgres is *transaction*
+time, so all 90 links registered by one `createMany` carry an identical
+timestamp — and ordering by it is not a total order over them. Under
+`LIMIT`/`OFFSET` that means a consumer walking pages sees some links twice and
+never sees others: measured at 90 rows returned but only ~45 distinct, with
+roughly half the campaign's links unreachable. The `id` tiebreak is a cuid,
+unique always, so it breaks every tie and introduces none.
+
 **Verified by:** 23 unit tests over amount round-tripping at the protocol maximum and
 the problem+json shape of every error path. `pnpm verify:api-keys` runs against real
 Postgres and real Redis — the limiter fails closed, so without a live Redis the checks
@@ -178,4 +187,5 @@ would pass for the wrong reason. It covers key resolution, immediate revocation,
 key being unrecoverable from any stored column, `lastUsedAt`, the 100/101 boundary with
 a second key on the same account unaffected, and cross-account isolation. Twenty-five
 keys are issued and all must resolve; one key proves nothing when the failure rate is
-50%. Each check was confirmed to fail against a planted regression.
+50%. Paging is walked twice, once with writes landing between pages and once against
+an idle table. Each check was confirmed to fail against a planted regression.

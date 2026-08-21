@@ -33,7 +33,9 @@ export async function GET(request: Request) {
       prisma.campaign.count({ where }),
       prisma.campaign.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        // Tie-broken for the reason given in the links route: an unstable sort
+        // under LIMIT/OFFSET drops and duplicates rows across pages.
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * perPage,
         take: perPage,
         select: {

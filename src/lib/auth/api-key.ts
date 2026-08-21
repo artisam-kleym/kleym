@@ -170,7 +170,10 @@ export async function revokeApiKey(keyId: string, userId: string): Promise<boole
 export async function listApiKeys(userId: string) {
   return prisma.apiKey.findMany({
     where: { userId },
-    orderBy: { createdAt: 'desc' },
+    // Ties are far less likely here — keys are created one at a time — but the
+    // ordering costs nothing to make total, and this list is not paginated only
+    // because it is short today.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     select: { id: true, name: true, prefix: true, lastUsedAt: true, revokedAt: true, createdAt: true },
   })
 }

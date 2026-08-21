@@ -42,7 +42,20 @@ export async function GET(request: Request, { params }: Params) {
       prisma.claimLink.count({ where: { campaignId: id } }),
       prisma.claimLink.findMany({
         where: { campaignId: id },
-        orderBy: { createdAt: 'asc' },
+        /*
+         * `(createdAt, id)`, not `createdAt` alone.
+         *
+         * `createdAt` defaults to CURRENT_TIMESTAMP, which in Postgres is
+         * TRANSACTION time — so all 90 links registered by one `createMany`
+         * carry an identical timestamp, and ordering by it is not a total
+         * order over them. Postgres promises no particular permutation, and
+         * ordinary row updates change it by relocating tuples in the heap.
+         *
+         * Under LIMIT/OFFSET that means a consumer walking pages can see one
+         * link twice and never see another. `id` is a cuid: unique always, so
+         * it breaks every tie and introduces none.
+         */
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         take: perPage,
         skip: (page - 1) * perPage,
         select: {
