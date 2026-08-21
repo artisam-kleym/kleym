@@ -11,6 +11,49 @@ on:
 # reachable, so it runs on a schedule rather than per-commit (§7.3).
 
 jobs:
+  concurrency:
+    name: concurrency guarantees (real Postgres)
+    runs-on: ubuntu-latest
+
+    # These are the two guarantees that fail by returning 200: an idempotency
+    # key that replays another user's response, and a campaign that registers
+    # more links than it declares. Neither is visible to typecheck, lint or a
+    # unit test — both need a real database and real concurrent transactions,
+    # so this job has one. It is not the testnet integration suite §7.3 defers.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: kleym
+          POSTGRES_PASSWORD: kleym
+          POSTGRES_DB: kleym
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U kleym"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://kleym:kleym@localhost:5432/kleym
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        run: pnpm db:deploy
+
+      - name: Verify
+        run: pnpm verify:concurrency
+
   check:
     name: typecheck · lint · build · audit
     runs-on: ubuntu-latest
@@ -62,22 +105,17 @@ jobs:
 
       # The demonstration endpoint must not outlive the real one. Without this,
       # a route that accepts arbitrary JSON quietly becomes permanent.
-      - name: /api/echo is removed once /api/campaigns links exists
+      # /api/echo was a stand-in so the seed guard was exercisable before the
+      # real campaign endpoints existed. Those exist now, so it must stay gone:
+      # an endpoint accepting arbitrary JSON should not outlive its purpose.
+      - name: /api/echo does not come back
         run: |
-          if [ -d "src/app/api/campaigns" ] && [ -e "src/app/api/echo/route.ts" ]; then
-            echo "::error::/api/echo was a stand-in for #7 and must be deleted now that the campaign routes exist"
+          if [ -e "src/app/api/echo/route.ts" ]; then
+            echo "::error::/api/echo was superseded by /api/campaigns/[id]/links and must not return"
             exit 1
           fi
           echo "clean"
 
-      # Regression guard for the hydration failure found reviewing #22: a
-      # prerendered route's inline RSC flight payload cannot carry a
-      # per-request nonce, so under this CSP it is refused and the page never
-      # hydrates - while still returning 200, which is why CI did not catch it.
-      #
-      # Discovered rather than listed. A hardcoded pair of paths protects only
-      # the two routes that existed when it was written and says nothing about
-      # the next one, which is how this class of bug returns.
       - name: Pages that need client JS are not prerendered
         run: |
           fail=0

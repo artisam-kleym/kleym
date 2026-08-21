@@ -20,6 +20,27 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-08-21 — Campaign API (#7)
+
+Senders can create campaigns, register the public half of their claim links, list and
+filter their campaigns, rename or cancel a draft, relabel a link, and record that the
+secrets CSV was downloaded.
+
+Amounts cross the API as strings and are stored at Stellar's exact seven-decimal
+precision — a JSON number would silently lose it. Every mutating endpoint requires an
+`Idempotency-Key`, so a retried request returns the original response instead of creating
+a second campaign. A campaign belonging to someone else is indistinguishable from one that
+does not exist.
+
+Anything containing a Stellar secret seed is rejected before it is parsed, and recorded as
+a security event.
+
+**Verified by:** every criterion exercised against real Postgres and Redis with two
+separate users — cross-user access 404s on all four endpoints, a replayed key returns the
+identical body with `idempotent-replay: true` and creates no second row, the same key with
+a different body 409s, three seed-injection shapes are refused with the seed absent from
+both response and log, `0.3000000` round-trips exactly, and the declared link count is
+enforced.
 ## 2026-08-21 — Sign-in (#5)
 
 Senders can sign in at `/login`. Sessions are revocable, `/dashboard` and `/admin` are

@@ -213,13 +213,19 @@ model AuditLog {
   @@index([entityType, entityId])
 }
 
+/// Keyed on (userId, key), not on key alone.
+///
+/// Idempotency keys are chosen by the client, so two users presenting the same
+/// value is ordinary, not adversarial. A global primary key makes one user's
+/// row addressable by another's write — see lib/api/idempotency.ts.
 model IdempotencyKey {
-  key         String   @id
+  key         String
   userId      String
   requestHash String
   response    Json?
   statusCode  Int?
   createdAt   DateTime @default(now())
 
+  @@id([userId, key])
   @@index([createdAt])
 }

@@ -123,7 +123,7 @@ pnpm db:seed                # requires SEED_ADMIN_USERNAME and SEED_ADMIN_PASSWO
 | `pnpm worker` | `kleym-worker` process — BullMQ consumers and cron |
 | `pnpm typecheck` | `tsc --noEmit`, strict |
 | `pnpm lint` | ESLint over `src`, `scripts` and `tests` |
-| `pnpm test` | Vitest unit tests (no network; integration runs on a schedule) |
+| `pnpm test` | Vitest unit tests (no network; integration runs on a schedule). `tests/setup.ts` supplies a placeholder environment, since some modules validate config on import |
 | `pnpm db:migrate` / `db:deploy` | Apply migrations locally / in CI |
 | `pnpm db:seed` | Create the admin user (refuses without explicit credentials) |
 | `pnpm db:generate` | Regenerate the Prisma client |
@@ -136,7 +136,21 @@ a Stellar secret seed — anywhere in the value, not just as the whole of it —
 inlines those into the client bundle.
 
 Validation happens on first access rather than at import, so **`pnpm build`, `pnpm typecheck`
-and `pnpm lint` all run with no environment at all.** The sponsor's secret key is needed by
+and `pnpm lint` all run with no environment at all.**
+
+#### Verifying the no-secret build locally
+
+`env -i pnpm build` is **not sufficient on its own**. Next auto-loads `.env` from disk, and
+a warm `.next` can skip page-data collection entirely — so the check passes while the
+coupling is still there. Remove both first:
+
+```bash
+rm -rf .next && mv .env .env.bak
+env -i PATH="$PATH" HOME="$HOME" pnpm build
+```
+
+This has regressed four times. CI is the reliable check because it starts from a clean
+checkout with no `.env` at all. The sponsor's secret key is needed by
 the running service, never by the build or by CI.
 
 `.env` is gitignored. `SPONSOR_SECRET_KEY` belongs in Railway's secret store and never in the repo.
