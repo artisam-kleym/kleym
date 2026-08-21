@@ -44,5 +44,20 @@ export function clientIp(request: Request): string {
 
   // Index from the end: with one trusted proxy the client is the last entry.
   const index = hops.length - TRUSTED_PROXY_HOPS
-  return hops[Math.max(0, index)] ?? UNKNOWN_IP
+
+  /*
+   * If the header is SHORTER than the configured hop count, the request did
+   * not arrive through the expected chain — a misconfigured hop count, or a
+   * request that reached us without traversing every proxy.
+   *
+   * Fall back to the RIGHTMOST entry, never the leftmost. Clamping to index 0
+   * would hand back the entry the client supplied, which is precisely the
+   * value this function exists to avoid trusting: with TRUSTED_PROXY_HOPS
+   * above the real hop count, every caller could choose their own rate-limit
+   * bucket again. The rightmost entry was written by whichever proxy spoke to
+   * us last, so it is never caller-controlled.
+   */
+  if (index < 0) return hops[hops.length - 1] ?? UNKNOWN_IP
+
+  return hops[index] ?? UNKNOWN_IP
 }
