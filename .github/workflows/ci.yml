@@ -15,11 +15,12 @@ jobs:
     name: concurrency guarantees (real Postgres)
     runs-on: ubuntu-latest
 
-    # These are the two guarantees that fail by returning 200: an idempotency
-    # key that replays another user's response, and a campaign that registers
-    # more links than it declares. Neither is visible to typecheck, lint or a
-    # unit test — both need a real database and real concurrent transactions,
-    # so this job has one. It is not the testnet integration suite §7.3 defers.
+    # These are the guarantees that fail by returning 200: an idempotency key
+    # that replays another user's response, a campaign that registers more
+    # links than it declares, a campaign reading ACTIVE while some of its links
+    # have no on-chain entry. None is visible to typecheck, lint or a unit test
+    # — all need a real database and real concurrent transactions, so this job
+    # has one. It is not the testnet integration suite §7.3 defers: no network.
     services:
       postgres:
         image: postgres:17-alpine
@@ -51,8 +52,11 @@ jobs:
       - name: Apply migrations
         run: pnpm db:deploy
 
-      - name: Verify
+      - name: Verify idempotency and link-limit concurrency
         run: pnpm verify:concurrency
+
+      - name: Verify batch lifecycle
+        run: pnpm verify:batches
 
   check:
     name: typecheck · lint · build · audit
@@ -87,6 +91,19 @@ jobs:
 
       - name: Audit
         run: pnpm audit --audit-level=moderate
+
+      # SPEC.md §3.2: the base reserve must be read from the ledger at runtime.
+      # It is 0.5 XLM today and has changed before; a literal here would
+      # under-fund every campaign the day it changes, and the SENDER pays.
+      # Scoped to the two modules that do reserve arithmetic, and matched on
+      # assignment so the prose in a doc comment does not trip it.
+      - name: Base reserve is not hardcoded
+        run: |
+          if grep -nE "(reserve|Reserve)[A-Za-z]* *= *(new Decimal\()?['\"]?0\.5" \
+               src/lib/stellar/horizon.ts src/lib/stellar/batch.ts; then
+            echo "::error::base reserve is hardcoded (SPEC.md §3.2)"
+            exit 1
+          fi
 
       # AGENT.md §5.3 / §5.2. A CSP that allows inline script defeats the point
       # on /claim, which handles bearer secrets — so this is a static guard, not

@@ -2,20 +2,25 @@
  * kleym-worker entrypoint. SPEC.md §2.2.
  *
  * BullMQ consumers and cron jobs are registered here as they land: batch-confirm
- * (#9), reconcile and expiry-sweep (#12), ephemeral-watch (#19), email-deliver
- * (#14). Kept as a separate process so a slow job never blocks a request.
+ * (#9) is live; reconcile and expiry-sweep (#12), ephemeral-watch (#19) and
+ * email-deliver (#14) follow. Kept as a separate process so a slow job never blocks a request.
  */
 import { logger } from '@/lib/config/logger'
+import { startBatchConfirmWorker } from './batch-confirm'
 
 async function main() {
-  logger.info({ service: 'kleym-worker' }, 'worker started — no queues registered yet')
+  const workers = [startBatchConfirmWorker()]
+  logger.info({ service: 'kleym-worker', queues: ['batch-confirm'] }, 'worker started')
 
-  const shutdown = (signal: string) => {
+  const shutdown = async (signal: string) => {
     logger.info({ signal }, 'shutting down')
+    // Let in-flight jobs finish: a batch-confirm killed mid-run leaves links
+    // PENDING behind a transaction that is already on the ledger.
+    await Promise.all(workers.map((worker) => worker.close()))
     process.exit(0)
   }
-  process.on('SIGTERM', () => shutdown('SIGTERM'))
-  process.on('SIGINT', () => shutdown('SIGINT'))
+  process.on('SIGTERM', () => void shutdown('SIGTERM'))
+  process.on('SIGINT', () => void shutdown('SIGINT'))
 }
 
 void main()
