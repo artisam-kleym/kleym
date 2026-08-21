@@ -14,13 +14,14 @@ import { SECRET_ENV_KEYS } from './env'
 /**
  * Read straight from process.env, NOT through the validated `env` proxy.
  *
- * Touching `env` here validates the whole schema at module scope — and because
- * route handlers import the logger transitively, that drags the full
- * environment (SPONSOR_SECRET_KEY included) back into `next build`. That is the
- * coupling #20 removed. NODE_ENV is neither secret nor worth validating: any
- * value other than 'production' means "not production".
+ * Touching `env` here would validate the whole schema at module scope — and
+ * because route handlers import the logger transitively, that would drag the
+ * full environment (SPONSOR_SECRET_KEY included) back into `next build`. That
+ * is the coupling #20 removed; the CI build-with-no-env step caught it
+ * returning the moment a route pulled the logger in.
  *
- * (#22 makes the same change; the overlap is identical.)
+ * NODE_ENV is neither secret nor worth validating: any value other than
+ * 'production' simply means "not production".
  */
 const isProduction = process.env.NODE_ENV === 'production'
 

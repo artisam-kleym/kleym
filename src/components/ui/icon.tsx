@@ -22,8 +22,10 @@ export function Icon({ name, size = 20, filled = false, className }: IconProps) 
       // Decorative by default: meaning comes from the label beside it. An
       // icon-only control supplies aria-label on the BUTTON, not here.
       aria-hidden="true"
-      className={clsx('icon', filled && 'icon-filled', className)}
-      style={{ fontSize: `${size}px`, width: size, height: size }}
+      // Size is a class, not a style attribute. A CSP without 'unsafe-inline'
+      // refuses inline style attributes, and every icon silently rendered at
+      // the inherited font size instead of its BRAND.md §6 size.
+      className={clsx('icon', `icon-${size}`, filled && 'icon-filled', className)}
     >
       {name}
     </span>

@@ -12,6 +12,7 @@
     "spike": "tsx scripts/spike-claim.ts",
     "diagnose": "tsx scripts/spike-diagnose.ts",
     "worker": "tsx src/workers/index.ts",
+    "test": "vitest run",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",

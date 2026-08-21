@@ -6,6 +6,18 @@ import { Footer } from '@/components/shell/footer'
  * Landing page. Copy follows BRAND.md §8 and the §9 corrections — notably
  * correction 1, which is a security-model fix rather than a wording preference.
  */
+
+/**
+ * Same constraint as /claim: prerendered HTML carries an inline RSC flight
+ * payload that cannot hold a per-request nonce, so under this CSP it is refused
+ * and the page never hydrates — serving correct markup while being inert and
+ * logging a React #412 on every visit.
+ *
+ * This costs the static optimisation for the landing page. The alternative is
+ * 'unsafe-inline', which AGENT.md §5.3 forbids outright, so it is not a real
+ * option. See docs/design-system.md.
+ */
+export const dynamic = 'force-dynamic'
 const STEPS = [
   {
     icon: 'account_balance_wallet' as const,

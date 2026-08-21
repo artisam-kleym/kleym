@@ -41,6 +41,22 @@ byte-for-byte and by timing, 6th attempt refused with `Retry-After`, lockout con
 hold against the correct password, two concurrent sessions reduced to one by a password
 change with the old token replayed and refused, `/admin` returning 404 (not 403) to a
 SENDER, and no password or session token present in any log line.
+## 2026-08-20 — Security headers and seed rejection (#6)
+
+Every response now carries a nonce-based CSP with no inline script and no `eval`, plus
+HSTS, `nosniff`, `X-Frame-Options: DENY` and a restrictive `Permissions-Policy`. `/claim`
+sends `Referrer-Policy: no-referrer`; everything else sends `strict-origin-when-cross-origin`.
+
+Any request body containing a Stellar secret seed is rejected with `400` problem+json and
+recorded as a security event. The scan runs before schema validation, so a seed hidden in
+a field the schema would strip is still caught, and it finds seeds embedded in URLs, JSON
+blobs and prose — not only bare values.
+
+**Verified by:** all six headers read off a running server; `/claim` confirmed to override
+`Referrer-Policy`; four seed-injection shapes (bare, in a label, in an unknown key, deeply
+nested) all rejected `400` with the field path recorded and the seed absent from both the
+response and the log; a valid request still accepted; 18 unit tests; CI guards confirmed
+to fire on planted `unsafe-inline` and `unsafe-eval`.
 ## 2026-08-20 — Design system and landing page (#4)
 
 Kleym has a visual identity: the token set from `BRAND.md`, a component library, the app
