@@ -10,8 +10,13 @@ import { logger } from '@/lib/config/logger'
 import { clientIp } from '@/lib/auth/client-ip'
 import { guardRequestBody } from '@/lib/security/guard'
 import { requireUser, owned } from '@/lib/api/session-guard'
-import { checkIdempotency, storeIdempotentResult } from '@/lib/api/idempotency'
+import {
+  beginIdempotency,
+  releaseIdempotency,
+  storeIdempotentResult,
+} from '@/lib/api/idempotency'
 import { conflict, notFound, serverError, validationProblem } from '@/lib/api/problems'
+import { registerLinks, isWriteConflict } from '@/lib/api/links'
 import { listQuerySchema, registerLinksSchema, zodErrors } from '@/lib/api/campaigns'
 
 export const runtime = 'nodejs'
@@ -79,46 +84,43 @@ export async function POST(request: Request, { params }: Params) {
   })
   if (blocked) return blocked.response
 
-  const context = { userId: user.id, route: `/api/campaigns/${id}/links`, body }
-  const replay = await checkIdempotency(request, context)
-  if (replay) return replay.response
-
   const parsed = registerLinksSchema.safeParse(body)
   if (!parsed.success) return validationProblem(zodErrors(parsed.error))
 
+  // Reserved after validation — see the note in /api/campaigns.
+  const context = { userId: user.id, route: `/api/campaigns/${id}/links`, body }
+  const idempotency = await beginIdempotency(request, context)
+  if (!idempotency.reserved) return idempotency.response
+
   try {
-    const campaign = await prisma.campaign.findFirst({
-      where: owned(id, user.id),
-      select: { id: true, status: true, linkCount: true, _count: { select: { links: true } } },
-    })
-    if (!campaign) return notFound()
+    const outcome = await registerLinks(id, user.id, parsed.data.publicKeys, parsed.data.labels)
 
-    if (campaign.status !== 'DRAFT' && campaign.status !== 'CREATING') {
-      return conflict(`Links can only be registered while a campaign is DRAFT or CREATING; this one is ${campaign.status}.`)
-    }
-
-    const wouldTotal = campaign._count.links + parsed.data.publicKeys.length
-    if (wouldTotal > campaign.linkCount) {
+    if (outcome.kind !== 'ok') {
+      await releaseIdempotency(request, context)
+      if (outcome.kind === 'not-found') return notFound()
+      if (outcome.kind === 'bad-status') {
+        return conflict(
+          `Links can only be registered while a campaign is DRAFT or CREATING; this one is ${outcome.status}.`,
+        )
+      }
       return conflict(
-        `This campaign declares ${campaign.linkCount} links; registering ${parsed.data.publicKeys.length} more would make ${wouldTotal}.`,
+        `This campaign declares ${outcome.declared} links; registering ${outcome.adding} more would make ${outcome.wouldTotal}.`,
       )
     }
 
-    const created = await prisma.claimLink.createMany({
-      data: parsed.data.publicKeys.map((publicKey, index) => ({
-        campaignId: id,
-        ephemeralPublicKey: publicKey,
-        label: parsed.data.labels?.[index] ?? null,
-      })),
-      skipDuplicates: true,
-    })
-
-    const payload = { registered: created.count, total: campaign._count.links + created.count }
+    const payload = { registered: outcome.registered, total: outcome.total }
     await storeIdempotentResult(request, context, { status: 201, body: payload })
 
-    logger.info({ userId: user.id, campaignId: id, registered: created.count }, 'links registered')
+    logger.info({ userId: user.id, campaignId: id, registered: outcome.registered }, 'links registered')
     return Response.json(payload, { status: 201 })
   } catch (error) {
+    await releaseIdempotency(request, context)
+
+    // The loser of a genuine race, not a fault: the client should simply retry.
+    if (isWriteConflict(error)) {
+      return conflict('Another registration for this campaign was in flight. Retry.')
+    }
+
     logger.error({ reason: error instanceof Error ? error.message : 'unknown' }, 'link registration failed')
     return serverError()
   }

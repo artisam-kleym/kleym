@@ -18,7 +18,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:generate": "prisma generate",
     "postinstall": "prisma generate",
-    "test": "vitest run"
+    "verify:concurrency": "tsx scripts/verify-concurrency.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",

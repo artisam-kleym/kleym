@@ -481,13 +481,14 @@ model AuditLog {
 }
 
 model IdempotencyKey {
-  key         String   @id
+  key         String
   userId      String
   requestHash String
   response    Json?
   statusCode  Int?
   createdAt   DateTime @default(now())
 
+  @@id([userId, key])
   @@index([createdAt])
 }
 ```
@@ -599,6 +600,13 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 - **Auth:** session cookie (`__Host-kleym_session`, `HttpOnly`, `Secure`, `SameSite=Lax`) for the app; `Authorization: Bearer <api_key>` for the public API.
 - **Validation:** every input parsed with Zod. Reject unknown keys.
 - **Idempotency:** all `POST` that touch chain state require an `Idempotency-Key` header.
+  The key is scoped to the user — `@@id([userId, key])`, amended from `key @id`.
+  Keys are client-chosen, so two users presenting the same value is ordinary,
+  not adversarial; under a global primary key one user's stored response is
+  addressable by another's write and replays back to the wrong account.
+  The row is reserved with a null response *before* the work runs, so two
+  concurrent requests carrying one key cannot both execute; the loser is told
+  the original is in flight, and a failed request releases its reservation.
 - **Errors:** RFC 9457 problem+json. Never leak stack traces or internal identifiers.
 - **Rate limits:** enforced in Redis, per IP and per user.
 

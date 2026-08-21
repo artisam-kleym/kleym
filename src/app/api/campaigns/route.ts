@@ -9,7 +9,11 @@ import { logger } from '@/lib/config/logger'
 import { clientIp } from '@/lib/auth/client-ip'
 import { guardRequestBody } from '@/lib/security/guard'
 import { requireUser } from '@/lib/api/session-guard'
-import { checkIdempotency, storeIdempotentResult } from '@/lib/api/idempotency'
+import {
+  beginIdempotency,
+  releaseIdempotency,
+  storeIdempotentResult,
+} from '@/lib/api/idempotency'
 import { serverError, validationProblem } from '@/lib/api/problems'
 import {
   createCampaignSchema,
@@ -75,12 +79,21 @@ export async function POST(request: Request) {
   const blocked = guardRequestBody(body, { route: '/api/campaigns', ip: clientIp(request) })
   if (blocked) return blocked.response
 
-  const context = { userId: user.id, route: '/api/campaigns', body }
-  const replay = await checkIdempotency(request, context)
-  if (replay) return replay.response
-
   const parsed = createCampaignSchema.safeParse(body)
   if (!parsed.success) return validationProblem(zodErrors(parsed.error))
+
+  /*
+   * Reserved AFTER validation, deliberately.
+   *
+   * A reservation taken before Zod would be left behind by every malformed
+   * request, and a released-on-failure reservation is a second write for an
+   * outcome that never touched the database. Validation is deterministic on
+   * the same body, so a genuine replay re-validates identically and still
+   * reaches the stored response below.
+   */
+  const context = { userId: user.id, route: '/api/campaigns', body }
+  const idempotency = await beginIdempotency(request, context)
+  if (!idempotency.reserved) return idempotency.response
 
   try {
     const campaign = await prisma.campaign.create({
@@ -104,6 +117,9 @@ export async function POST(request: Request) {
     logger.info({ userId: user.id, campaignId: campaign.id }, 'campaign created')
     return Response.json(payload, { status: 201 })
   } catch (error) {
+    // The work did not complete, so the key must not stay claimed — otherwise
+    // the client's retry is told its own failed request is still in progress.
+    await releaseIdempotency(request, context)
     logger.error({ userId: user.id, reason: error instanceof Error ? error.message : 'unknown' }, 'campaign create failed')
     return serverError()
   }
