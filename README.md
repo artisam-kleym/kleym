@@ -123,7 +123,7 @@ pnpm db:seed                # requires SEED_ADMIN_USERNAME and SEED_ADMIN_PASSWO
 | `pnpm worker` | `kleym-worker` process — BullMQ consumers and cron |
 | `pnpm typecheck` | `tsc --noEmit`, strict |
 | `pnpm lint` | ESLint over `src`, `scripts` and `tests` |
-| `pnpm test` | Vitest unit tests (no network; integration runs on a schedule) |
+| `pnpm test` | Vitest unit tests (no network; integration runs on a schedule). `tests/setup.ts` supplies a placeholder environment, since some modules validate config on import |
 | `pnpm db:migrate` / `db:deploy` | Apply migrations locally / in CI |
 | `pnpm db:seed` | Create the admin user (refuses without explicit credentials) |
 | `pnpm db:generate` | Regenerate the Prisma client |

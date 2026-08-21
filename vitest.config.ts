@@ -7,6 +7,7 @@ export default defineConfig({
     // Unit tests only. Integration tests hit testnet and run on a schedule,
     // never per-commit (AGENT.md §7.2, §7.3).
     include: ['tests/**/*.test.ts'],
+    setupFiles: ['tests/setup.ts'],
   },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
