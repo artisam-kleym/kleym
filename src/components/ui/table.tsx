@@ -75,7 +75,10 @@ export function ProgressCell({
             // Bucketed to 5%: a width is dynamic and cannot be a fixed class
             // otherwise, and an inline style attribute is CSP-refused. The
             // exact value stays in aria-valuenow and the label above.
-            `progress-${Math.round(percent / 5) * 5}`,
+            // Clamped as well as bucketed: an out-of-range percent would name
+            // a class that does not exist, leaving the fill unstyled at 0 —
+            // where the inline style it replaced merely overflowed and clipped.
+            `progress-${Math.min(100, Math.max(0, Math.round(percent / 5) * 5))}`,
             expired ? 'bg-outline-variant' : 'bg-action',
           )}
         />
