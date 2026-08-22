@@ -196,6 +196,25 @@ jobs:
       - name: Run
         run: pnpm test:e2e
 
+      # SPEC.md §10, issue #17. Playwright brings its own server up and down,
+      # so this starts one of its own against the build that already exists.
+      #
+      # It does NOT fail the job on a criterion that was merely not executed
+      # here — nothing in CI touches testnet, so criteria 1-3 correctly report
+      # as unexecuted rather than passing. It DOES fail on the header audit,
+      # which is fully executable and is the part that silently rots.
+      - name: SPEC §10 acceptance matrix and header audit
+        run: |
+          NODE_ENV=production pnpm start -p 3211 -H 127.0.0.1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:3211/api/health >/dev/null && break
+            sleep 1
+          done
+          BASE_URL=http://127.0.0.1:3211 pnpm acceptance
+
+      - name: Batch path under load
+        run: pnpm loadtest
+
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

@@ -7,6 +7,12 @@ pnpm build && pnpm start &      # a production build, not a dev server
 SERVER_LOG=<path> pnpm acceptance
 ```
 
+Criteria 1-3 are only reported as verified when `SPIKE_LOG` points at output
+from a real `pnpm spike` run that passed. Without it they report as **not
+executed in this run** — which is what happens in CI, where nothing touches
+testnet. A matrix that prints 14/14 in an environment that made no ledger call
+would be a green tick nobody earned.
+
 `AGENT.md` §6.2 and §6.5 govern this document: "it compiles" and "it ran without
 error" are not "it is correct." Every row below records **how** it was checked,
 not merely that someone believes it. A criterion that cannot be executed says so.

@@ -42,28 +42,48 @@ const record = (n: number, group: string, criterion: string, verdict: Verdict, e
   console.log(`  ${mark} ${n}. ${criterion}\n             ${evidence}`)
 }
 
-/** Criteria 1-3 are the testnet spike's job; it is a separate, long run. */
+/**
+ * Criteria 1-3 belong to the testnet spike, which is a separate, long run
+ * against the live network.
+ *
+ * This function will NOT claim them on the spike's reputation. It reads the
+ * spike's own output, passed as SPIKE_LOG, and reports verified only if that
+ * output says the spike passed. With no log it reports them as not executed
+ * in this run — which is what happens in CI, where nothing touches testnet.
+ *
+ * Without this the matrix would print 14/14 in an environment that never made
+ * a single ledger call: a green tick nobody earned, which is the precise
+ * failure mode this whole script exists to prevent (AGENT.md §6.2).
+ */
 function protocolFromSpike(): void {
   console.log('\nProtocol')
-  const evidence =
-    'scripts/spike-claim.ts against horizon-testnet.stellar.org, 7/7: four permutations ' +
-    '(new/existing recipient x native/non-native), both predicate directions, and signature discipline'
 
-  record(1, 'Protocol', 'All four claim permutations succeed on testnet', 'verified', evidence)
-  record(
-    2,
-    'Protocol',
-    'After a claim the ephemeral account no longer exists on the ledger',
-    'verified',
-    'Same run: post-merge account existence is asserted on the ledger, not inferred',
-  )
-  record(
-    3,
-    'Protocol',
-    'Sponsor net XLM change is fee-only; no reserve leakage',
-    'verified',
-    'Same run: "sponsor balance -0.0001 XLM (fees only); reserve obligation +0 XLM; ephemeral reserves fully recovered"',
-  )
+  const logPath = process.env.SPIKE_LOG
+  let passed = false
+  let detail = 'No spike output supplied. Set SPIKE_LOG to the output of `pnpm spike`.'
+
+  if (logPath) {
+    try {
+      const log = readFileSync(logPath, 'utf8')
+      passed = /7\/7 passed/.test(log) && /Spike passed/.test(log)
+      detail = passed
+        ? `${logPath}: "7/7 passed" against horizon-testnet.stellar.org`
+        : `${logPath} does not report a passing spike`
+    } catch {
+      detail = `${logPath} could not be read`
+    }
+  }
+
+  const verdict: Verdict = passed ? 'verified' : 'unverified'
+  const evidence = (what: string) =>
+    passed ? `${detail} — ${what}` : `${detail} (criterion NOT executed in this run)`
+
+  record(1, 'Protocol', 'All four claim permutations succeed on testnet', verdict,
+    evidence('new/existing recipient x native/non-native, both predicate directions, signature discipline'))
+  record(2, 'Protocol', 'After a claim the ephemeral account no longer exists on the ledger', verdict,
+    evidence('post-merge account existence asserted on the ledger, not inferred'))
+  record(3, 'Protocol', 'Sponsor net XLM change is fee-only; no reserve leakage', verdict,
+    evidence('sponsor balance change is fees only and every ephemeral reserve is recovered'))
 }
 
 async function batching(): Promise<void> {
