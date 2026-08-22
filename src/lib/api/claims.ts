@@ -63,6 +63,8 @@ export interface ResolvedLink {
   senderName: string | null
   expiresAt: string | null
   network: string | null
+  /** True when the link was emailed and a code is required. */
+  otpRequired: boolean
 }
 
 /** Every field null, `unavailable`. Unknown, expired and claimed all land here. */
@@ -75,6 +77,8 @@ export function unavailableLink(): ResolvedLink {
     senderName: null,
     expiresAt: null,
     network: null,
+    // False, never null: an unavailable answer must not vary in SHAPE either.
+    otpRequired: false,
   }
 }
 
@@ -92,6 +96,7 @@ export async function resolveLink(ephemeralPublicKey: string): Promise<ResolvedL
     where: { ephemeralPublicKey },
     select: {
       status: true,
+      delivery: { select: { id: true } },
       campaign: {
         select: {
           name: true, network: true, assetCode: true, assetIssuer: true,
@@ -114,6 +119,13 @@ export async function resolveLink(ephemeralPublicKey: string): Promise<ResolvedL
     senderName: link.campaign.user.username,
     expiresAt: link.campaign.expiresAt.toISOString(),
     network: link.campaign.network,
+    /*
+     * Only ever true on a CLAIMABLE link. An unavailable answer is byte-for-
+     * byte identical whatever the reason (SPEC.md §6.4), so this cannot be
+     * used to tell an unknown key from an emailed one — it is visible only to
+     * someone already holding a live link, who needs to know a code is coming.
+     */
+    otpRequired: link.delivery !== null,
   }
 }
 

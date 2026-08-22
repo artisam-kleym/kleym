@@ -7,10 +7,11 @@
  */
 import { logger } from '@/lib/config/logger'
 import { startBatchConfirmWorker } from './batch-confirm'
+import { startEmailWorker } from './email'
 
 async function main() {
-  const workers = [startBatchConfirmWorker()]
-  logger.info({ service: 'kleym-worker', queues: ['batch-confirm'] }, 'worker started')
+  const workers = [startBatchConfirmWorker(), startEmailWorker()]
+  logger.info({ service: 'kleym-worker', queues: ['batch-confirm', 'email-deliver'] }, 'worker started')
 
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'shutting down')

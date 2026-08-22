@@ -19,6 +19,7 @@ import { Button, SolidCard, WarningPanel } from '@/components/ui'
 import type { CostBreakdown } from '@/lib/campaign/cost'
 import type { EphemeralKey } from '@/lib/campaign/keygen'
 import type { BatchProgress, Phase } from './use-wizard'
+import { DeliveryChoice } from './delivery-choice'
 
 export function ExportStep({
   phase,
@@ -32,6 +33,8 @@ export function ExportStep({
   onDownload,
   onSign,
   onFinish,
+  campaignId,
+  appUrl,
 }: {
   phase: Phase
   keys: EphemeralKey[]
@@ -44,6 +47,8 @@ export function ExportStep({
   onDownload: () => void
   onSign: () => void
   onFinish: () => void
+  campaignId: string | null
+  appUrl: string
 }) {
   const generated = keys.length > 0
 
@@ -167,6 +172,7 @@ export function ExportStep({
             >
               They exist in this tab and in the file you downloaded. Nowhere else.
             </WarningPanel>
+            {campaignId && <DeliveryChoice campaignId={campaignId} keys={keys} appUrl={appUrl} />}
             <div className="flex gap-md">
               <Button type="button" variant="secondary" icon="download" onClick={onDownload}>
                 Download again

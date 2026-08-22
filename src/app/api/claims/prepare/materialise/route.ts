@@ -11,6 +11,7 @@
  */
 import { logger } from '@/lib/config/logger'
 import { clientIp } from '@/lib/auth/client-ip'
+import { otpGate } from '@/lib/api/otp-guard'
 import { rateLimit } from '@/lib/auth/rate-limit'
 import { guardRequestBody } from '@/lib/security/guard'
 import { materialiseSchema, prepareMaterialise } from '@/lib/api/claims'
@@ -58,6 +59,14 @@ export async function POST(request: Request) {
   const parsed = materialiseSchema.safeParse(body)
   if (!parsed.success) return claimValidationProblem(zodErrors(parsed.error))
 
+
+  /*
+   * The OTP gate, applied to every claim ACTION rather than only the first.
+   * Gating just `materialise` would let a caller skip to the step that moves
+   * the money. Ungated links pass straight through (SPEC.md §6.4).
+   */
+  const gated = await otpGate(request, parsed.data.ephemeralPublicKey)
+  if (gated) return gated
   try {
     const outcome = await prepareMaterialise(parsed.data.ephemeralPublicKey)
     if (outcome.kind === 'not-found') return claimNotFound()

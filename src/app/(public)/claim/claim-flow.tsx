@@ -17,6 +17,13 @@ import { ClaimScreen, type LinkDetails } from './screens'
 /** One ledger is ~5s; §3.3.1 says the boundary is the ledger, not the clock. */
 const LEDGER_WAIT_MS = 7_000
 
+/** Content type, plus the OTP token when one has been earned. */
+function claimHeaders(token: string | null): Record<string, string> {
+  return token
+    ? { 'content-type': 'application/json', 'x-kleym-otp': token }
+    : { 'content-type': 'application/json' }
+}
+
 export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
   const [state, setState] = useState<ClaimState>('loading')
   const [link, setLink] = useState<LinkDetails | null>(null)
@@ -32,6 +39,15 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
    */
   const seed = useRef<string | null>(null)
   const ephemeral = useRef<string | null>(null)
+
+  /*
+   * The OTP token, in a ref for the same reason the seed is: it is a
+   * credential, and it should not be part of anything React might serialise
+   * into the page. It is sent as a header rather than in a body so it never
+   * lands in a request body that something downstream decides to log.
+   */
+  const otpToken = useRef<string | null>(null)
+  const [otpError, setOtpError] = useState<string | null>(null)
   const materialised = useRef(false)
 
   /*
@@ -88,7 +104,12 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
           expiresAt: body.expiresAt,
           network: body.network,
         })
-        setState('ready')
+        /*
+         * An emailed link is gated on the code before anything else happens.
+         * The recipient holds the URL; the code proves they also hold the
+         * address the sender chose (SPEC.md §6.4).
+         */
+        setState(body.otpRequired ? 'otp_required' : 'ready')
       } catch {
         if (!cancelled) setState('invalid')
       }
@@ -133,7 +154,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         setState('materialising')
         const prepared = await fetch('/api/claims/prepare/materialise', {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: claimHeaders(otpToken.current),
           body: JSON.stringify({ ephemeralPublicKey }),
         })
         if (!prepared.ok) {
@@ -146,7 +167,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         if (!body.alreadyExists) {
           const submitted = await fetch('/api/claims/submit', {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
+            headers: claimHeaders(otpToken.current),
             body: JSON.stringify({
               ephemeralPublicKey,
               signedXdr: sign(body.xdr),
@@ -174,7 +195,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       setState('preparing')
       const prepared = await fetch('/api/claims/prepare/claim', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: claimHeaders(otpToken.current),
         body: JSON.stringify({ ephemeralPublicKey, recipientPublicKey: recipient }),
       })
       if (!prepared.ok) {
@@ -198,7 +219,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       setState('submitting')
       const submitted = await fetch('/api/claims/submit', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: claimHeaders(otpToken.current),
         body: JSON.stringify({ ephemeralPublicKey, signedXdr, phase: 'claim' }),
       })
       if (!submitted.ok) {
@@ -229,6 +250,48 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
     void run()
   }, [run])
 
+  async function verifyOtp(code: string) {
+    const ephemeralPublicKey = ephemeral.current
+    if (!ephemeralPublicKey) return
+    setOtpError(null)
+    try {
+      const response = await fetch('/api/claims/otp/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ephemeralPublicKey, code }),
+      })
+      if (!response.ok) {
+        const p = await problem(response)
+        setOtpError(p.detail ?? 'That code did not work.')
+        return
+      }
+      const body = await response.json()
+      otpToken.current = body.token
+      setState('ready')
+    } catch {
+      setOtpError('The code could not be checked. Try again.')
+    }
+  }
+
+  async function resendOtp() {
+    const ephemeralPublicKey = ephemeral.current
+    if (!ephemeralPublicKey) return
+    setOtpError(null)
+    try {
+      const response = await fetch('/api/claims/otp/request', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ephemeralPublicKey }),
+      })
+      if (!response.ok) {
+        const p = await problem(response)
+        setOtpError(p.detail ?? 'A new code could not be sent.')
+      }
+    } catch {
+      setOtpError('A new code could not be sent.')
+    }
+  }
+
   return (
     <ClaimPanel>
       {/*
@@ -247,7 +310,10 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         claimedAt={claimedAt}
         claimedBy={claimedBy}
         onConnect={() => void run()}
-        onRetry={onRetry}
+        otpError={otpError}
+      onVerifyOtp={verifyOtp}
+      onResendOtp={resendOtp}
+      onRetry={onRetry}
       />
     </ClaimPanel>
   )
