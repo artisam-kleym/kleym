@@ -72,3 +72,79 @@ export async function accountExists(publicKey: string): Promise<boolean> {
     throw error
   }
 }
+
+/** Whether `publicKey` holds a trustline for `asset`. Native needs none. */
+export async function hasTrustline(publicKey: string, asset: Asset): Promise<boolean> {
+  if (asset.isNative()) return true
+  try {
+    const account = await horizon().loadAccount(publicKey)
+    return account.balances.some(
+      (balance) =>
+        'asset_code' in balance &&
+        balance.asset_code === asset.getCode() &&
+        balance.asset_issuer === asset.getIssuer(),
+    )
+  } catch (error) {
+    const status = (error as { response?: { status?: number } })?.response?.status
+    if (status === 404 || (error as { name?: string })?.name === 'NotFoundError') return false
+    throw error
+  }
+}
+
+/**
+ * The sponsor's spendable XLM — total balance minus the reserve it must retain.
+ *
+ * Sponsoring does not SPEND XLM; it raises the sponsor's minimum balance. The
+ * #1 spike's first run asserted on balance and passed two permutations that
+ * were leaking reserve, because the transactions were right and the assertion
+ * was measuring the wrong thing. The obligation is
+ * `(2 + subentry_count + num_sponsoring − num_sponsored) × base_reserve`.
+ */
+export async function sponsorSpendable(publicKey: string): Promise<Decimal> {
+  const account = await horizon().loadAccount(publicKey)
+  const native = account.balances.find((balance) => balance.asset_type === 'native')
+  const total = new Decimal(native?.balance ?? 0)
+
+  const record = account as unknown as {
+    subentry_count?: number
+    num_sponsoring?: number
+    num_sponsored?: number
+  }
+  const entries = new Decimal(2)
+    .plus(record.subentry_count ?? 0)
+    .plus(record.num_sponsoring ?? 0)
+    .minus(record.num_sponsored ?? 0)
+
+  return total.minus(entries.times(await baseReserve()))
+}
+
+/**
+ * A claimable balance as the ledger holds it, or null if it is not there.
+ *
+ * `null` is the answer that matters: AGENT.md §4.2 says the chain is
+ * authoritative, so a database row saying ACTIVE is not authorisation to build
+ * a claim against a balance that has been claimed or reclaimed already.
+ */
+export async function loadClaimableBalance(balanceId: string): Promise<{
+  id: string
+  asset: string
+  amount: string
+  claimants: { destination: string; predicate: unknown }[]
+} | null> {
+  try {
+    const record = await horizon().claimableBalances().claimableBalance(balanceId).call()
+    return {
+      id: record.id,
+      asset: record.asset,
+      amount: record.amount,
+      claimants: record.claimants.map((claimant) => ({
+        destination: claimant.destination,
+        predicate: claimant.predicate,
+      })),
+    }
+  } catch (error) {
+    const status = (error as { response?: { status?: number } })?.response?.status
+    if (status === 404 || (error as { name?: string })?.name === 'NotFoundError') return null
+    throw error
+  }
+}

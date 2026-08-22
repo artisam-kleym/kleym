@@ -167,6 +167,7 @@ Any environment variable containing a secret must not be prefixed `NEXT_PUBLIC_`
 | `/api/claims/resolve` | 20 / min / IP |
 | `/api/claims/prepare/materialise` | 20 / min / IP |
 | `/api/claims/prepare/claim` | 10 / min / IP |
+| `/api/claims/submit` | 10 / min / IP |
 | `/api/claims/otp/verify` | 5 attempts per OTP, then invalidate |
 | `/api/v1/*` | 100 / min / key |
 

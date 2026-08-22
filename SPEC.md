@@ -658,7 +658,7 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 | GET | `/api/claims/resolve?pk=<G...>` | Link metadata: asset, amount, sender name, status, expiry. Rate-limited 20/min/IP. Returns identical shape for unknown and expired keys to prevent enumeration. |
 | POST | `/api/claims/prepare/materialise` | `{ ephemeralPublicKey }` → TX1 sponsor-signed XDR, or `{ alreadyExists: true }`. Rate-limited 20/min/IP — retried across the ledger boundary. |
 | POST | `/api/claims/prepare/claim` | `{ ephemeralPublicKey, recipientPublicKey }` → TX2 sponsor-signed XDR, plus whether a recipient signature is required |
-| POST | `/api/claims/submit` | `{ ephemeralPublicKey, signedXdr }` → submits, records claim |
+| POST | `/api/claims/submit` | `{ ephemeralPublicKey, signedXdr, phase }` → submits, records claim. Rate-limited 10/min/IP. |
 | POST | `/api/claims/otp/request` | Email-delivered links only |
 | POST | `/api/claims/otp/verify` | 6 digits, 5 attempts, 10-minute expiry |
 

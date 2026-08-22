@@ -20,6 +20,106 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-08-22 — Claim API: resolve, prepare, submit (#10)
+
+The server half of the claim flow — the only place Kleym signs on a recipient's
+behalf, and the only place `SPONSOR_SECRET_KEY` is used.
+
+`GET /api/claims/resolve` returns link metadata for the claim page. `POST
+/api/claims/prepare/materialise` builds TX1, `POST /api/claims/prepare/claim`
+builds TX2, and `POST /api/claims/submit` submits either and records what the
+ledger did. All four are unauthenticated and rate limited per IP.
+
+The transaction shapes follow the #1 spike, not the original spec text — two
+transactions, TX2 in a later ledger, with the ephemeral trustline removed before
+the merge because `AccountMerge` refuses an account holding a subentry. The
+recipient signature is conditional: they sign only when they source an operation,
+because Stellar rejects an unnecessary signature with `tx_bad_auth_extra`.
+
+**The ledger is the authority.** `prepare` reads the claimable balance from
+Horizon before building anything, so an `ACTIVE` row pointing at a balance that
+has already been claimed or reclaimed is refused. A link becomes `CLAIMED` only
+from a transaction Horizon accepted into a closed ledger, and `claimedBy` is read
+out of the submitted envelope's merge destination rather than from the request —
+so the recorded recipient is who the chain paid, not who the caller said.
+
+**Resolve answers identically for every unavailable link.** Unknown, expired,
+claimed, cancelled and pending all return the same shape with every field null. A
+live link is a bearer instrument, so any difference between "no such link" and
+"expired" is a way to walk the keyspace and find live ones. Even the failure path
+returns that shape: a 500 there would be a differential response by another name.
+
+Idempotency is keyed on the transaction **hash** rather than an
+`Idempotency-Key` header. These endpoints are unauthenticated, so there is no
+user to scope a key to — and `lib/api/idempotency.ts` is keyed on `(userId, key)`
+precisely so one caller's key cannot address another's row. The hash is intrinsic
+to the envelope, so the same bytes land on the same link whoever sends them.
+
+### The binding gap, and what it taught
+
+Review of #31 found `submitClaim` accepted any Kleym-built envelope under any
+link's key. `ephemeralPublicKey` and `signedXdr` arrive as two independent
+inputs; the only envelope check was `source === SPONSOR_PUBLIC_KEY`. So a valid
+TX2 prepared for link A — which A's own holder obtains legitimately — could be
+posted under link B's key. Reproduced: B's row went `CLAIMED` with A's hash and
+the attacker's address, while B's balance sat untouched on the ledger with no
+path out until expiry.
+
+That made knowing a PUBLIC KEY sufficient to destroy a link, when the design
+rests on the opposite — the seed is the bearer instrument, the public key is
+not, which is why `resolve` takes `pk` over the wire at all.
+
+The envelope is now bound to the row: TX2 must name this link's `balanceId` AND
+source its payment and merge from this link's ephemeral account; TX1 must create
+this ephemeral account. Both halves are needed — removing only the op-source half
+leaves the cross-link case passing, so it has its own check.
+
+`submitClaim` had no test at all, which is where the bug lived. The Horizon
+submit is now injectable, and the checks assert on which row was written and what
+went into it.
+
+Two more from the same review. TX1 replay was not idempotent: `claimTxHash`
+records only TX2, so a `materialise` double-submit — the ordinary case, since
+§3.3 requires a ledger boundary and clients re-poll across it — reached Stellar
+and returned `tx_bad_seq` as a 409. It now answers from the ledger: if the
+ephemeral account exists, TX1 landed. And the on-chain amount and asset were
+fetched and discarded; they are now compared against the campaign, because a
+divergence fails TX2 on the network with `op_underfunded` or `op_invalid_limit`,
+which a recipient cannot act on.
+
+Writing the check exposed flakiness in an existing one: section 2 drew its client
+IP from 250 addresses, so two runs in quick succession shared a Redis bucket and
+the second saw the first's counts. Three spurious failures that read as a
+regression. It is now unique per run.
+
+### What the verification caught
+
+The first version of the ledger-authority check **passed with the expiry check
+deleted**. `prepareMaterialise` reaches Horizon for the sponsor guard, and in the
+test environment that fails for an unrelated reason — so the call was refused,
+the check asserted only "not ok", and it read as green. The ledger read is now
+injectable and the checks assert on the *reason*, not merely that something was
+refused. Re-planted, all three regressions now fail correctly.
+
+**Verified by:** 19 unit tests over both transaction shapes — op lists for all
+four permutations, the trustline-before-merge ordering asserted by index rather
+than by presence, and the conditional recipient signature cross-checked against
+whether the recipient actually sources an operation. `pnpm verify:claims` runs
+against real Postgres and Redis: the five unavailable shapes are byte-identical
+including key order, resolve and claim hold separate per-IP budgets at 20 and 10,
+and eight row states are refused for the right stated reason. Every check was
+confirmed to fail against a planted regression.
+
+Exercised through a running production server: a live link resolves with its
+metadata, an unknown key returns the unavailable shape, 25 resolves from one IP
+gave exactly 20 allowed and 5 limited with `Retry-After: 60`, and a seed planted
+in a request body was refused with a `SEED_SUBMITTED` security event and appears
+nowhere in the log.
+
+The four on-chain permutations themselves were proven on testnet by the #1 spike
+and stay there — AGENT.md §7.2 keeps network-dependent tests out of the commit
+gate.
+
 ## 2026-08-22 — Resolved design decisions applied
 
 Eight open decisions were settled interactively. Five were confirmations of what the

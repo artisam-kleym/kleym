@@ -1,8 +1,14 @@
 name: CI
 
 on:
+  # EVERY pull request, whatever it targets.
+  #
+  # This was `branches: [develop, main]`, which silently gave no CI at all to a
+  # PR stacked on another branch — and GitHub still reported it MERGEABLE CLEAN,
+  # because "no required checks failed" and "no checks ran" look identical from
+  # the outside. A stacked PR is exactly the one worth checking: it carries two
+  # changes at once.
   pull_request:
-    branches: [develop, main]
   push:
     branches: [develop, main]
 
@@ -73,6 +79,9 @@ jobs:
 
       - name: Verify batch lifecycle
         run: pnpm verify:batches
+
+      - name: Verify claim resolve, limits and ledger authority
+        run: pnpm verify:claims
 
   e2e:
     name: CSV gate (real browser)
