@@ -20,6 +20,7 @@ Read [`AGENT.md`](AGENT.md) §1 before writing any line that touches a keypair.
 | [`BRAND.md`](BRAND.md) | Design system — tokens, components, voice, accessibility floor |
 | [`AGENT.md`](AGENT.md) | Engineering rules and working practice |
 | [`docs/features.md`](docs/features.md) | Running log of shipped features |
+| [`docs/release.md`](docs/release.md) | Release readiness — the SPEC §10 acceptance matrix, walked by execution |
 | [`docs/migrations.md`](docs/migrations.md) | Database and migration conventions |
 | [`docs/railway.md`](docs/railway.md) | Deployment topology and secret handling |
 | [`docs/design-system.md`](docs/design-system.md) | Tokens, components, and the §10 contrast audit |

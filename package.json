@@ -29,7 +29,9 @@
     "verify:reconcile": "tsx scripts/verify-reconcile.ts",
     "verify:reclaim": "tsx scripts/verify-reclaim.ts",
     "verify:stranded": "tsx scripts/verify-stranded.ts",
-    "verify:admin": "tsx scripts/verify-admin.ts"
+    "verify:admin": "tsx scripts/verify-admin.ts",
+    "acceptance": "tsx scripts/acceptance.ts",
+    "loadtest": "tsx scripts/load-batches.ts"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.5.0",

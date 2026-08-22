@@ -18,6 +18,49 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 ---
 
+## 2026-08-22 — Hardening and release readiness (#17)
+
+The SPEC §10 acceptance matrix is now walked by execution rather than asserted.
+`pnpm acceptance` runs it against a production build and prints, for each of the
+fourteen criteria, whether it was verified by execution or not — and a criterion it
+cannot execute says so rather than going green. `docs/release.md` records the result.
+
+**14 of 14 verified by execution.** The four that matter most, because failing them
+costs users money, were all run against the live network or a real browser: all four
+claim permutations on testnet, sponsor reserves fully recovered (`-0.0001 XLM, fees
+only`), no secret in any column or log line, and the CSV gate unbypassable.
+
+Two criteria were initially claimed on weaker evidence than they deserved and were
+re-done: 8 and 11 cited the existence of Playwright specs rather than a run, so the
+suite was executed (19/19); and criterion 9 first returned 401, because posting a seed
+unauthenticated is refused before the guard runs — correct, but not the rejection the
+criterion is about. Signed in, it returns 400 `seed-submitted`, and the seed reaches no
+audit row.
+
+`pnpm loadtest` answers whether `MAX_LINKS_PER_CAMPAIGN` is survivable or aspirational.
+10,000 links register in 2.7 s, plan into exactly 112 batches in 451 ms, re-plan
+idempotently in 1 ms, and a full paged walk returns **10,000 distinct rows in 93 ms** —
+which also proves the #27/#28 ordering bug fixed at full scale, not just in a fixture.
+
+The header audit covers five routes: the whole §5.3 set present, no `unsafe-inline` or
+`unsafe-eval` anywhere, and `/claim` overriding `Referrer-Policy` to `no-referrer`.
+
+SPEC §12 requires the known limitations to live in the product, not only in a document.
+Four already did. Two did not and now do: a recipient reading `/claim` is told that
+anyone holding the link can claim it and to claim rather than forward, and `/dashboard`
+states that campaigns belong to one account — no colleague, and not Kleym, can see or
+reclaim them.
+
+**Verified by:** `pnpm acceptance` against a production build, 14/14; `pnpm spike`
+against testnet, 7/7; `pnpm loadtest` at 10,000 links; `pnpm test:e2e`, 19/19 in a real
+browser; 193 unit tests; all nine verify suites; typecheck, lint, and a cold build with
+no environment.
+
+**Not verified, and stated as such:** a real email send (this environment's provider key
+is a placeholder, so every call 401s), Horizon throughput for 112 real submissions, and
+reclaim's decimal balance comparison on a live ledger.
+
+
 ## 2026-08-22 — Email delivery with OTP-gated retrieval (#14)
 
 Kleym can now email claim links, and email-delivered links ask for a six-digit code
