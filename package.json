@@ -23,6 +23,7 @@
     "verify:api-keys": "tsx scripts/verify-api-keys.ts",
     "verify:batches": "tsx scripts/verify-batches.ts",
     "verify:claims": "tsx scripts/verify-claims.ts",
+    "verify:reconcile": "tsx scripts/verify-reconcile.ts",
     "verify:confirm": "tsx scripts/verify-confirm-worker.ts",
     "fixture:balance-id": "tsx scripts/make-balance-id-fixture.ts"
   },
@@ -80,7 +81,7 @@
     },
     "overridesReason": {
       "deepmerge-ts": "GHSA-ggr8-5vv4-36mx (high, stack exhaustion) via prisma > @prisma/config, which still pins 7.1.5. Remove when Prisma ships a fixed release. See README.",
-      "protobufjs": "GHSA arbitrary code execution (critical) plus four high advisories, via @creit.tech/stellar-wallets-kit > @trezor/connect-web, which pins 7.4.0. Patched in 7.5.8, same major — a version bump, not a suppression.",
+      "protobufjs": "GHSA arbitrary code execution (critical) plus four high advisories, via @creit.tech/stellar-wallets-kit > @trezor/connect-web, which pins 7.4.0. Patched in 7.5.8, same major \u2014 a version bump, not a suppression.",
       "axios": "Proxy-inheritance and DoS advisories (high) via the wallet kit's Trezor and WalletConnect adapters, which pin 1.16.0. Patched in 1.18.0, same major.",
       "uuid": "Moderate advisory via the same tree. Patched in 11.1.1, same major."
     }

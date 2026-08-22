@@ -128,9 +128,10 @@ model Campaign {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  user    User        @relation(fields: [userId], references: [id])
-  links   ClaimLink[]
-  batches Batch[]
+  user     User        @relation(fields: [userId], references: [id])
+  links    ClaimLink[]
+  batches  Batch[]
+  findings ReconciliationFinding[]
 
   @@index([userId, status])
   @@index([expiresAt, status])
@@ -176,6 +177,7 @@ model ClaimLink {
   campaign Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   batch    Batch?    @relation(fields: [batchId], references: [id])
   delivery Delivery?
+  findings ReconciliationFinding[]
 
   @@index([campaignId, status])
   @@index([balanceId])
@@ -195,6 +197,36 @@ model Delivery {
   link ClaimLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
 
   @@index([email])
+}
+
+/// A disagreement between the database and the ledger, as reconciliation found it.
+///
+/// Persisted rather than only logged, because SPEC.md §7.2 requires
+/// /admin/reconciliation to SURFACE drift — a log line scrolls away, and the
+/// CRITICAL class is explicitly not auto-corrected, so someone has to be able
+/// to find it later and act on it.
+///
+/// Keyed on (linkId, kind) so a re-run updates the finding rather than adding a
+/// duplicate every five minutes. §10.13 asks that a second run produce no extra
+/// noise, and an append-only table would produce nothing but.
+model ReconciliationFinding {
+  id         String   @id @default(cuid())
+  linkId     String
+  campaignId String
+  kind       String // "claimed_on_chain" | "reclaimed_on_chain" | "critical_still_on_ledger" | "unresolved"
+  severity   String // "info" | "warn" | "error"
+  detail     String
+  /// Set when the finding was acted on, or when a later run found it resolved.
+  resolvedAt DateTime?
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @updatedAt
+
+  link     ClaimLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  campaign Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([linkId, kind])
+  @@index([severity, resolvedAt])
+  @@index([campaignId])
 }
 
 model AuditLog {
