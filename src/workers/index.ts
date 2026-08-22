@@ -2,21 +2,35 @@
  * kleym-worker entrypoint. SPEC.md §2.2.
  *
  * BullMQ consumers and cron jobs are registered here as they land: batch-confirm
- * (#9), reconcile and expiry-sweep (#12) are live; ephemeral-watch (#19) and
- * email-deliver (#14) follow. Kept as a separate process so a slow job never blocks a request.
+ * (#9), reconcile and expiry-sweep (#12) and ephemeral-watch (#19) are live;
+ * email-deliver (#14) follows. Kept as a separate process so a slow job never blocks a request.
  */
 import { logger } from '@/lib/config/logger'
 import { startBatchConfirmWorker } from './batch-confirm'
+<<<<<<< HEAD
 import { startEmailWorker } from './email'
 import { startExpiryWorker, startReconcileWorker } from './maintenance'
+=======
+import {
+  startEphemeralWatchWorker,
+  startExpiryWorker,
+  startReconcileWorker,
+} from './maintenance'
+>>>>>>> origin/19-monitor-stranded-ephemeral-accounts
 import { scheduleMaintenance } from '@/lib/queue/maintenance'
 
 async function main() {
   const workers = [
     startBatchConfirmWorker(),
+<<<<<<< HEAD
     startEmailWorker(),
     startReconcileWorker(),
     startExpiryWorker(),
+=======
+    startReconcileWorker(),
+    startExpiryWorker(),
+    startEphemeralWatchWorker(),
+>>>>>>> origin/19-monitor-stranded-ephemeral-accounts
   ]
 
   /*
@@ -26,7 +40,14 @@ async function main() {
   await scheduleMaintenance()
 
   logger.info(
+<<<<<<< HEAD
     { service: 'kleym-worker', queues: ['batch-confirm', 'email-deliver', 'reconcile', 'expiry-sweep'] },
+=======
+    {
+      service: 'kleym-worker',
+      queues: ['batch-confirm', 'reconcile', 'expiry-sweep', 'ephemeral-watch'],
+    },
+>>>>>>> origin/19-monitor-stranded-ephemeral-accounts
     'worker started',
   )
 

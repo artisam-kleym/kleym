@@ -19,6 +19,7 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 ---
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 ## 2026-08-22 — Email delivery with OTP-gated retrieval (#14)
 
 Kleym can now email claim links, and email-delivered links ask for a six-digit code
@@ -121,6 +122,61 @@ not a unit check. Stated rather than implied, per `AGENT.md` §6.5.
 
 
 >>>>>>> origin/13-reclaim-return-unclaimed-funds-after-expiry
+=======
+## 2026-08-22 — Stranded ephemeral account monitor (#19)
+
+`/admin` now shows what the sponsor float has lost to abandoned claims: how many
+ephemeral accounts are stranded, how much XLM they lock, and which of them are
+something worse than stranded. A job checks every fifteen minutes.
+
+The two-transaction claim is not atomic (SPEC §3.3.2). TX1 can land and TX2 never
+follow — a closed tab, a rejected signature — leaving an account on the ledger holding
+sponsored reserve. **Kleym cannot recover these**, and the page says so plainly: the
+merge needs the ephemeral key, which exists only in the recipient's URL and the
+sender's CSV. The same property that makes a database breach harmless makes this
+cleanup impossible. No user funds are affected, and the reserve returns by itself when
+the link is eventually claimed.
+
+It reports rather than sweeps, and it is careful about what it reports. An account
+whose claimable balance has *gone* is not stranded — that claim succeeded and the
+database is behind, so it goes to reconciliation instead of being counted as lost
+float. An account holding a non-zero balance is not an ordinary strand either: that is
+a partially-applied claim, logged at ERROR and labelled "Partial claim" on the report,
+because it needs a person rather than patience. And a claim that started minutes ago
+is not abandoned, just in progress — the age is taken from the ledger's own record of
+when the account was last touched, not from a database column.
+
+The stranded rows are deliberately not reconciliation findings. Drift means something
+is wrong; a strand means both sides are telling the truth about a known, documented
+cost. Filing it as drift would dilute the one report whose rows are all supposed to
+matter.
+
+One bug here came from running the worker rather than reading the code. The sweep only
+visits unfinished links, so a link that reached CLAIMED since the last run — a
+recipient finally coming back, the *ordinary* resolution — was never revisited, and its
+row sat on the report forever reporting float as locked that had already returned. Two
+such rows survived every sweep against real data. Settled links are now cleared
+explicitly, which is acceptance criterion 5.
+
+**Verified by:** `pnpm verify:stranded`, 10 sections against a real Postgres with every
+ledger read injected — a monitor that describes the ledger cannot be checked against a
+stub of itself, and one that passes when Horizon is unreachable would report a healthy
+float while the real one drained. Each section first shown to fail against a planted
+regression: dropping the succeeded-claim hand-off, dropping the age threshold, dropping
+the partial-claim detection, sweeping finished links, miscomputing the reserve as
+`(1 + subentries) × base`, and removing the settled-link clear. Reserve arithmetic is
+checked against SPEC §3.3.2's own figures: 1.0 XLM bare, 1.5 with a trustline.
+
+Checked in a browser against a production build: `/admin` renders the counts, the
+locked total and the table, with the total matching the sum of its rows. The sponsor
+balance read failed against this environment's unfunded key, which exercised the path
+that matters — it renders "Unknown" and says *this is not a balance of zero*, rather
+than rendering a zero that would raise a permanent false exhaustion warning. The worker
+registers `ephemeral-watch`, runs the job, and two consecutive runs produce an
+identical report.
+
+
+>>>>>>> origin/19-monitor-stranded-ephemeral-accounts
 ## 2026-08-22 — Reconciliation and expiry sweeps (#12)
 
 The database no longer has the last word on whether a link was claimed. A sweep runs

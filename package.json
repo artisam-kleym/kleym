@@ -27,10 +27,14 @@
     "verify:confirm": "tsx scripts/verify-confirm-worker.ts",
     "fixture:balance-id": "tsx scripts/make-balance-id-fixture.ts",
 <<<<<<< HEAD
+<<<<<<< HEAD
     "verify:email": "tsx scripts/verify-email.ts"
 =======
     "verify:reclaim": "tsx scripts/verify-reclaim.ts"
 >>>>>>> origin/13-reclaim-return-unclaimed-funds-after-expiry
+=======
+    "verify:stranded": "tsx scripts/verify-stranded.ts"
+>>>>>>> origin/19-monitor-stranded-ephemeral-accounts
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.5.0",

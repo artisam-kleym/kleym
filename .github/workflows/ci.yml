@@ -88,8 +88,13 @@ jobs:
       - name: Verify reconciliation and the expiry sweep
         run: pnpm verify:reconcile
 
+<<<<<<< HEAD
       - name: Verify reclaim after expiry
         run: pnpm verify:reclaim
+=======
+      - name: Verify the stranded ephemeral account monitor
+        run: pnpm verify:stranded
+>>>>>>> origin/19-monitor-stranded-ephemeral-accounts
 
   e2e:
     name: CSV gate (real browser)

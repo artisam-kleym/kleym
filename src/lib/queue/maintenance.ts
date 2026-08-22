@@ -17,9 +17,11 @@ import { QUEUE, queueConnection } from './connection'
  */
 const RECONCILE_SCHEDULE = 'reconcile-every-5m'
 const EXPIRY_SCHEDULE = 'expiry-sweep-hourly'
+const EPHEMERAL_SCHEDULE = 'ephemeral-watch-every-15m'
 
 let reconcileQueue: Queue | undefined
 let expiryQueue: Queue | undefined
+let ephemeralQueue: Queue | undefined
 
 export function reconcileJobs(): Queue {
   return (reconcileQueue ??= new Queue(QUEUE.reconcile, {
@@ -45,10 +47,23 @@ export function expiryJobs(): Queue {
   }))
 }
 
-/** Installs both schedules. Safe to call on every worker start. */
+export function ephemeralWatchJobs(): Queue {
+  return (ephemeralQueue ??= new Queue(QUEUE.ephemeralWatch, {
+    connection: queueConnection(),
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 60_000 },
+      removeOnComplete: { age: 86_400, count: 200 },
+      removeOnFail: { age: 7 * 86_400 },
+    },
+  }))
+}
+
+/** Installs every schedule. Safe to call on every worker start. */
 export async function scheduleMaintenance(): Promise<void> {
   await reconcileJobs().upsertJobScheduler(RECONCILE_SCHEDULE, { pattern: '*/5 * * * *' })
   await expiryJobs().upsertJobScheduler(EXPIRY_SCHEDULE, { pattern: '17 * * * *' })
+  await ephemeralWatchJobs().upsertJobScheduler(EPHEMERAL_SCHEDULE, { pattern: '*/15 * * * *' })
 }
 
 /**
