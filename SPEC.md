@@ -284,10 +284,12 @@ A reconciliation job (§7.2) queries Horizon for each campaign's balance IDs. A 
 The link format is:
 
 ```
-https://kleym.app/claim#s=<base64url-encoded-seed>
+https://kleym.app/claim#s=<seed>
 ```
 
 The seed is after the `#`. Browsers do not send fragments in HTTP requests, so the seed never reaches server logs, referrer headers, or analytics.
+
+The seed is carried **raw**, not base64url-encoded as this section first specified. Encoding it defeats Kleym's own leak detection: `scanForSecretSeed`, the `NEXT_PUBLIC_` env scan and the CI guard all match `S[A-Z2-7]{55}`, and none of them recognises `U0FTWkJXWkRDUll…`. A format that hides a leaked seed from the machinery built to catch leaked seeds is worse than one that does not, and the fragment is withheld from the network either way. The `s=` parameter is kept so a second field can be added without changing how the first is read.
 
 **Enforcement rules for the implementing agent:**
 - Never place a seed in a query string, path segment, POST body, cookie, or `localStorage`.
@@ -537,7 +539,7 @@ All routes are Next.js App Router. Design tokens and component conventions are i
 |---|---|---|
 | `/` | Landing page | Hero, three value props, three-step flow diagram. Matches provided mock. |
 | `/login` | Sender sign-in | Username + password. Generic error text on failure. |
-| `/claim` | **Recipient claim page** | Reads `#s=...`. Zero third-party scripts. Self-hosted fonts. |
+| `/claim` | **Recipient claim page** | Reads `#s=<seed>` (raw — see §3.6). Zero third-party scripts. Self-hosted fonts. |
 
 #### `/claim` states
 

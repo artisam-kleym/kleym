@@ -30,9 +30,16 @@ function quote(value: string): string {
  *
  * A fragment is not sent to the server, is not written to an access log, and
  * is not carried in a `Referer` (SPEC.md §3.6). A query string is all three.
+ *
+ * `#s=<seed>` — named, so a second field can be added later without changing
+ * how the first is read, and RAW rather than base64url. SPEC.md §3.6 first
+ * specified base64url; encoding defeats Kleym's own leak detection, since
+ * `scanForSecretSeed`, the env leak scan and the CI guard all match
+ * `S[A-Z2-7]{55}` and none of them sees the encoded form. See
+ * lib/claim/fragment.ts, which reads it.
  */
 export function claimUrl(appUrl: string, secret: string): string {
-  return `${appUrl.replace(/\/$/, '')}/claim#${secret}`
+  return `${appUrl.replace(/\/$/, '')}/claim#s=${secret}`
 }
 
 export function buildCsv(rows: CsvRow[]): string {
