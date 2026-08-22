@@ -38,11 +38,17 @@ Neo-vintage fintech. A muted slate-navy foundation carrying three warm, slightly
 
 | Token | Hex | Use |
 |---|---|---|
-| `accent-yellow` | `#FFEA88` | Claim page top border, step markers, "Fund" icon, ambient orbs |
-| `accent-pink` | `#F599C6` | Batch progress bar, "Share" icon, ambient orbs |
-| **Action green** | `#7DCCAD` | **Every primary button.** Hover `#87d6b7`. Text on it: `#002116` |
+| `accent-yellow` | `#AC8D00` | Claim page top border, step markers, "Fund" icon, ambient orbs |
+| `accent-pink` | `#EF57A1` | Batch progress bar, "Share" icon, ambient orbs |
+| **Action green** | `#3FA07A` | **Every primary button.** Hover `#3A9470`. Text on it: `#002116` |
 
-Note: `#7DCCAD` appears as a literal throughout the mocks rather than as a named token. **Add it to the config as `action`** and replace the literals.
+These three were darkened from the pastels this section originally specified
+(`#FFEA88`, `#F599C6`, `#7DCCAD`), because §10 asked for the check and they failed
+it — 1.15, 1.95 and 1.80 against the page surface, where 1.4.11 wants 3:1. Hue and
+saturation are held; only lightness moved, and only as far as 3:1 required. See
+`globals.css` for the measured before/after of every dependent pairing.
+
+Note: the mocks carry `#7DCCAD` as a literal throughout rather than as a named token. It is now the `action` token, at the corrected value.
 
 ### 2.3 Surfaces
 
@@ -118,7 +124,7 @@ This scale is unusual and it is the point. `rounded-xl` is 8px, not 12. `rounded
 
 ### 5.1 Buttons
 
-**Primary** — `bg-[#7DCCAD]` → `action`, text `#002116`, `label-md` mono semibold, `rounded-lg`, `h-10` compact or `py-3 px-4` standard, `gap-sm`, 18px leading icon.
+**Primary** — `action`, text `#002116`, `label-md` mono semibold, `rounded-lg`, `h-10` compact or `py-3 px-4` standard, `gap-sm`, 18px leading icon.
 
 **Primary, claim page only** — adds a hard offset shadow `shadow-[0_4px_0_#4D6787]`, lifts `-translate-y-0.5` on hover, presses `translate-y-1 shadow-none` on active. This tactile press is the signature moment of the product and appears **only** on the claim button. Do not spread it.
 
@@ -273,7 +279,7 @@ Fix these during implementation.
 2. **"Across 3 networks"** (dashboard) implies multi-chain. Kleym is Stellar-only. Replace with **"Across 3 assets."**
 3. **`0x7F...3A9B`** addresses are Ethereum-formatted. Stellar addresses start with `G` and are 56 characters: **`GABC…3A9B`**.
 4. **"Max: 10,000 per batch"** conflicts with the protocol. A *campaign* may reach 10,000 links; a *batch* is capped at 90 operations. Change to **"Max 10,000 per campaign · 90 links per signature."**
-5. **`#7DCCAD` is hardcoded** in many places. Promote to a named `action` token.
+5. ~~**`#7DCCAD` is hardcoded** in many places. Promote to a named `action` token.~~ Done — `action`, and the value corrected for contrast (§2.2).
 6. **Brand mark differs per page.** Standardise on `toll` (§6).
 7. **Footer says © 2024.** Make it dynamic.
 8. **Dark mode is configured** (`darkMode: "class"`) but no dark values exist. Either build the dark palette or remove the config — a half-wired dark mode will break on a system preference toggle.
@@ -286,7 +292,7 @@ Fix these during implementation.
 
 Non-negotiable, and cheap if done from the start.
 
-- Contrast: 4.5:1 body, 3:1 large text and UI boundaries. **Verify `#7DCCAD` with `#002116` and every accent-on-white pairing** — the accents are light and several combinations will fail.
+- Contrast: 4.5:1 body, 3:1 large text and UI boundaries. Verified, and the warning was right: `#7DCCAD`, `#FFEA88` and `#F599C6` measured 1.80, 1.15 and 1.95 against the page surface. All three are darkened in §2.2. `#7DCCAD` on `#002116` was never the problem — that pairing was 9.04; the failure was the button's *edge* against the page, which is what 1.4.11 governs. The `/50` borders on tinted metric cards are still below 3:1 and left alone: they frame non-interactive cards whose content is text.
 - Visible focus on every interactive element (§5.4). The design removes native outlines, so this is load-bearing.
 - Status is never colour-only — always a label and a dot.
 - Full keyboard operation of the wizard, tables, and claim flow.
@@ -303,7 +309,7 @@ Non-negotiable, and cheap if done from the start.
 
 Port the mock's inline config into `tailwind.config.ts` verbatim, then:
 
-- Add `action: { DEFAULT: '#7DCCAD', hover: '#87d6b7', on: '#002116' }`.
+- Add `action: { DEFAULT: '#3FA07A', hover: '#3A9470', on: '#002116' }`. Hover deepens rather than lightens — a lighter hover from this base falls to 2.62 against the surface.
 - Add `headline-sm` to `fontSize`.
 - Move `.glass-card`, `.glass-panel`, `.input-glow`, `.text-gradient`, `.ambient-glow`, and `.pulse-ring` into `globals.css` under `@layer components`.
 - Replace font CDN links with `next/font/local`.

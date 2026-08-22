@@ -20,6 +20,56 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-08-22 — Resolved design decisions applied
+
+Eight open decisions were settled interactively. Five were confirmations of what the
+documents already said; three changed code or spec.
+
+**`/api/claims/prepare` is now two endpoints** — `.../materialise` and `.../claim`.
+Steps 2 and 5 of `SPEC.md` §3.3.3 are different operations, not one route
+parameterised by a body field, and a single endpoint returning different transactions
+for different payloads collides with the `Idempotency-Key` rule in `AGENT.md` §4.3: a
+genuine second phase has to be distinguishable from a replay. Splitting makes that
+structural, puts the §3.3.2 ledger-boundary hazard in the URL, and lets the two carry
+different rate limits — `materialise` is the retry-prone one, so it gets 20/min against
+`claim`'s 10/min. `SPEC.md` §3.3.3 and §6.4 and `AGENT.md` §5.6 all amended. This
+unblocks #10, and #11, #12, #14 and #19 behind it.
+
+**`/api/ready` reports status only.** It was returning per-dependency detail including
+raw exception text — and a connection error carries the host and port. The endpoint is
+unauthenticated because Railway's health check calls it, so that was topology and
+current failure state handed to anyone who asked. It now returns `{ ready }` with a 200
+or 503, and the detail goes to the structured log where operators are already looking.
+It was also stale: it still reported Postgres and Redis as "not wired yet". Both are
+now really checked, bounded at 3s so a hung dependency cannot hold the health check
+open.
+
+**Three accent colours darkened.** `BRAND.md` §10 asked for `#7DCCAD` and every accent
+pairing to be verified, and predicted several would fail. Measured against the real
+page surface rather than white: `action` 1.80, `accent-yellow` 1.15, `accent-pink`
+1.95, where WCAG 1.4.11 wants 3:1 for anything identifying a UI component. The
+`#7DCCAD`/`#002116` pairing §10 flagged was never the problem — that was 9.04. The
+failure was the primary button's *edge* against the page, effectively invisible to a
+low-vision user. Hue and saturation held, lightness moved only as far as 3:1 required:
+`#3FA07A`, `#AC8D00`, `#EF57A1`. Hover now deepens rather than lightens, because
+lightening from the darkened base lands at 2.62 — a hover state that drops the control
+below the floor it just met, at the moment the user points at it.
+
+Confirmed unchanged, with the reasoning recorded: no `position` column on `ClaimLink`
+(the confirm worker derives balance IDs from the ledger's claimants, so a position
+column would be a second source of truth about something the chain already answers);
+the rate limiter keeps failing closed; `SPONSOR_SECRET_KEY` stays a single Railway
+secret; Resend stays the mail provider; public-network cutover waits for the #17
+acceptance matrix. Sentry was not adopted.
+
+**Verified by:** 13 new contrast tests that read the tokens out of `globals.css`, so
+the floor cannot drift back with a palette edit — confirmed to fail on all four
+component-fill assertions against the old pastels. 148 unit tests, typecheck, lint. The
+built stylesheet was fetched from a running production server and checked to carry the
+new values and none of the old. `/api/ready` was exercised with Redis genuinely
+stopped: 503 with no detail to the caller, `{"redis":"Command timed out"}` in the log,
+and 200 again once it came back.
+
 ## 2026-08-21 — Campaign wizard, client-side keygen and the CSV hard gate (#8)
 
 `/campaigns/new`, in three steps: asset and amount, recipients and expiry, then

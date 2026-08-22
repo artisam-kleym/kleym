@@ -165,11 +165,14 @@ Any environment variable containing a secret must not be prefixed `NEXT_PUBLIC_`
 |---|---|
 | `/api/auth/login` | 5 / 15 min / IP |
 | `/api/claims/resolve` | 20 / min / IP |
-| `/api/claims/prepare` | 10 / min / IP |
+| `/api/claims/prepare/materialise` | 20 / min / IP |
+| `/api/claims/prepare/claim` | 10 / min / IP |
 | `/api/claims/otp/verify` | 5 attempts per OTP, then invalidate |
 | `/api/v1/*` | 100 / min / key |
 
 `/api/claims/resolve` returns an identical response shape for unknown, expired, and claimed links. Differential responses let an attacker enumerate valid links.
+
+`prepare` is two endpoints because steps 2 and 5 of `SPEC.md` §3.3.3 are different operations (see §3.3.3 for the full reasoning). `materialise` gets the looser limit: §3.3 requires a ledger boundary before TX2, so clients legitimately re-poll it.
 
 ---
 

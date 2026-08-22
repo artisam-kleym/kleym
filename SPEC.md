@@ -241,18 +241,31 @@ Three consequences the implementation must handle:
 #### 3.3.3 Signing sequence
 
 1. Client derives `ephemeralPubKey` from the fragment seed **in the browser**.
-2. On the recipient's commitment to claim, client `POST /api/claims/prepare`. **The seed
-   is not sent.** Server returns TX1 sponsor-signed, or signals that the ephemeral
-   account already exists and TX1 should be skipped.
+2. On the recipient's commitment to claim, client
+   `POST /api/claims/prepare/materialise`. **The seed is not sent.** Server returns
+   TX1 sponsor-signed, or `{ alreadyExists: true }` with no XDR when the ephemeral
+   account is already on the ledger and TX1 should be skipped.
 3. Client signs TX1 with the EPHEMERAL key in memory and submits it.
 4. Client waits for the next ledger while the recipient connects a wallet.
-5. Client `POST /api/claims/prepare` again with `{ ephemeralPublicKey, recipientPublicKey }`.
+5. Client `POST /api/claims/prepare/claim` with `{ ephemeralPublicKey, recipientPublicKey }`.
    Server inspects the ledger — does the recipient account exist? does it hold a
    trustline? — builds TX2's conditional op list, signs as SPONSOR, and returns the
    partially-signed XDR together with whether a recipient signature is required.
 6. Client signs with the EPHEMERAL key, then requests a RECIPIENT signature via the
    wallet kit **only if required**.
 7. Client `POST /api/claims/submit`. Server submits and records the result.
+
+**Why `prepare` is two endpoints and not one with a `phase` field.** Steps 2 and 5 are
+different operations, not one route parameterised by a body field. A single endpoint
+returning different transactions for different payloads also collides with
+`AGENT.md` §4.3, which requires an `Idempotency-Key` on every mutating endpoint that
+touches chain state and mandates that a replayed key return the stored response: a
+genuine second phase then has to be distinguishable from a replay by inspecting the
+body. Splitting makes that structural. It also puts the §3.3.2 hazard — the ledger
+boundary between TX1 and TX2, where an abandoned claim strands sponsor reserves Kleym
+cannot recover — in the URL rather than in a discriminator, and lets the two carry
+different rate limits, which they need: `materialise` is the retry-prone one, because
+§3.3 requires a ledger boundary before TX2 and clients will re-poll.
 
 ### 3.4 Reclaim
 
@@ -643,12 +656,13 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/claims/resolve?pk=<G...>` | Link metadata: asset, amount, sender name, status, expiry. Rate-limited 20/min/IP. Returns identical shape for unknown and expired keys to prevent enumeration. |
-| POST | `/api/claims/prepare` | `{ ephemeralPublicKey, recipientPublicKey }` → sponsor-signed XDR |
+| POST | `/api/claims/prepare/materialise` | `{ ephemeralPublicKey }` → TX1 sponsor-signed XDR, or `{ alreadyExists: true }`. Rate-limited 20/min/IP — retried across the ledger boundary. |
+| POST | `/api/claims/prepare/claim` | `{ ephemeralPublicKey, recipientPublicKey }` → TX2 sponsor-signed XDR, plus whether a recipient signature is required |
 | POST | `/api/claims/submit` | `{ ephemeralPublicKey, signedXdr }` → submits, records claim |
 | POST | `/api/claims/otp/request` | Email-delivered links only |
 | POST | `/api/claims/otp/verify` | 6 digits, 5 attempts, 10-minute expiry |
 
-`/api/claims/prepare` must re-verify against the ledger — not the database — that the balance still exists and the predicate is satisfiable. A stale `ACTIVE` row is not authorisation to build a claim.
+Both `prepare` endpoints must re-verify against the ledger — not the database — that the balance still exists and the predicate is satisfiable. A stale `ACTIVE` row is not authorisation to build a claim. See §3.3.3 for why `prepare` is split rather than carrying a `phase` field.
 
 ### 6.5 Delivery
 

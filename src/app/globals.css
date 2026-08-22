@@ -31,13 +31,43 @@
   --color-on-error-container: #410002;
   --color-tertiary: #7a5900;
 
-  /* ── Accents (§2.2) ──────────────────────────────────────────────── */
-  --color-accent-yellow: #ffea88;
-  --color-accent-pink: #f599c6;
+  /*
+   * ── Accents (§2.2) ───────────────────────────────────────────────
+   *
+   * Darkened from the pastels BRAND.md §2.2 first specified, because §10 asked
+   * for exactly this to be checked and it failed. Measured against the real
+   * page surface (#faf9fc), not white:
+   *
+   *   accent-yellow  #ffea88 → 1.15    #ac8d00 → 3.05
+   *   accent-pink    #f599c6 → 1.95    #ef57a1 → 3.06
+   *   action         #7dccad → 1.80    #3fa07a → 3.07
+   *
+   * WCAG 1.4.11 wants 3:1 for anything that identifies a UI component, and
+   * `action` is the fill of the primary button — at 1.80 its edge was
+   * effectively invisible to a low-vision user. Hue and saturation are held;
+   * only lightness moved, and only as far as 3:1 required.
+   *
+   * Every pairing that rides on these was re-measured and still clears 4.5:1:
+   * on-surface on solid yellow 5.34, action-on on action 5.31, tertiary on the
+   * 20% yellow tint 5.02, error on the 20% pink tint 4.95.
+   *
+   * The /50 borders on tinted cards remain below 3:1. Those frame
+   * non-interactive metric cards whose content is text, so they are decoration
+   * rather than something 1.4.11 binds — noted so the next person does not
+   * have to re-derive it.
+   */
+  --color-accent-yellow: #ac8d00;
+  --color-accent-pink: #ef57a1;
 
-  /* Promoted from a hardcoded literal — BRAND.md §9.5. */
-  --color-action: #7dccad;
-  --color-action-hover: #87d6b7;
+  /*
+   * Promoted from a hardcoded literal — BRAND.md §9.5.
+   *
+   * Hover DEEPENS rather than lightens. The original gesture went lighter,
+   * which from the darkened base lands at 2.62 against the surface — a hover
+   * state that drops the control below the contrast floor it just met.
+   */
+  --color-action: #3fa07a;
+  --color-action-hover: #3a9470;
   --color-action-on: #002116;
 
   /* ── Surfaces (§2.3) ─────────────────────────────────────────────── */
