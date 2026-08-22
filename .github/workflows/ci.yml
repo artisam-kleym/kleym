@@ -205,12 +205,15 @@ jobs:
       # which is fully executable and is the part that silently rots.
       - name: SPEC §10 acceptance matrix and header audit
         run: |
-          NODE_ENV=production pnpm start -p 3211 -H 127.0.0.1 &
+          # The server's own log is captured so criterion 7 — no fragment-derived
+          # value in any log line — is EXECUTED here rather than deferred to a
+          # human. It is a regression-prone property and belongs in CI.
+          NODE_ENV=production pnpm start -p 3211 -H 127.0.0.1 > /tmp/kleym-server.log 2>&1 &
           for i in $(seq 1 60); do
             curl -sf http://127.0.0.1:3211/api/health >/dev/null && break
             sleep 1
           done
-          BASE_URL=http://127.0.0.1:3211 pnpm acceptance
+          BASE_URL=http://127.0.0.1:3211 SERVER_LOG=/tmp/kleym-server.log pnpm acceptance
 
       - name: Batch path under load
         run: pnpm loadtest
