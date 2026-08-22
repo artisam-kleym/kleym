@@ -7,30 +7,21 @@
  */
 import { logger } from '@/lib/config/logger'
 import { startBatchConfirmWorker } from './batch-confirm'
-<<<<<<< HEAD
 import { startEmailWorker } from './email'
-import { startExpiryWorker, startReconcileWorker } from './maintenance'
-=======
 import {
   startEphemeralWatchWorker,
   startExpiryWorker,
   startReconcileWorker,
 } from './maintenance'
->>>>>>> origin/19-monitor-stranded-ephemeral-accounts
 import { scheduleMaintenance } from '@/lib/queue/maintenance'
 
 async function main() {
   const workers = [
     startBatchConfirmWorker(),
-<<<<<<< HEAD
     startEmailWorker(),
     startReconcileWorker(),
     startExpiryWorker(),
-=======
-    startReconcileWorker(),
-    startExpiryWorker(),
     startEphemeralWatchWorker(),
->>>>>>> origin/19-monitor-stranded-ephemeral-accounts
   ]
 
   /*
@@ -40,14 +31,10 @@ async function main() {
   await scheduleMaintenance()
 
   logger.info(
-<<<<<<< HEAD
-    { service: 'kleym-worker', queues: ['batch-confirm', 'email-deliver', 'reconcile', 'expiry-sweep'] },
-=======
     {
       service: 'kleym-worker',
-      queues: ['batch-confirm', 'reconcile', 'expiry-sweep', 'ephemeral-watch'],
+      queues: ['batch-confirm', 'email-deliver', 'reconcile', 'expiry-sweep', 'ephemeral-watch'],
     },
->>>>>>> origin/19-monitor-stranded-ephemeral-accounts
     'worker started',
   )
 

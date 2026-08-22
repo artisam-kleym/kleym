@@ -23,23 +23,13 @@
     "verify:api-keys": "tsx scripts/verify-api-keys.ts",
     "verify:batches": "tsx scripts/verify-batches.ts",
     "verify:claims": "tsx scripts/verify-claims.ts",
-    "verify:reconcile": "tsx scripts/verify-reconcile.ts",
     "verify:confirm": "tsx scripts/verify-confirm-worker.ts",
     "fixture:balance-id": "tsx scripts/make-balance-id-fixture.ts",
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-    "verify:email": "tsx scripts/verify-email.ts"
-=======
-    "verify:reclaim": "tsx scripts/verify-reclaim.ts"
->>>>>>> origin/13-reclaim-return-unclaimed-funds-after-expiry
-=======
-    "verify:stranded": "tsx scripts/verify-stranded.ts"
->>>>>>> origin/19-monitor-stranded-ephemeral-accounts
-=======
+    "verify:email": "tsx scripts/verify-email.ts",
+    "verify:reconcile": "tsx scripts/verify-reconcile.ts",
+    "verify:reclaim": "tsx scripts/verify-reclaim.ts",
     "verify:stranded": "tsx scripts/verify-stranded.ts",
     "verify:admin": "tsx scripts/verify-admin.ts"
->>>>>>> origin/15-admin-area-health-endpoints-audit-logging
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.5.0",

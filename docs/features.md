@@ -19,8 +19,6 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 ---
 
 <<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 ## 2026-08-22 — Email delivery with OTP-gated retrieval (#14)
 
 Kleym can now email claim links, and email-delivered links ask for a six-digit code
@@ -74,7 +72,6 @@ unknown keys; and the seed appears in no log line.
 a placeholder, so every provider call 401s — which usefully exercised the failure paths
 but means no message has actually been delivered end to end. Stated rather than implied,
 per `AGENT.md` §6.5.
-=======
 ## 2026-08-22 — Reclaim: unclaimed funds return to source (#13)
 
 An expired campaign now has a "Reclaim" button on `/campaigns/[id]`, behind a
@@ -122,8 +119,6 @@ needs a campaign whose expiry has genuinely passed on-chain, so it is a testnet 
 not a unit check. Stated rather than implied, per `AGENT.md` §6.5.
 
 
->>>>>>> origin/13-reclaim-return-unclaimed-funds-after-expiry
-=======
 =======
 ## 2026-08-22 — Admin area and audit logging (#15)
 
@@ -174,7 +169,6 @@ The tiebreaker stays because it is correct and free; it is not proven by a test.
 on #13's branch. It gets its `recordAudit` call when that merges.
 
 
->>>>>>> origin/15-admin-area-health-endpoints-audit-logging
 ## 2026-08-22 — Stranded ephemeral account monitor (#19)
 
 `/admin` now shows what the sponsor float has lost to abandoned claims: how many
