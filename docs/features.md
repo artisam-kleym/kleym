@@ -18,7 +18,6 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 ---
 
-<<<<<<< HEAD
 ## 2026-08-22 — Email delivery with OTP-gated retrieval (#14)
 
 Kleym can now email claim links, and email-delivered links ask for a six-digit code
@@ -119,7 +118,6 @@ needs a campaign whose expiry has genuinely passed on-chain, so it is a testnet 
 not a unit check. Stated rather than implied, per `AGENT.md` §6.5.
 
 
-=======
 ## 2026-08-22 — Admin area and audit logging (#15)
 
 Admins get `/admin/users`, `/admin/campaigns` and `/admin/audit` alongside the sponsor
@@ -222,7 +220,6 @@ registers `ephemeral-watch`, runs the job, and two consecutive runs produce an
 identical report.
 
 
->>>>>>> origin/19-monitor-stranded-ephemeral-accounts
 ## 2026-08-22 — Reconciliation and expiry sweeps (#12)
 
 The database no longer has the last word on whether a link was claimed. A sweep runs
