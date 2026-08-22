@@ -4,6 +4,7 @@
  */
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
+import { recordAudit } from '@/lib/api/audit'
 import { clientIp } from '@/lib/auth/client-ip'
 import { guardRequestBody } from '@/lib/security/guard'
 import { requireUser, owned } from '@/lib/api/session-guard'
@@ -95,6 +96,24 @@ export async function PATCH(request: Request, { params }: Params) {
       },
       select: { id: true, name: true, status: true },
     })
+
+    /*
+     * Only a CANCEL is audited, not every rename.
+     *
+     * SPEC.md §5.4 lists `campaign.cancel`. Auditing renames too would bury
+     * the cancellations — the rows someone actually goes looking for — under
+     * routine edits.
+     */
+    if (parsed.data.status === 'CANCELLED') {
+      await recordAudit({
+        userId: user.id,
+        action: 'campaign.cancel',
+        entityType: 'campaign',
+        entityId: id,
+        metadata: { previousStatus: campaign.status },
+        ip: clientIp(request),
+      })
+    }
 
     logger.info({ userId: user.id, campaignId: id }, 'campaign updated')
     return Response.json(updated)

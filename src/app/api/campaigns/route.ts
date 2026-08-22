@@ -6,6 +6,7 @@
  */
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
+import { recordAudit } from '@/lib/api/audit'
 import { clientIp } from '@/lib/auth/client-ip'
 import { guardRequestBody } from '@/lib/security/guard'
 import { requireUser } from '@/lib/api/session-guard'
@@ -116,6 +117,14 @@ export async function POST(request: Request) {
     const payload = { ...campaign, amountPerLink: serialiseAmount(campaign.amountPerLink) }
     await storeIdempotentResult(request, context, { status: 201, body: payload })
 
+    await recordAudit({
+      userId: user.id,
+      action: 'campaign.create',
+      entityType: 'campaign',
+      entityId: campaign.id,
+      metadata: { name: campaign.name, linkCount: campaign.linkCount },
+      ip: clientIp(request),
+    })
     logger.info({ userId: user.id, campaignId: campaign.id }, 'campaign created')
     return Response.json(payload, { status: 201 })
   } catch (error) {

@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
+import { recordAudit } from '@/lib/api/audit'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import {
   createSession,
@@ -93,6 +94,15 @@ export async function POST(request: Request) {
     // independent.
     const revoked = await revokeOtherSessions(user.id, token)
 
+    await recordAudit({
+      userId: user.id,
+      action: 'auth.password_change',
+      entityType: 'user',
+      entityId: user.id,
+      // The COUNT of sessions ended, never a token. AGENT.md §4.5.
+      metadata: { revokedSessions: revoked },
+      ip: clientIp(request),
+    })
     logger.info({ userId: user.id, revokedSessions: revoked }, 'password changed')
     return Response.json({ ok: true, revokedSessions: revoked })
   } catch (error) {

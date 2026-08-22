@@ -96,6 +96,9 @@ jobs:
         run: pnpm verify:stranded
 >>>>>>> origin/19-monitor-stranded-ephemeral-accounts
 
+      - name: Verify the admin area and audit logging
+        run: pnpm verify:admin
+
   e2e:
     name: CSV gate (real browser)
     runs-on: ubuntu-latest
