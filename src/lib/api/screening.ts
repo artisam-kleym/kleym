@@ -202,21 +202,35 @@ async function callScreening(url: string, request: ScreeningRequest, deps: Scree
   }
 }
 
-/** Owner-set. HTTPS, or plain HTTP to a loopback address for local receivers. */
-export const screeningUrlSchema = z
-  .object({
-    screeningUrl: z.union([
-      z.string().trim().url().max(2000).refine((v) => {
-        try {
-          const u = new URL(v)
-          if (u.username || u.password) return false
-          if (u.protocol === 'https:') return true
-          return u.protocol === 'http:' && (u.hostname === '127.0.0.1' || u.hostname === 'localhost' || u.hostname === '[::1]')
-        } catch {
-          return false
-        }
-      }, 'an https URL (http only for a loopback address), without credentials'),
-      z.null(),
-    ]),
-  })
-  .strict()
+/**
+ * Owner-set — and the Owner is a tenant, not staff. This is the first place
+ * a tenant-controlled value drives a request from Kleym's own process, so
+ * what it may point at is narrow: HTTPS, no credentials, and never a
+ * redirect (`redirect: 'error'` above). Plain HTTP to a loopback address is
+ * allowed OUTSIDE production only, for the verify script and a local
+ * receiver; in production it would let any tenant Owner POST to whatever
+ * shares the application host. Kleym does not resolve the hostname before
+ * connecting — see docs/compliance.md for the deployment-side half.
+ */
+export function screeningUrlSchemaFor(nodeEnv: string) {
+  const loopbackAllowed = nodeEnv !== 'production'
+  return z
+    .object({
+      screeningUrl: z.union([
+        z.string().trim().url().max(2000).refine((v) => {
+          try {
+            const u = new URL(v)
+            if (u.username || u.password) return false
+            if (u.protocol === 'https:') return true
+            return loopbackAllowed && u.protocol === 'http:' && (u.hostname === '127.0.0.1' || u.hostname === 'localhost' || u.hostname === '[::1]')
+          } catch {
+            return false
+          }
+        }, loopbackAllowed ? 'an https URL (http only for a loopback address), without credentials' : 'an https URL, without credentials'),
+        z.null(),
+      ]),
+    })
+    .strict()
+}
+
+export const screeningUrlSchema = screeningUrlSchemaFor(env.NODE_ENV)

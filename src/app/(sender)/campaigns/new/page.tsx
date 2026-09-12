@@ -1,4 +1,4 @@
-import { getSessionUser } from '@/lib/auth/session'
+import { pageScope } from '@/lib/api/session-guard'
 import { env } from '@/lib/config/env'
 import { CampaignWizard } from './wizard'
 
@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic'
  * which a sender on a preview deployment would otherwise bake into every link.
  */
 export default async function NewCampaignPage() {
-  await getSessionUser()
+  const { org } = await pageScope()
 
   return (
     <>
@@ -32,6 +32,7 @@ export default async function NewCampaignPage() {
         maxOpsPerBatch={env.MAX_OPS_PER_BATCH}
         maxLinksPerCampaign={env.MAX_LINKS_PER_CAMPAIGN}
         baseFeeStroops={env.BASE_FEE_STROOPS}
+        screening={org.screeningUrl !== null}
       />
     </>
   )

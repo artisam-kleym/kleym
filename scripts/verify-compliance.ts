@@ -26,7 +26,7 @@ process.env.HORIZON_URL = 'http://127.0.0.1:9'
 const { prisma } = await import('../src/lib/db/client')
 const { registerLinks } = await import('../src/lib/api/links')
 const { prepareBatch, submitBatch } = await import('../src/lib/api/batches')
-const { screeningGate, screeningUrlSchema, SCREENING_DETAIL } = await import('../src/lib/api/screening')
+const { screeningGate, screeningUrlSchema, screeningUrlSchemaFor, SCREENING_DETAIL } = await import('../src/lib/api/screening')
 const { resolveLink } = await import('../src/lib/api/claims')
 const { regulatorRows, buildRegulatorExport, REGULATOR_COLUMNS } = await import('../src/lib/api/regulator-export')
 const { verifyBytes } = await import('../src/lib/api/audit-chain')
@@ -329,6 +329,11 @@ function urlSchema(): void {
   check('plain http elsewhere is refused', !ok('http://compliance.example.com/kleym'))
   check('credentials in the URL are refused', !ok('https://user:pw@compliance.example.com/kleym'))
   check('other schemes are refused', !ok('ftp://x.example.com/'))
+  // The Owner is a tenant. In production the loopback exception would be a
+  // blind SSRF into whatever shares the application host.
+  const prod = (v: unknown) => screeningUrlSchemaFor('production').safeParse({ screeningUrl: v }).success
+  check('in production, loopback http is refused', !prod('http://127.0.0.1:8080/screen') && !prod('http://localhost/screen') && !prod('http://[::1]/screen'))
+  check('in production, https is still accepted and null still switches it off', prod('https://compliance.example.com/kleym') && prod(null))
 }
 
 async function main(): Promise<void> {

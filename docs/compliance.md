@@ -15,6 +15,9 @@ proves that, along with the rest of this page).
 
 ### Where it runs
 
+The sender sees it as "Prepare" taking up to `SCREENING_TIMEOUT_MS` per batch; the
+wizard says so while batches are being signed.
+
 Before **batch submission** — in `prepareBatch` (when the unsigned envelope is
 built) and again in `submitBatch` (when the signed one is sent). That is the last
 moment where nothing has happened on-chain and a hold costs nothing. After
@@ -25,14 +28,34 @@ expiry.
 
 An Owner sets the URL under **Settings → Organisation → Compliance screening**, or
 `PATCH /api/org` with `{"screeningUrl": "https://…"}` (`null` switches it off). HTTPS
-only; plain HTTP is accepted for a loopback address so a local receiver can be tested.
-A URL with embedded credentials is refused.
+only, no embedded credentials. Outside production (`NODE_ENV !== 'production'`) plain
+HTTP to a loopback address is also accepted so a local receiver and the verify script
+work; in production it is refused.
+
+### What the URL may reach — and the deployment's half of it
+
+This is the first place a value a **tenant** controls drives a request from Kleym's
+own process, so the URL is treated as hostile input:
+
+- **No redirects.** The request is sent with `redirect: 'error'`, deliberately: a
+  redirect is a way to turn an approved public hostname into a request to somewhere
+  else, and a provider that redirects is answered with a HOLD.
+- **No loopback in production.** Otherwise any organisation Owner could make Kleym
+  POST to whatever shares the application host — the Next.js server, a metrics
+  sidecar, a co-located service.
+- **Stated limitation:** Kleym does **not** resolve the hostname before connecting.
+  An HTTPS hostname that resolves — or later rebinds — to a private, link-local or
+  metadata address is not detected here. Deploy so that the application host cannot
+  reach internal services over HTTPS (egress policy, a network without internal
+  HTTPS endpoints, or an egress proxy that only permits public ranges). The response
+  is not echoed except through the 300-character `reason` field, so what leaks on a
+  successful SSRF is bounded, but the request is still made.
 
 Deployment-wide environment:
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `SCREENING_WEBHOOK_SECRET` | unset | When set, every request carries `x-kleym-signature: sha256=<hex HMAC-SHA256 of the body>`. Verify it before trusting a request — anyone who finds the URL can POST to it. Redacted from logs like every other secret. |
+| `SCREENING_WEBHOOK_SECRET` | unset | When set, every request carries `x-kleym-signature: sha256=<hex HMAC-SHA256 of the body>`. Verify it before trusting a request — anyone who finds the URL can POST to it. Redacted from logs like every other secret. It is one secret per deployment, shared by every organisation's provider: it proves "this came from Kleym", and a provider serving several Kleym tenants tells them apart by `organization.id` in the body. A per-organisation secret is the obvious next step if that is not enough. |
 | `SCREENING_TIMEOUT_MS` | `5000` | The whole budget for one call, connect to last byte. Past it the campaign is **held**. |
 
 ### Request

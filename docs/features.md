@@ -74,7 +74,7 @@ applied to a reset database; `verify:approvals`, `verify:organisations`,
 `verify:batches`, `verify:audit-chain`, `verify:claims`, 217 unit tests,
 typecheck and lint. Not exercised: the settings form and the campaign-page
 notice in a browser (typechecked only), and a live provider end-to-end
-through the signing UI.
+through the signing UI. Review: the loopback-HTTP exception is refused in production (`screeningUrlSchemaFor('production')` checked in the verify script); the DNS-rebinding residual and the deliberate `redirect: 'error'` are stated in `docs/compliance.md`; a 409 from prepare (screening hold/block, approval, unfunded sender) now surfaces its detail in the wizard instead of ending the run as "complete"; the wizard says batches are screened while signing.
 
 ## 2026-09-12 — Sponsor pool with failover, outbound alerts and runway (#48)
 
