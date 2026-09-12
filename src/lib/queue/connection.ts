@@ -25,4 +25,5 @@ export const QUEUE = {
   batchConfirm: 'batch-confirm',
   reconcile: 'reconcile',
   expirySweep: 'expiry-sweep',
+  ephemeralWatch: 'ephemeral-watch',
 } as const
