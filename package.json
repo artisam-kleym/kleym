@@ -23,13 +23,15 @@
     "verify:api-keys": "tsx scripts/verify-api-keys.ts",
     "verify:batches": "tsx scripts/verify-batches.ts",
     "verify:claims": "tsx scripts/verify-claims.ts",
-    "verify:reconcile": "tsx scripts/verify-reconcile.ts",
     "verify:confirm": "tsx scripts/verify-confirm-worker.ts",
     "fixture:balance-id": "tsx scripts/make-balance-id-fixture.ts",
     "verify:email": "tsx scripts/verify-email.ts",
-    "verify:stranded": "tsx scripts/verify-stranded.ts",
+    "verify:reconcile": "tsx scripts/verify-reconcile.ts",
     "verify:reclaim": "tsx scripts/verify-reclaim.ts",
+    "verify:stranded": "tsx scripts/verify-stranded.ts",
     "verify:admin": "tsx scripts/verify-admin.ts",
+    "acceptance": "tsx scripts/acceptance.ts",
+    "loadtest": "tsx scripts/load-batches.ts",
     "verify:invitations": "tsx scripts/verify-invitations.ts"
   },
   "dependencies": {
