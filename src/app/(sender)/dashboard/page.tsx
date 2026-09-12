@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getSessionUser } from '@/lib/auth/session'
-import { loadDashboard } from '@/lib/api/dashboard'
+import { distributedLabel, loadDashboard } from '@/lib/api/dashboard'
 import { MetricCard, ProgressCell, StatusChip, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
 import { formatDate } from '@/components/list/filters'
 
@@ -37,8 +37,8 @@ export default async function DashboardPage() {
         ) : (
           distributed.map((row) => (
             <MetricCard
-              key={row.assetCode}
-              label={`Distributed · ${row.assetCode}`}
+              key={`${row.network}:${row.assetCode}:${row.assetIssuer ?? ''}`}
+              label={`Distributed · ${distributedLabel(row, distributed)}`}
               value={row.amount}
               unit={row.assetCode}
               icon="redeem"

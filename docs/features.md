@@ -29,8 +29,12 @@ into detail. The multi-tenancy note from #38 stays, because until
 organisations exist it is the only place a sender is told that colleagues
 cannot see their campaigns.
 
-**"Distributed" means claimed.** It is the sum of `amountPerLink` over links in
-`CLAIMED`, grouped by asset — one `SUM … GROUP BY` in SQL (`$queryRaw`, with
+**"Distributed" means claimed, and an asset is (network, code, issuer).** It
+is the sum of `amountPerLink` over links in `CLAIMED`, grouped by the
+campaign's network, asset code and issuer — a testnet rehearsal and the live
+campaign never sum into one "USDC", and neither do two issuers sharing a
+code; the card is labelled with the network and the issuer only when a
+sender actually has more than one. One `SUM … GROUP BY` in SQL (`$queryRaw`, with
 the justification in the code: Prisma's `groupBy` cannot aggregate across a
 relation, and the JS alternative is unbounded in campaigns). Not
 `linkCount × amountPerLink`: created value is not distributed value, and the
@@ -41,7 +45,9 @@ Money is `Decimal` and rendered with `.toFixed()`.
 
 **Verified by:** `pnpm verify:dashboard` (in CI) against a real Postgres:
 mixed-asset claimed totals (1000.5 USDC from campaigns that *created* 2500.5;
-7.5 XLM; an unclaimed asset absent rather than zero), scoping between two
+7.5 XLM; an unclaimed asset absent rather than zero), the same code across
+testnet/public and across two issuers producing three rows with distinct
+labels rather than one 115, scoping between two
 users, the recent table equal to the head of `/campaigns` with the same
 claimed figures, outstanding excluding an expired campaign's links, one stroop
 rendering as `0.0000001` and the largest amount keeping every digit, and a

@@ -14,7 +14,7 @@ applyEnvPlaceholders()
 
 const { prisma } = await import('../src/lib/db/client')
 const { env } = await import('../src/lib/config/env')
-const { loadDashboard, distributedByAsset, dashboardCounts, RECENT_CAMPAIGNS } = await import('../src/lib/api/dashboard')
+const { loadDashboard, distributedByAsset, dashboardCounts, distributedLabel, RECENT_CAMPAIGNS } = await import('../src/lib/api/dashboard')
 const { listCampaigns, campaignListQuerySchema } = await import('../src/lib/api/campaign-list')
 
 let failures = 0
@@ -33,13 +33,14 @@ async function user(): Promise<string> {
   })).id
 }
 
+const ISSUER = Keypair.random().publicKey()
 type S = 'PENDING' | 'ACTIVE' | 'CLAIMED' | 'EXPIRED' | 'RECLAIMED' | 'FAILED'
-async function campaign(userId: string, opts: { asset: string; amount: string; links: S[]; expiresAt?: Date; status?: 'ACTIVE' | 'EXPIRED' | 'DRAFT' }) {
+async function campaign(userId: string, opts: { asset: string; amount: string; links: S[]; expiresAt?: Date; status?: 'ACTIVE' | 'EXPIRED' | 'DRAFT'; network?: 'testnet' | 'public'; issuer?: string }) {
   const c = await prisma.campaign.create({
     data: {
-      userId, name: `dash ${opts.asset} ${opts.amount}`, network: 'testnet',
+      userId, name: `dash ${opts.asset} ${opts.amount}`, network: opts.network ?? 'testnet',
       senderPublicKey: Keypair.random().publicKey(), assetCode: opts.asset,
-      assetIssuer: opts.asset === 'XLM' ? null : Keypair.random().publicKey(),
+      assetIssuer: opts.asset === 'XLM' ? null : (opts.issuer ?? ISSUER),
       amountPerLink: opts.amount, linkCount: opts.links.length,
       expiresAt: opts.expiresAt ?? new Date(Date.now() + 86_400_000), status: opts.status ?? 'ACTIVE',
     },
@@ -145,6 +146,37 @@ async function boundedAtScale(): Promise<void> {
   await prisma.campaign.delete({ where: { id } })
 }
 
+/**
+ * An asset is (network, code, issuer). A testnet rehearsal and the real
+ * campaign must not sum into one "USDC", and neither must two issuers.
+ */
+async function assetsAreNotMergedAcrossNetworksOrIssuers(): Promise<void> {
+  console.log('\n6. Same code, different network or issuer: separate rows')
+  const u = await user()
+  await campaign(u, { asset: 'USDC', amount: '100', links: ['CLAIMED'], network: 'testnet' })
+  await campaign(u, { asset: 'USDC', amount: '7', links: ['CLAIMED', 'CLAIMED'], network: 'public' })
+  const otherIssuer = Keypair.random().publicKey()
+  await campaign(u, { asset: 'USDC', amount: '1', links: ['CLAIMED'], network: 'public', issuer: otherIssuer })
+
+  const rows = await distributedByAsset(u)
+  check('three rows, not one', rows.length === 3, JSON.stringify(rows))
+  const find = (network: string, issuer: string) => rows.find((r) => r.network === network && r.assetIssuer === issuer)
+  check('testnet USDC is 100', find('testnet', ISSUER)?.amount === '100')
+  check('public USDC (primary issuer) is 14', find('public', ISSUER)?.amount === '14')
+  check('public USDC (other issuer) is 1', find('public', otherIssuer)?.amount === '1')
+  check('no row is the 115 a code-only sum would show', rows.every((r) => r.amount !== '115'))
+
+  const labels = rows.map((r) => distributedLabel(r, rows))
+  check('every row gets a distinct label', new Set(labels).size === 3, JSON.stringify(labels))
+  check('labels name the network', labels.every((l) => /testnet|public/.test(l)), JSON.stringify(labels))
+  check('and the issuer only where a code has two', labels.filter((l) => l.includes('…')).length === 2, JSON.stringify(labels))
+
+  const single = await user()
+  await campaign(single, { asset: 'XLM', amount: '1', links: ['CLAIMED'] })
+  const one = await distributedByAsset(single)
+  check('a single-network, single-issuer sender sees a bare code', distributedLabel(one[0]!, one) === 'XLM', distributedLabel(one[0]!, one))
+}
+
 async function main(): Promise<void> {
   try {
     await claimedOnlyAcrossAssets()
@@ -152,6 +184,7 @@ async function main(): Promise<void> {
     await outstandingExcludesExpired()
     await noExponentialNotation()
     await boundedAtScale()
+    await assetsAreNotMergedAcrossNetworksOrIssuers()
   } finally {
     await prisma.$disconnect()
   }

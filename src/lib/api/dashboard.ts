@@ -18,7 +18,15 @@ import { CAMPAIGN_ORDER } from './campaign-list'
 import { serialiseAmount } from './campaigns'
 
 export interface DistributedRow {
+  /**
+   * An asset is (network, code, issuer) — not the code alone. Test USDC and
+   * live USDC are different money, and two issuers with one code are two
+   * assets on Stellar; folding either together is the "larger number under
+   * *distributed*" this module refuses to show.
+   */
+  network: string
   assetCode: string
+  assetIssuer: string | null
   /** Sum of `amountPerLink` over CLAIMED links, as a fixed-point string. */
   amount: string
   claimed: number
@@ -36,20 +44,26 @@ export interface DistributedRow {
  * The query is a tagged template, so `userId` is a bound parameter.
  */
 export async function distributedByAsset(userId: string): Promise<DistributedRow[]> {
-  const rows = await prisma.$queryRaw<{ assetCode: string; amount: Prisma.Decimal | string | null; claimed: bigint }[]>(
+  const rows = await prisma.$queryRaw<
+    { network: string; assetCode: string; assetIssuer: string | null; amount: Prisma.Decimal | string | null; claimed: bigint }[]
+  >(
     Prisma.sql`
-      SELECT c."assetCode" AS "assetCode",
+      SELECT c."network" AS "network",
+             c."assetCode" AS "assetCode",
+             c."assetIssuer" AS "assetIssuer",
              SUM(c."amountPerLink") AS "amount",
              COUNT(l."id") AS "claimed"
       FROM "ClaimLink" l
       JOIN "Campaign" c ON c."id" = l."campaignId"
       WHERE c."userId" = ${userId} AND l."status" = 'CLAIMED'
-      GROUP BY c."assetCode"
-      ORDER BY c."assetCode" ASC
+      GROUP BY c."network", c."assetCode", c."assetIssuer"
+      ORDER BY c."assetCode" ASC, c."network" DESC, c."assetIssuer" ASC NULLS FIRST
     `,
   )
   return rows.map((row) => ({
+    network: row.network,
     assetCode: row.assetCode,
+    assetIssuer: row.assetIssuer,
     amount: new Decimal(String(row.amount ?? 0)).toFixed(),
     claimed: Number(row.claimed),
   }))
@@ -117,4 +131,17 @@ export async function loadDashboard(userId: string) {
     recentCampaigns(userId),
   ])
   return { distributed, counts, recent }
+}
+
+/**
+ * How to label one distributed row so two rows are never the same string:
+ * the network when more than one is present, the issuer (shortened) when
+ * one code has more than one issuer.
+ */
+export function distributedLabel(row: DistributedRow, all: DistributedRow[]): string {
+  const parts = [row.assetCode]
+  if (new Set(all.map((r) => r.network)).size > 1) parts.push(row.network)
+  const issuers = new Set(all.filter((r) => r.assetCode === row.assetCode && r.network === row.network).map((r) => r.assetIssuer))
+  if (issuers.size > 1 && row.assetIssuer) parts.push(`${row.assetIssuer.slice(0, 4)}…${row.assetIssuer.slice(-4)}`)
+  return parts.join(' · ')
 }
