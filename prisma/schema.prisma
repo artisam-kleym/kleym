@@ -268,7 +268,7 @@ model SsoConnection {
   protocol       SsoProtocol @default(OIDC)
   issuer         String
   clientId       String
-  /// The OIDC client secret, AES-256-GCM under MFA_ENCRYPTION_KEY. It is the
+  /// The OIDC client secret, AES-256-GCM under CREDENTIAL_ENCRYPTION_KEY. It is the
   /// IdP's credential for Kleym, never a Stellar key; it is still never in the clear.
   clientCiphertext String
   scopes         String      @default("openid profile email")
@@ -371,7 +371,7 @@ enum MfaPolicy {
 }
 
 /// A TOTP factor (RFC 6238). The shared key is Kleym's, not Stellar key
-/// material, and it is stored ENCRYPTED (AES-256-GCM under MFA_ENCRYPTION_KEY
+/// material, and it is stored ENCRYPTED (AES-256-GCM under CREDENTIAL_ENCRYPTION_KEY
 /// from the environment) — never in the clear. Unconfirmed until the user
 /// proves the authenticator with one code.
 model MfaTotp {

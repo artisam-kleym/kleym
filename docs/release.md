@@ -113,16 +113,19 @@ Set `CREDENTIAL_ENCRYPTION_KEY` (32 random bytes, base64: `openssl rand
 requires it. It encrypts each organisation's OIDC client secret at rest;
 rotating it means Owners re-enter their client secrets. Nothing changes for
 existing users until an Owner connects an IdP.
-## Rolling out #47 (MFA) on an existing deployment
+## Rolling out #46 and #47 (SSO/SCIM and MFA) on an existing deployment
 
-Set `MFA_ENCRYPTION_KEY` (32 random bytes, base64: `openssl rand -base64 32`)
-in the secret store before the deploy — the environment schema requires it
-and the build serves nothing without it. Optionally `WEBAUTHN_RP_ID` when the
-app is served from a subdomain but passkeys should bind to the parent domain.
-Rotating `MFA_ENCRYPTION_KEY` invalidates every TOTP enrolment (users re-enrol);
-passkeys and recovery codes are unaffected. Nothing is required of users:
-policies start `OFF` and no session changes state until a factor is enrolled
-or a policy is set.
+Set `CREDENTIAL_ENCRYPTION_KEY` (32 random bytes, base64: `openssl rand
+-base64 32`) in the secret store before the deploy — the environment schema
+requires it and the build serves nothing without it. It is the one key every
+credential Kleym holds at rest is encrypted under: TOTP shared keys (#47) and
+OIDC client secrets (#46). Rotating it invalidates every TOTP enrolment (users
+re-enrol) and every stored client secret (Owners re-enter it); passkeys and
+recovery codes are unaffected. Optionally `WEBAUTHN_RP_ID` when the app is
+served from a subdomain but passkeys should bind to the parent domain.
+Nothing is required of users: MFA policies start `OFF`, no session changes
+state until a factor is enrolled or a policy is set, and nothing changes until
+an Owner connects an IdP.
 
 ## Rolling out #49 (audit chain) on an existing deployment
 
