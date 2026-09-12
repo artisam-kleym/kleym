@@ -20,6 +20,43 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — Recipient addresses have a lifecycle: retention and erasure (#50)
+
+The address a link was emailed to is the only recipient PII Kleym holds, and
+it belongs to someone who is not a Kleym user. It now expires: a daily
+maintenance job (`delivery-retention`, bounded and reporting its shortfall on
+`/admin/reconciliation` like the others) **redacts** it 90 days after the
+link or its campaign settles — nulls the address and the OTP material, sets
+`redactedAt`, keeps `sentAt`/`openedAt` as the claim that a delivery
+happened. An erasure request is honoured at `/admin/privacy` (Kleym staff):
+every delivery to that address, across every campaign and case-insensitively,
+is redacted in one operation and any email still queued for it is removed.
+Nothing on the link is touched — status, `claimedBy`, `claimedAt`,
+`claimTxHash` are the record that money moved, and the chain stays the
+authority on them.
+
+The address is written nowhere by either path: the retention and erasure
+audit rows carry a count, the scrubber now refuses any `email` key, and the
+log lines carry delivery ids. A still-live link whose address was erased
+stays OTP-gated but gets no code — the OTP request route answers the same
+`sent: true` so the erasure is not an oracle — and its funds return to the
+sender at expiry. `docs/data-handling.md` states what is stored, why, and for
+how long. The 90 days is a constant (`DELIVERY_RETENTION_DAYS`), stated in
+the doc; a cheap decision to revisit.
+
+**Verified by:** `pnpm verify:privacy` (in CI) against real Postgres and
+Redis: a link claimed 91 days ago is redacted and one claimed yesterday is
+kept, likewise a campaign expired 91 days ago versus yesterday, a live link
+is kept; erasure redacts three rows across two campaigns for one address in
+two spellings and leaves another address alone; link rows are byte-identical
+before and after; a queued send is removed; the live link's gate has no
+address; the address appears in no Delivery row, no audit row, no Redis key
+or value, and no log line the process wrote; the scrubber redacts `email` and
+`recipientEmail`; a limit-2 pass over 5 due rows reports the remainder and
+later passes finish the set. `verify:email`, `verify:admin`,
+`verify:reconcile`, `verify:organisations`, 213 unit tests, build. Not opened
+in a browser: `/admin/privacy`.
+
 ## 2026-09-12 — Organisations, memberships and roles (#44)
 
 A campaign now belongs to an **organisation**, not to the person who created

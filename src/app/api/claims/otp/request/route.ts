@@ -63,6 +63,13 @@ export async function POST(request: Request) {
      */
     if (!gate) return Response.json({ sent: true }, { headers: { 'cache-control': 'no-store' } })
 
+    /*
+     * A redacted address (#50) gets the same `sent: true` for the same
+     * reason: whether a key's address was erased is not this endpoint's to
+     * reveal. No code is issued — there is nowhere to send it.
+     */
+    if (!gate.email) return Response.json({ sent: true }, { headers: { 'cache-control': 'no-store' } })
+
     const code = await issueOtp(gate.deliveryId)
 
     /*

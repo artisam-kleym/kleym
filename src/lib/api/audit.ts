@@ -33,6 +33,8 @@ export type AuditAction =
   | 'apikey.create'
   | 'apikey.revoke'
   | 'security.seed_submitted'
+  | 'privacy.retention'
+  | 'privacy.erasure'
 
 export type AuditValue = string | number | boolean | null
 
@@ -71,6 +73,9 @@ export const REDACTED = '[redacted]'
 const FORBIDDEN_SUBSTRINGS = [
   'seed', 'secret', 'password', 'passwd', 'token', 'otp', 'apikey', 'privatekey',
   'authorization', 'cookie', 'signature',
+  // A recipient's address is PII with a lifecycle (#50); an audit row must
+  // not become the copy that outlives the erasure it records.
+  'email',
 ]
 const FORBIDDEN_EXACT = new Set(['code'])
 
