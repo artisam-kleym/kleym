@@ -115,6 +115,9 @@ jobs:
       - name: Verify delivery retention and erasure
         run: pnpm verify:privacy
 
+      - name: Verify dual control
+        run: pnpm verify:approvals
+
       - name: Verify the audit chain, checkpoints, concurrency and signed export
         run: pnpm verify:audit-chain
 

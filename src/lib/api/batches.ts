@@ -13,6 +13,7 @@ import { env } from '@/lib/config/env'
 import { owned } from './session-guard'
 import { LINK_ORDER } from './link-order'
 import { isWriteConflict } from './links'
+import { approvalGate } from './approvals'
 import {
   buildBatchTransaction,
   planBatches,
@@ -150,6 +151,12 @@ export async function prepareBatch(
   const blocked = notReadyToSign(campaign)
   if (blocked) return blocked
 
+  // Dual control (#45): no envelope is handed over for an unapproved
+  // campaign above the organisation's threshold. Checked against the
+  // campaign as it is NOW, so a term edited after approval refuses here.
+  const unapproved = await approvalGate(campaign.id)
+  if (unapproved) return conflict(unapproved)
+
   await ensurePlanned(campaign.id)
 
   const batches = await prisma.batch.findMany({
@@ -243,6 +250,11 @@ export async function submitBatch(
 ): Promise<BatchOutcome<SubmittedBatch>> {
   const campaign = await loadCampaign(campaignId, organizationId)
   if (!campaign) return { kind: 'not-found' }
+
+  // The same gate at the moment money moves. A wallet holding an envelope
+  // prepared before an approval was withdrawn does not get to submit it.
+  const unapproved = await approvalGate(campaign.id)
+  if (unapproved) return conflict(unapproved)
 
   const batch = await prisma.batch.findFirst({
     where: { campaignId: campaign.id, sequence: input.sequence },
@@ -403,6 +415,9 @@ export async function settleCampaignStatus(campaignId: string): Promise<void> {
     return
   }
   if (campaign.csvExportedAt === null) return
+  // Beside the CSV gate: a campaign whose approval lapsed after its batches
+  // confirmed stays CREATING rather than announcing itself live.
+  if (await approvalGate(campaignId)) return
 
   await prisma.campaign.update({ where: { id: campaignId }, data: { status: 'ACTIVE' } })
 }

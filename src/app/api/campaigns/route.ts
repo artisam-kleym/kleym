@@ -103,6 +103,10 @@ export async function POST(request: Request) {
       data: {
         userId: user.id,
         organizationId: org.id,
+        // Dual-control policy snapshot (#45): loosening the organisation's
+        // policy later does not reach this campaign.
+        approvalThreshold: org.approvalThreshold,
+        approvalsRequired: org.approvalsRequired,
         name: parsed.data.name,
         network: parsed.data.network,
         senderPublicKey: parsed.data.senderPublicKey,

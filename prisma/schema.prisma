@@ -100,6 +100,7 @@ model User {
   invitations Invitation[] @relation("invitee")
   invited     Invitation[] @relation("inviter")
   memberships Membership[]
+  approvals   CampaignApproval[]
 
   @@index([username])
 }
@@ -111,6 +112,12 @@ model User {
 model Organization {
   id        String   @id @default(cuid())
   name      String
+  /// Dual control (#45). A campaign whose total value — amountPerLink ×
+  /// linkCount, in its own asset — reaches `approvalThreshold` needs
+  /// `approvalsRequired` approvals from Approvers other than its creator
+  /// before a batch can be signed. Null threshold: dual control is off.
+  approvalThreshold Decimal? @db.Decimal(23, 7)
+  approvalsRequired Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -119,6 +126,32 @@ model Organization {
   apiKeys     ApiKey[]
   auditLogs   AuditLog[]
   invitations Invitation[]
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+/// One approver's decision on one campaign, bound to the TERMS it was given
+/// for. `termsHash` covers (assetCode, assetIssuer, amountPerLink, linkCount,
+/// expiresAt); a decision whose hash no longer matches the campaign counts
+/// for nothing — the classic maker-checker bypass is approve small, then
+/// edit large, and this is what closes it.
+model CampaignApproval {
+  id         String           @id @default(cuid())
+  campaignId String
+  approverId String
+  decision   ApprovalDecision
+  termsHash  String
+  note       String?
+  createdAt  DateTime         @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  approver User     @relation(fields: [approverId], references: [id])
+
+  @@unique([campaignId, approverId])
+  @@index([campaignId])
 }
 
 model Membership {
@@ -205,6 +238,13 @@ model Campaign {
   /// Who created it. Ownership is the ORGANISATION; this is provenance.
   userId          String
   organizationId  String
+  /// The dual-control policy as it stood when this campaign was created
+  /// (#45). The gate reads the STRICTER of this and the organisation's
+  /// current policy, so loosening the policy affects only campaigns created
+  /// afterwards — an Owner cannot switch the gate off, sign, and switch it
+  /// back on for a campaign they made.
+  approvalThreshold Decimal? @db.Decimal(23, 7)
+  approvalsRequired Int      @default(1)
   name            String
   network         String // "testnet" | "public"
   senderPublicKey String // G... that funded it
@@ -221,6 +261,7 @@ model Campaign {
 
   user         User                    @relation(fields: [userId], references: [id])
   organization Organization            @relation(fields: [organizationId], references: [id])
+  approvals    CampaignApproval[]
   links        ClaimLink[]
   batches      Batch[]
   reclaims     ReclaimBatch[]
