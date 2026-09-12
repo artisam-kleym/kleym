@@ -127,6 +127,27 @@ jobs:
       - name: Verify the audit chain, checkpoints, concurrency and signed export
         run: pnpm verify:audit-chain
 
+      # Last, so the database the suites above populated is what gets dumped,
+      # restored into a clean database, and questioned. A backup check that
+      # only looks for a file is not one.
+      - name: Verify a backup by restoring it
+        env:
+          RESTORE_DATABASE_URL: postgresql://kleym:kleym@localhost:5432/kleym_restore
+        run: |
+          # The runner ships the Postgres 16 client; the service is 17, and
+          # pg_dump refuses to dump a newer server. Match the client first.
+          # The runner's PGDG entry does not carry 17 in its cached index, so
+          # the repo is (re)declared and the index refreshed before installing.
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -sSf -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -q
+          sudo apt-get install -y -q postgresql-client-17
+          export PATH=/usr/lib/postgresql/17/bin:$PATH
+          pg_dump --version
+          PGPASSWORD=kleym psql -h localhost -U kleym -d kleym -c 'CREATE DATABASE kleym_restore'
+          pnpm verify:backup
+
   e2e:
     name: CSV gate (real browser)
     runs-on: ubuntu-latest

@@ -899,3 +899,4 @@ State these in the product, not just in this document.
   The reserve is released when the link is finally claimed. No user funds are affected.
 - **Organisations are flat.** Campaigns belong to an organisation and its members act on them by role (Viewer, Operator, Approver, Owner — #44); there is no sharing of a single campaign across organisations and no hierarchy of organisations.
 - **Reserve estimates depend on live protocol values** and can shift between quote and signature.
+- **A database restore loses what the ledger cannot rebuild.** Money is re-derived from the chain by reconciliation; delivery state, the CSV-export gate, audit rows, sessions and API keys made after the last backup are not. RPO is the backup interval for those; RTO is measured, not guessed (`docs/disaster-recovery.md`). `/admin/reconciliation` says so, because that is where a person lands after a restore.

@@ -233,4 +233,9 @@ export function screeningUrlSchemaFor(nodeEnv: string) {
     .strict()
 }
 
-export const screeningUrlSchema = screeningUrlSchemaFor(env.NODE_ENV)
+/*
+ * Bound to the raw NODE_ENV rather than `env.NODE_ENV`: route handlers are
+ * evaluated during `next build`, which has no environment, and touching the
+ * validated env at module load would fail the build (see lib/db/client.ts).
+ */
+export const screeningUrlSchema = screeningUrlSchemaFor(process.env.NODE_ENV ?? 'development')
