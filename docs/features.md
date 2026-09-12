@@ -20,6 +20,20 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — Dependency bump: audit gate green again
+
+No user-facing change. Advisories published since 22 Aug turned CI's
+`pnpm audit --audit-level=moderate` red on every open PR without any of them
+touching the lockfile — two critical unauthenticated-RCE advisories on Next.js
+among them. `next` → 16.3.5, `prisma`/`@prisma/client`/`@prisma/adapter-pg` →
+7.10.0, `@creit.tech/stellar-wallets-kit` → 2.6.0, plus same-major
+`pnpm.overrides` for `mysql2`, `fast-uri` and `stream-json`, each with its
+reason in `package.json`. Details in the README.
+
+**Verified by:** `pnpm audit --audit-level=moderate` exits 0 (one low remains,
+below the gate); typecheck, lint, 167 unit tests and a cold `pnpm build` pass.
+`prisma generate` and `migrate deploy` run under 7.10.0 in the verify scripts.
+
 ## 2026-08-22 — Claim page: hardened surface and full state machine (#11)
 
 `/claim`, the route that handles a bearer secret in a URL fragment for an
