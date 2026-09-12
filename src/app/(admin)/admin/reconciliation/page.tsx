@@ -101,6 +101,17 @@ export default async function ReconciliationPage() {
         </div>
       )}
 
+      <section aria-label="After a restore" className="mt-xl rounded-lg border border-outline-variant/50 bg-surface-container p-md">
+        <p className="text-body-md font-bold text-on-surface">After a database restore, reconcile first</p>
+        <p className="mt-xs max-w-3xl text-body-md text-on-surface-variant">
+          The ledger is the authority on money: every link converges to what the chain says.
+          What a restore cannot get back is what the chain never held — emailed-link state, the
+          CSV export gate, audit rows, sessions and API keys made after the backup. Run{' '}
+          <span className="font-mono">pnpm recover</span> before anything else; the procedure and
+          the measured recovery time are in <span className="font-mono">docs/disaster-recovery.md</span>.
+        </p>
+      </section>
+
       <section aria-label="Scheduled passes" className="mt-xl">
         <h2 className="text-headline-sm text-on-surface">Scheduled passes</h2>
         <p className="mt-xs max-w-2xl text-body-md text-on-surface-variant">

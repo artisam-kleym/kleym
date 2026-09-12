@@ -132,6 +132,7 @@ A fresh deployment needs only step 1.
 | A leaked link is a bearer instrument | The `/claim` ready screen, and the claim email |
 | Partial batch failure needs sender action | Wizard export step, and `/admin/campaigns` status |
 | Organisations are flat: no cross-organisation sharing | `/dashboard`, in the note on who can see campaigns |
+| A restore loses what the ledger cannot rebuild | `/admin/reconciliation`, the recovery note above the passes |
 | Reserve estimates can shift between quote and signature | Wizard step 2, under the cost breakdown |
 
 ## What is not verified
