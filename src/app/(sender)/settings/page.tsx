@@ -68,6 +68,7 @@ function serialise(key: Awaited<ReturnType<typeof listApiKeys>>[number]) {
   return {
     id: key.id,
     name: key.name,
+    scope: key.scope,
     prefix: key.prefix,
     lastUsedAt: key.lastUsedAt?.toISOString() ?? null,
     revokedAt: key.revokedAt?.toISOString() ?? null,

@@ -145,9 +145,10 @@ const routeFetch: typeof fetch = async (input, init) => {
 async function tenant() {
   const user = await prisma.user.create({ data: { username: `wapi-${randomUUID().slice(0, 8)}`, passwordHash: 'x', role: 'SENDER' }, select: { id: true } })
   const orgId = await personalOrg(prisma, user.id)
-  const key = await issueApiKey(user.id, orgId, 'verify')
+  const key = await issueApiKey(user.id, orgId, 'verify', 'WRITE')
+  const readKey = await issueApiKey(user.id, orgId, 'reporting')
   const org = { id: orgId, name: 'wapi', role: 'OWNER' as const, approvalThreshold: null, approvalsRequired: 1, screeningUrl: null }
-  return { userId: user.id, orgId, org, apiKey: key.key }
+  return { userId: user.id, orgId, org, apiKey: key.key, readKey: readKey.key }
 }
 const dir = mkdtempSync(join(tmpdir(), 'kleym-sdk-'))
 
@@ -202,7 +203,43 @@ async function sdkEndToEnd() {
   const refused = await client.registerLinks(result.campaignId, { publicKeys: [Keypair.random().secret()], labels: [null] } as unknown as PublicLinks).catch((e: Error) => e)
   check('KleymClient throws SeedInRequestError and sends nothing when given a seed', refused instanceof sdk.SeedInRequestError && sent.length === before)
 
-  return { campaignId: result.campaignId, orgId: t.orgId, org: t.org, apiKey: t.apiKey, userId: t.userId }
+  return { campaignId: result.campaignId, orgId: t.orgId, org: t.org, apiKey: t.apiKey, readKey: t.readKey, userId: t.userId }
+}
+
+/* ── 1b. a READ key writes nothing ─────────────────────────────────────── */
+
+async function readKeyCannotWrite(ctx: { campaignId: string; readKey: string; apiKey: string; orgId: string }): Promise<void> {
+  console.log('\n1b. A key issued without write scope is refused by every write route, with no side effect')
+  const headers = { authorization: `Bearer ${ctx.readKey}`, 'content-type': 'application/json' }
+  const before = {
+    campaigns: await prisma.campaign.count({ where: { organizationId: ctx.orgId } }),
+    links: await prisma.claimLink.count({ where: { campaignId: ctx.campaignId } }),
+    audit: await prisma.auditLog.count({ where: { organizationId: ctx.orgId } }),
+  }
+  const attempts: [string, unknown][] = [
+    ['/api/v1/campaigns', { name: 'nope', network: 'testnet', senderPublicKey: Keypair.random().publicKey(), assetCode: 'XLM', amountPerLink: '1', linkCount: 1, expiresAt: new Date(Date.now() + 1e6).toISOString() }],
+    [`/api/v1/campaigns/${ctx.campaignId}/links`, { publicKeys: [Keypair.random().publicKey()] }],
+    [`/api/v1/campaigns/${ctx.campaignId}/export`, {}],
+    [`/api/v1/campaigns/${ctx.campaignId}/batches/prepare`, {}],
+    [`/api/v1/campaigns/${ctx.campaignId}/batches/submit`, { sequence: 1, signedXdr: 'AAAA' }],
+  ]
+  for (const [path, body] of attempts) {
+    const r = await routeFetch(`http://kleym.test${path}`, { method: 'POST', headers, body: JSON.stringify(body) })
+    const text = await r.text()
+    check(`${path.replace(ctx.campaignId, '{id}')}: 403 insufficient-scope with WWW-Authenticate scope="write"`, r.status === 403 && text.includes('insufficient-scope') && (r.headers.get('www-authenticate') ?? '').includes('scope="write"'), `${r.status} ${text.slice(0, 80)}`)
+  }
+  const after = {
+    campaigns: await prisma.campaign.count({ where: { organizationId: ctx.orgId } }),
+    links: await prisma.claimLink.count({ where: { campaignId: ctx.campaignId } }),
+    audit: await prisma.auditLog.count({ where: { organizationId: ctx.orgId } }),
+  }
+  check('nothing was created, registered or audited', JSON.stringify(before) === JSON.stringify(after), JSON.stringify({ before, after }))
+  const read = await routeFetch(`http://kleym.test/api/v1/campaigns/${ctx.campaignId}`, { method: 'GET', headers })
+  check('the same READ key still reads', read.status === 200, `${read.status}`)
+  const writeReads = await routeFetch('http://kleym.test/api/v1/campaigns', { method: 'GET', headers: { authorization: `Bearer ${ctx.apiKey}` } })
+  check('and a WRITE key still reads', writeReads.status === 200, `${writeReads.status}`)
+  const legacy = await prisma.apiKey.findFirst({ where: { name: 'reporting', organizationId: ctx.orgId }, select: { scope: true } })
+  check('a key issued without a scope is READ', legacy?.scope === 'READ')
 }
 
 /* ── 2. every write endpoint refuses a planted seed ─────────────────────── */
@@ -352,6 +389,7 @@ async function writeLimit(): Promise<void> {
 async function main(): Promise<void> {
   try {
     const ctx = await sdkEndToEnd()
+    await readKeyCannotWrite(ctx)
     await plantedSeeds(ctx)
     await signedDeliveries(ctx)
     await retryAndPark(ctx)

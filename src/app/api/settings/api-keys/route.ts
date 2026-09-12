@@ -17,7 +17,7 @@ import { issueApiKey, listApiKeys } from '@/lib/auth/api-key'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const createSchema = z.object({ name: z.string().trim().min(1).max(60) }).strict()
+const createSchema = z.object({ name: z.string().trim().min(1).max(60), scope: z.enum(['READ', 'WRITE']).default('READ') }).strict()
 
 export async function GET() {
   const { user, org, response } = await requireUser()
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
    * of the argon2 hash is that nothing can hand the key back later.
    */
   try {
-    const issued = await issueApiKey(user.id, org.id, parsed.data.name)
+    const issued = await issueApiKey(user.id, org.id, parsed.data.name, parsed.data.scope)
 
     // The key itself is never logged (AGENT.md §4.5).
     await recordAudit({
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       entityType: 'apikey',
       entityId: issued.id,
       // The PREFIX, which is how a key is identified in the UI. Never the key.
-      metadata: { prefix: issued.prefix },
+      metadata: { prefix: issued.prefix, scope: parsed.data.scope },
       ip: clientIp(request),
     })
     logger.info({ userId: user.id, keyId: issued.id, prefix: issued.prefix }, 'api key issued')
@@ -76,6 +76,7 @@ export async function POST(request: Request) {
       {
         id: issued.id,
         name: parsed.data.name,
+        scope: parsed.data.scope,
         prefix: issued.prefix,
         key: issued.key,
         warning: 'This is the only time this key will be shown. Store it now.',

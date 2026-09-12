@@ -57,7 +57,7 @@ limit apart from reads. Also `verify:api-keys`, `verify:batches`,
 `verify:claims`, `verify:reclaim`, `verify:confirm`, `verify:compliance`, 217
 unit tests, typecheck, lint, build. Not exercised: the SDK against a running
 `next start` over real HTTP (handlers are called in-process), a real Horizon,
-and the Settings → Webhooks form in a browser.
+and the Settings → Webhooks form in a browser. Review: API keys gained a scope (`READ` default, `WRITE` opt-in at issue time, audited); the migration backfills every existing key to `READ`, since all were issued while v1 was read-only; `requireApiWriter` refuses a `READ` key with 403 `insufficient-scope` and `WWW-Authenticate … scope="write"` before touching anything — verified on all five write routes with no campaign, link or audit row resulting, while both scopes still read. `docs/api.md` now states that the export gate over the API is the caller's attestation and what a lie costs (funds locked until reclaim after expiry), and that webhook signing keys are stored in the clear with the follow-up named.
 
 ## 2026-09-12 — Observability: traces, a metric set from this system's own failures, a status page and SLOs (#53)
 

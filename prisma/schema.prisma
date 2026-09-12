@@ -227,11 +227,20 @@ model Session {
   @@index([expiresAt])
 }
 
+/// What an API key may do (#51). Every key issued before scopes existed was
+/// issued when v1 was read-only, and the migration backfills them to READ:
+/// a key that could only read must not start writing because the API grew.
+enum ApiKeyScope {
+  READ
+  WRITE
+}
+
 model ApiKey {
   id             String    @id @default(cuid())
   userId         String // who issued it
   organizationId String // whose campaigns it reads
   name           String
+  scope          ApiKeyScope @default(READ)
   prefix     String    @unique // first 8 chars, shown in UI
   keyHash    String // argon2id of the full key
   lastUsedAt DateTime?

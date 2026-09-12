@@ -9,6 +9,7 @@
  * one row so a request costs one argon2 verify rather than one per key in the
  * system.
  */
+import type { ApiKeyScope } from '@/generated/prisma/client'
 import { randomBytes } from 'node:crypto'
 import argon2 from 'argon2'
 import { prisma } from '@/lib/db/client'
@@ -68,7 +69,7 @@ export interface IssuedKey {
  * surfacing as a 500. Six random bytes make one vanishingly unlikely; handling
  * it is cheaper than reasoning about how unlikely.
  */
-export async function issueApiKey(userId: string, organizationId: string, name: string): Promise<IssuedKey> {
+export async function issueApiKey(userId: string, organizationId: string, name: string, scope: ApiKeyScope = 'READ'): Promise<IssuedKey> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const prefix = randomBytes(PREFIX_BYTES).toString('hex')
     const secret = randomBytes(SECRET_BYTES).toString('base64url')
@@ -76,7 +77,7 @@ export async function issueApiKey(userId: string, organizationId: string, name: 
 
     try {
       const row = await prisma.apiKey.create({
-        data: { userId, organizationId, name, prefix, keyHash: await argon2.hash(key, OPTIONS) },
+        data: { userId, organizationId, name, scope, prefix, keyHash: await argon2.hash(key, OPTIONS) },
         select: { id: true, prefix: true },
       })
       return { id: row.id, prefix: row.prefix, key }
@@ -100,6 +101,8 @@ export interface ApiKeyCaller {
   userId: string
   /** The scope every v1 query runs in. */
   organizationId: string
+  /** READ or WRITE (#51). A READ key is refused by every write route. */
+  scope: ApiKeyScope
 }
 
 export type ApiKeyResolution =
@@ -130,7 +133,7 @@ export async function resolveApiKey(request: Request): Promise<ApiKeyResolution>
 
   const row = await prisma.apiKey.findUnique({
     where: { prefix: parsed[1]! },
-    select: { id: true, userId: true, organizationId: true, keyHash: true, revokedAt: true },
+    select: { id: true, userId: true, organizationId: true, scope: true, keyHash: true, revokedAt: true },
   })
 
   if (!row) {
@@ -149,7 +152,7 @@ export async function resolveApiKey(request: Request): Promise<ApiKeyResolution>
   const live = row.revokedAt === null
   if (!(matches && live)) return { ok: false, reason: 'invalid' }
 
-  return { ok: true, caller: { keyId: row.id, userId: row.userId, organizationId: row.organizationId } }
+  return { ok: true, caller: { keyId: row.id, userId: row.userId, organizationId: row.organizationId, scope: row.scope } }
 }
 
 /**
@@ -181,7 +184,7 @@ export async function listApiKeys(organizationId: string) {
     // ordering costs nothing to make total, and this list is not paginated only
     // because it is short today.
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    select: { id: true, name: true, prefix: true, lastUsedAt: true, revokedAt: true, createdAt: true },
+    select: { id: true, name: true, scope: true, prefix: true, lastUsedAt: true, revokedAt: true, createdAt: true },
   })
 }
 

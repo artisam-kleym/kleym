@@ -94,6 +94,21 @@ export function apiServerError(): Response {
   )
 }
 
+/** 403, not 401: the key is real and live; it was issued without write scope. */
+export function apiInsufficientScope(): Response {
+  return problem(
+    {
+      type: `${BASE}/insufficient-scope`,
+      title: 'Insufficient scope',
+      status: 403,
+      detail: 'This key was issued with read scope. Issue a key with write scope under Settings → API keys.',
+      correlationId: randomUUID(),
+    },
+    403,
+    { 'www-authenticate': 'Bearer realm="kleym", scope="write"' },
+  )
+}
+
 export function apiConflict(detail: string): Response {
   return problem({ type: `${BASE}/conflict`, title: 'Conflict', status: 409, detail, correlationId: randomUUID() }, 409)
 }
@@ -171,6 +186,8 @@ export type ApiWriterResult =
 export async function requireApiWriter(request: Request, route: string): Promise<ApiWriterResult> {
   const auth = await requireApiCaller(request)
   if (!auth.caller) return { response: auth.response }
+  // Scope before anything else touches the request: a READ key gets a 403 and no side effect.
+  if (auth.caller.scope !== 'WRITE') return { response: apiInsufficientScope() }
 
   const limit = await rateLimit(`apikeywrite:${auth.caller.keyId}`, API_WRITE_RATE_LIMIT.limit, API_WRITE_RATE_LIMIT.windowSeconds)
   if (!limit.allowed) return { response: apiRateLimited(limit.retryAfterSeconds, API_WRITE_RATE_LIMIT) }
