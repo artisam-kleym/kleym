@@ -8,6 +8,7 @@ import { Worker, type Job } from 'bullmq'
 import { logger } from '@/lib/config/logger'
 import { QUEUE, queueConnection } from '@/lib/queue/connection'
 import { reconcileAll, reconcileCampaign, sweepExpired } from '@/lib/api/reconcile'
+import { watchEphemerals } from '@/lib/api/stranded'
 
 interface ReconcileJob {
   campaignId?: string
@@ -58,6 +59,38 @@ export function startExpiryWorker(): Worker {
 
   worker.on('failed', (job, error) => {
     logger.warn({ attempt: job?.attemptsMade, reason: error.message }, 'expiry sweep attempt failed')
+  })
+
+  return worker
+}
+
+/**
+ * `ephemeral-watch` — the stranded account monitor. SPEC.md §7.3.
+ *
+ * Concurrency 1. The sweep is one ledger read per unfinished claim, and two
+ * copies racing would double Horizon's load to reach the same answer.
+ */
+export function startEphemeralWatchWorker(): Worker {
+  const worker = new Worker(
+    QUEUE.ephemeralWatch,
+    async () => {
+      const report = await watchEphemerals()
+      if (report.critical > 0) {
+        logger.error(
+          { critical: report.critical },
+          'partially-applied claims found: ephemeral accounts holding a balance',
+        )
+      }
+      return report
+    },
+    { connection: queueConnection(), concurrency: 1 },
+  )
+
+  worker.on('failed', (job, error) => {
+    logger.warn(
+      { attempt: job?.attemptsMade, reason: error.message },
+      'ephemeral watch attempt failed',
+    )
   })
 
   return worker

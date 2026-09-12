@@ -93,6 +93,11 @@ describe('reading a problem response', () => {
     expect(stateFromProblem(p.status, p.type)).toBe('already_claimed')
   })
 
+  it('sends an emailed recipient back to the code screen when the gate refuses', async () => {
+    const p = await emitted('otp-required')
+    expect(stateFromProblem(p.status, p.type)).toBe('otp_required')
+  })
+
   it('never reads the detail prose', () => {
     expect(stateFromProblem(409, 'This link has expired.')).toBe('failed')
     expect(stateFromProblem(409, 'This link has already been claimed.')).toBe('failed')

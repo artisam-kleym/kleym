@@ -6,6 +6,7 @@
  */
 import { z } from 'zod'
 import { logger } from '@/lib/config/logger'
+import { recordAudit } from '@/lib/api/audit'
 import { clientIp } from '@/lib/auth/client-ip'
 import { guardRequestBody } from '@/lib/security/guard'
 import { requireUser } from '@/lib/api/session-guard'
@@ -59,6 +60,15 @@ export async function POST(request: Request) {
     const issued = await issueApiKey(user.id, parsed.data.name)
 
     // The key itself is never logged (AGENT.md §4.5).
+    await recordAudit({
+      userId: user.id,
+      action: 'apikey.create',
+      entityType: 'apikey',
+      entityId: issued.id,
+      // The PREFIX, which is how a key is identified in the UI. Never the key.
+      metadata: { prefix: issued.prefix },
+      ip: clientIp(request),
+    })
     logger.info({ userId: user.id, keyId: issued.id, prefix: issued.prefix }, 'api key issued')
 
     return Response.json(

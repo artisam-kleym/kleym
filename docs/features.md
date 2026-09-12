@@ -18,6 +18,275 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 ---
 
+## 2026-08-22 — Admin area and audit logging (#15)
+
+Admins get `/admin/users`, `/admin/campaigns` and `/admin/audit` alongside the sponsor
+float and drift report already there. Every mutating action now writes an audit row:
+who did it, to what, and from which address.
+
+Deactivating a user means signed out, not paused. It deletes their sessions rather than
+relying on the active-check that already blocks the next request — a session row that is
+merely inert still exists, still shows in a count, and would come back to life the moment
+the account was reactivated. Confirmed live: a sender's cookie went from working to
+redirecting the instant an admin deactivated them, and sign-in then failed with the same
+generic message as a wrong password, so the failure does not reveal account state.
+
+Audit `metadata` is scrubbed rather than trusted. Two independent rules, because either
+alone has a hole: field names that look like credentials are redacted whatever they hold
+— which is the only way to catch an opaque session token, since nothing about the string
+gives it away — and any value containing a Stellar seed is redacted whatever it is called,
+which catches a seed hiding under `note` or `label`. Callers being careful is still the
+real defence; this is the backstop for the one that is not. A seed reaching the server now
+writes an audit row too, recording the **field path** and never the value.
+
+Admin access is enforced in every route handler, not by hiding navigation. A signed-in
+sender gets **404 rather than 403** on all five admin pages and on the users API, so the
+route's existence is not disclosed; an anonymous request is redirected or gets a 401.
+
+### After review
+
+**The scrubber no longer treats `code` as a credential suffix.** It was in the
+forbidden list as a substring, so `assetCode`, `statusCode`, `resultCode` and
+`countryCode` would all have been silently redacted — and every campaign
+creation would have fired the "credential-shaped fields" alarm the moment
+someone added `assetCode` to its metadata. The credential words (`seed`,
+`secret`, `password`, `token`, `otp`, `apikey`, `privatekey`…) still match as
+substrings of the flattened key, whatever the spelling — a whole-segment
+rewrite was tried and let `apikey`, `privatekey` and `sessiontoken` through —
+and only a field named exactly `code` is treated as an OTP. `verify:admin`
+checks both lists, including run-together and all-caps spellings.
+
+**`sessionsEnded` is reported only on deactivation.** Activation used to
+sweep the user's expired sessions and return that count under the same name,
+so "activated Alice, 4 sessions ended" read as a sign-out. Activation now
+touches no sessions, returns `sessionsEnded: 0`, and its audit row carries no
+such field.
+
+**Verified by:** `pnpm verify:admin`, 7 sections against a real Postgres. The scrubber is
+attacked with the shapes a careless caller actually produces — a session token, an API
+key, an OTP, a password, an oddly-spelled secret, an authorization header, and a seed
+hidden under two innocent field names — because criterion 7 is a claim about every call
+site, present and future, not about the four written today. Each section first shown to
+fail against a planted regression: dropping the key rule, dropping the value rule, not
+deleting sessions on deactivation, and allowing an admin to deactivate themselves.
+
+Checked live against a production build: the access matrix above across all five pages
+and the users API; `GET /api/health` returns `{"status":"ok"}` with no auth and no
+version, dependency or internal detail; `GET /api/ready` reports reachability; the audit
+viewer renders, filters and pages; and posting a seed writes an audit row whose metadata
+contains the field name and, confirmed by query, the seed nowhere at all.
+
+**Honest caveat on one check.** `queryAudit` breaks `createdAt` ties on `id`, the fix
+#27/#28 needed for paged link lists. The section that walks 30 rows sharing one timestamp
+verifies that paging returns each row exactly once — but removing the tiebreaker does
+**not** fail it, because Postgres returns those rows consistently at this size either way.
+The tiebreaker stays because it is correct and free; it is not proven by a test.
+
+**Not wired yet:** `link.reclaim`, whose action is defined here but whose call site lives
+on #13's branch. It gets its `recordAudit` call when that merges.
+
+## 2026-08-22 — Email delivery with OTP-gated retrieval (#14)
+
+Kleym can now email claim links, and email-delivered links ask for a six-digit code
+before they will pay out. Senders choose this at the end of the wizard, where the
+default is still to take the file and send it themselves.
+
+This is **the one deliberate exception** in the system (SPEC §6.5). Everywhere else,
+link material never touches the server; here the sender's browser sends the full claim
+URL per recipient. Every mitigation the spec requires is implemented somewhere
+specific: the URL goes to the mail provider and is discarded, reaches no database
+column, is in no log line, and its queue job is removed from Redis on completion **and**
+on final failure — `removeOnFail: true`, unlike every other queue here, because a
+delivery that gives up must not leave a claim URL sitting in Redis.
+
+The exception is kept narrow rather than blanket. The seed guard still runs on the
+delivery request, over the body with the URLs removed, so a seed smuggled into an email
+address or any other field is rejected exactly as it would be anywhere else. And each
+URL must parse as this deployment's own `/claim` page with a fragment whose seed derives
+the public key of the link it is being sent for — without that, a compromised sender
+page could have Kleym email any URL at all from Kleym's own address.
+
+The code exists because email is the one channel Kleym does not control: a forwarded
+message or a shared inbox turns a link into a bearer instrument (§12). The code
+re-binds it to the address the sender chose. Sender-distributed links have no delivery
+record and are not gated — Kleym never saw those URLs and has nothing to bind them to.
+Codes are argon2id-hashed, single-use, ten minutes, five attempts, and destroyed rather
+than merely counted out when those attempts run out.
+
+One bug was found by testing the live routes: a request for a code on a real
+email-delivered link answered **500** when the mail provider was unreachable, while an
+unknown key answered **200**. That pair of answers is an enumeration oracle — exactly
+what the identical-response rule closes on `resolve` — so a provider outage would have
+revealed which keys are live emailed links. A failed send now answers identically and
+logs the failure for an operator instead.
+
+### After review
+
+**The gate's wiring is checked, not only the gate.** Every earlier check
+exercised `otpSatisfied` as a function; deleting the `otpGate` call from
+`submit/route.ts` — the route that moves the money — left all of them green.
+`verify:email` now sends three requests against a gated link through the
+`prepare/claim` and `submit` route handlers themselves: no header and a wrong
+header are refused, the right token gets past the gate. The refusal carries
+its own problem `type` (`…/conflict/otp-required`) and the check reads that,
+not the prose — with the gate deleted from `submit`, the route still answers
+409 for an unrelated reason, so a status-only check would have missed it.
+The claim page maps that type back to `otp_required`, so a token lapsing
+mid-flow asks for the code again rather than landing on `failed`.
+
+**Verified by:** `pnpm verify:email`, 10 sections against real Postgres and real Redis.
+The mailer is injected and records what it was asked to send; the Redis assertions scan
+the actual keyspace after the job completes, and the database assertion walks every text
+column in the schema looking for the seed rather than checking the columns someone
+remembered. Each section first shown to fail against a planted regression: persisting the
+URL, keeping completed jobs, mailing any client-supplied URL, removing the five-attempt
+lockout, adding a tracking pixel, and restoring the 500 that created the oracle.
+
+Checked live against a production build: a real seed inside `claimUrl` is accepted (202,
+queued); **the same seed in the email field is rejected 400 SEED_SUBMITTED**; an
+off-origin URL is skipped with a reason; a claim action without a code returns 409 and
+with a forged token returns 409; `resolve` returns the same field set for known and
+unknown keys; and the seed appears in no log line.
+
+**Not yet verified:** a real send through Resend. This environment's `RESEND_API_KEY` is
+a placeholder, so every provider call 401s — which usefully exercised the failure paths
+but means no message has actually been delivered end to end. Stated rather than implied,
+per `AGENT.md` §6.5.
+
+## 2026-08-22 — Stranded ephemeral account monitor (#19)
+
+`/admin` now shows what the sponsor float has lost to abandoned claims: how many
+ephemeral accounts are stranded, how much XLM they lock, and which of them are
+something worse than stranded. A job checks every fifteen minutes.
+
+The two-transaction claim is not atomic (SPEC §3.3.2). TX1 can land and TX2 never
+follow — a closed tab, a rejected signature — leaving an account on the ledger holding
+sponsored reserve. **Kleym cannot recover these**, and the page says so plainly: the
+merge needs the ephemeral key, which exists only in the recipient's URL and the
+sender's CSV. The same property that makes a database breach harmless makes this
+cleanup impossible. No user funds are affected, and the reserve returns by itself when
+the link is eventually claimed.
+
+It reports rather than sweeps, and it is careful about what it reports. An account
+whose claimable balance has *gone* is not stranded — that claim succeeded and the
+database is behind, so it goes to reconciliation instead of being counted as lost
+float. An account holding a non-zero balance is not an ordinary strand either: that is
+a partially-applied claim, logged at ERROR and labelled "Partial claim" on the report,
+because it needs a person rather than patience. And a claim that started minutes ago
+is not abandoned, just in progress — the age is taken from the ledger's own record of
+when the account was last touched, not from a database column.
+
+The stranded rows are deliberately not reconciliation findings. Drift means something
+is wrong; a strand means both sides are telling the truth about a known, documented
+cost. Filing it as drift would dilute the one report whose rows are all supposed to
+matter.
+
+One bug here came from running the worker rather than reading the code. The sweep only
+visits unfinished links, so a link that reached CLAIMED since the last run — a
+recipient finally coming back, the *ordinary* resolution — was never revisited, and its
+row sat on the report forever reporting float as locked that had already returned. Two
+such rows survived every sweep against real data. Settled links are now cleared
+explicitly, which is acceptance criterion 5.
+
+### After review
+
+**A scheduled pass is bounded.** `watchEphemerals` reads at most
+`WATCH_PASS_LIMIT` (3,000) candidates per run, oldest-first, continuing from an
+`ephemeral-watch:cursor` key in Redis and wrapping at the end — the same shape
+as reconciliation's pass, sharing `lib/queue/pass-cursor.ts`. What it does not
+reach is `remaining` in the report and a WARN in the log. Previously a
+10,000-link campaign meant a `*/15` pass that never finished inside its own
+interval, with nothing saying so. The verify script drives a limit of 2 over 3
+links and checks every one is reached across passes.
+
+**Verified by:** `pnpm verify:stranded`, 10 sections against a real Postgres with every
+ledger read injected — a monitor that describes the ledger cannot be checked against a
+stub of itself, and one that passes when Horizon is unreachable would report a healthy
+float while the real one drained. Each section first shown to fail against a planted
+regression: dropping the succeeded-claim hand-off, dropping the age threshold, dropping
+the partial-claim detection, sweeping finished links, miscomputing the reserve as
+`(1 + subentries) × base`, and removing the settled-link clear. Reserve arithmetic is
+checked against SPEC §3.3.2's own figures: 1.0 XLM bare, 1.5 with a trustline.
+
+Checked in a browser against a production build: `/admin` renders the counts, the
+locked total and the table, with the total matching the sum of its rows. The sponsor
+balance read failed against this environment's unfunded key, which exercised the path
+that matters — it renders "Unknown" and says *this is not a balance of zero*, rather
+than rendering a zero that would raise a permanent false exhaustion warning. The worker
+registers `ephemeral-watch`, runs the job, and two consecutive runs produce an
+identical report.
+
+## 2026-08-22 — Reclaim: unclaimed funds return to source (#13)
+
+An expired campaign now has a "Reclaim" button on `/campaigns/[id]`, behind a
+confirmation that says plainly what it costs: every unclaimed link stops working.
+Signing returns the money to the funding wallet, in batches of 90, and the page
+then shows what came back and under which transaction. This closes the loop on the
+promise the wizard makes — *"Unclaimed funds return to source."*
+
+The rule underneath it is SPEC §3.4: the ledger decides what may be reclaimed, never
+the database. Stellar transactions are atomic, so one operation for a balance a
+recipient already took fails with `op_does_not_exist` and voids the other 89 refunds
+in the same batch. So the operation list is built from a live Horizon query, and the
+signed envelope is re-checked against a FRESH query before submission — a recipient
+claiming while the sender is in their wallet is the ordinary case, and the answer is
+to rebuild the batch, not to send a doomed one.
+
+Two things the sender never sees but is protected by. A signed envelope reaching for
+a balance belonging to a different campaign is refused, and so is one that reclaims
+correctly but smuggles an extra payment operation alongside — the wallet's answer is
+untrusted input even though the sender is authenticated. And the same envelope
+submitted twice, even simultaneously, records one reclaim and returns the same result
+to both callers rather than a 500 about a refund that in fact succeeded.
+
+### After review
+
+**`sequence` is gone from `prepare`.** It was documented as "omit for the first
+batch", implying a client walks 1, 2, 3 — but the batch list is recomputed from
+a live ledger read on every call, so once batch 1 lands the old batch 2 *is*
+batch 1, and asking for `sequence: 2` would have skipped 90 balances. The UI
+never used it (it loops on a bare `prepare` and stops at nothing-left, which
+is correct), so this was a footgun for the next client rather than a live bug.
+`prepare` now always builds the first batch of what is left and reports
+`batchesRemaining`; the verify check walks 200 links by shrinking the ledger
+between calls and asserts batch 2 is links 91–180.
+
+**The panel ends its loop on the nothing-left 409 only.** `prepare` also
+answers 409 for "not expired yet" and "sender account does not exist on this
+network"; breaking on any 409 turned both into "There was nothing left to
+reclaim". Conflicts now carry a `type` suffix (`…/conflict/nothing-left`,
+`…/conflict/not-expired`, `…/conflict/no-sender-account`) and the panel
+matches on that, surfacing the other two as errors.
+
+**Amounts are `toFixed()`, never `toString()`.** One stroop rendered as
+`1e-7` in the panel and was stored as `1e-7`; it is now `0.0000001` on the
+wire and in `ReclaimBatch.amount`, with a check. The panel's reclaimed total
+also summed with `Number` — a §4.1 violation — and now uses `Decimal`.
+
+**Verified by:** `pnpm verify:reclaim`, 10 sections against a real Postgres with the
+ledger reads and the network submit injected — a check that passes when Horizon is
+unreachable would prove nothing about a rule that is *about* the ledger. The
+envelopes are really signed and really parsed by the SDK; only the network boundary
+is faked. Each section was first shown to fail against a planted regression: removing
+the expiry refusal, deriving operations from rows instead of the ledger, dropping the
+staleness re-check, dropping the cross-campaign ownership check, and letting the
+duplicate-hash collision propagate. The concurrency section needed a barrier in the
+injected submit to make the race actually happen — without it, the first write
+finishes before the second reads and the check passes no matter what the code does.
+
+Checked in a browser against a production build: `/campaigns/[id]` renders the
+campaign, its links and the reclaim panel; the warning panel appears only on
+confirmation, not on load; `prepare` on a campaign with nothing on-chain returns 409
+with a plain explanation; unauthenticated returns 401 and the page redirects. Posting
+a real Stellar seed to `reclaim/submit` returns 400 `SEED_SUBMITTED`, records a
+security event, and the seed appears nowhere in the log.
+
+**Not yet verified:** the end-to-end testnet path — a funded campaign, expiry, and the
+sender's balance rising by exactly the reclaimed sum (SPEC §10.5 criterion 6). That
+needs a campaign whose expiry has genuinely passed on-chain, so it is a testnet run,
+not a unit check. Stated rather than implied, per `AGENT.md` §6.5.
+
+
 ## 2026-08-22 — Reconciliation and expiry sweeps (#12)
 
 The database no longer has the last word on whether a link was claimed. A sweep runs

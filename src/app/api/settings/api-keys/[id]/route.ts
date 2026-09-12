@@ -5,6 +5,8 @@
  * call rather than caching a resolution (SPEC.md §6.6).
  */
 import { logger } from '@/lib/config/logger'
+import { clientIp } from '@/lib/auth/client-ip'
+import { recordAudit } from '@/lib/api/audit'
 import { requireUser } from '@/lib/api/session-guard'
 import { notFound, serverError } from '@/lib/api/problems'
 import { revokeApiKey } from '@/lib/auth/api-key'
@@ -14,7 +16,7 @@ export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ id: string }> }
 
-export async function DELETE(_request: Request, { params }: Params) {
+export async function DELETE(request: Request, { params }: Params) {
   const { user, response } = await requireUser()
   if (!user) return response
   const { id } = await params
@@ -25,6 +27,13 @@ export async function DELETE(_request: Request, { params }: Params) {
     const revoked = await revokeApiKey(id, user.id)
     if (!revoked) return notFound()
 
+    await recordAudit({
+      userId: user.id,
+      action: 'apikey.revoke',
+      entityType: 'apikey',
+      entityId: id,
+      ip: clientIp(request),
+    })
     logger.info({ userId: user.id, keyId: id }, 'api key revoked')
     return new Response(null, { status: 204 })
   } catch (error) {

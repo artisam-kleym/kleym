@@ -26,7 +26,11 @@
     "verify:campaign-list": "tsx scripts/verify-campaign-list.ts",
     "verify:reconcile": "tsx scripts/verify-reconcile.ts",
     "verify:confirm": "tsx scripts/verify-confirm-worker.ts",
-    "fixture:balance-id": "tsx scripts/make-balance-id-fixture.ts"
+    "fixture:balance-id": "tsx scripts/make-balance-id-fixture.ts",
+    "verify:email": "tsx scripts/verify-email.ts",
+    "verify:stranded": "tsx scripts/verify-stranded.ts",
+    "verify:reclaim": "tsx scripts/verify-reclaim.ts",
+    "verify:admin": "tsx scripts/verify-admin.ts"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.6.0",

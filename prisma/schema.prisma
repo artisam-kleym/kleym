@@ -141,10 +141,32 @@ model Campaign {
   user     User        @relation(fields: [userId], references: [id])
   links    ClaimLink[]
   batches  Batch[]
+  reclaims ReclaimBatch[]
   findings ReconciliationFinding[]
+  stranded StrandedAccount[]
 
   @@index([userId, status])
   @@index([expiresAt, status])
+}
+
+/// One submitted reclaim transaction. SPEC.md §3.4.
+///
+/// Membership is NOT planned in advance the way creation batches are. Which
+/// balances are reclaimable is a question only the ledger can answer, and the
+/// answer changes while the sender is signing, so each reclaim is built from a
+/// live Horizon query and recorded here once it is on its way.
+model ReclaimBatch {
+  id              String   @id @default(cuid())
+  campaignId      String
+  transactionHash String   @unique
+  balanceCount    Int
+  /// Summed from the LEDGER's amounts, not from amountPerLink.
+  amount          Decimal  @db.Decimal(23, 7)
+  submittedAt     DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
 }
 
 model Batch {
@@ -188,6 +210,7 @@ model ClaimLink {
   batch    Batch?    @relation(fields: [batchId], references: [id])
   delivery Delivery?
   findings ReconciliationFinding[]
+  stranded StrandedAccount?
 
   @@index([campaignId, status])
   @@index([balanceId])
@@ -219,6 +242,40 @@ model Delivery {
 /// Keyed on (linkId, kind) so a re-run updates the finding rather than adding a
 /// duplicate every five minutes. §10.13 asks that a second run produce no extra
 /// noise, and an append-only table would produce nothing but.
+/// A stranded ephemeral account. SPEC.md §3.3.2, §7.3.
+///
+/// TX1 landed and TX2 never followed, so an account exists on the ledger
+/// holding sponsored reserve that Kleym CANNOT recover — the merge needs the
+/// ephemeral key, which Kleym deliberately does not hold.
+///
+/// Deliberately NOT a ReconciliationFinding. Drift is a disagreement between
+/// the database and the chain, and something is wrong when it appears. A
+/// strand is neither: both sides are telling the truth, and it is a known,
+/// documented cost of the non-custodial guarantee (§12). Filing it as drift
+/// would dilute the one report whose rows are all supposed to mean something.
+model StrandedAccount {
+  linkId             String   @id
+  campaignId         String
+  ephemeralPublicKey String
+  /// XLM this account locks, from the LIVE base reserve when it was measured.
+  lockedReserve      Decimal  @db.Decimal(23, 7)
+  /// A non-zero asset balance: a partially-applied claim, not an ordinary
+  /// strand. Reported separately because it needs a human, not patience.
+  critical           Boolean  @default(false)
+  detail             String
+  /// When the ledger says the ephemeral account was last touched — TX1's time
+  /// for an abandoned claim. The age test uses this, not a database column.
+  lastLedgerActivity DateTime
+  firstSeenAt        DateTime @default(now())
+  lastSeenAt         DateTime @updatedAt
+
+  link     ClaimLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  campaign Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([critical])
+  @@index([campaignId])
+}
+
 model ReconciliationFinding {
   id         String   @id @default(cuid())
   linkId     String

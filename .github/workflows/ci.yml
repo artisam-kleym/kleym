@@ -83,11 +83,23 @@ jobs:
       - name: Verify claim resolve, limits and ledger authority
         run: pnpm verify:claims
 
+      - name: Verify email delivery and OTP
+        run: pnpm verify:email
+
       - name: Verify campaign list and history ownership, filters and ordering
         run: pnpm verify:campaign-list
 
       - name: Verify reconciliation and the expiry sweep
         run: pnpm verify:reconcile
+
+      - name: Verify the stranded ephemeral account monitor
+        run: pnpm verify:stranded
+
+      - name: Verify reclaim after expiry
+        run: pnpm verify:reclaim
+
+      - name: Verify the admin area and audit logging
+        run: pnpm verify:admin
 
   e2e:
     name: CSV gate (real browser)
