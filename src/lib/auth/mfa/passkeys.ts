@@ -19,6 +19,7 @@ import { redis } from '@/lib/redis/client'
 import { env } from '@/lib/config/env'
 import { logger } from '@/lib/config/logger'
 import { recordAudit } from '@/lib/api/audit'
+import { issueRecoveryCodes } from './factors'
 
 const CHALLENGE_TTL_SECONDS = 300
 
@@ -51,13 +52,15 @@ export async function passkeyRegistrationOptions(user: { id: string; username: s
     userID: new TextEncoder().encode(user.id),
     attestationType: 'none',
     excludeCredentials: existing.map((c) => ({ id: c.credentialId, transports: c.transports as AuthenticatorTransport[] })),
+    // User verification preferred, not required: this is the SECOND factor —
+    // the password is the first — so a touch on a security key is enough.
     authenticatorSelection: { residentKey: 'preferred', userVerification: 'preferred' },
   })
   await storeChallenge(sessionId, 'register', options.challenge)
   return options
 }
 
-export async function passkeyRegister(user: { id: string }, sessionId: string, response: RegistrationResponseJSON, name: string, ip: string | null): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
+export async function passkeyRegister(user: { id: string }, sessionId: string, response: RegistrationResponseJSON, name: string, ip: string | null): Promise<{ ok: true; id: string; recoveryCodes: string[] | null } | { ok: false; reason: string }> {
   const expectedChallenge = await takeChallenge(sessionId, 'register')
   if (!expectedChallenge) return { ok: false, reason: 'no challenge outstanding' }
   const { rpID, origin } = relyingParty()
@@ -82,7 +85,9 @@ export async function passkeyRegister(user: { id: string }, sessionId: string, r
   })
   await recordAudit({ userId: user.id, action: 'mfa.passkey_added', entityType: 'user', entityId: user.id, metadata: { passkeyId: row.id }, ip })
   logger.info({ userId: user.id, passkeyId: row.id }, 'mfa: passkey added')
-  return { ok: true, id: row.id }
+  // Recovery codes come with the FIRST factor of either kind, so a passkey-only user is not one lost device from an admin reset.
+  const recoveryCodes = (await prisma.mfaRecoveryCode.count({ where: { userId: user.id } })) === 0 ? await issueRecoveryCodes(user.id) : null
+  return { ok: true, id: row.id, recoveryCodes }
 }
 
 export async function passkeyAuthenticationOptions(userId: string, sessionId: string) {

@@ -73,13 +73,14 @@ export type CodeCheck =
  * Confirms an unconfirmed enrolment with one code from the app, issues the
  * recovery codes (returned ONCE, stored hashed), audits.
  */
-export async function confirmTotpEnrolment(userId: string, code: string, ip: string | null, now = new Date()): Promise<{ kind: 'none' } | { kind: 'wrong'; attemptsLeft: number } | { kind: 'locked' } | { kind: 'ok'; recoveryCodes: string[] }> {
+export async function confirmTotpEnrolment(userId: string, code: string, ip: string | null, now = new Date()): Promise<{ kind: 'none' } | { kind: 'wrong'; attemptsLeft: number } | { kind: 'locked' } | { kind: 'ok'; recoveryCodes: string[] | null }> {
   const row = await prisma.mfaTotp.findUnique({ where: { userId }, select: { ciphertext: true, confirmedAt: true } })
   if (!row || row.confirmedAt) return { kind: 'none' }
   const check = await checkTotp(userId, code, now)
   if (!check.ok) return check.reason === 'locked' ? { kind: 'locked' } : check.reason === 'none' ? { kind: 'none' } : { kind: 'wrong', attemptsLeft: check.attemptsLeft }
   await prisma.mfaTotp.update({ where: { userId }, data: { confirmedAt: now, attempts: 0, lockedUntil: null } })
-  const recoveryCodes = await issueRecoveryCodes(userId)
+  // Recovery codes come with the FIRST factor of either kind; an existing set is kept.
+  const recoveryCodes = (await prisma.mfaRecoveryCode.count({ where: { userId } })) === 0 ? await issueRecoveryCodes(userId) : null
   await recordAudit({ userId, action: 'mfa.totp_enrolled', entityType: 'user', entityId: userId, metadata: {}, ip })
   logger.info({ userId }, 'mfa: totp enrolled')
   return { kind: 'ok', recoveryCodes }
@@ -102,7 +103,17 @@ export async function checkTotp(userId: string, code: string, now = new Date()):
     select: { attempts: true },
   })
   const matched = totpMatches(decryptSecret(row.ciphertext), code, now)
-  if (matched === null) {
+  /*
+   * RFC 6238 §5.2: a code is accepted ONCE. The step that matched is recorded
+   * in the same statement that checks it is newer than the last accepted one,
+   * so two concurrent replays cannot both pass — the loser counts as a wrong
+   * guess, which is what a replay is.
+   */
+  const accepted = matched === null ? 0 : (await prisma.mfaTotp.updateMany({
+    where: { userId, OR: [{ lastUsedStep: null }, { lastUsedStep: { lt: BigInt(matched) } }] },
+    data: { lastUsedStep: BigInt(matched), attempts: 0, lockedUntil: null },
+  })).count
+  if (matched === null || accepted === 0) {
     const left = Math.max(0, MFA_MAX_ATTEMPTS - attempts)
     if (left === 0) {
       await prisma.mfaTotp.update({ where: { userId }, data: { lockedUntil: new Date(now.getTime() + MFA_LOCKOUT_MS) } })
@@ -111,7 +122,6 @@ export async function checkTotp(userId: string, code: string, now = new Date()):
     }
     return { ok: false, reason: 'wrong', attemptsLeft: left }
   }
-  await prisma.mfaTotp.update({ where: { userId }, data: { attempts: 0, lockedUntil: null } })
   return { ok: true, via: 'totp' }
 }
 
@@ -127,6 +137,8 @@ export async function checkCode(userId: string, code: string, ip: string | null,
     // Bounded by the TOTP counter: a wrong recovery code costs an attempt.
     const gate = await prisma.mfaTotp.findUnique({ where: { userId }, select: { attempts: true, lockedUntil: true } })
     if (gate?.lockedUntil && gate.lockedUntil.getTime() > now.getTime()) return { ok: false, reason: 'locked', attemptsLeft: 0 }
+    // A passkey-only user has recovery codes too (issued with the first factor) and no TOTP counter;
+    // their guesses are bounded by the route's IP limit.
     const used = await consumeRecoveryCode(userId, trimmed.toLowerCase(), ip, now)
     if (used) return { ok: true, via: 'recovery' }
     if (gate) {
@@ -143,9 +155,10 @@ export async function checkCode(userId: string, code: string, ip: string | null,
   return { ok: false, reason: 'wrong', attemptsLeft: 0 }
 }
 
-/** Removes the TOTP factor and every recovery code. */
+/** Removes the TOTP factor; the recovery codes go with it only when no passkey remains. */
 export async function removeTotp(userId: string, ip: string | null): Promise<void> {
-  await prisma.$transaction([prisma.mfaTotp.deleteMany({ where: { userId } }), prisma.mfaRecoveryCode.deleteMany({ where: { userId } })])
+  const passkeys = await prisma.mfaPasskey.count({ where: { userId } })
+  await prisma.$transaction([prisma.mfaTotp.deleteMany({ where: { userId } }), ...(passkeys === 0 ? [prisma.mfaRecoveryCode.deleteMany({ where: { userId } })] : [])])
   await recordAudit({ userId, action: 'mfa.totp_removed', entityType: 'user', entityId: userId, metadata: {}, ip })
 }
 

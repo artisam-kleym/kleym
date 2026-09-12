@@ -53,7 +53,7 @@ tests, typecheck, lint, build. Not exercised: the pages and the passkey
 browser prompt in a real browser (the routes and the WebAuthn verification
 are exercised at the library level with a synthetic authenticator); a QR
 code for the TOTP key is not rendered — the key and an `otpauth://` link
-are shown instead.
+are shown instead. Review: a TOTP code is now accepted once (`lastUsedStep`, race-safe), verified by the same code refused a second time and the previous step refused after a later one; adding a factor to an account that has one takes a fresh step-up and marks nothing on the session (verified: a six-hour session is blocked from enrolling, opens after a step-up, and registering a second passkey leaves `mfaAt`/`stepUpAt` untouched); recovery codes are issued with the first factor of either kind, so a passkey-only user has them.
 
 ## 2026-09-12 — Write API, outbound webhooks and a local-keygen SDK (#51)
 

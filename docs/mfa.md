@@ -11,11 +11,20 @@ factor again, freshly, whatever the session's age.
 |---|---|---|
 | **TOTP** (RFC 6238) | any authenticator app; SHA-1, 30 s, six digits, ±1 step | the shared key AES-256-GCM-encrypted under `MFA_ENCRYPTION_KEY` (`MfaTotp.ciphertext`); never in the clear |
 | **Passkey** (WebAuthn) | a security key or the platform authenticator; attestation `none`, user verification preferred | the credential's public key, id and signature counter (`MfaPasskey`) |
-| **Recovery codes** | eight `xxxx-xxxx-xxxx`, shown once at TOTP enrolment | argon2id-hashed with the password parameters; single-use (`MfaRecoveryCode.usedAt`) |
+| **Recovery codes** | eight `xxxx-xxxx-xxxx`, shown once with the **first** factor of either kind | argon2id-hashed with the password parameters; single-use (`MfaRecoveryCode.usedAt`) |
 
 Enrolment lives at `/settings/security`. The TOTP key and the recovery codes
 are shown once, from the response, and there is no endpoint that shows either
-again. Removing a factor takes a fresh factor.
+again. Removing a factor takes a fresh factor — and so does **adding** one
+when the account already has one: otherwise a hijacked session could enrol its
+own authenticator and step itself up with it. A first enrolment has nothing to
+present and is exempt; it is also the only enrolment that counts as
+verification of the session that made it. An additional factor leaves the
+session's `mfaAt`/`stepUpAt` exactly as they were.
+
+WebAuthn is asked for user verification `preferred`, not `required`: the
+passkey is the *second* factor — the password is the first — so a touch on a
+security key is enough.
 
 ## Session states
 
@@ -57,6 +66,15 @@ and the key form show the factor prompt inline and retry. A user with no
 factor is not asked — there is nothing to present — unless a policy requires
 one, in which case they cannot sign in at all until enrolled. Sign-in
 verification counts as a step-up.
+
+## Replay
+
+A TOTP code is accepted **once** (RFC 6238 §5.2). `MfaTotp.lastUsedStep`
+records the step that matched, written in the same statement that checks it
+is newer than the last accepted one, so two concurrent replays cannot both
+pass; the loser counts as a wrong guess. A code seen over a shoulder or in a
+screenshot is worthless the moment it has been used, which — with step-up on
+the money routes — is exactly when it would be replayed.
 
 ## Brute force
 

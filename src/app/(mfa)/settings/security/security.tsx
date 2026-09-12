@@ -39,7 +39,11 @@ export function Security({ state, totp, passkeys, recoveryCodesLeft }: Props) {
     }
   }
 
+  const enrolled = totp !== null || passkeys.length > 0
+
   async function beginTotp() {
+    // Adding a factor to an account that has one takes a fresh factor first.
+    if (enrolled && !(await stepUp.ensure())) return
     const r = await call('/api/auth/mfa/totp/enrol', { method: 'POST' })
     if (!r.ok) return setError(String(r.body.detail ?? 'Could not start enrolment.'))
     setEnrolment({ keyBase32: String(r.body.keyBase32), otpauth: String(r.body.otpauth) })
@@ -53,7 +57,7 @@ export function Security({ state, totp, passkeys, recoveryCodesLeft }: Props) {
       return setError(r.status === 423 ? 'Too many wrong codes; try again in fifteen minutes.' : r.body.attemptsLeft !== undefined ? `That code was not accepted. ${r.body.attemptsLeft} attempts left.` : String(r.body.detail ?? 'That code was not accepted.'))
     }
     setEnrolment(null)
-    setRecovery(r.body.recoveryCodes as string[])
+    if (Array.isArray(r.body.recoveryCodes)) setRecovery(r.body.recoveryCodes as string[])
     router.refresh()
   }
 
@@ -67,6 +71,7 @@ export function Security({ state, totp, passkeys, recoveryCodesLeft }: Props) {
   async function addPasskey(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const name = String(new FormData(event.currentTarget).get('name') ?? '').trim() || 'Passkey'
+    if (enrolled && !(await stepUp.ensure())) return
     const options = await call('/api/auth/mfa/passkey/register/options', { method: 'POST' })
     if (!options.ok) return setError('Could not start passkey registration.')
     setBusy(true)
@@ -75,6 +80,7 @@ export function Security({ state, totp, passkeys, recoveryCodesLeft }: Props) {
       const attestation = await startRegistration({ optionsJSON: options.body as never })
       const r = await call('/api/auth/mfa/passkey/register', { method: 'POST', body: JSON.stringify({ response: attestation, name }) })
       if (!r.ok) return setError(String(r.body.reason ?? 'The passkey was not accepted.'))
+      if (Array.isArray(r.body.recoveryCodes)) setRecovery(r.body.recoveryCodes as string[])
       router.refresh()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The passkey prompt was cancelled.')

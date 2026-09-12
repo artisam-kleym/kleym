@@ -266,6 +266,9 @@ model MfaTotp {
   /// Wrong codes since the last success. Same bound and lockout as the recipient OTP.
   attempts    Int       @default(0)
   lockedUntil DateTime?
+  /// The time step of the last accepted code (RFC 6238 §5.2): a code is
+  /// accepted once, and never for a step at or before this one.
+  lastUsedStep BigInt?
   createdAt   DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

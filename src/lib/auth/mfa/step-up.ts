@@ -40,3 +40,16 @@ export async function markMfaVerified(userId: string, sessionId: string, via: 't
   await prisma.session.update({ where: { id: sessionId }, data: { mfaAt: now, stepUpAt: now } })
   await recordAudit({ userId, action: 'mfa.verified', entityType: 'session', entityId: sessionId, metadata: { via }, ip })
 }
+
+/**
+ * Adding a factor (#47 review): when the user already has one, adding
+ * another takes a FRESH step-up — otherwise a hijacked session could enrol
+ * its own authenticator and step itself up with it. A first enrolment has
+ * nothing to present and is exempt; it is also the only enrolment that
+ * counts as verification of the session.
+ */
+export async function enrolmentGate(userId: string, sessionId: string, now = new Date()): Promise<{ first: boolean; blocked: boolean }> {
+  const state = await stepUpState(userId, sessionId, now)
+  if (state === 'not-enrolled') return { first: true, blocked: false }
+  return { first: false, blocked: state === 'required' }
+}

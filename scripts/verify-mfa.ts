@@ -36,7 +36,7 @@ const { beginTotpEnrolment, confirmTotpEnrolment, checkCode, checkTotp, factorsO
 const { totpAt, totpMatches, base32Decode, base32Encode } = await import('../src/lib/auth/mfa/totp')
 const { decryptSecret } = await import('../src/lib/auth/mfa/crypto')
 const { passkeyRegistrationOptions, passkeyRegister, passkeyAuthenticationOptions, passkeyAuthenticate, relyingParty } = await import('../src/lib/auth/mfa/passkeys')
-const { markMfaVerified, markStepUp, stepUpGate, stepUpState, STEP_UP_MAX_AGE_SECONDS } = await import('../src/lib/auth/mfa/step-up')
+const { markMfaVerified, markStepUp, stepUpGate, stepUpState, enrolmentGate, STEP_UP_MAX_AGE_SECONDS } = await import('../src/lib/auth/mfa/step-up')
 const { mfaRequiredFor } = await import('../src/lib/auth/mfa/policy')
 const { setMfaPolicy } = await import('../src/lib/api/organizations')
 
@@ -128,15 +128,21 @@ async function enrolAndSignIn(): Promise<{ userId: string; keyBase32: string; re
   const wrong = await confirmTotpEnrolment(u.id, '000000', null)
   check('a wrong confirmation code is refused and counted', wrong.kind === 'wrong' && wrong.attemptsLeft === MFA_MAX_ATTEMPTS - 1, JSON.stringify(wrong))
   const confirmed = await confirmTotpEnrolment(u.id, totpAt(begun.keyBase32), null)
-  check('the right code confirms and hands back eight recovery codes once', confirmed.kind === 'ok' && confirmed.recoveryCodes.length === 8 && confirmed.recoveryCodes.every((c) => /^[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$/.test(c)), JSON.stringify(confirmed))
-  if (confirmed.kind !== 'ok') throw new Error('not confirmed')
+  check('the right code confirms and hands back eight recovery codes once', confirmed.kind === 'ok' && confirmed.recoveryCodes?.length === 8 && confirmed.recoveryCodes.every((c) => /^[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$/.test(c)), JSON.stringify(confirmed))
+  if (confirmed.kind !== 'ok' || !confirmed.recoveryCodes) throw new Error('not confirmed')
   check('the factor now exists', await hasFactor(u.id))
 
   // A NEW session owes the factor; nothing else is reachable with it.
   const s1 = await session(u.id)
   check('a fresh session after enrolment is mfa-pending', (await state(s1.token)) === 'mfa-pending')
-  const code = await checkCode(u.id, totpAt(begun.keyBase32), null)
+  // The confirmation just consumed the current step; the next step's code is what the app shows next.
+  const next = new Date(Date.now() + 30_000)
+  const code = await checkCode(u.id, totpAt(begun.keyBase32, next), null, next)
   check('the app code verifies', code.ok && code.via === 'totp', JSON.stringify(code))
+  const replay = await checkCode(u.id, totpAt(begun.keyBase32, next), null, next)
+  check('the SAME code again within its window is refused (RFC 6238 §5.2)', !replay.ok && replay.reason === 'wrong', JSON.stringify(replay))
+  const earlier = await checkTotp(u.id, totpAt(begun.keyBase32, new Date(next.getTime() - 30_000)), next)
+  check('and so is the previous step\'s code once a later one was accepted', !earlier.ok)
   await markMfaVerified(u.id, s1.id, 'totp', null)
   check('and the session is ok', (await state(s1.token)) === 'ok')
 
@@ -148,6 +154,7 @@ async function enrolAndSignIn(): Promise<{ userId: string; keyBase32: string; re
   check('a passkey registers against the challenge issued to this session', registered.ok, JSON.stringify(registered))
   const replayReg = await passkeyRegister({ id: u.id }, s2.id, auth.register(regOptions.challenge) as never, 'again', null)
   check('the same challenge cannot register twice', !replayReg.ok)
+  check('a second factor does not re-issue recovery codes', registered.ok && registered.recoveryCodes === null)
   const factors = await factorsOf(u.id)
   check('factors: totp confirmed, one passkey, eight recovery codes', factors.totp !== null && factors.passkeys.length === 1 && factors.recoveryCodesLeft === 8)
 
@@ -169,6 +176,49 @@ async function enrolAndSignIn(): Promise<{ userId: string; keyBase32: string; re
   check('the signature counter and last-used advanced', Number(row.counter) === 1 && row.lastUsedAt !== null, `counter=${row.counter}`)
 
   return { userId: u.id, keyBase32: begun.keyBase32, recovery: confirmed.recoveryCodes, auth }
+}
+
+/* ── 1b. adding a factor takes a fresh step-up; enrolling does not step up ── */
+
+async function enrolmentNeedsStepUp(): Promise<void> {
+  console.log('\n1b. A hijacked session cannot add a factor and step itself up with it')
+  const u = await user('hijack')
+  const s0 = await session(u.id)
+  check('first enrolment is exempt (nothing to present)', JSON.stringify(await enrolmentGate(u.id, s0.id)) === JSON.stringify({ first: true, blocked: false }))
+  const auth = authenticator()
+  const opts = await passkeyRegistrationOptions({ id: u.id, username: u.username }, s0.id)
+  const first = await passkeyRegister({ id: u.id }, s0.id, auth.register(opts.challenge) as never, 'first', null)
+  check('a passkey as the FIRST factor issues the recovery codes', first.ok && first.recoveryCodes?.length === 8, JSON.stringify(first))
+  await markMfaVerified(u.id, s0.id, 'passkey', null)
+
+  // A session that signed in six hours ago: ok, step-up required.
+  const stolen = await session(u.id)
+  const old = new Date(Date.now() - 6 * 3600_000)
+  await prisma.session.update({ where: { id: stolen.id }, data: { mfaAt: old, stepUpAt: old } })
+  check('the stolen session is ok but step-up is required', (await state(stolen.token)) === 'ok' && (await stepUpState(u.id, stolen.id)) === 'required')
+  const gate = await enrolmentGate(u.id, stolen.id)
+  check('adding a factor from it is BLOCKED', gate.blocked && !gate.first, JSON.stringify(gate))
+  const { readFileSync } = await import('node:fs')
+  for (const file of ['src/app/api/auth/mfa/totp/enrol/route.ts', 'src/app/api/auth/mfa/totp/confirm/route.ts', 'src/app/api/auth/mfa/passkey/register/options/route.ts', 'src/app/api/auth/mfa/passkey/register/route.ts']) {
+    const src = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
+    check(`${file.replace('src/app/api/auth/mfa', '')} refuses with step-up-required when the gate blocks`, src.includes('enrolmentGate(') && src.includes('stepUpRequired()'))
+  }
+  for (const file of ['src/app/api/auth/mfa/totp/confirm/route.ts', 'src/app/api/auth/mfa/passkey/register/route.ts']) {
+    const src = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
+    check(`${file.replace('src/app/api/auth/mfa', '')} marks the session verified only for a FIRST factor`, /if \(gate\.first\) await markMfaVerified/.test(src))
+  }
+  // After a step-up, a second factor can be added — and the session's standing is what it was.
+  await markStepUp(u.id, stolen.id, 'passkey', null)
+  const before = await prisma.session.findUniqueOrThrow({ where: { id: stolen.id }, select: { mfaAt: true, stepUpAt: true } })
+  const gate2 = await enrolmentGate(u.id, stolen.id)
+  check('after a fresh step-up the gate opens, as an additional (not first) factor', !gate2.blocked && !gate2.first)
+  const opts2 = await passkeyRegistrationOptions({ id: u.id, username: u.username }, stolen.id)
+  const second = await passkeyRegister({ id: u.id }, stolen.id, authenticator().register(opts2.challenge) as never, 'second', null)
+  const after = await prisma.session.findUniqueOrThrow({ where: { id: stolen.id }, select: { mfaAt: true, stepUpAt: true } })
+  check('registering the second passkey changed nothing on the session', second.ok && after.mfaAt?.getTime() === before.mfaAt?.getTime() && after.stepUpAt?.getTime() === before.stepUpAt?.getTime())
+  check('and issued no new recovery codes', second.ok && second.recoveryCodes === null)
+  const rec = await checkCode(u.id, first.ok ? first.recoveryCodes![0]! : '', null)
+  check('a passkey-only user can use a recovery code', rec.ok && rec.via === 'recovery', JSON.stringify(rec))
 }
 
 /* ── 2. policy ─────────────────────────────────────────────────────────── */
@@ -310,6 +360,7 @@ async function bruteForce(): Promise<void> {
 async function main(): Promise<void> {
   try {
     const ctx = await enrolAndSignIn()
+    await enrolmentNeedsStepUp()
     await policyHoldsSignIn()
     await stepUp(ctx)
     await keyNeverInClear(ctx)
