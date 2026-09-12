@@ -18,6 +18,64 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 ---
 
+## 2026-08-22 — Reconciliation and expiry sweeps (#12)
+
+The database no longer has the last word on whether a link was claimed. A sweep runs
+every five minutes comparing every ACTIVE link against the ledger and correcting the
+row in the chain's favour, and an hourly sweep expires links and campaigns past their
+date. Senders see nothing new; admins get `/admin/reconciliation`, a drift report with
+severity and a "Resync now" button.
+
+Two rules matter more than the corrections. Reconciliation never guesses: a balance
+that has left the ledger without an indexed claim operation is recorded as unresolved
+and re-read next run, not assigned an invented claimant. And it never auto-corrects the
+critical case — a link the database calls CLAIMED that the ledger still holds — because
+that discrepancy means something is wrong that a status update would paper over
+(SPEC §7.2 step 5). It is reported at error severity and left exactly as it was.
+
+Three bugs here were found by running it, not by reading it. A Horizon 404 — what an
+unindexed balance looks like — threw rather than returning "no disposal"; combined with
+an unguarded loop, one unreadable link aborted the entire run, so a single bad row would
+have stopped reconciliation for every remaining campaign. And the "Resync now" button had
+no deduplication, so twenty clicks queued twenty full multi-minute sweeps to run one
+after another. All three are fixed and each has a check that fails without the fix.
+
+### After review
+
+**Criticals sort first, by definition.** `severity` was a String sorted `desc`,
+which is lexicographic — `warn > info > error` — so every critical landed at the
+bottom of the report under a comment claiming the opposite. It is now a Prisma
+enum declared in display order (`error`, `warn`, `info`); Postgres sorts an enum
+by declaration order, so `asc` means "as declared" rather than an alphabetical
+accident that the next severity name would break. The migration casts the
+existing column in place. A check now records a warn before an error and reads
+the report in page order; it fails with the old direction.
+
+**A scheduled pass is bounded.** `reconcileAll` reads at most
+`RECONCILE_PASS_LIMIT` (1,000) links per run, oldest-first, continuing from a
+Redis cursor where the previous pass stopped and wrapping at the end. What it
+did not reach is `remaining` in the report and a WARN in the log — previously a
+10,000-link campaign meant a pass that never finished inside its own five-minute
+interval, with nothing saying so. The cursor lives in Redis rather than a column
+because advancing a per-link column would write every row on every run, which is
+the noise §10.13 says a second run must not add. The manual per-campaign resync
+stays unbounded: an admin asked for that campaign.
+
+`BalanceDisposal.reclaimed` is gone. It was always `false`, carried a comment
+promising the caller would fill it in, and the caller computed its own answer.
+
+**Verified by:** `pnpm verify:reconcile`, 10 sections against a real Postgres, every one
+first shown to fail against a planted regression — including auto-correcting the critical
+case, inventing a claimant, expiring CLAIMED/PENDING links, rethrowing the 404, removing
+the per-link isolation, and dropping the queue deduplication (which queued 20 sweeps).
+The live Horizon reader is exercised against the real network, not a stub, because the
+other checks inject a fake reader and structurally cannot cover it. End to end on the
+worker: an admin request reached the queue, the worker picked it up and logged
+`reconciliation completed`. `/admin/reconciliation` checked in a browser — 200 with the
+drift report, `POST /api/admin/reconcile` returns 202, and unauthenticated returns 404
+rather than 403 so the route's existence is not disclosed.
+
+
 <!-- Entries begin below. Newest first. -->
 
 ## 2026-09-12 — Campaign list and cross-campaign history (#40)
@@ -54,6 +112,100 @@ of its last day. Production build renders both routes. **Not verified by
 execution:** the 375px rendering (criterion 5) — the pages use the same
 `Table` / `table-scroll` furniture as `/settings`, believed correct but not
 opened in a browser this pass.
+## 2026-09-12 — Dependency bump: audit gate green again
+
+No user-facing change. Advisories published since 22 Aug turned CI's
+`pnpm audit --audit-level=moderate` red on every open PR without any of them
+touching the lockfile — two critical unauthenticated-RCE advisories on Next.js
+among them. `next` → 16.3.5, `prisma`/`@prisma/client`/`@prisma/adapter-pg` →
+7.10.0, `@creit.tech/stellar-wallets-kit` → 2.6.0, plus same-major
+`pnpm.overrides` for `mysql2`, `fast-uri` and `stream-json`, each with its
+reason in `package.json`. Details in the README.
+
+**Verified by:** `pnpm audit --audit-level=moderate` exits 0 (one low remains,
+below the gate); typecheck, lint, 167 unit tests and a cold `pnpm build` pass.
+`prisma generate` and `migrate deploy` run under 7.10.0 in the verify scripts.
+
+## 2026-08-22 — Claim page: hardened surface and full state machine (#11)
+
+`/claim`, the route that handles a bearer secret in a URL fragment for an
+audience who may never have used Stellar. Fourteen states, each with a designed
+screen: the twelve `SPEC.md` §5.1 names, plus `materialising` and
+`awaiting_ledger`, which the two-transaction claim (§3.3) needs and the original
+issue text predates.
+
+The seed lives in one component ref for the length of one claim. It derives a
+public key and signs two transactions in memory, and is never sent, stored, or
+logged. `readFragment` returns a bare `false` on every failure — no reason, no
+echo of the input — so a caller cannot render or report a value that is very
+often a real seed with a typo.
+
+**Retry resumes at TX2, not at the start.** TX1 has landed by the time TX2 can
+fail, and the ephemeral account it created is sponsored by Kleym; restarting
+would materialise a second account and strand the first's reserves, which §3.3.2
+says Kleym cannot recover.
+
+### After review
+
+**The reason screens are wired to a discriminator, not to prose.** `expired`
+and `already_claimed` were reached by regex over the 409's `detail` — a
+copy-edit on the server would have left both screens unreachable with every
+test green. The conflict now carries a `type` (`…/conflict/expired`,
+`…/conflict/already-claimed`, `…/conflict/not-ready`) and both sides import
+the URIs from `lib/claim/problem-types.ts`; the machine test reads the
+response the route function actually emits, so a change to either side
+breaks there rather than in a browser.
+
+**`retryTarget` now drives the retry.** Its answer is passed into `run(from)`:
+`preparing` skips the wallet connect and TX1, `ready` runs the whole flow.
+Previously the value was overwritten by `run()`'s first `setState` and the
+skip was decided by a separate ref, so the tested function had no effect.
+
+**The ledger wait is no longer only a clock.** After TX1 the page waits about
+one ledger, then treats a `not-ready` 409 from `prepare/claim` as "ask again"
+— up to eight times, 2.5s apart — rather than as a failure with a message
+about waiting.
+
+### The fragment format changed
+
+The wizard was writing `/claim#<seed>` while `SPEC.md` §3.6 specified
+`#s=<base64url-encoded-seed>` — two merged pieces disagreeing. Settled as
+`#s=<seed>`: the spec's named parameter, so a second field can be added later,
+but the seed **raw**.
+
+Encoding it would blind every leak guard in the repo. `scanForSecretSeed`, the
+`NEXT_PUBLIC_` env scan and the CI grep all match `S[A-Z2-7]{55}`, and none of
+them recognises `U0FTWkJXWkRDUll…`. A format that hides a leaked seed from the
+machinery built to catch leaked seeds is worse than one that does not, and the
+fragment is withheld from the network either way. `SPEC.md` §3.6 and §5.1 and
+the wizard now agree.
+
+### Voice
+
+`BRAND.md` §8 matters more here than anywhere: this audience did not choose to
+be here, someone sent them a link. No "crypto", "web3", "dApp", "protocol" or
+"non-custodial" — the footer says "Only you can access these funds. Kleym never
+holds them." No exclamations: "Claimed", not "Success!". The failure screen
+leads with *your funds are untouched*, because that is the first thing a person
+fears.
+
+**Verified by:** 26 unit tests over the fragment reader and the state machine —
+including that a base64url seed is refused, that a failure reveals nothing about
+what it rejected, and that the retry target is `preparing` rather than `ready`.
+15 Playwright tests against a production build with the real CSP: zero
+third-party requests, `Referrer-Policy: no-referrer`, no `unsafe-inline` or
+`unsafe-eval`, the fragment gone from the URL and absent from every request,
+cookie, storage entry **and the DOM**, and the public key — not the seed —
+crossing the wire.
+
+The hydration test is the one that matters most: #6 shipped a CSP that refused
+every script while the route still returned 200, so reaching `ready` is asserted
+rather than a status code. Two leaks were planted and both caught — a
+`clearFragment` made into a no-op, and the seed sent where the public key
+belongs.
+
+Closes the two criteria #6 carried forward and could not verify: §10.7 (no log
+line derived from a fragment) and §10.8 (zero third-party requests).
 
 ## 2026-08-22 — Claim API: resolve, prepare, submit (#10)
 

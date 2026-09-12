@@ -24,13 +24,14 @@
     "verify:batches": "tsx scripts/verify-batches.ts",
     "verify:claims": "tsx scripts/verify-claims.ts",
     "verify:campaign-list": "tsx scripts/verify-campaign-list.ts",
+    "verify:reconcile": "tsx scripts/verify-reconcile.ts",
     "verify:confirm": "tsx scripts/verify-confirm-worker.ts",
     "fixture:balance-id": "tsx scripts/make-balance-id-fixture.ts"
   },
   "dependencies": {
-    "@creit.tech/stellar-wallets-kit": "^2.5.0",
-    "@prisma/adapter-pg": "^7.9.1",
-    "@prisma/client": "^7.9.1",
+    "@creit.tech/stellar-wallets-kit": "^2.6.0",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "@stellar/stellar-sdk": "^16.2.0",
     "argon2": "^0.45.1",
     "bullmq": "^6.2.0",
@@ -38,7 +39,7 @@
     "clsx": "^2.1.1",
     "decimal.js": "^10.6.0",
     "ioredis": "^6.0.0",
-    "next": "^16.3.1",
+    "next": "^16.3.5",
     "pg": "^8.23.0",
     "pino": "^10.3.1",
     "react": "^19.2.8",
@@ -57,7 +58,7 @@
     "eslint-config-next": "^16.3.1",
     "pino-pretty": "^13.1.3",
     "postcss": "^8.5.26",
-    "prisma": "^7.9.1",
+    "prisma": "^7.10.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.12",
     "typescript": "^5.9.3",
@@ -77,13 +78,19 @@
       "deepmerge-ts": ">=8.0.0",
       "protobufjs": ">=7.5.8",
       "axios": ">=1.18.0",
-      "uuid": ">=11.1.1"
+      "uuid": ">=11.1.1",
+      "mysql2": ">=3.23.1",
+      "fast-uri": ">=3.1.6 <4",
+      "stream-json": ">=3.5.0"
     },
     "overridesReason": {
       "deepmerge-ts": "GHSA-ggr8-5vv4-36mx (high, stack exhaustion) via prisma > @prisma/config, which still pins 7.1.5. Remove when Prisma ships a fixed release. See README.",
-      "protobufjs": "GHSA arbitrary code execution (critical) plus four high advisories, via @creit.tech/stellar-wallets-kit > @trezor/connect-web, which pins 7.4.0. Patched in 7.5.8, same major — a version bump, not a suppression.",
+      "protobufjs": "GHSA arbitrary code execution (critical) plus four high advisories, via @creit.tech/stellar-wallets-kit > @trezor/connect-web, which pins 7.4.0. Patched in 7.5.8, same major \u2014 a version bump, not a suppression.",
       "axios": "Proxy-inheritance and DoS advisories (high) via the wallet kit's Trezor and WalletConnect adapters, which pin 1.16.0. Patched in 1.18.0, same major.",
-      "uuid": "Moderate advisory via the same tree. Patched in 11.1.1, same major."
+      "uuid": "Moderate advisory via the same tree. Patched in 11.1.1, same major.",
+      "mysql2": "Auth-plugin downgrade (high) and unbounded zlib inflate (moderate) via prisma, which pins 3.15.3 for a driver Kleym never loads — the datasource is Postgres. Patched in 3.23.1, same major. Remove when Prisma bumps it.",
+      "fast-uri": "Four host-confusion / SSRF advisories (high) via prisma > @prisma/dev, which pins 3.1.x. Patched in 3.1.6; held below 4 so the major the caller expects is unchanged.",
+      "stream-json": "Filter bypass (moderate) via @creit.tech/stellar-wallets-kit's Trezor adapter. Patched in 3.5.0, same major."
     }
   },
   "engines": {
