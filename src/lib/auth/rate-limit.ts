@@ -7,6 +7,7 @@
  */
 import { redis } from '@/lib/redis/client'
 import { logger } from '@/lib/config/logger'
+import { recordRateLimitRejection } from '@/lib/observability/metrics'
 
 export interface RateLimitResult {
   allowed: boolean
@@ -29,6 +30,8 @@ export async function rateLimit(
 
     const ttl = count === 1 ? windowSeconds : await redis.ttl(redisKey)
 
+    // Counted by route, never by key: the key's last segment is the caller.
+    if (count > limit) recordRateLimitRejection(routeOf(key), 'limit')
     return {
       allowed: count <= limit,
       remaining: Math.max(0, limit - count),
@@ -44,8 +47,25 @@ export async function rateLimit(
       { rateLimitKey: key, reason: error instanceof Error ? error.message : 'unknown' },
       'rate limiter unavailable; denying',
     )
+    // The limiter failing closed looks like an outage from outside; this is how it is told apart.
+    recordRateLimitRejection(routeOf(key), 'unavailable')
     return { allowed: false, remaining: 0, retryAfterSeconds: windowSeconds }
   }
+}
+
+/**
+ * `claims:submit:1.2.3.4` → `claims:submit`; `otp:request:ip:2001:db8::1` →
+ * `otp:request:ip`; `apikey:<id>` → `apikey`. Only the leading segments that
+ * are plain lowercase words are kept, so neither an address (IPv6 has its
+ * own colons) nor a key id ever becomes a label.
+ */
+export function routeOf(key: string): string {
+  const route: string[] = []
+  for (const segment of key.split(':')) {
+    if (!/^[a-z]+$/.test(segment)) break
+    route.push(segment)
+  }
+  return route.join(':') || 'unknown'
 }
 
 export const LOGIN_RATE_LIMIT = { limit: 5, windowSeconds: 15 * 60 } as const

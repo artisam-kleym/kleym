@@ -16,8 +16,19 @@ import {
   startReconcileWorker,
 } from './maintenance'
 import { scheduleMaintenance } from '@/lib/queue/maintenance'
+import { startTelemetry } from '@/lib/observability/telemetry'
+import { registerObservables } from '@/lib/observability/metrics'
+import { observeWorker } from '@/lib/observability/workers'
+import { dependencyReadings, passReadings, queueReadings, sponsorReadings, strandedReading } from '@/lib/observability/status'
 
 async function main() {
+  // Traces and metrics leave only when OTEL_EXPORTER_OTLP_ENDPOINT is set (#53).
+  // The gauges that need the queues, the ledger and the database live here,
+  // in the one process that is always running them.
+  if (startTelemetry({ serviceName: 'kleym-worker' })) {
+    registerObservables({ queues: queueReadings, sponsors: sponsorReadings, stranded: strandedReading, passes: passReadings, dependencies: dependencyReadings })
+  }
+
   const workers = [
     startBatchConfirmWorker(),
     startEmailWorker(),
@@ -26,7 +37,7 @@ async function main() {
     startExpiryWorker(),
     startEphemeralWatchWorker(),
     startRetentionWorker(),
-  ]
+  ].map(observeWorker)
 
   /*
    * Installed on every start, with fixed scheduler ids so a restart or a second

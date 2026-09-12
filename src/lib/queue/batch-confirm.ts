@@ -6,9 +6,12 @@
  */
 import { Queue } from 'bullmq'
 import { QUEUE, queueConnection } from './connection'
+import { traceCarrier } from '@/lib/observability/tracing'
 
 export interface BatchConfirmJob {
   batchId: string
+  /** W3C trace context of the request that enqueued it (#53), so the worker's span joins its trace. */
+  trace?: Record<string, string>
 }
 
 let cached: Queue<BatchConfirmJob> | undefined
@@ -42,9 +45,9 @@ export const batchConfirmJobId = (batchId: string) => `batch-confirm-${batchId}`
  * The id was `batch-confirm:<id>` until the BullMQ 6 bump (#55), which
  * refuses a custom id with a colon in it — so every submission since then
  * logged "confirmation could not be queued" and waited for reconciliation.
- * Found by the SDK end-to-end run in verify:write-api (#51); the same fix
- * is on #68.
+ * Found by verify:observability enqueuing under a trace (#53) and by the
+ * SDK end-to-end run in verify:write-api (#51).
  */
 export async function enqueueBatchConfirm(batchId: string): Promise<void> {
-  await batchConfirmQueue().add(QUEUE.batchConfirm, { batchId }, { jobId: batchConfirmJobId(batchId) })
+  await batchConfirmQueue().add(QUEUE.batchConfirm, { batchId, trace: traceCarrier() }, { jobId: batchConfirmJobId(batchId) })
 }

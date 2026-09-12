@@ -12,47 +12,15 @@
  * from the log line, which is where they are already looking.
  */
 import { logger } from '@/lib/config/logger'
-import { env } from '@/lib/config/env'
-import { prisma } from '@/lib/db/client'
-import { redis } from '@/lib/redis/client'
+import { probeDependencies } from '@/lib/observability/status'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-/** Bounded so a hung dependency cannot hold the health check open. */
-const TIMEOUT_MS = 3_000
-
-type Probe = { name: string; ok: boolean; detail: string }
-
-function withTimeout<T>(work: Promise<T>, name: string): Promise<T> {
-  return Promise.race([
-    work,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`${name} did not answer in ${TIMEOUT_MS}ms`)), TIMEOUT_MS),
-    ),
-  ])
-}
-
-async function probe(name: string, work: () => Promise<unknown>): Promise<Probe> {
-  try {
-    await withTimeout(Promise.resolve(work()), name)
-    return { name, ok: true, detail: 'ok' }
-  } catch (error) {
-    return { name, ok: false, detail: error instanceof Error ? error.message : 'unreachable' }
-  }
-}
-
 export async function GET() {
-  const checks = await Promise.all([
-    // `SELECT 1` rather than a model query: readiness is "can we reach the
-    // database", not "does a particular table exist".
-    probe('postgres', () => prisma.$queryRaw`SELECT 1`),
-    probe('redis', () => redis.ping()),
-    probe('horizon', async () => {
-      const response = await fetch(env.HORIZON_URL, { signal: AbortSignal.timeout(TIMEOUT_MS) })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    }),
-  ])
+  // Postgres, Redis and Horizon, each bounded — the probes /status and the
+  // dependency gauge share (#53), so the three never disagree.
+  const checks = await probeDependencies()
 
   const ready = checks.every((check) => check.ok)
 
