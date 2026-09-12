@@ -23,7 +23,7 @@ import { logger } from '@/lib/config/logger'
 import { baseReserve, horizon, loadClaimableBalance } from '@/lib/stellar/horizon'
 import { requestReconcile } from '@/lib/queue/maintenance'
 import { redisPassCursor, type PassCursor } from '@/lib/queue/pass-cursor'
-import { recordPassReport } from '@/lib/queue/pass-report'
+import { recordPassReport, type PassReportSink } from '@/lib/queue/pass-report'
 import { WATCH_INTERVAL_MS } from '@/lib/queue/schedule'
 
 /**
@@ -133,6 +133,8 @@ const cursorForScheduledPass = redisPassCursor('ephemeral-watch:cursor')
 export interface WatchOptions {
   limit?: number
   cursor?: PassCursor
+  /** Where the pass report goes; Redis by default, a no-op or memory sink in scripts. */
+  report?: PassReportSink
 }
 
 /**
@@ -157,7 +159,7 @@ export function lockedReserve(base: Decimal, subentryCount: number): Decimal {
 export async function watchEphemerals(
   deps: StrandedDeps = LIVE,
   now: Date = new Date(),
-  { limit = WATCH_PASS_LIMIT, cursor = cursorForScheduledPass }: WatchOptions = {},
+  { limit = WATCH_PASS_LIMIT, cursor = cursorForScheduledPass, report: sink = recordPassReport }: WatchOptions = {},
 ): Promise<StrandedReport> {
   const report: StrandedReport = {
     checked: 0, stranded: 0, critical: 0, resolved: 0, handedOff: 0, lockedXlm: '0', remaining: 0,
@@ -220,7 +222,7 @@ export async function watchEphemerals(
       'ephemeral watch hit its limit before the end of its candidate set; the rest continue next run',
     )
   }
-  await recordPassReport({
+  await sink({
     job: 'ephemeral-watch',
     finishedAt: now.toISOString(),
     checked: report.checked,

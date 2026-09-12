@@ -20,7 +20,7 @@ import Decimal from 'decimal.js'
 import type { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
 import { redisPassCursor, type PassCursor } from '@/lib/queue/pass-cursor'
-import { recordPassReport } from '@/lib/queue/pass-report'
+import { recordPassReport, type PassReportSink } from '@/lib/queue/pass-report'
 import { RECONCILE_INTERVAL_MS } from '@/lib/queue/schedule'
 import { logger } from '@/lib/config/logger'
 import { horizon, loadClaimableBalance } from '@/lib/stellar/horizon'
@@ -340,6 +340,8 @@ const cursorForScheduledPass = redisPassCursor('reconcile:cursor')
 export interface PassOptions {
   limit?: number
   cursor?: PassCursor
+  /** Where the pass report goes; Redis by default, a no-op or memory sink in scripts. */
+  report?: PassReportSink
 }
 
 const LIVE_CAMPAIGN: Prisma.CampaignWhereInput = { status: { in: ['ACTIVE', 'PARTIAL', 'EXPIRED'] } }
@@ -355,7 +357,7 @@ const LIVE_CAMPAIGN: Prisma.CampaignWhereInput = { status: { in: ['ACTIVE', 'PAR
  */
 export async function reconcileAll(
   deps: ReconcileDeps = LIVE,
-  { limit = RECONCILE_PASS_LIMIT, cursor = cursorForScheduledPass }: PassOptions = {},
+  { limit = RECONCILE_PASS_LIMIT, cursor = cursorForScheduledPass, report: sink = recordPassReport }: PassOptions = {},
 ): Promise<ReconcileReport> {
   const candidate: Prisma.ClaimLinkWhereInput = { campaign: LIVE_CAMPAIGN, balanceId: { not: null } }
   const page = (where: Prisma.ClaimLinkWhereInput) =>
@@ -392,7 +394,7 @@ export async function reconcileAll(
     )
   }
   // On the admin page as well as in the log — see lib/queue/pass-report.ts.
-  await recordPassReport({
+  await sink({
     job: 'reconcile',
     finishedAt: new Date().toISOString(),
     checked: report.linksChecked,

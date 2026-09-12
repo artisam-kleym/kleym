@@ -28,8 +28,22 @@ export interface PassReport {
 const KEY = (job: PassJob) => `pass:last:${job}`
 const TTL_SECONDS = 7 * 24 * 60 * 60
 
+/** Where a pass sends its report. Injectable so a script measuring a pass need not open Redis. */
+export type PassReportSink = (report: PassReport) => Promise<void>
+
+/** For scripts: a sink that keeps the last report in memory and opens nothing. */
+export function memoryPassReportSink(): PassReportSink & { last: PassReport | null } {
+  const sink = Object.assign(
+    async (report: PassReport) => {
+      sink.last = report
+    },
+    { last: null as PassReport | null },
+  )
+  return sink
+}
+
 /** Never throws: a report that fails to write must not fail the pass it describes. */
-export async function recordPassReport(report: PassReport): Promise<void> {
+export const recordPassReport: PassReportSink = async (report) => {
   try {
     await redis.set(KEY(report.job), JSON.stringify(report), 'EX', TTL_SECONDS)
   } catch (error) {
