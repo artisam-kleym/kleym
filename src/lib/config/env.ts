@@ -64,6 +64,25 @@ const schema = z.object({
     { message: 'AUDIT_SIGNING_SEED must decode to exactly 32 bytes (44 base64 characters)' },
   ),
 
+  /**
+   * MFA (#47): the AES-256-GCM key TOTP shared keys are encrypted under at
+   * rest — 32 bytes, base64. A TOTP key is Kleym's, not Stellar key material,
+   * but it is a credential and never sits in a column in the clear.
+   */
+  MFA_ENCRYPTION_KEY: z.string().refine(
+    (v) => {
+      try {
+        return Buffer.from(v, 'base64').length === 32
+      } catch {
+        return false
+      }
+    },
+    { message: 'MFA_ENCRYPTION_KEY must decode to exactly 32 bytes (44 base64 characters)' },
+  ),
+  /** WebAuthn relying party. Defaults to APP_URL's hostname and origin. */
+  WEBAUTHN_RP_ID: z.string().default(''),
+  WEBAUTHN_RP_NAME: z.string().default('Kleym'),
+
   // Stellar
   STELLAR_NETWORK: z.enum(['testnet', 'public']).default('testnet'),
   HORIZON_URL: z.url(),
@@ -151,6 +170,7 @@ export const SECRET_ENV_KEYS = [
   'SCREENING_WEBHOOK_SECRET',
   'OTEL_EXPORTER_OTLP_HEADERS',
   'SESSION_SECRET',
+  'MFA_ENCRYPTION_KEY',
   'RESEND_API_KEY',
   'SEED_ADMIN_PASSWORD',
   // Both embed credentials in the connection string.

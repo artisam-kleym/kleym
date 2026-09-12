@@ -67,6 +67,14 @@ export function unauthenticated(): Response {
  * 403: signed in, a member, but the role does not allow this. Distinct from
  * 404 (not this organisation's) — a member may know the campaign exists.
  */
+/** 403 with its own type so the client can ask for a factor and retry (#47). */
+export function stepUpRequired(): Response {
+  return problem(
+    { type: `${BASE}/step-up-required`, title: 'A fresh second factor is required', status: 403, detail: 'Verify a second factor to continue; it stays fresh for five minutes.' },
+    403,
+  )
+}
+
 export function forbidden(detail: string): Response {
   return problem({ type: `${BASE}/forbidden`, title: 'Not allowed', status: 403, detail }, 403)
 }

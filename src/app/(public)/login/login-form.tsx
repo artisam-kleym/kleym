@@ -25,7 +25,9 @@ export function LoginForm() {
     })
 
     if (response.ok) {
-      router.push('/dashboard')
+      const body = (await response.json().catch(() => ({}))) as { next?: 'mfa' | 'enrol' | null }
+      // A second factor still owed, or one the organisation requires but the user lacks (#47).
+      router.push(body.next === 'mfa' ? '/login/mfa' : body.next === 'enrol' ? '/settings/security?required=1' : '/dashboard')
       return
     }
 

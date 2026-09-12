@@ -96,6 +96,9 @@ model User {
   campaigns   Campaign[]
   sessions    Session[]
   apiKeys     ApiKey[]
+  totp          MfaTotp?
+  passkeys      MfaPasskey[]
+  recoveryCodes MfaRecoveryCode[]
   auditLogs   AuditLog[]
   invitations Invitation[] @relation("invitee")
   invited     Invitation[] @relation("inviter")
@@ -123,6 +126,9 @@ model Organization {
   /// holds, blocks, errors or times out stops submission. Null: no screening,
   /// and the signing path is untouched.
   screeningUrl String?
+  /// MFA policy (#47): OFF, APPROVERS (Approvers and Owners must have a
+  /// second factor to sign in), or ALL members. Enforced at sign-in, server-side.
+  mfaPolicy MfaPolicy @default(OFF)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -216,6 +222,12 @@ model Session {
   /// against their memberships on EVERY request, so a removed membership
   /// ends access at once — the session merely remembers a preference.
   activeOrganizationId String?
+  /// MFA (#47). `mfaAt` is when a second factor was verified for THIS
+  /// session at sign-in; null on a session whose user has a factor means
+  /// the session is pending and unlocks nothing but verification. `stepUpAt`
+  /// is the last FRESH factor, for the actions that move money.
+  mfaAt    DateTime?
+  stepUpAt DateTime?
   expiresAt DateTime
   ip        String?
   userAgent String?
@@ -233,6 +245,63 @@ model Session {
 enum ApiKeyScope {
   READ
   WRITE
+}
+
+/// Who must have a second factor (#47).
+enum MfaPolicy {
+  OFF
+  APPROVERS
+  ALL
+}
+
+/// A TOTP factor (RFC 6238). The shared key is Kleym's, not Stellar key
+/// material, and it is stored ENCRYPTED (AES-256-GCM under MFA_ENCRYPTION_KEY
+/// from the environment) — never in the clear. Unconfirmed until the user
+/// proves the authenticator with one code.
+model MfaTotp {
+  userId      String    @id
+  /// base64: iv(12) | tag(16) | ciphertext of the base32 key.
+  ciphertext  String
+  confirmedAt DateTime?
+  /// Wrong codes since the last success. Same bound and lockout as the recipient OTP.
+  attempts    Int       @default(0)
+  lockedUntil DateTime?
+  /// The time step of the last accepted code (RFC 6238 §5.2): a code is
+  /// accepted once, and never for a step at or before this one.
+  lastUsedStep BigInt?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// A WebAuthn credential (passkey) as a second factor. The public key is the
+/// authenticator's; the private half never leaves the device.
+model MfaPasskey {
+  id           String   @id @default(cuid())
+  userId       String
+  credentialId String   @unique
+  publicKey    Bytes
+  counter      BigInt   @default(0)
+  transports   String[]
+  name         String
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Recovery codes: single-use, argon2id-hashed, shown once. Use is audited at warn.
+model MfaRecoveryCode {
+  id       String    @id @default(cuid())
+  userId   String
+  codeHash String
+  usedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model ApiKey {

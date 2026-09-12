@@ -20,6 +20,41 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — Second factor for senders: TOTP, passkeys, recovery codes, policy and step-up (#47)
+
+A sender can enrol an authenticator app (TOTP, RFC 6238) and/or a passkey
+(WebAuthn) at `/settings/security`; TOTP enrolment hands back eight
+single-use recovery codes once. A session whose user has a factor unlocks
+nothing until the factor is presented (`/login/mfa` after the password);
+an Owner can require a factor of Approvers and Owners or of every member,
+and a member without one is held at enrolment — on every request, from the
+moment the policy is set. The actions that move money ask again: batch
+signing, reclaim and API key issuance need a factor verified in the last
+five minutes whatever the session's age, and the wizard, the reclaim panel
+and the key form prompt for it inline. The TOTP key is AES-256-GCM
+encrypted under `MFA_ENCRYPTION_KEY` (new, required, in `SECRET_ENV_KEYS`);
+TOTP guesses follow the recipient OTP's semantics — counted before the
+comparison, five then a fifteen-minute lock; a recovery code works once and
+its use is logged at warn and audited. `docs/mfa.md`; `AGENT.md` §5.1 and
+§5.6 amended; `docs/release.md` rollout note.
+
+**Verified by:** `pnpm verify:mfa` (in CI) against Postgres and Redis with
+a synthetic P-256 WebAuthn authenticator — see `docs/mfa.md` for the full
+list: TOTP and passkey enrolment and sign-in, consumed challenges and
+cross-account credentials refused; policy holding an existing session at
+enrolment and releasing it; step-up required on a six-hour session, fresh
+after a factor, required after 301 s, the five gated routes checked
+statically; the key encrypted at rest and redacted from a log call it was
+planted in along with codes and the encryption key; recovery code once with
+warn log and audit; five-then-lock with the right code refused while locked
+and one step of skew accepted. `verify:admin`, `verify:organisations`,
+`verify:invitations`, `verify:api-keys`, `verify:write-api`, 226 unit
+tests, typecheck, lint, build. Not exercised: the pages and the passkey
+browser prompt in a real browser (the routes and the WebAuthn verification
+are exercised at the library level with a synthetic authenticator); a QR
+code for the TOTP key is not rendered — the key and an `otpauth://` link
+are shown instead. Review: a TOTP code is now accepted once (`lastUsedStep`, race-safe), verified by the same code refused a second time and the previous step refused after a later one; adding a factor to an account that has one takes a fresh step-up and marks nothing on the session (verified: a six-hour session is blocked from enrolling, opens after a step-up, and registering a second passkey leaves `mfaAt`/`stepUpAt` untouched); recovery codes are issued with the first factor of either kind, so a passkey-only user has them.
+
 ## 2026-09-12 — Write API, outbound webhooks and a local-keygen SDK (#51)
 
 Kleym can now be driven by something other than a browser, without the
