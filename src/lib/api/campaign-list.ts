@@ -2,13 +2,13 @@
  * The two cross-campaign reads the sender surface has: `/campaigns` and
  * `/history`. SPEC.md §5.2.
  *
- * Both are aggregates over the caller's OWN rows. `userId` goes into the
- * `where` of every query here, never into a filter afterwards (AGENT.md §5.4)
- * — and search runs inside that scope, so it can only ever match the caller's
- * own campaigns and cannot become an enumeration surface.
+ * Both are aggregates over the caller's ORGANISATION's rows. `organizationId`
+ * goes into the `where` of every query here, never into a filter afterwards
+ * (AGENT.md §5.4) — and search runs inside that scope, so it can only ever
+ * match that organisation's campaigns and cannot become an enumeration surface.
  *
  * The where-clauses and the query parsers are exported on their own so the
- * scoping is unit-testable without a database: a test that `userId` is in the
+ * scoping is unit-testable without a database: a test that `organizationId` is in the
  * clause is the test that matters.
  */
 import { z } from 'zod'
@@ -81,9 +81,9 @@ export const HISTORY_ORDER: Prisma.ClaimLinkOrderByWithRelationInput[] = [
   { id: 'desc' },
 ]
 
-export function campaignListWhere(userId: string, query: CampaignListQuery): Prisma.CampaignWhereInput {
+export function campaignListWhere(organizationId: string, query: CampaignListQuery): Prisma.CampaignWhereInput {
   return {
-    userId,
+    organizationId,
     ...(query.status ? { status: query.status } : {}),
     ...(query.q ? { name: { contains: query.q, mode: 'insensitive' } } : {}),
   }
@@ -94,13 +94,13 @@ export function campaignListWhere(userId: string, query: CampaignListQuery): Pri
  * `claimedAt`, `claimedBy` and `claimTxHash` are the record. Ownership is
  * through the campaign relation, in the same clause.
  */
-export function historyWhere(userId: string, query: HistoryQuery): Prisma.ClaimLinkWhereInput {
+export function historyWhere(organizationId: string, query: HistoryQuery): Prisma.ClaimLinkWhereInput {
   const claimedAt =
     query.from || query.to
       ? { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: endOfDay(query.to) } : {}) }
       : undefined
   return {
-    campaign: { userId, ...(query.campaignId ? { id: query.campaignId } : {}) },
+    campaign: { organizationId, ...(query.campaignId ? { id: query.campaignId } : {}) },
     status: { in: ['CLAIMED', 'RECLAIMED'] },
     ...(claimedAt ? { claimedAt } : {}),
   }
@@ -126,8 +126,8 @@ export interface CampaignListRow {
   createdAt: Date
 }
 
-export async function listCampaigns(userId: string, query: CampaignListQuery) {
-  const where = campaignListWhere(userId, query)
+export async function listCampaigns(organizationId: string, query: CampaignListQuery) {
+  const where = campaignListWhere(organizationId, query)
   const [total, campaigns] = await Promise.all([
     prisma.campaign.count({ where }),
     prisma.campaign.findMany({
@@ -172,8 +172,8 @@ export interface HistoryRow {
   claimTxHash: string | null
 }
 
-export async function claimHistory(userId: string, query: HistoryQuery) {
-  const where = historyWhere(userId, query)
+export async function claimHistory(organizationId: string, query: HistoryQuery) {
+  const where = historyWhere(organizationId, query)
   const [total, links] = await Promise.all([
     prisma.claimLink.count({ where }),
     prisma.claimLink.findMany({
@@ -203,10 +203,10 @@ export async function claimHistory(userId: string, query: HistoryQuery) {
   return { rows, total, page: query.page, perPage: query.perPage }
 }
 
-/** For the history page's campaign filter: names only, the caller's own. */
-export function campaignNames(userId: string) {
+/** For the history page's campaign filter: names only, the organisation's own. */
+export function campaignNames(organizationId: string) {
   return prisma.campaign.findMany({
-    where: { userId },
+    where: { organizationId },
     orderBy: CAMPAIGN_ORDER,
     select: { id: true, name: true },
   })

@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   const { status, page, perPage } = parsed.data
 
   try {
-    const where = { userId: auth.caller.userId, ...(status ? { status } : {}) }
+    const where = { organizationId: auth.caller.organizationId, ...(status ? { status } : {}) }
     const [total, campaigns] = await Promise.all([
       prisma.campaign.count({ where }),
       prisma.campaign.findMany({

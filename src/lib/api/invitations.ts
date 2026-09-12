@@ -36,9 +36,13 @@ export const createUserSchema = z
       .max(64)
       .regex(/^[a-z0-9][a-z0-9._-]*$/i, 'letters, digits, dot, underscore or dash'),
     role: z.enum(['SENDER', 'ADMIN']).default('SENDER'),
+    /** The organisation the new user joins, and as what. */
+    organizationId: z.string().min(1),
+    orgRole: z.enum(['VIEWER', 'OPERATOR', 'APPROVER', 'OWNER']).default('OPERATOR'),
   })
   .strict()
-export type CreateUserInput = z.infer<typeof createUserSchema>
+/** The INPUT shape: `role` and `orgRole` may be omitted and take their defaults. */
+export type CreateUserInput = z.input<typeof createUserSchema>
 
 export const redeemSchema = z
   .object({
@@ -55,7 +59,14 @@ export type CreateOutcome =
   | { kind: 'conflict'; detail: string }
 
 /**
- * Creates an inactive account and its invitation. Returns the URL ONCE.
+ * Creates an inactive account, its membership and its invitation. Returns
+ * the URL ONCE.
+ *
+ * The membership is created now, with the account, rather than on
+ * redemption: a revoked invitation deletes the account and the cascade
+ * takes the membership with it, and a redeemed one finds its organisation
+ * already in place. Until redemption the account is inactive, so the
+ * membership grants nothing.
  *
  * The audit row names the actor and the new user; it carries no token. The
  * scrubber in lib/api/audit.ts would redact a `token` key anyway — but the
@@ -64,12 +75,15 @@ export type CreateOutcome =
  */
 export async function createInvitedUser(
   actorId: string,
-  input: CreateUserInput,
+  rawInput: CreateUserInput,
   ip: string | null,
   now: Date = new Date(),
 ): Promise<CreateOutcome> {
+  const input = createUserSchema.parse(rawInput)
   const taken = await prisma.user.findUnique({ where: { username: input.username }, select: { id: true } })
   if (taken) return { kind: 'conflict', detail: `${input.username} is already taken.` }
+  const organization = await prisma.organization.findUnique({ where: { id: input.organizationId }, select: { id: true } })
+  if (!organization) return { kind: 'conflict', detail: 'That organisation does not exist.' }
 
   const token = randomBytes(32).toString('hex')
   const expiresAt = new Date(now.getTime() + INVITATION_TTL_MS)
@@ -87,7 +101,16 @@ export async function createInvitedUser(
         role: input.role,
         passwordHash: placeholder,
         isActive: false,
-        invitations: { create: { createdById: actorId, tokenHash: hashToken(token), expiresAt } },
+        memberships: { create: { organizationId: input.organizationId, role: input.orgRole } },
+        invitations: {
+          create: {
+            createdById: actorId,
+            organizationId: input.organizationId,
+            role: input.orgRole,
+            tokenHash: hashToken(token),
+            expiresAt,
+          },
+        },
       },
       select: { id: true, username: true, role: true },
     })
@@ -100,10 +123,11 @@ export async function createInvitedUser(
 
   await recordAudit({
     userId: actorId,
+    organizationId: input.organizationId,
     action: 'user.create',
     entityType: 'user',
     entityId: user.id,
-    metadata: { username: user.username, role: user.role, invitationExpires: expiresAt.toISOString() },
+    metadata: { username: user.username, role: user.role, orgRole: input.orgRole, invitationExpires: expiresAt.toISOString() },
     ip,
   })
   logger.info({ actorId, userId: user.id, role: user.role }, 'user invited')

@@ -116,7 +116,7 @@ behind.
 | Sponsor exhaustion halts all claims | `/admin`, beside the balance, with the threshold warning |
 | A leaked link is a bearer instrument | The `/claim` ready screen, and the claim email |
 | Partial batch failure needs sender action | Wizard export step, and `/admin/campaigns` status |
-| No multi-tenancy | `/dashboard` |
+| Organisations are flat: no cross-organisation sharing | `/dashboard`, in the note on who can see campaigns |
 | Reserve estimates can shift between quote and signature | Wizard step 2, under the cost breakdown |
 
 ## What is not verified

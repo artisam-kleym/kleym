@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getSessionUser } from '@/lib/auth/session'
+import { pageScope } from '@/lib/api/session-guard'
 import { distributedLabel, loadDashboard } from '@/lib/api/dashboard'
 import { MetricCard, ProgressCell, StatusChip, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
 import { formatDate } from '@/components/list/filters'
@@ -16,13 +16,14 @@ const CHIP: Record<string, Status> = {
  * in every demo — and every figure is an aggregate scoped to the signed-in
  * user (lib/api/dashboard.ts), with no link row loaded and no Horizon read.
  *
- * It also keeps SPEC.md §12's multi-tenancy limitation in view: until
- * organisations exist, this is the only place a sender is told that their
- * colleagues cannot see, resend or reclaim a campaign.
+ * The note at the bottom says who else can see these campaigns: the members
+ * of this organisation, by role — and nobody outside it, Kleym included.
+ * (It replaced SPEC.md §12's "one account, nobody else" limitation when
+ * organisations arrived in #44.)
  */
 export default async function DashboardPage() {
-  const user = (await getSessionUser())!
-  const { distributed, counts, recent } = await loadDashboard(user.id)
+  const { user, org } = await pageScope()
+  const { distributed, counts, recent } = await loadDashboard(org.id)
 
   return (
     <>
@@ -96,11 +97,11 @@ export default async function DashboardPage() {
       )}
 
       <div className="mt-xl max-w-2xl rounded-lg border border-outline-variant/50 bg-surface-container p-md">
-        <p className="text-body-md font-bold text-on-surface">Campaigns belong to this account alone</p>
+        <p className="text-body-md font-bold text-on-surface">Campaigns belong to {org.name}</p>
         <p className="mt-sm text-body-md text-on-surface-variant">
-          There are no shared or organisation accounts. Nobody else can see, resend or
-          reclaim a campaign you created — not a colleague, and not Kleym. If someone else
-          needs to run a campaign, they need their own account.
+          Every member of this organisation can see them; operators and above can create, sign,
+          resend and reclaim; viewers can only look. Nobody outside the organisation can see or
+          act on them — and neither can Kleym. Members are managed on the Settings page.
         </p>
       </div>
     </>

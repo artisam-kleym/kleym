@@ -1,13 +1,21 @@
 import type { ReactNode } from 'react'
 import { AmbientOrbs } from '@/components/ui'
-import { Sidebar } from './sidebar'
+import { Sidebar, type OrgOption } from './sidebar'
 
 /** BRAND.md §4 layout: content offset by the sidebar, capped at 1440px. */
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  organizations = [],
+  activeOrganizationId = null,
+}: {
+  children: ReactNode
+  organizations?: OrgOption[]
+  activeOrganizationId?: string | null
+}) {
   return (
     <>
       <AmbientOrbs variant="dashboard" />
-      <Sidebar />
+      <Sidebar organizations={organizations} activeOrganizationId={activeOrganizationId} />
       <main className="mx-auto max-w-[1440px] px-margin-mobile py-xl pb-24 md:px-lg lg:ml-64 lg:pb-xl">
         {children}
       </main>

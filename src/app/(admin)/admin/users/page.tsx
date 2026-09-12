@@ -1,6 +1,7 @@
 import { getSessionUser } from '@/lib/auth/session'
 import { listUsers } from '@/lib/api/admin'
 import { pendingInvitations } from '@/lib/api/invitations'
+import { listOrganizations } from '@/lib/api/organizations'
 import { Table, TableCell, TableHead, TableRow } from '@/components/ui'
 import { ActiveToggle } from './toggle'
 import { CreateUser } from './create-user'
@@ -15,7 +16,7 @@ export const dynamic = 'force-dynamic'
  * next request rather than whenever the session would have expired.
  */
 export default async function AdminUsersPage() {
-  const [me, users, invited] = await Promise.all([getSessionUser(), listUsers(), pendingInvitations()])
+  const [me, users, invited, organizations] = await Promise.all([getSessionUser(), listUsers(), pendingInvitations(), listOrganizations()])
   // An invited account is inactive until redeemed; it is not "deactivated".
   const inactive = users.filter((user) => !user.isActive && !invited.has(user.id)).length
 
@@ -29,10 +30,10 @@ export default async function AdminUsersPage() {
         person sets their own password, and nobody here ever sees it.
       </p>
 
-      <CreateUser />
+      <CreateUser organizations={organizations.map((o) => ({ id: o.id, name: o.name }))} />
 
       <Table className="mt-lg">
-        <TableHead columns={['User', 'Role', 'Status', 'Campaigns', 'Sessions', '']} />
+        <TableHead columns={['User', 'Role', 'Organisations', 'Status', 'Campaigns', 'Sessions', '']} />
         <tbody>
           {users.map((user) => (
             <TableRow key={user.id}>
@@ -40,6 +41,9 @@ export default async function AdminUsersPage() {
                 <span className="font-mono text-label-md">{user.username}</span>
               </TableCell>
               <TableCell className="font-mono text-label-sm">{user.role}</TableCell>
+              <TableCell className="font-mono text-label-sm">
+                {user.organizations.length === 0 ? '—' : user.organizations.map((o) => `${o.name} (${o.role.toLowerCase()})`).join(', ')}
+              </TableCell>
               <TableCell>
                 {/*
                   * Label and dot, never colour alone — BRAND.md §2.4. A locked

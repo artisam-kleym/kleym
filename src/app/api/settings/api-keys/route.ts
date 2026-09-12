@@ -20,11 +20,11 @@ export const dynamic = 'force-dynamic'
 const createSchema = z.object({ name: z.string().trim().min(1).max(60) }).strict()
 
 export async function GET() {
-  const { user, response } = await requireUser()
+  const { user, org, response } = await requireUser()
   if (!user) return response
 
   try {
-    return Response.json({ keys: await listApiKeys(user.id) })
+    return Response.json({ keys: await listApiKeys(org.id) })
   } catch (error) {
     logger.error({ reason: error instanceof Error ? error.message : 'unknown' }, 'api key list failed')
     return serverError()
@@ -32,7 +32,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { user, response } = await requireUser()
+  const { user, org, response } = await requireUser('OPERATOR')
   if (!user) return response
 
   let body: unknown
@@ -57,11 +57,12 @@ export async function POST(request: Request) {
    * of the argon2 hash is that nothing can hand the key back later.
    */
   try {
-    const issued = await issueApiKey(user.id, parsed.data.name)
+    const issued = await issueApiKey(user.id, org.id, parsed.data.name)
 
     // The key itself is never logged (AGENT.md §4.5).
     await recordAudit({
       userId: user.id,
+      organizationId: org.id,
       action: 'apikey.create',
       entityType: 'apikey',
       entityId: issued.id,

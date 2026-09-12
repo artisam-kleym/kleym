@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic'
 type Params = { params: Promise<{ id: string }> }
 
 export async function POST(request: Request, { params }: Params) {
-  const { user, response } = await requireUser()
+  const { user, org, response } = await requireUser('OPERATOR')
   if (!user) return response
   const { id } = await params
 
@@ -50,7 +50,7 @@ export async function POST(request: Request, { params }: Params) {
    * that does.
    */
   try {
-    const outcome = await prepareBatch(id, user.id, parsed.data)
+    const outcome = await prepareBatch(id, org.id, parsed.data)
     if (outcome.kind === 'not-found') return notFound()
     if (outcome.kind === 'conflict') return conflict(outcome.detail)
 

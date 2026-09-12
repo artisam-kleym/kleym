@@ -3,15 +3,20 @@ import { describe, expect, it } from 'vitest'
 import { createUserSchema, redeemSchema, inviteUrl } from '@/lib/api/invitations'
 
 describe('creating a user', () => {
-  it('accepts a plain username and defaults the role', () => {
-    expect(createUserSchema.parse({ username: 'ann.smith-2' })).toEqual({ username: 'ann.smith-2', role: 'SENDER' })
+  it('accepts a plain username and defaults the roles', () => {
+    expect(createUserSchema.parse({ username: 'ann.smith-2', organizationId: 'o1' })).toEqual({
+      username: 'ann.smith-2', role: 'SENDER', organizationId: 'o1', orgRole: 'OPERATOR',
+    })
+  })
+  it('needs an organisation: an account belongs somewhere', () => {
+    expect(createUserSchema.safeParse({ username: 'ann' }).success).toBe(false)
   })
   it('refuses spaces, slashes, leading punctuation and unknown keys', () => {
     for (const username of ['ann smith', 'a/b', '.ann', 'ab']) {
-      expect(createUserSchema.safeParse({ username }).success, username).toBe(false)
+      expect(createUserSchema.safeParse({ username, organizationId: 'o1' }).success, username).toBe(false)
     }
     // The admin never supplies a password. Not even as an ignored field.
-    expect(createUserSchema.safeParse({ username: 'ann', password: 'x' }).success).toBe(false)
+    expect(createUserSchema.safeParse({ username: 'ann', organizationId: 'o1', password: 'x' }).success).toBe(false)
   })
 })
 

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getSessionUser } from '@/lib/auth/session'
+import { pageScope } from '@/lib/api/session-guard'
 import { LINK_PREVIEW, loadCampaignDetail } from '@/lib/api/campaign-detail'
 import { StatusChip, StellarAddress, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
 import { ReclaimPanel } from './reclaim-panel'
@@ -29,11 +29,10 @@ const CHIP: Record<string, Status> = {
  * integers. The full, filterable table is `/campaigns/[id]/links`.
  */
 export default async function CampaignPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await getSessionUser()
-  if (!user) notFound()
+  const { org } = await pageScope()
   const { id } = await params
 
-  const loaded = await loadCampaignDetail(id, user.id)
+  const loaded = await loadCampaignDetail(id, org.id)
   if (!loaded) notFound()
   const { campaign, counts, outstanding, expired } = loaded
 

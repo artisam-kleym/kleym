@@ -897,5 +897,5 @@ State these in the product, not just in this document.
   follows, an ephemeral account holds 1.0–1.5 XLM of sponsored reserve. Kleym cannot
   merge it back, because doing so needs the ephemeral key it deliberately does not hold.
   The reserve is released when the link is finally claimed. No user funds are affected.
-- **No multi-tenancy.** One user owns their campaigns; no shared organisation access.
+- **Organisations are flat.** Campaigns belong to an organisation and its members act on them by role (Viewer, Operator, Approver, Owner — #44); there is no sharing of a single campaign across organisations and no hierarchy of organisations.
 - **Reserve estimates depend on live protocol values** and can shift between quote and signature.

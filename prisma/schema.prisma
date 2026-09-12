@@ -35,6 +35,17 @@ enum Role {
   SENDER
 }
 
+/// A member's standing in an organisation. SPEC.md §1.3 (v2), issue #44.
+///
+/// Ordered by what each may do; `roleAtLeast` in lib/api/session-guard.ts
+/// relies on this order. ADMIN on User is Kleym staff and is orthogonal.
+enum OrgRole {
+  VIEWER // read campaigns, links, history; no signing, no export
+  OPERATOR // create campaigns, run the wizard, sign batches, reclaim
+  APPROVER // Operator, plus approve a campaign for disbursement (#45)
+  OWNER // everything, plus membership and settings
+}
+
 enum CampaignStatus {
   DRAFT // created, not yet funded on-chain
   CREATING // batches being signed/submitted
@@ -88,8 +99,40 @@ model User {
   auditLogs   AuditLog[]
   invitations Invitation[] @relation("invitee")
   invited     Invitation[] @relation("inviter")
+  memberships Membership[]
 
   @@index([username])
+}
+
+/// The unit of ownership. Every Campaign, ApiKey and AuditLog row belongs to
+/// one organisation, and every User is a member of at least one — the
+/// migration gave every existing user a personal organisation, so a
+/// single-user deployment behaves exactly as before.
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  campaigns   Campaign[]
+  apiKeys     ApiKey[]
+  auditLogs   AuditLog[]
+  invitations Invitation[]
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrgRole  @default(OPERATOR)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
 }
 
 /// An admin-issued, single-use, time-bounded invitation. SPEC.md §5.4.
@@ -99,16 +142,21 @@ model User {
 /// The token is stored as a SHA-256 hash exactly like Session.tokenHash —
 /// the plaintext exists only in the URL the admin hands over, once.
 model Invitation {
-  id          String    @id @default(cuid())
-  userId      String
-  createdById String
-  tokenHash   String    @unique // sha256 of the opaque URL token
+  id             String    @id @default(cuid())
+  userId         String
+  createdById    String
+  /// The organisation the invitee joins, and as what. The membership is
+  /// created with the invitation, so revoking the invitation removes both.
+  organizationId String
+  role           OrgRole   @default(OPERATOR)
+  tokenHash      String    @unique // sha256 of the opaque URL token
   expiresAt   DateTime
   redeemedAt  DateTime?
   createdAt   DateTime  @default(now())
 
-  user      User @relation("invitee", fields: [userId], references: [id], onDelete: Cascade)
-  createdBy User @relation("inviter", fields: [createdById], references: [id])
+  user         User         @relation("invitee", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("inviter", fields: [createdById], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
@@ -118,6 +166,10 @@ model Session {
   id        String   @id @default(cuid())
   userId    String
   tokenHash String   @unique // sha256 of the opaque cookie value
+  /// Which of the user's organisations this session is acting in. Resolved
+  /// against their memberships on EVERY request, so a removed membership
+  /// ends access at once — the session merely remembers a preference.
+  activeOrganizationId String?
   expiresAt DateTime
   ip        String?
   userAgent String?
@@ -130,24 +182,29 @@ model Session {
 }
 
 model ApiKey {
-  id         String    @id @default(cuid())
-  userId     String
-  name       String
+  id             String    @id @default(cuid())
+  userId         String // who issued it
+  organizationId String // whose campaigns it reads
+  name           String
   prefix     String    @unique // first 8 chars, shown in UI
   keyHash    String // argon2id of the full key
   lastUsedAt DateTime?
   revokedAt  DateTime?
   createdAt  DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([organizationId])
   @@index([prefix])
 }
 
 model Campaign {
   id              String         @id @default(cuid())
+  /// Who created it. Ownership is the ORGANISATION; this is provenance.
   userId          String
+  organizationId  String
   name            String
   network         String // "testnet" | "public"
   senderPublicKey String // G... that funded it
@@ -162,14 +219,16 @@ model Campaign {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  user     User        @relation(fields: [userId], references: [id])
-  links    ClaimLink[]
-  batches  Batch[]
-  reclaims ReclaimBatch[]
-  findings ReconciliationFinding[]
-  stranded StrandedAccount[]
+  user         User                    @relation(fields: [userId], references: [id])
+  organization Organization            @relation(fields: [organizationId], references: [id])
+  links        ClaimLink[]
+  batches      Batch[]
+  reclaims     ReclaimBatch[]
+  findings     ReconciliationFinding[]
+  stranded     StrandedAccount[]
 
   @@index([userId, status])
+  @@index([organizationId, status])
   @@index([expiresAt, status])
 }
 
@@ -321,18 +380,23 @@ model ReconciliationFinding {
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  userId     String?
-  action     String // "campaign.create", "link.reclaim", ...
+  id             String   @id @default(cuid())
+  userId         String?
+  /// The organisation the action happened in. Null for actions with no
+  /// organisation (an admin acting on a user, a security event on a route).
+  organizationId String?
+  action         String // "campaign.create", "link.reclaim", ...
   entityType String?
   entityId   String?
   metadata   Json?
   ip         String?
   createdAt  DateTime @default(now())
 
-  user User? @relation(fields: [userId], references: [id])
+  user         User?         @relation(fields: [userId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
 
   @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
   @@index([entityType, entityId])
 }
 

@@ -23,6 +23,10 @@ export type AuditAction =
   | 'link.reclaim'
   | 'user.create'
   | 'user.revoke_invitation'
+  | 'org.member_add'
+  | 'org.member_role'
+  | 'org.member_remove'
+  | 'org.rename'
   | 'user.activate'
   | 'user.deactivate'
   | 'auth.password_change'
@@ -34,6 +38,8 @@ export type AuditValue = string | number | boolean | null
 
 export interface AuditEntry {
   userId: string | null
+  /** The organisation the action happened in; null when there is none (staff acting on a user). */
+  organizationId?: string | null
   action: AuditAction
   entityType?: string
   entityId?: string
@@ -131,6 +137,7 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
     await prisma.auditLog.create({
       data: {
         userId: entry.userId,
+        organizationId: entry.organizationId ?? null,
         action: entry.action,
         entityType: entry.entityType ?? null,
         entityId: entry.entityId ?? null,
@@ -148,6 +155,8 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
 
 export interface AuditQuery {
   userId?: string
+  /** "What happened in my organisation" — the question a customer's auditor asks. */
+  organizationId?: string
   action?: string
   entityType?: string
   entityId?: string
@@ -166,6 +175,7 @@ export interface AuditPage {
     entityId: string | null
     ip: string | null
     username: string | null
+    organization: string | null
     metadata: unknown
   }[]
   total: number
@@ -181,6 +191,7 @@ export async function queryAudit(query: AuditQuery = {}): Promise<AuditPage> {
 
   const where = {
     ...(query.userId ? { userId: query.userId } : {}),
+    ...(query.organizationId ? { organizationId: query.organizationId } : {}),
     ...(query.action ? { action: query.action } : {}),
     ...(query.entityType ? { entityType: query.entityType } : {}),
     ...(query.entityId ? { entityId: query.entityId } : {}),
@@ -212,6 +223,7 @@ export async function queryAudit(query: AuditQuery = {}): Promise<AuditPage> {
         id: true, createdAt: true, action: true, entityType: true,
         entityId: true, ip: true, metadata: true,
         user: { select: { username: true } },
+        organization: { select: { name: true } },
       },
     }),
   ])
@@ -225,6 +237,7 @@ export async function queryAudit(query: AuditQuery = {}): Promise<AuditPage> {
       entityId: row.entityId,
       ip: row.ip,
       username: row.user?.username ?? null,
+      organization: row.organization?.name ?? null,
       metadata: row.metadata,
     })),
     total,

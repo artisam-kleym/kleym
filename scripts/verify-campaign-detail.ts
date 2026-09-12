@@ -9,6 +9,7 @@
 import { randomUUID } from 'node:crypto'
 import { Keypair } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 
@@ -35,7 +36,7 @@ async function fixture(links: number) {
   })
   const campaign = await prisma.campaign.create({
     data: {
-      userId: user.id, name: 'verify-detail', network: 'testnet',
+      userId: user.id, organizationId: await personalOrg(prisma, user.id), name: 'verify-detail', network: 'testnet',
       senderPublicKey: Keypair.random().publicKey(), assetCode: 'XLM',
       amountPerLink: '1.0000000', linkCount: links,
       expiresAt: new Date(Date.now() + 86_400_000), status: 'ACTIVE',
@@ -55,7 +56,7 @@ async function fixture(links: number) {
       })),
     })
   }
-  return { userId: user.id, campaignId: campaign.id }
+  return { userId: user.id, organizationId: `org_${user.id}`, campaignId: campaign.id }
 }
 
 async function theDetailPageIsBounded(): Promise<void> {
@@ -64,7 +65,7 @@ async function theDetailPageIsBounded(): Promise<void> {
   const f = await fixture(size)
 
   const started = process.hrtime.bigint()
-  const loaded = await loadCampaignDetail(f.campaignId, f.userId)
+  const loaded = await loadCampaignDetail(f.campaignId, f.organizationId)
   const ms = Number(process.hrtime.bigint() - started) / 1e6
   if (!loaded) return check('it loads', false)
 
@@ -109,7 +110,7 @@ async function ownershipHolds(): Promise<void> {
   })
   check('the detail loader answers null', (await loadCampaignDetail(f.campaignId, other.id)) === null)
   check('the links header answers null', (await loadCampaignHeader(f.campaignId, other.id)) === null)
-  check('the owner still sees it', (await loadCampaignDetail(f.campaignId, f.userId)) !== null)
+  check('the owner still sees it', (await loadCampaignDetail(f.campaignId, f.organizationId)) !== null)
   check('counts on an empty status are zero, not missing',
     Object.keys(await statusCounts(f.campaignId)).length === STATUSES.length)
 }

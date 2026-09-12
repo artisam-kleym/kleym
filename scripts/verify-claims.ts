@@ -17,6 +17,7 @@
 import { randomUUID } from 'node:crypto'
 import { Keypair } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 
@@ -40,6 +41,7 @@ async function makeUser(tag: string): Promise<string> {
     data: { username: `${tag}-${randomUUID()}`, passwordHash: 'x', role: 'SENDER' },
     select: { id: true },
   })
+  await personalOrg(prisma, user.id)
   return user.id
 }
 
@@ -55,6 +57,7 @@ async function makeLink(opts: LinkOpts = {}): Promise<string> {
   const campaign = await prisma.campaign.create({
     data: {
       userId,
+      organizationId: `org_${userId}`,
       name: 'verify-claims',
       network: 'testnet',
       senderPublicKey: Keypair.random().publicKey(),

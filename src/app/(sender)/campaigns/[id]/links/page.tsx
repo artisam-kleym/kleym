@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getSessionUser } from '@/lib/auth/session'
+import { pageScope } from '@/lib/api/session-guard'
 import { StatusChip, StellarAddress, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
 import {
   EmptyState, FilterBar, FilterField, FilterSelect, Pagination, firstValues, formatDate,
@@ -28,10 +28,9 @@ export default async function CampaignLinksPage({
   params: Promise<{ id: string }>
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const user = await getSessionUser()
-  if (!user) notFound()
+  const { org } = await pageScope()
   const { id } = await params
-  const campaign = await loadCampaignHeader(id, user.id)
+  const campaign = await loadCampaignHeader(id, org.id)
   if (!campaign) notFound()
 
   const raw = firstValues(await searchParams)

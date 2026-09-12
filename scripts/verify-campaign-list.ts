@@ -8,6 +8,7 @@
 import { randomUUID } from 'node:crypto'
 import { Keypair } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 
@@ -25,26 +26,28 @@ const check = (name: string, pass: boolean, detail = ''): void => {
   }
 }
 
+/** Returns the user's personal ORGANISATION id — the scope the list reads in. */
 async function user(): Promise<string> {
   const row = await prisma.user.create({
     data: { username: `list-${randomUUID()}`, passwordHash: 'x', role: 'SENDER' },
     select: { id: true },
   })
-  return row.id
+  return personalOrg(prisma, row.id)
 }
+const userOf = (organizationId: string) => organizationId.replace(/^org_/, '')
 
 /**
  * Several campaigns with ONE createdAt. Prisma fills `@default(now())` on the
  * client per statement, so the stamp is set explicitly here to produce the
  * ties that a bulk import or a same-transaction write produces in practice.
  */
-async function campaigns(userId: string, names: string[], status: 'ACTIVE' | 'EXPIRED' = 'ACTIVE') {
+async function campaigns(organizationId: string, names: string[], status: 'ACTIVE' | 'EXPIRED' = 'ACTIVE') {
   const createdAt = new Date()
   return prisma.$transaction(
     names.map((name) =>
       prisma.campaign.create({
         data: {
-          userId, name, network: 'testnet', senderPublicKey: Keypair.random().publicKey(),
+          userId: userOf(organizationId), organizationId, name, network: 'testnet', senderPublicKey: Keypair.random().publicKey(),
           assetCode: 'XLM', amountPerLink: '1.0000000', linkCount: 1,
           expiresAt: new Date(Date.now() + 86_400_000), status, createdAt,
         },
@@ -101,7 +104,7 @@ async function orderingIsStable(): Promise<void> {
   console.log('\n3. Campaigns sharing a createdAt page the same way every time')
   const u = await user()
   const created = await campaigns(u, Array.from({ length: 90 }, (_, i) => `Tie ${i}`))
-  const stamps = await prisma.campaign.findMany({ where: { userId: u }, select: { createdAt: true } })
+  const stamps = await prisma.campaign.findMany({ where: { organizationId: u }, select: { createdAt: true } })
   check('they do share a createdAt', new Set(stamps.map((s) => s.createdAt.getTime())).size === 1)
 
   // Relocate tuples, which is what perturbs an unstable sort.

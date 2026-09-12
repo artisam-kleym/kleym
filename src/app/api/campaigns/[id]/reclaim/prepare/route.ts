@@ -23,7 +23,7 @@ export const dynamic = 'force-dynamic'
 type Params = { params: Promise<{ id: string }> }
 
 export async function POST(request: Request, { params }: Params) {
-  const { user, response } = await requireUser()
+  const { user, org, response } = await requireUser('OPERATOR')
   if (!user) return response
   const { id } = await params
 
@@ -42,7 +42,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!idempotency.reserved) return idempotency.response
 
   try {
-    const outcome = await prepareReclaim(id, user.id)
+    const outcome = await prepareReclaim(id, org.id)
     if (outcome.kind !== 'ok') {
       await releaseIdempotency(request, context)
       return outcome.kind === 'not-found' ? notFound() : conflict(outcome.detail, outcome.reason)

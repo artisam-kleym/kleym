@@ -10,6 +10,7 @@
  */
 import { randomUUID } from 'node:crypto'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 
@@ -29,20 +30,23 @@ const check = (name: string, pass: boolean, detail = ''): void => {
   }
 }
 
+/** An admin with a personal organisation; invitees join it as Operators. */
 async function admin(): Promise<string> {
   const row = await prisma.user.create({
     data: { username: `inv-admin-${randomUUID()}`, passwordHash: 'x', role: 'ADMIN' },
     select: { id: true },
   })
+  await personalOrg(prisma, row.id)
   return row.id
 }
+const orgOf = (userId: string) => `org_${userId}`
 const tokenOf = (url: string) => url.slice(url.lastIndexOf('/') + 1)
 
 async function createsAnInactiveAccount(): Promise<void> {
   console.log('\n1. An admin creates a SENDER; it cannot sign in until redeemed')
   const actor = await admin()
   const username = `invitee-${randomUUID().slice(0, 8)}`
-  const outcome = await createInvitedUser(actor, { username, role: 'SENDER' }, '203.0.113.5')
+  const outcome = await createInvitedUser(actor, { username, role: 'SENDER', organizationId: orgOf(actor) }, '203.0.113.5')
   check('it is created', outcome.kind === 'ok', JSON.stringify(outcome))
   if (outcome.kind !== 'ok') return
 
@@ -54,14 +58,14 @@ async function createsAnInactiveAccount(): Promise<void> {
   check('and expires in three days', Math.abs(outcome.expiresAt.getTime() - Date.now() - INVITATION_TTL_MS) < 5_000)
   check('it shows as pending on the admin page', (await pendingInvitations()).has(user.id))
 
-  const again = await createInvitedUser(actor, { username, role: 'SENDER' }, null)
+  const again = await createInvitedUser(actor, { username, role: 'SENDER', organizationId: orgOf(actor) }, null)
   check('the same username twice is a conflict', again.kind === 'conflict', JSON.stringify(again))
 }
 
 async function theTokenIsStoredHashedAndNowhereElse(): Promise<void> {
   console.log('\n2. The plaintext token is in no column and no audit row')
   const actor = await admin()
-  const outcome = await createInvitedUser(actor, { username: `hash-${randomUUID().slice(0, 8)}`, role: 'SENDER' }, null)
+  const outcome = await createInvitedUser(actor, { username: `hash-${randomUUID().slice(0, 8)}`, role: 'SENDER', organizationId: orgOf(actor) }, null)
   if (outcome.kind !== 'ok') return check('created', false)
   const token = tokenOf(outcome.inviteUrl)
 
@@ -82,7 +86,7 @@ async function theTokenIsStoredHashedAndNowhereElse(): Promise<void> {
 async function redeemsOnceOnly(): Promise<void> {
   console.log('\n3. Redemption sets the password once; twice, expired and unknown all fail alike')
   const actor = await admin()
-  const outcome = await createInvitedUser(actor, { username: `redeem-${randomUUID().slice(0, 8)}`, role: 'SENDER' }, null)
+  const outcome = await createInvitedUser(actor, { username: `redeem-${randomUUID().slice(0, 8)}`, role: 'SENDER', organizationId: orgOf(actor) }, null)
   if (outcome.kind !== 'ok') return check('created', false)
   const token = tokenOf(outcome.inviteUrl)
   const password = `correct-horse-${randomUUID()}`
@@ -99,7 +103,7 @@ async function redeemsOnceOnly(): Promise<void> {
   const after = await prisma.user.findUniqueOrThrow({ where: { id: outcome.user.id }, select: { passwordHash: true } })
   check('and did not change the password', after.passwordHash === user.passwordHash)
 
-  const expired = await createInvitedUser(actor, { username: `expired-${randomUUID().slice(0, 8)}`, role: 'SENDER' }, null)
+  const expired = await createInvitedUser(actor, { username: `expired-${randomUUID().slice(0, 8)}`, role: 'SENDER', organizationId: orgOf(actor) }, null)
   if (expired.kind !== 'ok') return check('created', false)
   const late = new Date(Date.now() + INVITATION_TTL_MS + 1_000)
   const expiredOutcome = await redeemInvitation(tokenOf(expired.inviteUrl), password, late)
@@ -110,7 +114,7 @@ async function redeemsOnceOnly(): Promise<void> {
     !(await prisma.user.findUniqueOrThrow({ where: { id: expired.user.id }, select: { isActive: true } })).isActive)
 
   // Two concurrent redemptions of one token: exactly one wins.
-  const raced = await createInvitedUser(actor, { username: `race-${randomUUID().slice(0, 8)}`, role: 'SENDER' }, null)
+  const raced = await createInvitedUser(actor, { username: `race-${randomUUID().slice(0, 8)}`, role: 'SENDER', organizationId: orgOf(actor) }, null)
   if (raced.kind !== 'ok') return check('created', false)
   const results = await Promise.all([
     redeemInvitation(tokenOf(raced.inviteUrl), 'password-number-one'),
@@ -122,7 +126,7 @@ async function redeemsOnceOnly(): Promise<void> {
 async function theRouteAnswersTheSameForEveryRefusal(): Promise<void> {
   console.log('\n4. The redeem route: same body for unknown, expired and spent; rate limited')
   const actor = await admin()
-  const spent = await createInvitedUser(actor, { username: `route-${randomUUID().slice(0, 8)}`, role: 'SENDER' }, null)
+  const spent = await createInvitedUser(actor, { username: `route-${randomUUID().slice(0, 8)}`, role: 'SENDER', organizationId: orgOf(actor) }, null)
   if (spent.kind !== 'ok') return check('created', false)
   await redeemInvitation(tokenOf(spent.inviteUrl), 'a-perfectly-fine-password')
 
@@ -149,7 +153,7 @@ async function theRouteAnswersTheSameForEveryRefusal(): Promise<void> {
   }
   check('the sixth attempt from one IP is rate limited', limited >= 1, `${limited} limited of 7`)
 
-  const good = await createInvitedUser(actor, { username: `route2-${randomUUID().slice(0, 8)}`, role: 'SENDER' }, null)
+  const good = await createInvitedUser(actor, { username: `route2-${randomUUID().slice(0, 8)}`, role: 'SENDER', organizationId: orgOf(actor) }, null)
   if (good.kind !== 'ok') return check('created', false)
   const ok = await post({ token: tokenOf(good.inviteUrl), password: 'a-perfectly-fine-password' })
   check('a valid redemption through the route is 200 with the username', ok.status === 200 && ((await ok.json()) as { username: string }).username === good.user.username)
@@ -157,10 +161,11 @@ async function theRouteAnswersTheSameForEveryRefusal(): Promise<void> {
 
 function inputRules(): void {
   console.log('\n5. Input rules')
-  check('usernames are letters, digits, dot, dash, underscore', createUserSchema.safeParse({ username: 'ann.smith-2' }).success)
-  check('and not spaces or slashes', !createUserSchema.safeParse({ username: 'ann smith' }).success && !createUserSchema.safeParse({ username: 'a/b' }).success)
-  check('role defaults to SENDER', createUserSchema.parse({ username: 'abc' }).role === 'SENDER')
-  check('a password in the body is not a field', !createUserSchema.safeParse({ username: 'abc', password: 'x' }).success)
+  check('usernames are letters, digits, dot, dash, underscore', createUserSchema.safeParse({ username: 'ann.smith-2', organizationId: 'o' }).success)
+  check('and not spaces or slashes', !createUserSchema.safeParse({ username: 'ann smith', organizationId: 'o' }).success && !createUserSchema.safeParse({ username: 'a/b', organizationId: 'o' }).success)
+  check('role defaults to SENDER and org role to OPERATOR', createUserSchema.parse({ username: 'abc', organizationId: 'o' }).role === 'SENDER' && createUserSchema.parse({ username: 'abc', organizationId: 'o' }).orgRole === 'OPERATOR')
+  check('a password in the body is not a field', !createUserSchema.safeParse({ username: 'abc', organizationId: 'o', password: 'x' }).success)
+  check('an organisation is required', !createUserSchema.safeParse({ username: 'abc' }).success)
 }
 
 /**
@@ -170,7 +175,7 @@ function inputRules(): void {
 async function revocation(): Promise<void> {
   console.log('\n6. Revoking a pending invitation')
   const actor = await admin()
-  const outcome = await createInvitedUser(actor, { username: `revoke-${randomUUID().slice(0, 8)}`, role: 'SENDER' }, null)
+  const outcome = await createInvitedUser(actor, { username: `revoke-${randomUUID().slice(0, 8)}`, role: 'SENDER', organizationId: orgOf(actor) }, null)
   if (outcome.kind !== 'ok') return check('created', false)
   const token = tokenOf(outcome.inviteUrl)
 
@@ -184,10 +189,10 @@ async function revocation(): Promise<void> {
   check('no longer pending', !(await pendingInvitations()).has(outcome.user.id))
   const audit = await prisma.auditLog.findFirst({ where: { action: 'user.revoke_invitation', entityId: outcome.user.id } })
   check('audited, naming the actor and the username', audit?.userId === actor && JSON.stringify(audit.metadata).includes(outcome.user.username))
-  check('and the username can be invited again', (await createInvitedUser(actor, { username: outcome.user.username, role: 'SENDER' }, null)).kind === 'ok')
+  check('and the username can be invited again', (await createInvitedUser(actor, { username: outcome.user.username, role: 'SENDER', organizationId: orgOf(actor) }, null)).kind === 'ok')
 
   // A redeemed account is not revocable: that would delete a real user.
-  const real = await createInvitedUser(actor, { username: `real-${randomUUID().slice(0, 8)}`, role: 'SENDER' }, null)
+  const real = await createInvitedUser(actor, { username: `real-${randomUUID().slice(0, 8)}`, role: 'SENDER', organizationId: orgOf(actor) }, null)
   if (real.kind !== 'ok') return check('created', false)
   await redeemInvitation(tokenOf(real.inviteUrl), 'a-perfectly-fine-password')
   const refused = await revokeInvitation(actor, real.user.id, null)
@@ -200,7 +205,7 @@ async function revocation(): Promise<void> {
   let kept = 0
   let goneUnredeemed = 0
   for (let i = 0; i < 6; i += 1) {
-    const raced = await createInvitedUser(actor, { username: `rr-${randomUUID().slice(0, 8)}`, role: 'SENDER' }, null)
+    const raced = await createInvitedUser(actor, { username: `rr-${randomUUID().slice(0, 8)}`, role: 'SENDER', organizationId: orgOf(actor) }, null)
     if (raced.kind !== 'ok') return check('created', false)
     const [redeemed, revokedNow] = await Promise.all([
       redeemInvitation(tokenOf(raced.inviteUrl), 'a-perfectly-fine-password'),
@@ -224,8 +229,8 @@ async function usernameRace(): Promise<void> {
   const [a, b] = [await admin(), await admin()]
   const username = `race-${randomUUID().slice(0, 8)}`
   const results = await Promise.all([
-    createInvitedUser(a, { username, role: 'SENDER' }, null),
-    createInvitedUser(b, { username, role: 'SENDER' }, null),
+    createInvitedUser(a, { username, role: 'SENDER', organizationId: orgOf(a) }, null),
+    createInvitedUser(b, { username, role: 'SENDER', organizationId: orgOf(b) }, null),
   ])
   check('exactly one succeeds', results.filter((r) => r.kind === 'ok').length === 1, JSON.stringify(results.map((r) => r.kind)))
   check('and the other is a conflict', results.filter((r) => r.kind === 'conflict').length === 1, JSON.stringify(results.map((r) => r.kind)))

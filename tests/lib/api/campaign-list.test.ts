@@ -18,10 +18,10 @@ import {
 } from '@/lib/api/campaign-list'
 
 describe('the campaign list clause', () => {
-  it('always carries the owner, with or without filters', () => {
-    expect(campaignListWhere('u1', campaignListQuerySchema.parse({}))).toEqual({ userId: 'u1' })
-    const filtered = campaignListWhere('u1', campaignListQuerySchema.parse({ q: 'promo', status: 'ACTIVE' }))
-    expect(filtered.userId).toBe('u1')
+  it('always carries the organisation, with or without filters', () => {
+    expect(campaignListWhere('o1', campaignListQuerySchema.parse({}))).toEqual({ organizationId: 'o1' })
+    const filtered = campaignListWhere('o1', campaignListQuerySchema.parse({ q: 'promo', status: 'ACTIVE' }))
+    expect(filtered.organizationId).toBe('o1')
     expect(filtered.status).toBe('ACTIVE')
     expect(filtered.name).toEqual({ contains: 'promo', mode: 'insensitive' })
   })
@@ -51,16 +51,16 @@ describe('the campaign list clause', () => {
 })
 
 describe('the history clause', () => {
-  it('scopes through the campaign owner and only settled links', () => {
-    const where = historyWhere('u1', historyQuerySchema.parse({}))
-    expect(where.campaign).toEqual({ userId: 'u1' })
+  it('scopes through the campaign\'s organisation and only settled links', () => {
+    const where = historyWhere('o1', historyQuerySchema.parse({}))
+    expect(where.campaign).toEqual({ organizationId: 'o1' })
     expect(where.status).toEqual({ in: ['CLAIMED', 'RECLAIMED'] })
     expect(where.claimedAt).toBeUndefined()
   })
 
-  it('keeps the owner when a campaign is named — the id alone is not authority', () => {
-    const where = historyWhere('u1', historyQuerySchema.parse({ campaignId: 'c9' }))
-    expect(where.campaign).toEqual({ userId: 'u1', id: 'c9' })
+  it('keeps the organisation when a campaign is named — the id alone is not authority', () => {
+    const where = historyWhere('o1', historyQuerySchema.parse({ campaignId: 'c9' }))
+    expect(where.campaign).toEqual({ organizationId: 'o1', id: 'c9' })
   })
 
   it('reads a `to` date as through the end of that day', () => {

@@ -27,7 +27,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-  const { user, response } = await requireUser()
+  const { user, org, response } = await requireUser()
   if (!user) return response
 
   const parsed = listQuerySchema.safeParse(
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   const { status, page, perPage } = parsed.data
 
   try {
-    const where = { userId: user.id, ...(status ? { status } : {}) }
+    const where = { organizationId: org.id, ...(status ? { status } : {}) }
     const [total, campaigns] = await Promise.all([
       prisma.campaign.count({ where }),
       prisma.campaign.findMany({
@@ -68,7 +68,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { user, response } = await requireUser()
+  const { user, org, response } = await requireUser('OPERATOR')
   if (!user) return response
 
   let body: unknown
@@ -102,6 +102,7 @@ export async function POST(request: Request) {
     const campaign = await prisma.campaign.create({
       data: {
         userId: user.id,
+        organizationId: org.id,
         name: parsed.data.name,
         network: parsed.data.network,
         senderPublicKey: parsed.data.senderPublicKey,
@@ -119,6 +120,7 @@ export async function POST(request: Request) {
 
     await recordAudit({
       userId: user.id,
+      organizationId: org.id,
       action: 'campaign.create',
       entityType: 'campaign',
       entityId: campaign.id,

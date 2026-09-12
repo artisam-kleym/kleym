@@ -18,6 +18,7 @@
 import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 
@@ -60,6 +61,7 @@ async function runConfirm(reversed: boolean): Promise<void> {
   const campaign = await prisma.campaign.create({
     data: {
       userId: user.id,
+      organizationId: await personalOrg(prisma, user.id),
       name: 'verify-confirm',
       network: 'testnet',
       senderPublicKey: fixture.senderPublicKey,

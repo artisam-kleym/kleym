@@ -11,6 +11,7 @@
 import { randomUUID } from 'node:crypto'
 import { Keypair } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 
@@ -52,6 +53,7 @@ async function fixture(
   const campaign = await prisma.campaign.create({
     data: {
       userId: user.id,
+      organizationId: await personalOrg(prisma, user.id),
       name: 'verify-reconcile',
       network: 'testnet',
       senderPublicKey: sender,

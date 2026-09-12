@@ -12,6 +12,7 @@ import { randomUUID } from 'node:crypto'
 import { Keypair } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 
@@ -47,7 +48,7 @@ async function fixture(count: number, status: 'ACTIVE' | 'EXPIRED' | 'CLAIMED' =
   })
   const campaign = await prisma.campaign.create({
     data: {
-      userId: user.id, name: 'verify-stranded', network: 'testnet',
+      userId: user.id, organizationId: await personalOrg(prisma, user.id), name: 'verify-stranded', network: 'testnet',
       senderPublicKey: Keypair.random().publicKey(), assetCode: 'XLM',
       amountPerLink: '2.5000000', linkCount: count,
       expiresAt: new Date(Date.now() + 30 * 86_400_000), status: 'ACTIVE',

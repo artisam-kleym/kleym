@@ -68,6 +68,21 @@ async function main() {
       select: { id: true, username: true, role: true, createdAt: true, updatedAt: true },
     })
 
+    // A personal organisation, the same shape the #44 migration gave every
+    // pre-existing user, so the admin can also act as a sender. Idempotent:
+    // a re-seed neither renames it nor demotes the admin in it.
+    const organizationId = `org_${admin.id}`
+    await prisma.organization.upsert({
+      where: { id: organizationId },
+      update: {},
+      create: { id: organizationId, name: admin.username },
+    })
+    await prisma.membership.upsert({
+      where: { organizationId_userId: { organizationId, userId: admin.id } },
+      update: {},
+      create: { organizationId, userId: admin.id, role: 'OWNER' },
+    })
+
     // Rule 4 — the password is never printed, logged, or returned.
     const created = admin.createdAt.getTime() === admin.updatedAt.getTime()
     console.log(`Admin ${created ? 'created' : 'updated'}: ${admin.username} (${admin.role})`)

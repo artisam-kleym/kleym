@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic'
 type Params = { params: Promise<{ id: string; linkId: string }> }
 
 export async function PATCH(request: Request, { params }: Params) {
-  const { user, response } = await requireUser()
+  const { user, org, response } = await requireUser('OPERATOR')
   if (!user) return response
   const { id, linkId } = await params
 
@@ -43,7 +43,7 @@ export async function PATCH(request: Request, { params }: Params) {
   try {
     // Ownership travels through the campaign: a link is only addressable by
     // the user who owns the campaign it belongs to.
-    const campaign = await prisma.campaign.findFirst({ where: owned(id, user.id), select: { id: true } })
+    const campaign = await prisma.campaign.findFirst({ where: owned(id, org.id), select: { id: true } })
     if (!campaign) return notFound()
 
     const updated = await prisma.claimLink.updateMany({

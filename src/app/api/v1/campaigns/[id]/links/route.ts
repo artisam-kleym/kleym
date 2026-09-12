@@ -34,7 +34,7 @@ export async function GET(request: Request, { params }: Params) {
 
   try {
     const campaign = await prisma.campaign.findFirst({
-      where: owned(id, auth.caller.userId),
+      where: owned(id, auth.caller.organizationId),
       select: { id: true },
     })
     if (!campaign) return apiNotFound()

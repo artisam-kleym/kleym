@@ -14,6 +14,7 @@
  */
 import { randomUUID } from 'node:crypto'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 // Before any import that touches config. DATABASE_URL is deliberately NOT
 // defaulted over: this script only means anything against a real database.
@@ -53,6 +54,7 @@ async function makeUser(tag: string): Promise<string> {
     },
     select: { id: true },
   })
+  await personalOrg(prisma, user.id)
   return user.id
 }
 
@@ -149,6 +151,7 @@ async function linkLimitHoldsUnderConcurrency(): Promise<void> {
   const campaign = await prisma.campaign.create({
     data: {
       userId: user,
+      organizationId: `org_${user}`,
       name: 'verify',
       network: 'testnet',
       senderPublicKey: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB',
@@ -181,7 +184,7 @@ async function linkLimitHoldsUnderConcurrency(): Promise<void> {
    * thirty-two rows in a campaign that declares ten.
    */
   const attempts = await Promise.allSettled(
-    Array.from({ length: 8 }, (_, i) => registerLinks(campaign.id, user, batch(4, String.fromCharCode(65 + i)))),
+    Array.from({ length: 8 }, (_, i) => registerLinks(campaign.id, `org_${user}`, batch(4, String.fromCharCode(65 + i)))),
   )
 
   const outcomes = attempts.map((r) =>
@@ -210,7 +213,7 @@ async function linkLimitHoldsUnderConcurrency(): Promise<void> {
   )
 
   // And the reported total matches the table, despite skipDuplicates.
-  const repeat = await registerLinks(campaign.id, user, batch(2, 'A'))
+  const repeat = await registerLinks(campaign.id, `org_${user}`, batch(2, 'A'))
   if (repeat.kind === 'ok') {
     const actual = await prisma.claimLink.count({ where: { campaignId: campaign.id } })
     check('the returned total matches the table', repeat.total === actual, `${repeat.total} vs ${actual}`)

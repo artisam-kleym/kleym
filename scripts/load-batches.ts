@@ -26,6 +26,7 @@
 import { randomUUID } from 'node:crypto'
 import { Keypair } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 
@@ -56,7 +57,7 @@ async function main(): Promise<void> {
   })
   const campaign = await prisma.campaign.create({
     data: {
-      userId: user.id, name: 'load test', network: 'testnet',
+      userId: user.id, organizationId: await personalOrg(prisma, user.id), name: 'load test', network: 'testnet',
       senderPublicKey: Keypair.random().publicKey(), assetCode: 'XLM',
       amountPerLink: '1.0000000', linkCount: LINKS,
       expiresAt: new Date(Date.now() + 30 * 86_400_000), status: 'DRAFT',
