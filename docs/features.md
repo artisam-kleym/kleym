@@ -18,69 +18,72 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 ---
 
-## 2026-08-22 — Hardening and release readiness (#17)
+## 2026-08-22 — Admin area and audit logging (#15)
 
-The SPEC §10 acceptance matrix is now walked by execution rather than asserted.
-`pnpm acceptance` runs it against a production build and prints, for each of the
-fourteen criteria, whether it was verified by execution or not — and a criterion it
-cannot execute says so rather than going green. `docs/release.md` records the result.
+Admins get `/admin/users`, `/admin/campaigns` and `/admin/audit` alongside the sponsor
+float and drift report already there. Every mutating action now writes an audit row:
+who did it, to what, and from which address.
 
-**14 of 14 verified by execution.** The four that matter most, because failing them
-costs users money, were all run against the live network or a real browser: all four
-claim permutations on testnet, sponsor reserves fully recovered (`-0.0001 XLM, fees
-only`), no secret in any column or log line, and the CSV gate unbypassable.
+Deactivating a user means signed out, not paused. It deletes their sessions rather than
+relying on the active-check that already blocks the next request — a session row that is
+merely inert still exists, still shows in a count, and would come back to life the moment
+the account was reactivated. Confirmed live: a sender's cookie went from working to
+redirecting the instant an admin deactivated them, and sign-in then failed with the same
+generic message as a wrong password, so the failure does not reveal account state.
 
-Two criteria were initially claimed on weaker evidence than they deserved and were
-re-done: 8 and 11 cited the existence of Playwright specs rather than a run, so the
-suite was executed (19/19); and criterion 9 first returned 401, because posting a seed
-unauthenticated is refused before the guard runs — correct, but not the rejection the
-criterion is about. Signed in, it returns 400 `seed-submitted`, and the seed reaches no
-audit row.
+Audit `metadata` is scrubbed rather than trusted. Two independent rules, because either
+alone has a hole: field names that look like credentials are redacted whatever they hold
+— which is the only way to catch an opaque session token, since nothing about the string
+gives it away — and any value containing a Stellar seed is redacted whatever it is called,
+which catches a seed hiding under `note` or `label`. Callers being careful is still the
+real defence; this is the backstop for the one that is not. A seed reaching the server now
+writes an audit row too, recording the **field path** and never the value.
 
-`pnpm loadtest` answers whether `MAX_LINKS_PER_CAMPAIGN` is survivable or aspirational.
-10,000 links register in 2.7 s, plan into exactly 112 batches in 451 ms, re-plan
-idempotently in 1 ms, and a full paged walk returns **10,000 distinct rows in 93 ms** —
-which also proves the #27/#28 ordering bug fixed at full scale, not just in a fixture.
-
-The header audit covers five routes: the whole §5.3 set present, no `unsafe-inline` or
-`unsafe-eval` anywhere, and `/claim` overriding `Referrer-Policy` to `no-referrer`.
-
-SPEC §12 requires the known limitations to live in the product, not only in a document.
-Four already did. Two did not and now do: a recipient reading `/claim` is told that
-anyone holding the link can claim it and to claim rather than forward, and `/dashboard`
-states that campaigns belong to one account — no colleague, and not Kleym, can see or
-reclaim them.
+Admin access is enforced in every route handler, not by hiding navigation. A signed-in
+sender gets **404 rather than 403** on all five admin pages and on the users API, so the
+route's existence is not disclosed; an anonymous request is redirected or gets a 401.
 
 ### After review
 
-**The load test measures the maintenance jobs.** At 10,000 links the ceiling
-is not the batch path but `reconcileAll` and `watchEphemerals`, one serial
-Horizon read per link on fixed schedules. `pnpm loadtest` now walks both over
-the same 10,000 live links with the reads stubbed, counts the passes the
-bounded limits take to cover the set, and projects a pass at a nominal Horizon
-latency against its schedule interval — failing if it does not fit or a walk
-misses a link. Result at 150 ms/read: reconcile ≈150 s per pass of 300 s, full
-coverage every ≈55 min; ephemeral-watch ≈450 s of 900 s, every ≈60 min. The
-numbers are in `docs/release.md`.
+**The scrubber no longer treats `code` as a credential suffix.** It was in the
+forbidden list as a substring, so `assetCode`, `statusCode`, `resultCode` and
+`countryCode` would all have been silently redacted — and every campaign
+creation would have fired the "credential-shaped fields" alarm the moment
+someone added `assetCode` to its metadata. The credential words (`seed`,
+`secret`, `password`, `token`, `otp`, `apikey`, `privatekey`…) still match as
+substrings of the flattened key, whatever the spelling — a whole-segment
+rewrite was tried and let `apikey`, `privatekey` and `sessiontoken` through —
+and only a field named exactly `code` is treated as an OTP. `verify:admin`
+checks both lists, including run-together and all-caps spellings.
 
-**A server that never starts reads as that.** The acceptance step's readiness
-loop now fails the job with the server log if `/api/health` never answered,
-instead of running the matrix against nothing and reporting criteria failures.
+**`sessionsEnded` is reported only on deactivation.** Activation used to
+sweep the user's expired sessions and return that count under the same name,
+so "activated Alice, 4 sessions ended" read as a sign-out. Activation now
+touches no sessions, returns `sessionsEnded: 0`, and its audit row carries no
+such field.
 
-**Base branch:** this PR still targets `integration/all-open-prs`, which the
-#33 merge-order note calls a throwaway reference. The plan is to retarget it
-to `develop` once #32–#37 land; the branch has had all six updated heads
-merged in so its CI runs against the reviewed fixes.
+**Verified by:** `pnpm verify:admin`, 7 sections against a real Postgres. The scrubber is
+attacked with the shapes a careless caller actually produces — a session token, an API
+key, an OTP, a password, an oddly-spelled secret, an authorization header, and a seed
+hidden under two innocent field names — because criterion 7 is a claim about every call
+site, present and future, not about the four written today. Each section first shown to
+fail against a planted regression: dropping the key rule, dropping the value rule, not
+deleting sessions on deactivation, and allowing an admin to deactivate themselves.
 
-**Verified by:** `pnpm acceptance` against a production build, 14/14; `pnpm spike`
-against testnet, 7/7; `pnpm loadtest` at 10,000 links; `pnpm test:e2e`, 19/19 in a real
-browser; 193 unit tests; all nine verify suites; typecheck, lint, and a cold build with
-no environment.
+Checked live against a production build: the access matrix above across all five pages
+and the users API; `GET /api/health` returns `{"status":"ok"}` with no auth and no
+version, dependency or internal detail; `GET /api/ready` reports reachability; the audit
+viewer renders, filters and pages; and posting a seed writes an audit row whose metadata
+contains the field name and, confirmed by query, the seed nowhere at all.
 
-**Not verified, and stated as such:** a real email send (this environment's provider key
-is a placeholder, so every call 401s), Horizon throughput for 112 real submissions, and
-reclaim's decimal balance comparison on a live ledger.
+**Honest caveat on one check.** `queryAudit` breaks `createdAt` ties on `id`, the fix
+#27/#28 needed for paged link lists. The section that walks 30 rows sharing one timestamp
+verifies that paging returns each row exactly once — but removing the tiebreaker does
+**not** fail it, because Postgres returns those rows consistently at this size either way.
+The tiebreaker stays because it is correct and free; it is not proven by a test.
 
+**Not wired yet:** `link.reclaim`, whose action is defined here but whose call site lives
+on #13's branch. It gets its `recordAudit` call when that merges.
 
 ## 2026-08-22 — Email delivery with OTP-gated retrieval (#14)
 
@@ -149,6 +152,70 @@ unknown keys; and the seed appears in no log line.
 a placeholder, so every provider call 401s — which usefully exercised the failure paths
 but means no message has actually been delivered end to end. Stated rather than implied,
 per `AGENT.md` §6.5.
+
+## 2026-08-22 — Stranded ephemeral account monitor (#19)
+
+`/admin` now shows what the sponsor float has lost to abandoned claims: how many
+ephemeral accounts are stranded, how much XLM they lock, and which of them are
+something worse than stranded. A job checks every fifteen minutes.
+
+The two-transaction claim is not atomic (SPEC §3.3.2). TX1 can land and TX2 never
+follow — a closed tab, a rejected signature — leaving an account on the ledger holding
+sponsored reserve. **Kleym cannot recover these**, and the page says so plainly: the
+merge needs the ephemeral key, which exists only in the recipient's URL and the
+sender's CSV. The same property that makes a database breach harmless makes this
+cleanup impossible. No user funds are affected, and the reserve returns by itself when
+the link is eventually claimed.
+
+It reports rather than sweeps, and it is careful about what it reports. An account
+whose claimable balance has *gone* is not stranded — that claim succeeded and the
+database is behind, so it goes to reconciliation instead of being counted as lost
+float. An account holding a non-zero balance is not an ordinary strand either: that is
+a partially-applied claim, logged at ERROR and labelled "Partial claim" on the report,
+because it needs a person rather than patience. And a claim that started minutes ago
+is not abandoned, just in progress — the age is taken from the ledger's own record of
+when the account was last touched, not from a database column.
+
+The stranded rows are deliberately not reconciliation findings. Drift means something
+is wrong; a strand means both sides are telling the truth about a known, documented
+cost. Filing it as drift would dilute the one report whose rows are all supposed to
+matter.
+
+One bug here came from running the worker rather than reading the code. The sweep only
+visits unfinished links, so a link that reached CLAIMED since the last run — a
+recipient finally coming back, the *ordinary* resolution — was never revisited, and its
+row sat on the report forever reporting float as locked that had already returned. Two
+such rows survived every sweep against real data. Settled links are now cleared
+explicitly, which is acceptance criterion 5.
+
+### After review
+
+**A scheduled pass is bounded.** `watchEphemerals` reads at most
+`WATCH_PASS_LIMIT` (3,000) candidates per run, oldest-first, continuing from an
+`ephemeral-watch:cursor` key in Redis and wrapping at the end — the same shape
+as reconciliation's pass, sharing `lib/queue/pass-cursor.ts`. What it does not
+reach is `remaining` in the report and a WARN in the log. Previously a
+10,000-link campaign meant a `*/15` pass that never finished inside its own
+interval, with nothing saying so. The verify script drives a limit of 2 over 3
+links and checks every one is reached across passes.
+
+**Verified by:** `pnpm verify:stranded`, 10 sections against a real Postgres with every
+ledger read injected — a monitor that describes the ledger cannot be checked against a
+stub of itself, and one that passes when Horizon is unreachable would report a healthy
+float while the real one drained. Each section first shown to fail against a planted
+regression: dropping the succeeded-claim hand-off, dropping the age threshold, dropping
+the partial-claim detection, sweeping finished links, miscomputing the reserve as
+`(1 + subentries) × base`, and removing the settled-link clear. Reserve arithmetic is
+checked against SPEC §3.3.2's own figures: 1.0 XLM bare, 1.5 with a trustline.
+
+Checked in a browser against a production build: `/admin` renders the counts, the
+locked total and the table, with the total matching the sum of its rows. The sponsor
+balance read failed against this environment's unfunded key, which exercised the path
+that matters — it renders "Unknown" and says *this is not a balance of zero*, rather
+than rendering a zero that would raise a permanent false exhaustion warning. The worker
+registers `ephemeral-watch`, runs the job, and two consecutive runs produce an
+identical report.
+
 ## 2026-08-22 — Reclaim: unclaimed funds return to source (#13)
 
 An expired campaign now has a "Reclaim" button on `/campaigns/[id]`, behind a
@@ -220,138 +287,6 @@ needs a campaign whose expiry has genuinely passed on-chain, so it is a testnet 
 not a unit check. Stated rather than implied, per `AGENT.md` §6.5.
 
 
-## 2026-08-22 — Admin area and audit logging (#15)
-
-Admins get `/admin/users`, `/admin/campaigns` and `/admin/audit` alongside the sponsor
-float and drift report already there. Every mutating action now writes an audit row:
-who did it, to what, and from which address.
-
-Deactivating a user means signed out, not paused. It deletes their sessions rather than
-relying on the active-check that already blocks the next request — a session row that is
-merely inert still exists, still shows in a count, and would come back to life the moment
-the account was reactivated. Confirmed live: a sender's cookie went from working to
-redirecting the instant an admin deactivated them, and sign-in then failed with the same
-generic message as a wrong password, so the failure does not reveal account state.
-
-Audit `metadata` is scrubbed rather than trusted. Two independent rules, because either
-alone has a hole: field names that look like credentials are redacted whatever they hold
-— which is the only way to catch an opaque session token, since nothing about the string
-gives it away — and any value containing a Stellar seed is redacted whatever it is called,
-which catches a seed hiding under `note` or `label`. Callers being careful is still the
-real defence; this is the backstop for the one that is not. A seed reaching the server now
-writes an audit row too, recording the **field path** and never the value.
-
-Admin access is enforced in every route handler, not by hiding navigation. A signed-in
-sender gets **404 rather than 403** on all five admin pages and on the users API, so the
-route's existence is not disclosed; an anonymous request is redirected or gets a 401.
-
-### After review
-
-**The scrubber no longer treats `code` as a credential suffix.** It was in the
-forbidden list as a substring, so `assetCode`, `statusCode`, `resultCode` and
-`countryCode` would all have been silently redacted — and every campaign
-creation would have fired the "credential-shaped fields" alarm the moment
-someone added `assetCode` to its metadata. The credential words (`seed`,
-`secret`, `password`, `token`, `otp`, `apikey`, `privatekey`…) still match as
-substrings of the flattened key, whatever the spelling — a whole-segment
-rewrite was tried and let `apikey`, `privatekey` and `sessiontoken` through —
-and only a field named exactly `code` is treated as an OTP. `verify:admin`
-checks both lists, including run-together and all-caps spellings.
-
-**`sessionsEnded` is reported only on deactivation.** Activation used to
-sweep the user's expired sessions and return that count under the same name,
-so "activated Alice, 4 sessions ended" read as a sign-out. Activation now
-touches no sessions, returns `sessionsEnded: 0`, and its audit row carries no
-such field.
-
-**Verified by:** `pnpm verify:admin`, 7 sections against a real Postgres. The scrubber is
-attacked with the shapes a careless caller actually produces — a session token, an API
-key, an OTP, a password, an oddly-spelled secret, an authorization header, and a seed
-hidden under two innocent field names — because criterion 7 is a claim about every call
-site, present and future, not about the four written today. Each section first shown to
-fail against a planted regression: dropping the key rule, dropping the value rule, not
-deleting sessions on deactivation, and allowing an admin to deactivate themselves.
-
-Checked live against a production build: the access matrix above across all five pages
-and the users API; `GET /api/health` returns `{"status":"ok"}` with no auth and no
-version, dependency or internal detail; `GET /api/ready` reports reachability; the audit
-viewer renders, filters and pages; and posting a seed writes an audit row whose metadata
-contains the field name and, confirmed by query, the seed nowhere at all.
-
-**Honest caveat on one check.** `queryAudit` breaks `createdAt` ties on `id`, the fix
-#27/#28 needed for paged link lists. The section that walks 30 rows sharing one timestamp
-verifies that paging returns each row exactly once — but removing the tiebreaker does
-**not** fail it, because Postgres returns those rows consistently at this size either way.
-The tiebreaker stays because it is correct and free; it is not proven by a test.
-
-**Not wired yet:** `link.reclaim`, whose action is defined here but whose call site lives
-on #13's branch. It gets its `recordAudit` call when that merges.
-
-
-## 2026-08-22 — Stranded ephemeral account monitor (#19)
-
-`/admin` now shows what the sponsor float has lost to abandoned claims: how many
-ephemeral accounts are stranded, how much XLM they lock, and which of them are
-something worse than stranded. A job checks every fifteen minutes.
-
-The two-transaction claim is not atomic (SPEC §3.3.2). TX1 can land and TX2 never
-follow — a closed tab, a rejected signature — leaving an account on the ledger holding
-sponsored reserve. **Kleym cannot recover these**, and the page says so plainly: the
-merge needs the ephemeral key, which exists only in the recipient's URL and the
-sender's CSV. The same property that makes a database breach harmless makes this
-cleanup impossible. No user funds are affected, and the reserve returns by itself when
-the link is eventually claimed.
-
-It reports rather than sweeps, and it is careful about what it reports. An account
-whose claimable balance has *gone* is not stranded — that claim succeeded and the
-database is behind, so it goes to reconciliation instead of being counted as lost
-float. An account holding a non-zero balance is not an ordinary strand either: that is
-a partially-applied claim, logged at ERROR and labelled "Partial claim" on the report,
-because it needs a person rather than patience. And a claim that started minutes ago
-is not abandoned, just in progress — the age is taken from the ledger's own record of
-when the account was last touched, not from a database column.
-
-The stranded rows are deliberately not reconciliation findings. Drift means something
-is wrong; a strand means both sides are telling the truth about a known, documented
-cost. Filing it as drift would dilute the one report whose rows are all supposed to
-matter.
-
-One bug here came from running the worker rather than reading the code. The sweep only
-visits unfinished links, so a link that reached CLAIMED since the last run — a
-recipient finally coming back, the *ordinary* resolution — was never revisited, and its
-row sat on the report forever reporting float as locked that had already returned. Two
-such rows survived every sweep against real data. Settled links are now cleared
-explicitly, which is acceptance criterion 5.
-
-### After review
-
-**A scheduled pass is bounded.** `watchEphemerals` reads at most
-`WATCH_PASS_LIMIT` (3,000) candidates per run, oldest-first, continuing from an
-`ephemeral-watch:cursor` key in Redis and wrapping at the end — the same shape
-as reconciliation's pass, sharing `lib/queue/pass-cursor.ts`. What it does not
-reach is `remaining` in the report and a WARN in the log. Previously a
-10,000-link campaign meant a `*/15` pass that never finished inside its own
-interval, with nothing saying so. The verify script drives a limit of 2 over 3
-links and checks every one is reached across passes.
-
-**Verified by:** `pnpm verify:stranded`, 10 sections against a real Postgres with every
-ledger read injected — a monitor that describes the ledger cannot be checked against a
-stub of itself, and one that passes when Horizon is unreachable would report a healthy
-float while the real one drained. Each section first shown to fail against a planted
-regression: dropping the succeeded-claim hand-off, dropping the age threshold, dropping
-the partial-claim detection, sweeping finished links, miscomputing the reserve as
-`(1 + subentries) × base`, and removing the settled-link clear. Reserve arithmetic is
-checked against SPEC §3.3.2's own figures: 1.0 XLM bare, 1.5 with a trustline.
-
-Checked in a browser against a production build: `/admin` renders the counts, the
-locked total and the table, with the total matching the sum of its rows. The sponsor
-balance read failed against this environment's unfunded key, which exercised the path
-that matters — it renders "Unknown" and says *this is not a balance of zero*, rather
-than rendering a zero that would raise a permanent false exhaustion warning. The worker
-registers `ephemeral-watch`, runs the job, and two consecutive runs produce an
-identical report.
-
-
 ## 2026-08-22 — Reconciliation and expiry sweeps (#12)
 
 The database no longer has the last word on whether a link was claimed. A sweep runs
@@ -411,6 +346,69 @@ rather than 403 so the route's existence is not disclosed.
 
 
 <!-- Entries begin below. Newest first. -->
+
+## 2026-08-22 — Hardening and release readiness (#17)
+
+The SPEC §10 acceptance matrix is now walked by execution rather than asserted.
+`pnpm acceptance` runs it against a production build and prints, for each of the
+fourteen criteria, whether it was verified by execution or not — and a criterion it
+cannot execute says so rather than going green. `docs/release.md` records the result.
+
+**14 of 14 verified by execution.** The four that matter most, because failing them
+costs users money, were all run against the live network or a real browser: all four
+claim permutations on testnet, sponsor reserves fully recovered (`-0.0001 XLM, fees
+only`), no secret in any column or log line, and the CSV gate unbypassable.
+
+Two criteria were initially claimed on weaker evidence than they deserved and were
+re-done: 8 and 11 cited the existence of Playwright specs rather than a run, so the
+suite was executed (19/19); and criterion 9 first returned 401, because posting a seed
+unauthenticated is refused before the guard runs — correct, but not the rejection the
+criterion is about. Signed in, it returns 400 `seed-submitted`, and the seed reaches no
+audit row.
+
+`pnpm loadtest` answers whether `MAX_LINKS_PER_CAMPAIGN` is survivable or aspirational.
+10,000 links register in 2.7 s, plan into exactly 112 batches in 451 ms, re-plan
+idempotently in 1 ms, and a full paged walk returns **10,000 distinct rows in 93 ms** —
+which also proves the #27/#28 ordering bug fixed at full scale, not just in a fixture.
+
+The header audit covers five routes: the whole §5.3 set present, no `unsafe-inline` or
+`unsafe-eval` anywhere, and `/claim` overriding `Referrer-Policy` to `no-referrer`.
+
+SPEC §12 requires the known limitations to live in the product, not only in a document.
+Four already did. Two did not and now do: a recipient reading `/claim` is told that
+anyone holding the link can claim it and to claim rather than forward, and `/dashboard`
+states that campaigns belong to one account — no colleague, and not Kleym, can see or
+reclaim them.
+
+### After review
+
+**The load test measures the maintenance jobs.** At 10,000 links the ceiling
+is not the batch path but `reconcileAll` and `watchEphemerals`, one serial
+Horizon read per link on fixed schedules. `pnpm loadtest` now walks both over
+the same 10,000 live links with the reads stubbed, counts the passes the
+bounded limits take to cover the set, and projects a pass at a nominal Horizon
+latency against its schedule interval — failing if it does not fit or a walk
+misses a link. Result at 150 ms/read: reconcile ≈150 s per pass of 300 s, full
+coverage every ≈55 min; ephemeral-watch ≈450 s of 900 s, every ≈60 min. The
+numbers are in `docs/release.md`.
+
+**A server that never starts reads as that.** The acceptance step's readiness
+loop now fails the job with the server log if `/api/health` never answered,
+instead of running the matrix against nothing and reporting criteria failures.
+
+**Base branch:** this PR still targets `integration/all-open-prs`, which the
+#33 merge-order note calls a throwaway reference. The plan is to retarget it
+to `develop` once #32–#37 land; the branch has had all six updated heads
+merged in so its CI runs against the reviewed fixes.
+
+**Verified by:** `pnpm acceptance` against a production build, 14/14; `pnpm spike`
+against testnet, 7/7; `pnpm loadtest` at 10,000 links; `pnpm test:e2e`, 19/19 in a real
+browser; 193 unit tests; all nine verify suites; typecheck, lint, and a cold build with
+no environment.
+
+**Not verified, and stated as such:** a real email send (this environment's provider key
+is a placeholder, so every call 401s), Horizon throughput for 112 real submissions, and
+reclaim's decimal balance comparison on a live ledger.
 
 ## 2026-09-12 — Dependency bump: audit gate green again
 
