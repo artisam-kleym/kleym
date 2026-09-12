@@ -1,4 +1,5 @@
 import { pageScope } from '@/lib/api/session-guard'
+import Link from 'next/link'
 import { listApiKeys } from '@/lib/auth/api-key'
 import { ApiKeys } from './api-keys'
 import { Webhooks } from './webhooks'
@@ -43,6 +44,15 @@ export default async function SettingsPage() {
         <PasswordChange />
       </section>
 
+      <section className="mt-2xl">
+        <h2 className="text-headline-sm text-on-surface">Second factor</h2>
+        <p className="mt-xs text-body-md text-on-surface-variant">
+          An authenticator app or a passkey. Signing a campaign, reclaiming funds and issuing an API key ask for a
+          fresh factor each time, whatever the session&rsquo;s age.{' '}
+          <Link href="/settings/security" className="underline">Manage second factors</Link>
+        </p>
+      </section>
+
       <Organisation
         name={org.name}
         role={org.role}
@@ -50,6 +60,7 @@ export default async function SettingsPage() {
         members={members.map((m) => ({ userId: m.userId, username: m.username, role: m.role, invited: m.invited, isActive: m.isActive }))}
         policy={{ approvalThreshold: org.approvalThreshold, approvalsRequired: org.approvalsRequired }}
         screeningUrl={org.screeningUrl}
+        mfaPolicy={org.mfaPolicy}
       />
 
       <section className="mt-2xl">

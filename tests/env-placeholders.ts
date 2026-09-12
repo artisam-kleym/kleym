@@ -32,6 +32,7 @@ export function applyEnvPlaceholders(): void {
     SESSION_SECRET: Buffer.alloc(32, 7).toString('base64'),
     AUDIT_SIGNING_SEED: Buffer.alloc(32, 9).toString('base64'),
     CREDENTIAL_ENCRYPTION_KEY: Buffer.alloc(32, 13).toString('base64'),
+    MFA_ENCRYPTION_KEY: Buffer.alloc(32, 11).toString('base64'),
     STELLAR_NETWORK: 'testnet',
     HORIZON_URL: 'https://horizon-testnet.stellar.org',
     NETWORK_PASSPHRASE: 'Test SDF Network ; September 2015',

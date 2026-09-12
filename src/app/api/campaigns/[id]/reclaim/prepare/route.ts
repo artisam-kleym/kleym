@@ -7,7 +7,7 @@
  * will reject after they have approved it.
  */
 import { logger } from '@/lib/config/logger'
-import { requireUser } from '@/lib/api/session-guard'
+import { requireStepUp, requireUser } from '@/lib/api/session-guard'
 import {
   beginIdempotency,
   releaseIdempotency,
@@ -25,6 +25,9 @@ type Params = { params: Promise<{ id: string }> }
 export async function POST(request: Request, { params }: Params) {
   const { user, org, response } = await requireUser('OPERATOR')
   if (!user) return response
+  // Step-up (#47): a fresh factor, whatever the session's age — this moves money.
+  const stepUp = await requireStepUp(user)
+  if (stepUp) return stepUp
   const { id } = await params
 
   let body: unknown

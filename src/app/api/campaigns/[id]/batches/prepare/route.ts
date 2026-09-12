@@ -7,7 +7,7 @@
 import { logger } from '@/lib/config/logger'
 import { clientIp } from '@/lib/auth/client-ip'
 import { guardRequestBody } from '@/lib/security/guard'
-import { requireUser } from '@/lib/api/session-guard'
+import { requireStepUp, requireUser } from '@/lib/api/session-guard'
 import { conflict, notFound, serverError, validationProblem } from '@/lib/api/problems'
 import { zodErrors } from '@/lib/api/campaigns'
 import { prepareBatch, prepareSchema } from '@/lib/api/batches'
@@ -20,6 +20,9 @@ type Params = { params: Promise<{ id: string }> }
 export async function POST(request: Request, { params }: Params) {
   const { user, org, response } = await requireUser('OPERATOR')
   if (!user) return response
+  // Step-up (#47): a fresh factor, whatever the session's age — this moves money.
+  const stepUp = await requireStepUp(user)
+  if (stepUp) return stepUp
   const { id } = await params
 
   let body: unknown = {}

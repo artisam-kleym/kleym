@@ -11,7 +11,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
 import { verifyPassword, verifyDummyPassword } from '@/lib/auth/password'
-import { createSession, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth/session'
+import { createSession, resolveSessionByToken, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth/session'
 import { rateLimit, LOGIN_RATE_LIMIT } from '@/lib/auth/rate-limit'
 import { isLockedOut, recordFailure, clearFailures } from '@/lib/auth/lockout'
 import { invalidCredentials, invalidRequest, serverError, tooManyAttempts } from '@/lib/auth/problems'
@@ -93,8 +93,12 @@ export async function POST(request: Request) {
     const store = await cookies()
     store.set(SESSION_COOKIE, token, sessionCookieOptions(expiresAt))
 
-    logger.info({ userId: user.id, ip }, 'login succeeded')
-    return Response.json({ ok: true })
+    // MFA (#47): the session exists but unlocks nothing until the factor is
+    // presented, or — under a policy the user does not yet meet — enrolled.
+    const resolved = await resolveSessionByToken(token)
+    const next = resolved?.state === 'mfa-pending' ? 'mfa' : resolved?.state === 'enrol-required' ? 'enrol' : null
+    logger.info({ userId: user.id, ip, mfa: next ?? 'none' }, 'login succeeded')
+    return Response.json({ ok: true, next })
   } catch (error) {
     // Never let a password or a token reach a log line via an error object.
     logger.error({ ip, reason: error instanceof Error ? error.message : 'unknown' }, 'login errored')

@@ -15,6 +15,8 @@
 import { notFound, redirect } from 'next/navigation'
 import type { OrgRole } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
+import { stepUpGate } from '@/lib/auth/mfa/step-up'
+import { stepUpRequired } from './problems'
 import { getSessionUser, setActiveOrganization, type SessionUser } from '@/lib/auth/session'
 import { forbidden, unauthenticated } from './problems'
 
@@ -27,6 +29,8 @@ export interface OrgScope {
   approvalsRequired: number
   /** Compliance screening callback (#52): null means no screening. */
   screeningUrl: string | null
+  /** MFA policy (#47). */
+  mfaPolicy: 'OFF' | 'APPROVERS' | 'ALL'
 }
 
 export interface RequestScope {
@@ -50,7 +54,7 @@ export async function resolveScope(user: SessionUser): Promise<OrgScope | null> 
   const memberships = await prisma.membership.findMany({
     where: { userId: user.id },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    select: { role: true, organization: { select: { id: true, name: true, approvalThreshold: true, approvalsRequired: true, screeningUrl: true } } },
+    select: { role: true, organization: { select: { id: true, name: true, approvalThreshold: true, approvalsRequired: true, screeningUrl: true, mfaPolicy: true } } },
   })
   if (memberships.length === 0) return null
 
@@ -66,6 +70,7 @@ export async function resolveScope(user: SessionUser): Promise<OrgScope | null> 
     approvalThreshold: chosen.organization.approvalThreshold?.toFixed() ?? null,
     approvalsRequired: chosen.organization.approvalsRequired,
     screeningUrl: chosen.organization.screeningUrl,
+    mfaPolicy: chosen.organization.mfaPolicy,
   }
 }
 
@@ -113,4 +118,13 @@ export async function pageScope(): Promise<RequestScope> {
   const org = await resolveScope(user)
   if (!org) notFound()
   return { user, org }
+}
+
+/**
+ * Step-up (#47): the actions that move money ask for a factor verified in
+ * the last five minutes, whatever the session's age. Null when the caller
+ * may proceed; a response otherwise. Routes call this AFTER requireUser.
+ */
+export async function requireStepUp(user: SessionUser): Promise<Response | null> {
+  return (await stepUpGate(user.id, user.sessionId)) ? stepUpRequired() : null
 }

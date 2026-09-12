@@ -1,5 +1,6 @@
 'use client'
 
+import { useStepUp } from '@/components/mfa/use-step-up'
 import { useState } from 'react'
 import Decimal from 'decimal.js'
 import { Button, WarningPanel } from '@/components/ui'
@@ -49,6 +50,7 @@ export function ReclaimPanel({
   const [phase, setPhase] = useState<Phase>('idle')
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<Done[]>(alreadyReclaimed)
+  const stepUp = useStepUp()
 
   async function post(path: string, body: unknown): Promise<Response> {
     return fetch(`/api/campaigns/${campaignId}/reclaim/${path}`, {
@@ -65,6 +67,8 @@ export function ReclaimPanel({
 
   async function reclaim() {
     setError(null)
+    // Step-up (#47): reclaim moves money; a fresh second factor first, if one is enrolled.
+    if (!(await stepUp.ensure())) return
     setPhase('reclaiming')
     try {
       const address = await connectWallet(network)
@@ -172,6 +176,7 @@ export function ReclaimPanel({
               Returning the funds cancels every unclaimed link in this campaign.
             </WarningPanel>
           </div>
+          {stepUp.panel}
           <div className="mt-md flex flex-wrap gap-sm">
             <Button onClick={reclaim}>Reclaim</Button>
             <Button variant="tertiary" onClick={() => setPhase('idle')}>
