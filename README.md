@@ -45,11 +45,12 @@ changelog before use.
 
 | Package | Version |
 |---|---|
-| `next` | 16.3.1 |
+| `next` | 16.3.5 |
 | `react` / `react-dom` | 19.2.8 |
 | `tailwindcss` | 4.3.3 |
 | `typescript` | **5.9.3** — pinned, see below |
-| `prisma` / `@prisma/client` | 7.9.1 |
+| `prisma` / `@prisma/client` | 7.10.0 |
+| `@creit.tech/stellar-wallets-kit` | 2.6.0 |
 | `argon2` | 0.45.1 |
 | `zod` | 4.4.3 |
 | `@stellar/stellar-sdk` | 16.2.0 |
@@ -92,6 +93,18 @@ still pins 7.1.5.
 A `pnpm.overrides` entry forces `>=8.0.0`. Verified that `@prisma/config` resolves to 8.0.1
 and that `prisma validate`, `generate`, `migrate deploy` and the seed script all still work
 under it. Remove the override once Prisma ships a release that no longer needs it.
+
+#### Pinned transitives for advisories published after 22 Aug 2026
+
+`pnpm audit --audit-level=moderate` is a CI gate, so advisories published against a
+lockfile that has not changed turn every open PR red. The 12 Sep bump moved `next` to
+16.3.5 (two critical unauthenticated-RCE advisories, fixed in 16.3.3, plus `sharp`),
+`prisma` / `@prisma/client` to 7.10.0 and the wallet kit to 2.6.0 (which cleared `toml`),
+and added same-major `pnpm.overrides` for the three transitives their maintainers still
+pin low: `mysql2` (via prisma, for a driver Kleym never loads), `fast-uri` (via
+`@prisma/dev`) and `stream-json` (via the wallet kit's Trezor adapter). Each override
+carries its reason in `package.json` under `overridesReason`. Remove an override when the
+package above it ships a release that no longer needs it.
 
 #### Two toolchain notes
 
