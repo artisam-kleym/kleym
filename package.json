@@ -33,6 +33,7 @@
     "verify:admin": "tsx scripts/verify-admin.ts",
     "acceptance": "tsx scripts/acceptance.ts",
     "loadtest": "tsx scripts/load-batches.ts",
+    "verify:campaign-detail": "tsx scripts/verify-campaign-detail.ts",
     "verify:invitations": "tsx scripts/verify-invitations.ts"
   },
   "dependencies": {
