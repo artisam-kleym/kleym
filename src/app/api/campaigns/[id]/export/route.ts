@@ -9,9 +9,9 @@
  * assertion. That is acceptable because the consequence of lying falls on the
  * sender alone: without the CSV their own funds are stranded until expiry.
  */
-import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
-import { requireUser, owned } from '@/lib/api/session-guard'
+import { requireUser } from '@/lib/api/session-guard'
+import { markCsvExported } from '@/lib/api/campaigns'
 import { conflict, notFound, serverError } from '@/lib/api/problems'
 
 export const runtime = 'nodejs'
@@ -25,31 +25,11 @@ export async function POST(_request: Request, { params }: Params) {
   const { id } = await params
 
   try {
-    const campaign = await prisma.campaign.findFirst({
-      where: owned(id, org.id),
-      select: { id: true, csvExportedAt: true, _count: { select: { links: true } } },
-    })
-    if (!campaign) return notFound()
-
-    // Marking an export before any keys exist would satisfy the gate without
-    // there being anything to export.
-    if (campaign._count.links === 0) {
-      return conflict('No links have been registered for this campaign yet.')
-    }
-
-    if (campaign.csvExportedAt) {
-      // Idempotent by nature: re-exporting is fine and keeps the first time.
-      return Response.json({ csvExportedAt: campaign.csvExportedAt })
-    }
-
-    const updated = await prisma.campaign.update({
-      where: { id: campaign.id },
-      data: { csvExportedAt: new Date() },
-      select: { csvExportedAt: true },
-    })
-
+    const outcome = await markCsvExported(id, org.id)
+    if (outcome.kind === 'not-found') return notFound()
+    if (outcome.kind === 'no-links') return conflict('No links have been registered for this campaign yet.')
     logger.info({ userId: user.id, campaignId: id }, 'csv export recorded')
-    return Response.json(updated)
+    return Response.json({ csvExportedAt: outcome.csvExportedAt })
   } catch (error) {
     logger.error({ reason: error instanceof Error ? error.message : 'unknown' }, 'export mark failed')
     return serverError()

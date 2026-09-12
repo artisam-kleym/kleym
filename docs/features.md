@@ -20,6 +20,45 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — Write API, outbound webhooks and a local-keygen SDK (#51)
+
+Kleym can now be driven by something other than a browser, without the
+guarantee moving an inch. `@kleym/sdk` (`packages/sdk`, with a `kleym` CLI)
+generates link keys on the caller's machine, writes the secrets CSV to the
+caller's disk at 0600, signs batches locally with the sender key from the
+caller's environment, and calls five new `POST /api/v1/...` endpoints —
+create, register public keys, mark export, prepare, submit — with public keys
+and signatures only. `registerLinks` accepts only the branded value
+`publicHalves` produces, and the client scans every body and throws rather
+than send a seed. Server-side, every write body is scanned before any schema
+and a seed is a `SEED_SUBMITTED` event; CI now checks that each v1 write
+route runs the guard (replacing the old "v1 has no writes" check). Writes are
+limited at 30/min per key, apart from the 100/min reads (`AGENT.md` §5.6).
+
+Outbound webhooks: an Owner adds endpoints (Settings → Webhooks, HTTPS only)
+for `campaign.created`, `campaign.activated`, `batch.confirmed`,
+`link.claimed`, `campaign.reclaimed` and `sponsor.low`. Each delivery is a
+row and a BullMQ job: HMAC-SHA256 over `timestamp.body` with a per-endpoint
+key shown once, 7 attempts with exponential backoff, then parked; three
+parks disable the endpoint until re-enabled; list and per-delivery log are
+the organisation's. Payloads carry ids, public keys, amounts and hashes and
+never a claim URL, a fragment, a seed or an address — refused before a row
+is written. `docs/api.md` is the contract; SPEC §6.6 amended.
+
+**Found on the way:** the BullMQ 6 job-id regression from #55 (also fixed on
+#68) — `enqueueBatchConfirm` has thrown since that bump.
+
+**Verified by:** `pnpm verify:write-api` (in CI) — see `docs/api.md` for the
+full list: SDK end to end against the route handlers and a stand-in Horizon
+with no seed in any request, log or row; planted seed refused by all five
+endpoints with five audited events; signed deliveries accepted, replay/tamper/
+wrong-key refused; retry, park, disable and visibility; payload guard; write
+limit apart from reads. Also `verify:api-keys`, `verify:batches`,
+`verify:claims`, `verify:reclaim`, `verify:confirm`, `verify:compliance`, 217
+unit tests, typecheck, lint, build. Not exercised: the SDK against a running
+`next start` over real HTTP (handlers are called in-process), a real Horizon,
+and the Settings → Webhooks form in a browser.
+
 ## 2026-09-12 — Compliance hooks: screening callback, attestation fields, regulator export (#52)
 
 An organisation that must screen its distributions points Kleym at its own

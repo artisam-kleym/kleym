@@ -15,7 +15,18 @@ import { env } from '@/lib/config/env'
 let cached: Horizon.Server | undefined
 
 export function horizon(): Horizon.Server {
-  return (cached ??= new Horizon.Server(env.HORIZON_URL))
+  // Plain HTTP only to a loopback address: the verify scripts stand in a
+  // local Horizon (#51). A production URL is HTTPS and gets no allowance.
+  return (cached ??= new Horizon.Server(env.HORIZON_URL, { allowHttp: isLoopback(env.HORIZON_URL) }))
+}
+
+function isLoopback(url: string): boolean {
+  try {
+    const { hostname } = new URL(url)
+    return hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]'
+  } catch {
+    return false
+  }
 }
 
 /** The campaign's asset. `assetIssuer` is null exactly when the asset is XLM. */

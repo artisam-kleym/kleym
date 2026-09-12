@@ -9,6 +9,7 @@
  * transactions are atomic that ONE stale operation voids the other 89 refunds
  * in the batch. So a database row is never authorisation to build an op.
  */
+import { emitWebhook } from '@/lib/webhooks/emit'
 import { Account, type Transaction } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
 import { z } from 'zod'
@@ -467,6 +468,7 @@ export async function settleReclaimStatus(
     return { status: campaign.status, remaining: 0 }
   }
 
-  await prisma.campaign.update({ where: { id: campaignId }, data: { status: 'RECLAIMED' } })
+  const reclaimedCampaign = await prisma.campaign.update({ where: { id: campaignId }, data: { status: 'RECLAIMED' }, select: { organizationId: true } })
+  await emitWebhook(reclaimedCampaign.organizationId, 'campaign.reclaimed', { campaignId })
   return { status: 'RECLAIMED', remaining: 0 }
 }

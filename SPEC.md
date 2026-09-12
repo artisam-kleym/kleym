@@ -681,8 +681,21 @@ This is the one place a full link transits the server. Mitigations, all mandator
 | GET | `/api/v1/campaigns` | List |
 | GET | `/api/v1/campaigns/[id]` | Detail and claim stats |
 | GET | `/api/v1/campaigns/[id]/links` | Link statuses |
+| POST | `/api/v1/campaigns` | Create a draft from its terms and the sender's PUBLIC key (#51) |
+| POST | `/api/v1/campaigns/[id]/links` | Register link PUBLIC keys, with labels and attestation |
+| POST | `/api/v1/campaigns/[id]/export` | The caller has written the secrets file (the activation gate) |
+| POST | `/api/v1/campaigns/[id]/batches/prepare` | The unsigned envelope for the next batch |
+| POST | `/api/v1/campaigns/[id]/batches/submit` | A batch the caller signed |
 
-Read-only in v1. Creation requires a browser because keys are generated client-side. Rate limit 100/min per key.
+Reads 100/min per key; writes 30/min per key, counted separately. Writes exist
+because of the SDK (`packages/sdk`, #51), which generates link keys on the
+caller's machine, writes the secrets CSV to the caller's disk, signs batches
+with the sender key the caller holds, and sends public keys and signatures
+only. No endpoint accepts a seed under any circumstance: every write body is
+scanned before validation and a seed is a `SEED_SUBMITTED` security event, and
+CI checks each write route runs that guard. Outbound webhooks (`campaign.created`,
+`campaign.activated`, `batch.confirmed`, `link.claimed`, `campaign.reclaimed`,
+`sponsor.low`) are signed per endpoint and carry no claim URL — `docs/api.md`.
 
 ### 6.7 System
 

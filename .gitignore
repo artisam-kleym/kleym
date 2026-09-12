@@ -25,3 +25,4 @@ src/generated/
 /playwright-report/
 /blob-report/
 /e2e/.auth/
+packages/*/dist

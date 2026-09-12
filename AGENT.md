@@ -169,7 +169,8 @@ Any environment variable containing a secret must not be prefixed `NEXT_PUBLIC_`
 | `/api/claims/prepare/claim` | 10 / min / IP |
 | `/api/claims/submit` | 10 / min / IP |
 | `/api/claims/otp/verify` | 5 attempts per OTP, then invalidate |
-| `/api/v1/*` | 100 / min / key |
+| `/api/v1/*` (reads) | 100 / min / key |
+| `POST /api/v1/*` (writes, #51) | 30 / min / key, counted separately — a runaway integration cannot spend a key's read budget creating campaigns |
 
 `/api/claims/resolve` returns an identical response shape for unknown, expired, and claimed links. Differential responses let an attacker enumerate valid links.
 

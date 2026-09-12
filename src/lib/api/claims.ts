@@ -20,6 +20,7 @@ import { buildClaim, buildMaterialise, signAsSponsor, type ClaimContext } from '
 import type { ClaimConflictReason } from '@/lib/claim/problem-types'
 import { sponsorFor, sponsorSecret } from '@/lib/stellar/sponsors'
 import { alert } from '@/lib/alerts'
+import { emitWebhook } from '@/lib/webhooks/emit'
 
 const PUBLIC_KEY = /^G[A-Z2-7]{55}$/
 
@@ -281,7 +282,12 @@ async function guardSponsor(sponsorPublicKey: string): Promise<Outcome<Decimal>>
       sponsor: sponsorPublicKey,
       spendable: spendable.toFixed(),
       threshold: env.SPONSOR_MIN_BALANCE_ALERT,
-    }, { dedupeKey: sponsorPublicKey })
+    }, { dedupeKey: sponsorPublicKey }).then((delivered) => {
+      // Outward to every organisation subscribed (#51), once per dedupe window.
+      if (!delivered.deduplicated) {
+        void emitWebhook(null, 'sponsor.low', { sponsorPublicKey, spendable: spendable.toFixed(), threshold: String(env.SPONSOR_MIN_BALANCE_ALERT) })
+      }
+    })
   }
 
   // Two accounts plus two trustlines at a 0.5 base reserve, with headroom.
@@ -549,16 +555,22 @@ export async function submitClaim(
    */
   if (phase === 'claim') {
     const recipient = recipientOf(transaction)
-    await prisma.claimLink.update({
+    const claimedAt = new Date()
+    const claimed = await prisma.claimLink.update({
       where: { id: link.id },
       data: {
         status: 'CLAIMED',
-        claimedAt: new Date(),
+        claimedAt,
         claimTxHash: result.hash,
         claimedBy: recipient,
       },
+      select: { campaign: { select: { organizationId: true } } },
     })
     logger.info({ linkId: link.id, campaignId: link.campaignId, hash: result.hash }, 'link claimed')
+    // The ephemeral PUBLIC key and the claimant — what the ledger shows. Never the link (#51).
+    await emitWebhook(claimed.campaign.organizationId, 'link.claimed', {
+      campaignId: link.campaignId, linkId: link.id, ephemeralPublicKey, claimedBy: recipient ?? '', claimTxHash: result.hash, claimedAt: claimedAt.toISOString(),
+    })
   }
 
   return { kind: 'ok', value: { hash: result.hash, phase, replay: false } }

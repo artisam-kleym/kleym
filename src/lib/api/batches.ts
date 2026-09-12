@@ -15,6 +15,7 @@ import { LINK_ORDER } from './link-order'
 import { isWriteConflict } from './links'
 import { approvalGate } from './approvals'
 import { screeningGate } from './screening'
+import { emitWebhook } from '@/lib/webhooks/emit'
 import {
   buildBatchTransaction,
   planBatches,
@@ -396,6 +397,11 @@ export async function confirmBatch(
     ),
     prisma.batch.update({ where: { id: batchId }, data: { status: 'CONFIRMED', confirmedAt: new Date() } }),
   ])
+  // Outward (#51): the batch is on the ledger; the organisation's systems may want to know.
+  const confirmed = await prisma.batch.findUniqueOrThrow({ where: { id: batchId }, select: { sequence: true, transactionHash: true, campaign: { select: { organizationId: true } } } })
+  await emitWebhook(confirmed.campaign.organizationId, 'batch.confirmed', {
+    campaignId, batchId, sequence: confirmed.sequence, transactionHash: confirmed.transactionHash ?? '', links: balanceIds.length,
+  })
   await settleCampaignStatus(campaignId)
 }
 
@@ -431,7 +437,8 @@ export async function settleCampaignStatus(campaignId: string): Promise<void> {
   // confirmed stays CREATING rather than announcing itself live.
   if (await approvalGate(campaignId)) return
 
-  await prisma.campaign.update({ where: { id: campaignId }, data: { status: 'ACTIVE' } })
+  const activated = await prisma.campaign.update({ where: { id: campaignId }, data: { status: 'ACTIVE' }, select: { organizationId: true, linkCount: true } })
+  await emitWebhook(activated.organizationId, 'campaign.activated', { campaignId, linkCount: activated.linkCount })
 }
 
 function notReadyToSign(campaign: CampaignRow): { kind: 'conflict'; detail: string } | null {

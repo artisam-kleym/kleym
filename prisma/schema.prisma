@@ -129,6 +129,7 @@ model Organization {
   memberships Membership[]
   campaigns   Campaign[]
   apiKeys     ApiKey[]
+  webhooks    WebhookEndpoint[]
   auditLogs   AuditLog[]
   invitations Invitation[]
 }
@@ -243,6 +244,60 @@ model ApiKey {
   @@index([userId])
   @@index([organizationId])
   @@index([prefix])
+}
+
+/// Outbound webhooks (#51). Kleym notifies somebody else's system; nothing
+/// here is ever a claim URL or a fragment, and `link.claimed` carries the
+/// ephemeral PUBLIC key.
+model WebhookEndpoint {
+  id             String   @id @default(cuid())
+  organizationId String
+  url            String
+  /// HMAC-SHA256 key for `x-kleym-signature`. Webhook signing material, NOT
+  /// Stellar key material: it authenticates Kleym to the receiver and can
+  /// only ever produce a signature over a delivery body. Shown once at
+  /// creation; rotated by deleting and re-adding the endpoint.
+  signingKey     String
+  /// Event names this endpoint receives (see lib/webhooks/events.ts).
+  events         String[]
+  /// Parked after too many consecutive failures; an Owner re-enables it.
+  disabledAt     DateTime?
+  failures       Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries   WebhookDelivery[]
+
+  @@index([organizationId])
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED // an attempt failed; retry scheduled
+  PARKED // attempts exhausted, or the endpoint is disabled
+}
+
+model WebhookDelivery {
+  id         String                @id @default(cuid())
+  endpointId String
+  event      String
+  payload    Json
+  status     WebhookDeliveryStatus @default(PENDING)
+  attempts   Int                   @default(0)
+  /// The receiver's last HTTP status, or null when it did not answer.
+  lastStatus Int?
+  /// Why the last attempt failed — a status or a short transport reason, never the body.
+  lastError   String?
+  deliveredAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId, createdAt])
+  @@index([status])
 }
 
 model Campaign {

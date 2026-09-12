@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src scripts tests",
+    "lint": "eslint src scripts tests packages",
     "typecheck": "tsc --noEmit",
     "spike": "tsx scripts/spike-claim.ts",
     "diagnose": "tsx scripts/spike-diagnose.ts",
@@ -46,7 +46,8 @@
     "verify:approvals": "tsx scripts/verify-approvals.ts",
     "verify:compliance": "tsx scripts/verify-compliance.ts",
     "verify:audit-chain": "tsx scripts/verify-audit-chain.ts",
-    "verify:sponsors": "tsx scripts/verify-sponsors.ts"
+    "verify:sponsors": "tsx scripts/verify-sponsors.ts",
+    "verify:write-api": "tsx scripts/verify-write-api.ts"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.6.0",

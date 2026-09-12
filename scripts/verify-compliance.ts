@@ -244,7 +244,8 @@ async function noCallbackIsInert(): Promise<void> {
   const realFetch = globalThis.fetch
   let fetches = 0
   globalThis.fetch = ((...args: Parameters<typeof fetch>) => {
-    fetches += 1
+    // Horizon (a loopback stand-in since #51) is reached over fetch too; only a call to anything else counts.
+    if (!String(args[0]).startsWith(process.env.HORIZON_URL!)) fetches += 1
     return realFetch(...args)
   }) as typeof fetch
   let out: { kind: string; detail?: string }
@@ -255,7 +256,7 @@ async function noCallbackIsInert(): Promise<void> {
     globalThis.fetch = realFetch
   }
   check('prepareBatch went straight through to Horizon', out.kind === 'horizon', JSON.stringify(out))
-  check('no HTTP call of any kind was made from the gate', provider.requests.length === calls && fetches === 0, `fetches=${fetches}`)
+  check('no HTTP call other than Horizon was made — none from the gate', provider.requests.length === calls && fetches === 0, `fetches=${fetches}`)
   const row = await screening(c.id)
   check('nothing was written to the campaign', row.screeningDecision === null && row.screeningHash === null && row.screenedAt === null)
   check('and no audit row exists', (await prisma.auditLog.count({ where: { action: 'campaign.screening', entityId: c.id } })) === 0)
