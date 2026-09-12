@@ -20,6 +20,64 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — Observability: traces, a metric set from this system's own failures, a status page and SLOs (#53)
+
+Both processes export OpenTelemetry over OTLP/HTTP when
+`OTEL_EXPORTER_OTLP_ENDPOINT` is set; unset, nothing is registered and every
+span and metric call is a no-op. The claim page starts one trace per visit
+and sends `traceparent` on every claim call, so resolve, both prepares and
+the submit are one trace on the server, each phase its own span with a
+phase and an outcome; a batch-confirm job carries the enqueuing request's
+context and its worker span joins that trace. The metric set is the one the
+issue asked for, each instrument named for the failure it makes visible:
+reconcile pass completion and remaining, sponsor spendable and runway,
+claim outcomes by phase, batch confirm latency, stranded reserve and
+critical accounts, queue depth and oldest waiting job, job duration,
+rate-limit rejections by route with `unavailable` distinguishing the
+limiter failing closed from a real limit, and dependency up/down.
+
+Span attributes and metric labels go through one allowlist
+(`lib/observability/attributes.ts`): a key not named there is dropped, and a
+seed, a `#s=` fragment, an envelope or a non-sponsor public key is dropped
+under any key. CI's secret-handling job now refuses any OpenTelemetry use
+outside the two wrappers, refuses an allowlist naming link or caller data,
+and runs the planted-value test. `/status` and `/api/status` are public and
+computed live from the readiness probes, the queues, the last bounded
+passes and the sponsor float, cached 15 s; `/api/ready` shares the probes.
+`docs/observability.md` and `docs/slo.md` (objectives, budgets, what is out
+of budget, when to page).
+
+**Found on the way:** since the BullMQ 6 bump (#55) `enqueueBatchConfirm`
+threw "Custom Id cannot contain :" on its `batch-confirm:<id>` job id, so
+every submitted batch logged "confirmation could not be queued" and waited
+for reconciliation. The id is now `batch-confirm-<id>`; the verify script
+enqueues under a trace and would have caught it.
+
+**Verified by:** `pnpm verify:observability` (in CI) against Postgres and
+Redis with the SDK exporting into memory: three claim spans under a
+browser-started trace id with phase and outcome and no ephemeral key or
+envelope; outcomes counted by phase with a failed ledger submit as its own
+outcome; a batch-confirm job carrying only `batchId` and `trace`, its worker
+span in the request's trace with queue, batch id and attempt, its duration
+recorded as failed; a queue with no worker showing depth and an ageing
+oldest job; a sponsor stubbed to 3 XLM as the gauge with runway; an
+incomplete pass counted and its 7 remaining as the gauge, a complete pass
+counted; stranded reserve summed and critical counted apart; a batch
+submitted 30 s before confirmation as a 30 s histogram sample; a limited
+route counted with no address in any label; Horizon (closed port) as
+`dependency.up=0` with Postgres 1; no label anywhere with a seed, fragment
+or non-sponsor key; a planted seed, fragment, ephemeral key and envelope
+dropped from a span leaving only `phase`; the status snapshot reporting
+Horizon down, Database operational with no host, overall down, a
+below-threshold sponsor as degraded, no campaign id or address, cached
+within the TTL and recomputed after it; Redis quit → the limiter denies and
+counts `reason=unavailable`. Attribute allowlist and route-label derivation
+unit-tested (9). `verify:claims`, `verify:batches`, `verify:confirm`,
+typecheck, lint, build. Not exercised: Next.js's own request spans and the
+`traceparent` join through a running `next start` (the browser-side header
+and the server-side extraction are exercised at the library level), and a
+real OTLP backend.
+
 ## 2026-09-12 — Sponsor pool with failover, outbound alerts and runway (#48)
 
 The sponsor account — Kleym's float, and until now an admitted single point

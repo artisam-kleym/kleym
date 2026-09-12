@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Keypair, Networks, Transaction, TransactionBuilder } from '@stellar/stellar-sdk'
 import { ClaimPanel } from '@/components/ui'
 import { clearFragment, readFragment } from '@/lib/claim/fragment'
+import { claimTraceHeaders } from '@/lib/claim/trace'
 import { isNotReady, retryTarget, stateFromProblem, type ClaimState } from '@/lib/claim/machine'
 import { ClaimScreen, type LinkDetails } from './screens'
 
@@ -24,10 +25,11 @@ const NOT_READY_RETRY_MS = 2_500
 const NOT_READY_ATTEMPTS = 8
 
 /** Content type, plus the OTP token when one has been earned. */
+/** Content type, the OTP token when one is held, and the trace header (#53). */
 function claimHeaders(token: string | null): Record<string, string> {
   return token
-    ? { 'content-type': 'application/json', 'x-kleym-otp': token }
-    : { 'content-type': 'application/json' }
+    ? { 'content-type': 'application/json', 'x-kleym-otp': token, ...claimTraceHeaders() }
+    : { 'content-type': 'application/json', ...claimTraceHeaders() }
 }
 
 export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
@@ -86,6 +88,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       try {
         const response = await fetch(
           `/api/claims/resolve?pk=${encodeURIComponent(fragment.ephemeralPublicKey)}`,
+          { headers: claimTraceHeaders() },
         )
         if (cancelled) return
 
@@ -289,7 +292,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
     try {
       const response = await fetch('/api/claims/otp/verify', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: claimHeaders(null),
         body: JSON.stringify({ ephemeralPublicKey, code }),
       })
       if (!response.ok) {
@@ -312,7 +315,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
     try {
       const response = await fetch('/api/claims/otp/request', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: claimHeaders(null),
         body: JSON.stringify({ ephemeralPublicKey }),
       })
       if (!response.ok) {

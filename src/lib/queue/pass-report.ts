@@ -8,6 +8,7 @@
  * Kept for a week so a job that has silently stopped running shows as stale
  * rather than as absent.
  */
+import { recordReconcilePass } from '@/lib/observability/metrics'
 import { redis } from '@/lib/redis/client'
 import { logger } from '@/lib/config/logger'
 
@@ -44,6 +45,8 @@ export function memoryPassReportSink(): PassReportSink & { last: PassReport | nu
 
 /** Never throws: a report that fails to write must not fail the pass it describes. */
 export const recordPassReport: PassReportSink = async (report) => {
+  // The metric first: a pass that cannot reach Redis still counts as one (#53).
+  recordReconcilePass(report.job, report.remaining)
   try {
     await redis.set(KEY(report.job), JSON.stringify(report), 'EX', TTL_SECONDS)
   } catch (error) {
