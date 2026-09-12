@@ -238,6 +238,13 @@ model Campaign {
   /// Who created it. Ownership is the ORGANISATION; this is provenance.
   userId          String
   organizationId  String
+  /// The dual-control policy as it stood when this campaign was created
+  /// (#45). The gate reads the STRICTER of this and the organisation's
+  /// current policy, so loosening the policy affects only campaigns created
+  /// afterwards — an Owner cannot switch the gate off, sign, and switch it
+  /// back on for a campaign they made.
+  approvalThreshold Decimal? @db.Decimal(23, 7)
+  approvalsRequired Int      @default(1)
   name            String
   network         String // "testnet" | "public"
   senderPublicKey String // G... that funded it

@@ -110,7 +110,7 @@ export function Organisation({
         <p className="mt-xs text-body-md text-on-surface-variant">
           {policy.approvalThreshold === null
             ? 'Off. Any operator can sign a campaign alone.'
-            : `On. A campaign worth ${policy.approvalThreshold} or more (amount per link × links, in its own asset) needs ${policy.approvalsRequired} ${policy.approvalsRequired === 1 ? 'approval' : 'approvals'} from approvers other than its creator before a batch can be signed. Approvals are bound to the terms: change any and they are needed again.`}
+            : `On. A campaign worth ${policy.approvalThreshold} or more (amount per link × links, in units of the campaign's own asset — 100 gates 100 USDC and 100 XLM alike) needs ${policy.approvalsRequired} ${policy.approvalsRequired === 1 ? 'approval' : 'approvals'} from approvers other than its creator before a batch can be signed. Approvals are bound to the terms: change any and they are needed again. Each campaign keeps the policy it was created under, so loosening this later affects only new campaigns.`}
         </p>
         {owner && (
           <form onSubmit={savePolicy} className="mt-md flex flex-wrap items-end gap-md">

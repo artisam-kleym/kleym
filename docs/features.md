@@ -32,6 +32,15 @@ approver reviews exactly what will be signed. Off by default (null threshold),
 so nothing changes for a deployment that does not turn it on; Owners set the
 threshold and count under Settings.
 
+**Each campaign keeps the policy it was created under.** The threshold and
+count are snapshotted onto the campaign at creation and the gate reads the
+stricter of that and the organisation's current policy — so loosening the
+policy affects only campaigns made afterwards, and an Owner who created a
+campaign cannot switch the gate off, sign, and switch it back on. Tightening
+still reaches campaigns in flight. The threshold is in units of the
+campaign's own asset (100 gates 100 USDC and 100 XLM alike); the settings
+page says so.
+
 **An approval is bound to the terms, not the campaign.** Each decision stores
 a hash of (asset, issuer, amount per link, link count, expiry); a decision
 whose hash no longer matches counts for nothing, and the refusal names what
@@ -56,7 +65,10 @@ planted amount change names "amount per link", and re-approval reopens it;
 the hash covers exactly the five terms; approve and reject each audit with
 approver, campaign, hash and organisation; a rejection blocks despite an
 approval and 2-of-N counts; the policy is stored, audited, inclusive at the
-threshold, and computed with `Decimal` (0.0000001 × 10⁹ = 100). `verify:batches`
+threshold, and computed with `Decimal` (0.0000001 × 10⁹ = 100); an Owner-creator
+setting the threshold to null leaves their existing campaign gated and
+`prepareBatch` still refusing, while a campaign created afterwards is not
+gated, and tightening reaches both. `verify:batches`
 and `verify:organisations` still pass. Not opened in a browser: the approval
 panel, the queue page and the policy form.
 

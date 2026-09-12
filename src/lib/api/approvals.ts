@@ -60,6 +60,25 @@ export interface Policy {
   approvalsRequired: number
 }
 
+/**
+ * The policy a campaign is gated by: the STRICTER of its own snapshot (taken
+ * at creation) and the organisation's current policy. Tightening the
+ * organisation's policy reaches campaigns in flight; loosening it does not —
+ * so a single Owner cannot switch the gate off for a campaign they made,
+ * sign, and switch it back on. Either threshold gating means gated.
+ */
+export function effectivePolicy(campaign: Policy, org: Policy): Policy & { gatedBy: (value: Decimal) => boolean } {
+  const thresholds = [campaign.approvalThreshold, org.approvalThreshold]
+    .filter((t): t is unknown => t !== null && t !== undefined)
+    .map((t) => new Decimal(String(t)))
+  const lowest = thresholds.length ? thresholds.reduce((a, b) => (a.lessThan(b) ? a : b)) : null
+  return {
+    approvalThreshold: lowest?.toFixed() ?? null,
+    approvalsRequired: Math.max(campaign.approvalsRequired, org.approvalsRequired),
+    gatedBy: (value) => lowest !== null && value.greaterThanOrEqualTo(lowest),
+  }
+}
+
 /** Total value in the campaign's own asset. A per-link threshold is evaded by raising the count. */
 export function campaignValue(terms: { amountPerLink: unknown; linkCount: number }): Decimal {
   return new Decimal(String(terms.amountPerLink)).times(terms.linkCount)
@@ -88,6 +107,7 @@ export interface ApprovalStatus {
 
 const CAMPAIGN_SELECT = {
   id: true, userId: true, status: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true,
+  approvalThreshold: true, approvalsRequired: true,
   organization: { select: { approvalThreshold: true, approvalsRequired: true } },
   approvals: {
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -103,8 +123,9 @@ async function loadForApproval(campaignId: string, organizationId: string) {
 
 export function statusOf(campaign: Loaded): ApprovalStatus {
   const hash = termsHash(campaign)
-  const required = approvalRequired(campaign, campaign.organization)
-  const needed = required ? Math.max(1, campaign.organization.approvalsRequired) : 0
+  const policy = effectivePolicy(campaign, campaign.organization)
+  const required = policy.gatedBy(campaignValue(campaign))
+  const needed = required ? Math.max(1, policy.approvalsRequired) : 0
   const current = campaign.approvals.filter((a) => a.termsHash === hash)
   const granted = current.filter((a) => a.decision === 'APPROVED').length
   const rejected = current.filter((a) => a.decision === 'REJECTED').map((a) => ({ username: a.approver.username, note: a.note }))

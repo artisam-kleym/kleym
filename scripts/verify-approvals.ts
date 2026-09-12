@@ -16,7 +16,7 @@ import { applyEnvPlaceholders } from '../tests/env-placeholders'
 applyEnvPlaceholders()
 
 const { prisma } = await import('../src/lib/db/client')
-const { decide, approvalStatus, approvalGate, approvalQueue, termsHash, changedTerms, approvalRequired } = await import('../src/lib/api/approvals')
+const { decide, approvalStatus, approvalGate, approvalQueue, termsHash, changedTerms, approvalRequired, effectivePolicy } = await import('../src/lib/api/approvals')
 const { registerLinks } = await import('../src/lib/api/links')
 const { prepareBatch, submitBatch } = await import('../src/lib/api/batches')
 const { setApprovalPolicy } = await import('../src/lib/api/organizations')
@@ -42,9 +42,12 @@ async function orgWith(threshold: string | null, approvalsRequired: number, memb
   return { id: row.id, name: row.name, role: 'OWNER' as const, approvalThreshold: row.approvalThreshold?.toFixed() ?? null, approvalsRequired: row.approvalsRequired }
 }
 async function campaign(orgId: string, creator: string, amount: string, links: number) {
+  // The route snapshots the organisation's policy at creation; so does this.
+  const policy = await prisma.organization.findUniqueOrThrow({ where: { id: orgId }, select: { approvalThreshold: true, approvalsRequired: true } })
   const c = await prisma.campaign.create({
     data: {
       organizationId: orgId, userId: creator, name: 'dc', network: 'testnet', senderPublicKey: Keypair.random().publicKey(),
+      approvalThreshold: policy.approvalThreshold, approvalsRequired: policy.approvalsRequired,
       assetCode: 'XLM', amountPerLink: amount, linkCount: links, expiresAt: new Date(Date.now() + 86_400_000), status: 'DRAFT',
     },
     select: { id: true },
@@ -167,6 +170,42 @@ async function roleGateAndPolicy(): Promise<void> {
   check('0.0000001 × 1,000,000,000 is 100 and gated — no float in the product', approvalRequired({ amountPerLink: '0.0000001', linkCount: 1_000_000_000 }, policy))
 }
 
+/**
+ * The hole the review on #62 named: an Owner who created the campaign
+ * switches dual control off, signs, switches it back on. The snapshot
+ * taken at creation is what the gate reads, so the switch does nothing to
+ * a campaign already made — while tightening still reaches it.
+ */
+async function loosingThePolicyDoesNotReachExistingCampaigns(): Promise<void> {
+  console.log('\n· An Owner cannot switch the gate off for a campaign already created')
+  const owner = await user('sneaky')
+  const org = await orgWith('100', 1, [{ id: owner.id, role: 'OWNER' }])
+  const c = await campaign(org.id, owner.id, '100', 5) // 500 ≥ 100, gated; owner is the creator
+  check('gated at creation', (await approvalGate(c)) !== null)
+
+  await setApprovalPolicy(owner.id, org, { approvalThreshold: null, approvalsRequired: 1 }, null)
+  check('the organisation policy is now off', (await prisma.organization.findUniqueOrThrow({ where: { id: org.id } })).approvalThreshold === null)
+  const stillGated = await approvalGate(c)
+  check('the existing campaign is STILL gated', stillGated !== null, `${stillGated}`)
+  const prepared = await prepareBatch(c, org.id, { sequence: 1 })
+  check('and prepareBatch still hands over nothing', prepared.kind === 'conflict', JSON.stringify(prepared))
+  check('the owner still cannot approve it themselves', (await decide(owner, org, c, { decision: 'APPROVED' }, null)).kind === 'conflict')
+
+  const fresh = await campaign(org.id, owner.id, '100', 5)
+  check('a campaign created AFTER the loosening is not gated', (await approvalGate(fresh)) === null)
+
+  // Tightening reaches campaigns in flight.
+  await setApprovalPolicy(owner.id, org, { approvalThreshold: '10', approvalsRequired: 2 }, null)
+  check('tightening the threshold gates the fresh campaign after all', (await approvalGate(fresh)) !== null)
+  const status = await approvalStatus(c, org.id)
+  check('and raising the count reaches the older one: 2 now needed', status?.needed === 2, JSON.stringify(status))
+
+  const eff = effectivePolicy({ approvalThreshold: '100', approvalsRequired: 1 }, { approvalThreshold: null, approvalsRequired: 3 })
+  check('effectivePolicy: the lower threshold and the higher count win', eff.approvalThreshold === '100' && eff.approvalsRequired === 3)
+  const none = effectivePolicy({ approvalThreshold: null, approvalsRequired: 1 }, { approvalThreshold: null, approvalsRequired: 1 })
+  check('and no threshold on either side gates nothing', !none.gatedBy(new (await import('decimal.js')).default('1e9')))
+}
+
 async function main(): Promise<void> {
   try {
     await aboveThresholdIsGated()
@@ -174,6 +213,7 @@ async function main(): Promise<void> {
     await changedTermsInvalidate()
     await decisionsAreAudited()
     await roleGateAndPolicy()
+    await loosingThePolicyDoesNotReachExistingCampaigns()
   } finally {
     await prisma.$disconnect()
   }
