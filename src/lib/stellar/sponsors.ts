@@ -55,12 +55,16 @@ export function primarySponsor(): Sponsor {
   return sponsorPool()[0]!
 }
 
-/** The sponsor a campaign is bound to; unknown keys are refused, not defaulted. */
-export function sponsorFor(publicKey: string | null): Sponsor {
+/**
+ * The sponsor a campaign is bound to, or null when that key is no longer in
+ * the pool. Null is a REFUSAL the caller turns into "temporarily unavailable"
+ * — never a default to another sponsor, which would sign with the wrong
+ * account. The runbook says not to remove a seed under live campaigns; this
+ * is what a slip looks like: a logged, retryable outage, not a stack trace.
+ */
+export function sponsorFor(publicKey: string | null): Sponsor | null {
   if (publicKey === null) return primarySponsor()
-  const found = sponsorPool().find((s) => s.publicKey === publicKey)
-  if (!found) throw new Error(`campaign is bound to a sponsor that is not in the pool: ${publicKey.slice(0, 8)}…`)
-  return found
+  return sponsorPool().find((s) => s.publicKey === publicKey) ?? null
 }
 
 /** The seed for signing. Kept out of `Sponsor` so it is never spread into a log line. */
@@ -99,7 +103,17 @@ export async function chooseSponsor(
       logger.warn({ sponsor: sponsor.publicKey, reason: error instanceof Error ? error.message : 'unknown' }, 'sponsor balance unreadable during selection')
     }
   }
-  if (candidates.length === 0) throw new Error('no sponsor in the pool could be read')
+  if (candidates.length === 0) {
+    /*
+     * Creating a campaign does not need the ledger: nothing is signed and
+     * nothing moves until a recipient claims. A Horizon outage must not turn
+     * creation into a 500, so the campaign binds to the primary and
+     * `guardSponsor` gives the honest "temporarily unavailable" at claim time
+     * if the primary is in fact dry.
+     */
+    logger.warn({ pool: sponsorPool().length }, 'no sponsor balance could be read; binding the new campaign to the primary')
+    return { sponsor: primarySponsor(), spendable: new Decimal(0), failedOver: false }
+  }
 
   const working = candidates.find((c) => c.spendable.greaterThanOrEqualTo(threshold))
   const chosen = working ?? candidates.reduce((a, b) => (b.spendable.greaterThan(a.spendable) ? b : a))

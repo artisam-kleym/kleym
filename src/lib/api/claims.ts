@@ -201,6 +201,17 @@ export async function loadClaimable(
     return conflict('This link has already been claimed.', 'already-claimed')
   }
 
+  // The campaign's sponsor must still be in the pool; a removed seed is a
+  // retryable outage for this campaign, logged for the operator, not a 500.
+  const sponsor = sponsorFor(link.campaign.sponsorPublicKey)
+  if (!sponsor) {
+    logger.error(
+      { linkId: link.id, campaignId: link.campaignId, sponsor: link.campaign.sponsorPublicKey },
+      'campaign is bound to a sponsor that is no longer in the pool; see docs/sponsor-runbook.md',
+    )
+    return { kind: 'unavailable', detail: 'Claims are temporarily unavailable. Try again shortly.' }
+  }
+
   /*
    * The LEDGER's amount and asset, not the row's.
    *
@@ -241,7 +252,7 @@ export async function loadClaimable(
       // The LEDGER's amount. It is what TX2 must actually move.
       amount: new Decimal(onChain.amount).toFixed(7),
       expiresAt: link.campaign.expiresAt,
-      sponsorPublicKey: sponsorFor(link.campaign.sponsorPublicKey).publicKey,
+      sponsorPublicKey: sponsor.publicKey,
     },
   }
 }
@@ -263,8 +274,10 @@ async function guardSponsor(sponsorPublicKey: string): Promise<Outcome<Decimal>>
   const spendable = await sponsorSpendable(sponsorPublicKey)
 
   if (spendable.lessThan(env.SPONSOR_MIN_BALANCE_ALERT)) {
-    // Logged AND sent outward, deduplicated per sponsor for an hour.
-    await alert('sponsor.low_balance', {
+    // Logged AND sent outward, deduplicated per sponsor for an hour. Not
+    // awaited: the claim must not wait on the receiver (up to 5 s) — and
+    // with Redis down that would be every claim, not once an hour.
+    void alert('sponsor.low_balance', {
       sponsor: sponsorPublicKey,
       spendable: spendable.toFixed(),
       threshold: env.SPONSOR_MIN_BALANCE_ALERT,
@@ -451,7 +464,12 @@ export async function submitClaim(
    */
   // THIS campaign's sponsor, not any sponsor in the pool: an envelope built
   // for one sponsor is not a Kleym envelope for a campaign bound to another.
-  if (transaction.source !== sponsorFor(link.campaign.sponsorPublicKey).publicKey) {
+  const boundSponsor = sponsorFor(link.campaign.sponsorPublicKey)
+  if (!boundSponsor) {
+    logger.error({ linkId: link.id, campaignId: link.campaignId, sponsor: link.campaign.sponsorPublicKey }, 'campaign is bound to a sponsor that is no longer in the pool; see docs/sponsor-runbook.md')
+    return { kind: 'unavailable', detail: 'Claims are temporarily unavailable. Try again shortly.' }
+  }
+  if (transaction.source !== boundSponsor.publicKey) {
     return conflict('That transaction was not prepared by Kleym.')
   }
 

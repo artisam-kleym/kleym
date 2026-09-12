@@ -30,7 +30,12 @@ is bound to the first sponsor in pool order with spendable XLM at or above
 campaign and kept for life — reserves return to the account that sponsored
 them, so failover is for new campaigns only. Every claim is checked against,
 signed by, and its envelope verified against, that campaign's sponsor;
-campaigns older than the pool read as the primary.
+campaigns older than the pool read as the primary. Creating a campaign
+never needs the ledger: if no sponsor balance can be read, the campaign binds
+to the primary with a WARN and the claim path gives the honest "temporarily
+unavailable" later if it is dry. A campaign bound to a sponsor that has since
+left the pool is refused the same way, logged for the operator — never
+re-signed by another sponsor, never a stack trace.
 
 Alerts go outward: `ALERT_WEBHOOK_URL` receives a JSON POST on
 `sponsor.low_balance` and `sponsor.failover`, deduplicated per sponsor for an
@@ -49,7 +54,9 @@ primary, and an envelope sourced by the primary is refused for a campaign
 bound to the second while the bound sponsor's is accepted. A low-balance
 alert is delivered with the event header and sponsor in the body, the second
 within the hour is deduplicated, a different sponsor is its own alert, an
-unreachable receiver does not throw. Per-sponsor status flags the low one;
+unreachable receiver does not throw; no readable sponsor at all still binds
+a new campaign to the primary; a campaign bound to a key outside the pool is
+"temporarily unavailable" on both load and submit. Per-sponsor status flags the low one;
 fee-per-claim and runway arithmetic in `Decimal`. Both pool seeds and the
 webhook URL planted in log calls are redacted. `verify:claims`,
 `verify:stranded`, 213 unit tests, build.

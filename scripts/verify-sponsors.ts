@@ -75,8 +75,8 @@ function thePool(): void {
   const pool = sponsorPool()
   check('two sponsors, primary first', pool.length === 2 && pool[0]!.publicKey === primary.publicKey() && pool[1]!.publicKey === second.publicKey())
   check('the public shape carries no secret', !/S[A-Z2-7]{55}/.test(JSON.stringify(pool)) && !('secret' in pool[0]!))
-  check('a null binding reads as the primary', sponsorFor(null).publicKey === primary.publicKey())
-  check('an unknown binding is refused, not defaulted', (() => { try { sponsorFor(Keypair.random().publicKey()); return false } catch { return true } })())
+  check('a null binding reads as the primary', sponsorFor(null)?.publicKey === primary.publicKey())
+  check('an unknown binding is null — refused, not defaulted to another sponsor', sponsorFor(Keypair.random().publicKey()) === null)
   check('the signing seed is looked up by public key', sponsorSecret(second.publicKey()) === second.secret())
 }
 
@@ -104,6 +104,11 @@ async function failoverForNewCampaigns(): Promise<void> {
   balances.set(primary.publicKey(), new Decimal(1000))
   const skipped = await chooseSponsor(read)
   check('an unreadable sponsor is skipped, not treated as empty', skipped.sponsor.publicKey === primary.publicKey())
+
+  // Horizon down entirely: campaign creation still works, bound to the primary.
+  balances.clear()
+  const blind = await chooseSponsor(read)
+  check('with no sponsor readable, a new campaign binds to the primary rather than failing', blind.sponsor.publicKey === primary.publicKey() && !blind.failedOver, JSON.stringify(blind))
 }
 
 async function inFlightCampaignsKeepTheirSponsor(): Promise<void> {
@@ -152,6 +157,13 @@ async function inFlightCampaignsKeepTheirSponsor(): Promise<void> {
   check("an envelope sourced by the PRIMARY is refused for a campaign bound to the second", wrong.kind === 'conflict' && /not prepared by Kleym/.test(wrong.detail), JSON.stringify(wrong))
   const right = await submitClaim(onSecond.key, envelopeFrom(second), 'claim', accept)
   check('the bound sponsor\'s envelope is accepted', right.kind === 'ok', JSON.stringify(right).slice(0, 120))
+
+  // A runbook slip: a campaign bound to a sponsor that has left the pool.
+  const orphan = await mk(Keypair.random().publicKey())
+  const loadedOrphan = await loadClaimable(orphan.key, present)
+  check('a campaign bound to a sponsor not in the pool is "temporarily unavailable", not an exception', loadedOrphan.kind === 'unavailable', JSON.stringify(loadedOrphan))
+  const submittedOrphan = await submitClaim(orphan.key, envelopeFrom(primary), 'claim', accept)
+  check('and its submit is refused the same way', submittedOrphan.kind === 'unavailable', JSON.stringify(submittedOrphan))
 }
 
 async function alertsReachAReceiverAndDeduplicate(): Promise<void> {
