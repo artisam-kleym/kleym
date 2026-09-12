@@ -10,6 +10,7 @@
  * Horizon reports, and a disagreement resolves in the chain's favour.
  */
 import { Worker, type Job } from 'bullmq'
+import { contextFromCarrier, withSpan, SpanKind } from '@/lib/observability/tracing'
 import { logger } from '@/lib/config/logger'
 import { prisma } from '@/lib/db/client'
 import { QUEUE, queueConnection } from '@/lib/queue/connection'
@@ -111,7 +112,12 @@ export async function confirmOne(batchId: string): Promise<'confirmed' | 'failed
 export function startBatchConfirmWorker(): Worker<BatchConfirmJob> {
   const worker = new Worker<BatchConfirmJob>(
     QUEUE.batchConfirm,
-    async (job: Job<BatchConfirmJob>) => confirmOne(job.data.batchId),
+    async (job: Job<BatchConfirmJob>) =>
+      // A child of the submit request's trace when the job carries one (#53).
+      withSpan('job.batch-confirm', { queue: QUEUE.batchConfirm, batchId: job.data.batchId, attempt: job.attemptsMade + 1 }, () => confirmOne(job.data.batchId), {
+        kind: SpanKind.CONSUMER,
+        parent: contextFromCarrier(job.data.trace),
+      }),
     { connection: queueConnection(), concurrency: 4 },
   )
 

@@ -20,6 +20,7 @@ import { buildClaim, buildMaterialise, signAsSponsor, type ClaimContext } from '
 import type { ClaimConflictReason } from '@/lib/claim/problem-types'
 import { sponsorFor, sponsorSecret } from '@/lib/stellar/sponsors'
 import { alert } from '@/lib/alerts'
+import { observedClaim } from '@/lib/observability/claims'
 
 const PUBLIC_KEY = /^G[A-Z2-7]{55}$/
 
@@ -99,7 +100,7 @@ export function unavailableLink(): ResolvedLink {
  * would answer measurably slower than one that does not. The ledger check
  * belongs on prepare, which is where a transaction actually gets built.
  */
-export async function resolveLink(ephemeralPublicKey: string): Promise<ResolvedLink> {
+async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<ResolvedLink> {
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
     select: {
@@ -327,7 +328,7 @@ export interface MaterialisePrepared {
  * is already on the ledger — the retry path SPEC.md §3.3.3 step 2 describes,
  * and the reason this is its own endpoint rather than a phase discriminator.
  */
-export async function prepareMaterialise(ephemeralPublicKey: string): Promise<Outcome<MaterialisePrepared>> {
+async function prepareMaterialiseUnobserved(ephemeralPublicKey: string): Promise<Outcome<MaterialisePrepared>> {
   const loaded = await loadClaimable(ephemeralPublicKey)
   if (loaded.kind !== 'ok') return loaded
 
@@ -362,7 +363,7 @@ export interface ClaimPrepared {
  * EARLIER ledger (§3.3.1). Refusing here is clearer than letting the network
  * answer `op_seq_num_too_far`, which reads like a Kleym bug.
  */
-export async function prepareClaim(
+async function prepareClaimUnobserved(
   ephemeralPublicKey: string,
   recipientPublicKey: string,
 ): Promise<Outcome<ClaimPrepared>> {
@@ -433,7 +434,7 @@ const submitToHorizon: Submitter = async (transaction) => {
   return { hash: response.hash, successful: response.successful !== false }
 }
 
-export async function submitClaim(
+async function submitClaimUnobserved(
   ephemeralPublicKey: string,
   signedXdr: string,
   phase: 'materialise' | 'claim',
@@ -638,3 +639,10 @@ export function horizonResultCode(error: unknown): string {
   const operation = codes.operations?.find((code) => code !== 'op_success')
   return operation ?? codes.transaction ?? 'submission_failed'
 }
+
+/* ── the exported claim path: each phase in a span, each outcome counted (#53) ── */
+
+export const resolveLink = observedClaim('resolve', resolveLinkUnobserved)
+export const prepareMaterialise = observedClaim('materialise', prepareMaterialiseUnobserved)
+export const prepareClaim = observedClaim('claim', prepareClaimUnobserved)
+export const submitClaim = observedClaim('submit', submitClaimUnobserved)

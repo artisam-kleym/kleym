@@ -123,6 +123,8 @@ jobs:
 
       - name: Verify compliance hooks (screening fail-closed, attestation, regulator export)
         run: pnpm verify:compliance
+      - name: Verify observability (traces, forced-condition metrics, status page)
+        run: pnpm verify:observability
 
       - name: Verify the audit chain, checkpoints, concurrency and signed export
         run: pnpm verify:audit-chain
@@ -541,3 +543,47 @@ jobs:
             fail=1
           fi
           exit $fail
+
+      # Issue #53. Span attributes and metric labels are a log by another name,
+      # and the logger's redaction does not see them. Two guards: every
+      # attribute must pass through `safeAttributes` (so nothing in src/ may
+      # set one directly), and the allowlist itself may not name anything
+      # that identifies a link or a caller.
+      - name: Span attributes and metric labels go through the allowlist
+        run: |
+          fail=0
+          # The OpenTelemetry API is reached only through the two wrappers.
+          if grep -rnE "\.(setAttribute|setAttributes|startSpan|startActiveSpan)\(" src/ | grep -vE '^src/lib/observability/tracing\.ts:'; then
+            echo "::error::a span attribute is set outside lib/observability/tracing.ts — use withSpan/annotateSpan (docs/observability.md)"
+            fail=1
+          fi
+          if grep -rnE "\.(createCounter|createHistogram|createGauge|createObservableGauge|createUpDownCounter)\(" src/ | grep -vE '^src/lib/observability/metrics\.ts:'; then
+            echo "::error::a metric instrument is created outside lib/observability/metrics.ts"
+            fail=1
+          fi
+          if grep -rnE "from '@opentelemetry/api'" src/ | grep -vE '^src/lib/observability/'; then
+            echo "::error::@opentelemetry/api is imported outside lib/observability/"
+            fail=1
+          fi
+          # The allowlist names no identifier of a link, a recipient or a caller.
+          keys=$(sed -n '/export const ALLOWED_ATTRIBUTE_KEYS/,/] as const/p' src/lib/observability/attributes.ts | grep -oE "'[A-Za-z0-9_.]+'" | tr -d "'")
+          for key in $keys; do
+            case "$(echo "$key" | tr 'A-Z' 'a-z')" in
+              *ephemeral*|*secret*|*seed*|*xdr*|*fragment*|*email*|*ip|*address*|*token*|*claimant*|*recipient*|*balance*)
+                echo "::error::ALLOWED_ATTRIBUTE_KEYS contains '$key', which names link, recipient or caller data"
+                fail=1 ;;
+            esac
+          done
+          exit $fail
+
+      # And the allowlist is exercised: a planted seed, fragment, envelope or
+      # ephemeral key under every allowed key must be dropped.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Planted key material never survives safeAttributes
+        run: pnpm vitest run tests/lib/observability

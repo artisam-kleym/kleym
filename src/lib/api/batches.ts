@@ -15,6 +15,7 @@ import { LINK_ORDER } from './link-order'
 import { isWriteConflict } from './links'
 import { approvalGate } from './approvals'
 import { screeningGate } from './screening'
+import { recordBatchConfirmLatency } from '@/lib/observability/metrics'
 import {
   buildBatchTransaction,
   planBatches,
@@ -390,12 +391,19 @@ export async function confirmBatch(
   campaignId: string,
   balanceIds: { linkId: string; balanceId: string }[],
 ): Promise<void> {
-  await prisma.$transaction([
-    ...balanceIds.map(({ linkId, balanceId }) =>
-      prisma.claimLink.update({ where: { id: linkId }, data: { balanceId, status: 'ACTIVE' } }),
-    ),
-    prisma.batch.update({ where: { id: batchId }, data: { status: 'CONFIRMED', confirmedAt: new Date() } }),
-  ])
+  const confirmedAt = new Date()
+  const batch = await prisma.$transaction(async (tx) => {
+    for (const { linkId, balanceId } of balanceIds) {
+      await tx.claimLink.update({ where: { id: linkId }, data: { balanceId, status: 'ACTIVE' } })
+    }
+    return tx.batch.update({
+      where: { id: batchId },
+      data: { status: 'CONFIRMED', confirmedAt },
+      select: { submittedAt: true, campaign: { select: { network: true } } },
+    })
+  })
+  // Submit-to-confirm latency (#53): the ledger's time to close, as this system sees it.
+  if (batch.submittedAt) recordBatchConfirmLatency((confirmedAt.getTime() - batch.submittedAt.getTime()) / 1000, batch.campaign.network)
   await settleCampaignStatus(campaignId)
 }
 
