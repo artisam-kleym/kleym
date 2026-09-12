@@ -4,7 +4,7 @@ import { StatusChip, Table, TableCell, TableHead, TableRow, ProgressCell, type S
 import {
   EmptyState, FilterBar, FilterField, FilterInput, FilterSelect, Pagination, firstValues, formatDate,
 } from '@/components/list/filters'
-import { CAMPAIGN_STATUSES, campaignListQuerySchema, listCampaigns } from '@/lib/api/campaign-list'
+import { CAMPAIGN_STATUSES, campaignListQuerySchema, listCampaigns, parseFilters } from '@/lib/api/campaign-list'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,9 +22,8 @@ export default async function CampaignsPage({
 }) {
   const user = (await getSessionUser())!
   const raw = firstValues(await searchParams)
-  // A malformed query is not an error page; it is the unfiltered list.
-  const parsed = campaignListQuerySchema.safeParse(raw)
-  const query = parsed.success ? parsed.data : campaignListQuerySchema.parse({})
+  // A malformed field is not an error page; that field falls back, the rest hold.
+  const query = parseFilters(campaignListQuerySchema, raw)
 
   const { rows, total, page, perPage } = await listCampaigns(user.id, query)
   const params = { q: query.q, status: query.status, perPage: raw.perPage }

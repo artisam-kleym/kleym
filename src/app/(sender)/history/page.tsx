@@ -4,7 +4,7 @@ import { StatusChip, StellarAddress, Table, TableCell, TableHead, TableRow } fro
 import {
   EmptyState, FilterBar, FilterField, FilterInput, FilterSelect, Pagination, firstValues, formatDate,
 } from '@/components/list/filters'
-import { campaignNames, claimHistory, explorerTxUrl, historyQuerySchema } from '@/lib/api/campaign-list'
+import { campaignNames, claimHistory, explorerTxUrl, historyQuerySchema, parseFilters } from '@/lib/api/campaign-list'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,8 +22,8 @@ export default async function HistoryPage({
 }) {
   const user = (await getSessionUser())!
   const raw = firstValues(await searchParams)
-  const parsed = historyQuerySchema.safeParse(raw)
-  const query = parsed.success ? parsed.data : historyQuerySchema.parse({})
+  // A malformed field is not an error page; that field falls back, the rest hold.
+  const query = parseFilters(historyQuerySchema, raw)
 
   const [{ rows, total, page, perPage }, campaigns] = await Promise.all([
     claimHistory(user.id, query),

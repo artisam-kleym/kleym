@@ -14,6 +14,7 @@ import {
   explorerTxUrl,
   historyQuerySchema,
   historyWhere,
+  parseFilters,
 } from '@/lib/api/campaign-list'
 
 describe('the campaign list clause', () => {
@@ -78,5 +79,20 @@ describe('the explorer link', () => {
   it('names the network', () => {
     expect(explorerTxUrl('testnet', 'ab'.repeat(32))).toBe(`https://stellar.expert/explorer/testnet/tx/${'ab'.repeat(32)}`)
     expect(explorerTxUrl('public', 'h')).toBe('https://stellar.expert/explorer/public/tx/h')
+  })
+})
+
+describe('parsing a filter form', () => {
+  it('drops only the field that failed and keeps the rest', () => {
+    const query = parseFilters(historyQuerySchema, { campaignId: 'c1', from: 'yesterday', to: '2026-09-12', page: '2' })
+    expect(query.campaignId).toBe('c1')
+    expect(query.from).toBeUndefined()
+    expect(query.to?.toISOString()).toBe('2026-09-12T00:00:00.000Z')
+    expect(query.page).toBe(2)
+  })
+
+  it('falls back to defaults for a bad page and an unknown status', () => {
+    const query = parseFilters(campaignListQuerySchema, { q: 'promo', status: 'BOGUS', page: 'x', perPage: '1000' })
+    expect(query).toEqual({ q: 'promo', status: undefined, page: 1, perPage: 25 })
   })
 })

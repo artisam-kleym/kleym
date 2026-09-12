@@ -44,6 +44,30 @@ export const historyQuerySchema = z.object({
 export type HistoryQuery = z.infer<typeof historyQuerySchema>
 
 /**
+ * Parses a filter form field by field: a typo in one drops only that one.
+ *
+ * A whole-object parse fails on the first bad value, so a mistyped `to` date
+ * would have thrown away the campaign filter with it and shown every row —
+ * with the form still displaying what was typed. Each field is parsed on its
+ * own and a failure falls back to that field's default.
+ */
+export function parseFilters<T extends z.ZodRawShape>(
+  schema: z.ZodObject<T>,
+  raw: Record<string, string>,
+): z.infer<z.ZodObject<T>> {
+  const out: Record<string, unknown> = {}
+  for (const [key, field] of Object.entries(schema.shape)) {
+    const parsed = (field as z.ZodTypeAny).safeParse(raw[key])
+    if (parsed.success) out[key] = parsed.data
+    else {
+      const fallback = (field as z.ZodTypeAny).safeParse(undefined)
+      if (fallback.success) out[key] = fallback.data
+    }
+  }
+  return out as z.infer<z.ZodObject<T>>
+}
+
+/**
  * Total order. Campaigns sharing a `createdAt` are the ordinary case —
  * Postgres `CURRENT_TIMESTAMP` is transaction time — and a sort with ties is
  * unstable across page loads (lib/api/link-order.ts has the write-up).
