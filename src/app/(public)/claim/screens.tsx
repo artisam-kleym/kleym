@@ -134,6 +134,15 @@ export function ClaimScreen({
             </p>
           </div>
 
+          {/*
+            * SPEC.md §12: a link is a bearer instrument. The person who most
+            * needs to know that is the one holding it, on the screen where
+            * they are deciding whether to claim now or forward it to someone.
+            */}
+          <p className="text-center text-body-md text-on-surface-variant">
+            Anyone who has this link can claim it. Claim it now rather than passing it on.
+          </p>
+
           {link && (
             <p className="text-center font-mono text-label-sm text-on-surface-variant">
               Available until {formatDate(link.expiresAt)}
