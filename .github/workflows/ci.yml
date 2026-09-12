@@ -83,6 +83,9 @@ jobs:
       - name: Verify claim resolve, limits and ledger authority
         run: pnpm verify:claims
 
+      - name: Verify the sponsor pool, failover and alerting
+        run: pnpm verify:sponsors
+
       - name: Verify email delivery and OTP
         run: pnpm verify:email
 

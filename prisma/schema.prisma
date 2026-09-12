@@ -245,6 +245,12 @@ model Campaign {
   /// back on for a campaign they made.
   approvalThreshold Decimal? @db.Decimal(23, 7)
   approvalsRequired Int      @default(1)
+  /// The sponsor account (G…) bound to this campaign at creation (#48).
+  /// Reserves return to the sponsoring account on merge, so a campaign stays
+  /// with the sponsor that funded it for its whole life; failover in the
+  /// pool applies to NEW campaigns only. Null only on rows older than the
+  /// pool, which read as the primary sponsor.
+  sponsorPublicKey String?
   name            String
   network         String // "testnet" | "public"
   senderPublicKey String // G... that funded it
