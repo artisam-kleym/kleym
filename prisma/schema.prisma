@@ -361,6 +361,8 @@ model ScimGroupMember {
   user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([groupId, userId])
+}
+
 /// Who must have a second factor (#47).
 enum MfaPolicy {
   OFF
