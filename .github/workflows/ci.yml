@@ -83,6 +83,9 @@ jobs:
       - name: Verify claim resolve, limits and ledger authority
         run: pnpm verify:claims
 
+      - name: Verify email delivery and OTP
+        run: pnpm verify:email
+
       - name: Verify reconciliation and the expiry sweep
         run: pnpm verify:reconcile
 

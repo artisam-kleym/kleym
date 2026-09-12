@@ -15,13 +15,15 @@
 export const CLAIM_PROBLEM_BASE = 'https://kleym.app/problems'
 
 /** A conflict the page can name. Anything else is a generic `failed`. */
-export type ClaimConflictReason = 'expired' | 'already-claimed' | 'not-ready'
+export type ClaimConflictReason = 'expired' | 'already-claimed' | 'not-ready' | 'otp-required'
 
 export const CLAIM_CONFLICT_TYPE: Record<ClaimConflictReason, string> = {
   expired: `${CLAIM_PROBLEM_BASE}/conflict/expired`,
   'already-claimed': `${CLAIM_PROBLEM_BASE}/conflict/already-claimed`,
   /** TX1 has not reached the ledger yet; retrying `prepare/claim` is the fix. */
   'not-ready': `${CLAIM_PROBLEM_BASE}/conflict/not-ready`,
+  /** An emailed link without a valid OTP token on the request. SPEC.md §6.4. */
+  'otp-required': `${CLAIM_PROBLEM_BASE}/conflict/otp-required`,
 }
 
 /** The undiscriminated 409, for conflicts no screen distinguishes. */
