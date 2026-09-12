@@ -247,15 +247,16 @@ route's existence is not disclosed; an anonymous request is redirected or gets a
 
 ### After review
 
-**The scrubber matches whole name segments, not substrings.** `code` was in
-the forbidden list as a substring, so `assetCode`, `statusCode`, `resultCode`
-and `countryCode` would all have been silently redacted — and every campaign
+**The scrubber no longer treats `code` as a credential suffix.** It was in the
+forbidden list as a substring, so `assetCode`, `statusCode`, `resultCode` and
+`countryCode` would all have been silently redacted — and every campaign
 creation would have fired the "credential-shaped fields" alarm the moment
-someone added `assetCode` to its metadata. Keys are now split into camelCase
-and snake_case segments; `otp`, `token`, `password`, `secret`, `seed`… are
-matched as segments, `apiKey`/`private_key`/`secretKey` as pairs, and only a
-field named exactly `code` is treated as an OTP. `verify:admin` checks both
-directions.
+someone added `assetCode` to its metadata. The credential words (`seed`,
+`secret`, `password`, `token`, `otp`, `apikey`, `privatekey`…) still match as
+substrings of the flattened key, whatever the spelling — a whole-segment
+rewrite was tried and let `apikey`, `privatekey` and `sessiontoken` through —
+and only a field named exactly `code` is treated as an OTP. `verify:admin`
+checks both lists, including run-together and all-caps spellings.
 
 **`sessionsEnded` is reported only on deactivation.** Activation used to
 sweep the user's expired sessions and return that count under the same name,

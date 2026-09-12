@@ -48,38 +48,28 @@ export const REDACTED = '[redacted]'
  * key are both just opaque strings — there is no pattern to recognise them by
  * once they are out of context.
  *
- * Matched on whole NAME SEGMENTS, not raw substrings. `otpCode`,
- * `session_token` and `newPassword` are all caught, because `otp`, `token`
- * and `password` are segments of them. `assetCode`, `statusCode` and
- * `resultCode` are not, because `code` is an ordinary English suffix and a
- * substring rule on it redacted every one of them — and fired the
- * credential-shaped alarm on a normal campaign creation, which is how people
- * learn to ignore the alarm. Only a field named exactly `code` is treated as
- * an OTP.
+ * SUBSTRING matching over the flattened key for the credential words: `seed`,
+ * `secret`, `password`, `token`, `otp`, `apikey`, `privatekey`… are credentials
+ * wherever they appear, so `otpCode`, `session_token`, `newPassword`,
+ * `passwordhash`, `APIKEY` and `sessiontoken` are all caught, however the
+ * caller spelled them. A whole-segment rule was tried and dropped: it let every
+ * run-together spelling (`apikey`, `privatekey`, `sessiontoken`) through.
+ *
+ * `code` is the one word that is also ordinary English. As a substring it
+ * redacted `assetCode`, `statusCode`, `resultCode` and `countryCode` and fired
+ * the credential alarm on a normal campaign creation — so it matches only a
+ * field named exactly `code`, which is an OTP; `otpCode` is caught by `otp`.
  */
-const FORBIDDEN_SEGMENTS = new Set([
-  'seed', 'secret', 'password', 'passwd', 'token', 'otp',
+const FORBIDDEN_SUBSTRINGS = [
+  'seed', 'secret', 'password', 'passwd', 'token', 'otp', 'apikey', 'privatekey',
   'authorization', 'cookie', 'signature',
-])
-/** Two-segment names that are credentials as a pair: `apiKey`, `private_key`. */
-const FORBIDDEN_PAIRS = new Set(['apikey', 'privatekey', 'secretkey'])
+]
 const FORBIDDEN_EXACT = new Set(['code'])
 
-/** `assetCode` → ['asset','code']; `Secret_Key` → ['secret','key']. */
-function segments(key: string): string[] {
-  return key
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean)
-}
-
 export function isForbiddenKey(key: string): boolean {
-  const parts = segments(key)
-  if (FORBIDDEN_EXACT.has(parts.join(''))) return true
-  if (parts.some((part) => FORBIDDEN_SEGMENTS.has(part))) return true
-  return parts.some((part, i) => i > 0 && FORBIDDEN_PAIRS.has(parts[i - 1]! + part))
+  const flat = key.toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (FORBIDDEN_SUBSTRINGS.some((word) => flat.includes(word))) return true
+  return FORBIDDEN_EXACT.has(flat)
 }
 
 /**
