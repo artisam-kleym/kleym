@@ -33,12 +33,16 @@
     "verify:admin": "tsx scripts/verify-admin.ts",
     "acceptance": "tsx scripts/acceptance.ts",
     "loadtest": "tsx scripts/load-batches.ts",
+    "audit:verify": "tsx scripts/audit-verify.ts",
+    "audit:chain-backfill": "tsx scripts/audit-chain-backfill.ts",
+    "audit:verify-export": "tsx scripts/audit-verify-export.ts",
     "verify:campaign-detail": "tsx scripts/verify-campaign-detail.ts",
     "verify:dashboard": "tsx scripts/verify-dashboard.ts",
     "verify:invitations": "tsx scripts/verify-invitations.ts",
     "verify:organisations": "tsx scripts/verify-organisations.ts",
     "verify:privacy": "tsx scripts/verify-privacy.ts",
-    "verify:approvals": "tsx scripts/verify-approvals.ts"
+    "verify:approvals": "tsx scripts/verify-approvals.ts",
+    "verify:audit-chain": "tsx scripts/verify-audit-chain.ts"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.6.0",

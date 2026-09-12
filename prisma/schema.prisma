@@ -427,8 +427,21 @@ model ReconciliationFinding {
   @@index([campaignId])
 }
 
+/// Append-only and hash-chained (#49). Every row written through
+/// `recordAudit` takes the next `seq` and carries `prevHash` (the previous
+/// row's `rowHash`) and `rowHash = SHA-256(prevHash ‖ canonical(row))`, with
+/// `canonVersion` naming the canonical form so an upgrade cannot orphan
+/// history. A database trigger refuses UPDATE and DELETE on this table
+/// except inside the retention job's own transaction, which records what it
+/// removed in a checkpoint row that is itself chained.
 model AuditLog {
   id             String   @id @default(cuid())
+  /// Position in the chain. Null only for rows written outside `recordAudit`,
+  /// which verification reports as insertions.
+  seq            BigInt?  @unique
+  prevHash       String?
+  rowHash        String?
+  canonVersion   Int      @default(1)
   userId         String?
   /// The organisation the action happened in. Null for actions with no
   /// organisation (an admin acting on a user, a security event on a route).
@@ -446,6 +459,15 @@ model AuditLog {
   @@index([userId, createdAt])
   @@index([organizationId, createdAt])
   @@index([entityType, entityId])
+}
+
+/// The single head of the audit chain. Writers lock this row (`FOR UPDATE`)
+/// so two concurrent `recordAudit` calls cannot both read the same
+/// predecessor and fork the chain — no retry loop needed.
+model AuditChainHead {
+  id      Int    @id @default(1)
+  seq     BigInt @default(0)
+  rowHash String @default("")
 }
 
 /// Keyed on (userId, key), not on key alone.

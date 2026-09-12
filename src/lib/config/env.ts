@@ -50,6 +50,20 @@ const schema = z.object({
   ),
   SESSION_TTL_HOURS: z.coerce.number().int().positive().default(12),
 
+  // Audit export signing (#49): a 32-byte Ed25519 seed, base64. The public
+  // key is derived from it and handed out with every export; the seed itself
+  // is a secret in the same class as SESSION_SECRET.
+  AUDIT_SIGNING_SEED: z.string().refine(
+    (v) => {
+      try {
+        return Buffer.from(v, 'base64').length === 32
+      } catch {
+        return false
+      }
+    },
+    { message: 'AUDIT_SIGNING_SEED must decode to exactly 32 bytes (44 base64 characters)' },
+  ),
+
   // Stellar
   STELLAR_NETWORK: z.enum(['testnet', 'public']).default('testnet'),
   HORIZON_URL: z.url(),
