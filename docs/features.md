@@ -18,6 +18,98 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 ---
 
+<!-- Entries begin below. Newest first. -->
+
+## 2026-09-12 — Campaign detail is bounded; the full link table has its own page (#41)
+
+`/campaigns/[id]` no longer loads every link. It used to select the whole
+table with no `take` — ten thousand rows into one RSC payload at
+`MAX_LINKS_PER_CAMPAIGN` — and then filter that array four times for the
+counts. The page now previews the first ten links and takes its counts from
+one `groupBy` (at most six rows), the same shape the admin campaign list
+already used. `/campaigns/[id]/links`, the table `SPEC.md` §5.2 specifies,
+is where the rest is: paginated, filterable by status, showing label, status,
+claimant, claim time and transaction hash, in `LINK_ORDER` — so the first page
+there is exactly the preview here.
+
+The loaders live in `lib/api/campaign-detail.ts` rather than in the page, so
+a script can drive them at full size. That is the regression guard the issue
+asks for: this is the second unbounded read to ship, and reading the code
+caught it neither time.
+
+**Verified by:** `pnpm verify:campaign-detail` (in CI) against a real
+Postgres with a 10,000-link campaign: the preview is ten rows and loads in
+~40 ms; the counts match the same campaign counted the slow way and sum to
+10,000; the preview equals page one of the table; a filtered page is bounded
+and its total is the filtered count; walking every page returns each link
+once; another user's loads answer null. With the `take` removed the first
+three checks fail (10,000 rows). Production build renders both routes.
+**Not verified by execution:** the two pages in a browser — the table uses
+the same furniture as `/settings`, believed correct but not opened this pass.
+
+## 2026-08-22 — Hardening and release readiness (#17)
+
+The SPEC §10 acceptance matrix is now walked by execution rather than asserted.
+`pnpm acceptance` runs it against a production build and prints, for each of the
+fourteen criteria, whether it was verified by execution or not — and a criterion it
+cannot execute says so rather than going green. `docs/release.md` records the result.
+
+**14 of 14 verified by execution.** The four that matter most, because failing them
+costs users money, were all run against the live network or a real browser: all four
+claim permutations on testnet, sponsor reserves fully recovered (`-0.0001 XLM, fees
+only`), no secret in any column or log line, and the CSV gate unbypassable.
+
+Two criteria were initially claimed on weaker evidence than they deserved and were
+re-done: 8 and 11 cited the existence of Playwright specs rather than a run, so the
+suite was executed (19/19); and criterion 9 first returned 401, because posting a seed
+unauthenticated is refused before the guard runs — correct, but not the rejection the
+criterion is about. Signed in, it returns 400 `seed-submitted`, and the seed reaches no
+audit row.
+
+`pnpm loadtest` answers whether `MAX_LINKS_PER_CAMPAIGN` is survivable or aspirational.
+10,000 links register in 2.7 s, plan into exactly 112 batches in 451 ms, re-plan
+idempotently in 1 ms, and a full paged walk returns **10,000 distinct rows in 93 ms** —
+which also proves the #27/#28 ordering bug fixed at full scale, not just in a fixture.
+
+The header audit covers five routes: the whole §5.3 set present, no `unsafe-inline` or
+`unsafe-eval` anywhere, and `/claim` overriding `Referrer-Policy` to `no-referrer`.
+
+SPEC §12 requires the known limitations to live in the product, not only in a document.
+Four already did. Two did not and now do: a recipient reading `/claim` is told that
+anyone holding the link can claim it and to claim rather than forward, and `/dashboard`
+states that campaigns belong to one account — no colleague, and not Kleym, can see or
+reclaim them.
+
+### After review
+
+**The load test measures the maintenance jobs.** At 10,000 links the ceiling
+is not the batch path but `reconcileAll` and `watchEphemerals`, one serial
+Horizon read per link on fixed schedules. `pnpm loadtest` now walks both over
+the same 10,000 live links with the reads stubbed, counts the passes the
+bounded limits take to cover the set, and projects a pass at a nominal Horizon
+latency against its schedule interval — failing if it does not fit or a walk
+misses a link. Result at 150 ms/read: reconcile ≈150 s per pass of 300 s, full
+coverage every ≈55 min; ephemeral-watch ≈450 s of 900 s, every ≈60 min. The
+numbers are in `docs/release.md`.
+
+**A server that never starts reads as that.** The acceptance step's readiness
+loop now fails the job with the server log if `/api/health` never answered,
+instead of running the matrix against nothing and reporting criteria failures.
+
+**Base branch:** this PR still targets `integration/all-open-prs`, which the
+#33 merge-order note calls a throwaway reference. The plan is to retarget it
+to `develop` once #32–#37 land; the branch has had all six updated heads
+merged in so its CI runs against the reviewed fixes.
+
+**Verified by:** `pnpm acceptance` against a production build, 14/14; `pnpm spike`
+against testnet, 7/7; `pnpm loadtest` at 10,000 links; `pnpm test:e2e`, 19/19 in a real
+browser; 193 unit tests; all nine verify suites; typecheck, lint, and a cold build with
+no environment.
+
+**Not verified, and stated as such:** a real email send (this environment's provider key
+is a placeholder, so every call 401s), Horizon throughput for 112 real submissions, and
+reclaim's decimal balance comparison on a live ledger.
+
 ## 2026-08-22 — Admin area and audit logging (#15)
 
 Admins get `/admin/users`, `/admin/campaigns` and `/admin/audit` alongside the sponsor
@@ -344,35 +436,6 @@ worker: an admin request reached the queue, the worker picked it up and logged
 drift report, `POST /api/admin/reconcile` returns 202, and unauthenticated returns 404
 rather than 403 so the route's existence is not disclosed.
 
-
-<!-- Entries begin below. Newest first. -->
-
-## 2026-09-12 — Campaign detail is bounded; the full link table has its own page (#41)
-
-`/campaigns/[id]` no longer loads every link. It used to select the whole
-table with no `take` — ten thousand rows into one RSC payload at
-`MAX_LINKS_PER_CAMPAIGN` — and then filter that array four times for the
-counts. The page now previews the first ten links and takes its counts from
-one `groupBy` (at most six rows), the same shape the admin campaign list
-already used. `/campaigns/[id]/links`, the table `SPEC.md` §5.2 specifies,
-is where the rest is: paginated, filterable by status, showing label, status,
-claimant, claim time and transaction hash, in `LINK_ORDER` — so the first page
-there is exactly the preview here.
-
-The loaders live in `lib/api/campaign-detail.ts` rather than in the page, so
-a script can drive them at full size. That is the regression guard the issue
-asks for: this is the second unbounded read to ship, and reading the code
-caught it neither time.
-
-**Verified by:** `pnpm verify:campaign-detail` (in CI) against a real
-Postgres with a 10,000-link campaign: the preview is ten rows and loads in
-~40 ms; the counts match the same campaign counted the slow way and sum to
-10,000; the preview equals page one of the table; a filtered page is bounded
-and its total is the filtered count; walking every page returns each link
-once; another user's loads answer null. With the `take` removed the first
-three checks fail (10,000 rows). Production build renders both routes.
-**Not verified by execution:** the two pages in a browser — the table uses
-the same furniture as `/settings`, believed correct but not opened this pass.
 
 ## 2026-09-12 — Dependency bump: audit gate green again
 

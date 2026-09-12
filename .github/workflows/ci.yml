@@ -85,15 +85,13 @@ jobs:
 
       - name: Verify email delivery and OTP
         run: pnpm verify:email
-
       - name: Verify reconciliation and the expiry sweep
         run: pnpm verify:reconcile
 
-      - name: Verify the stranded ephemeral account monitor
-        run: pnpm verify:stranded
-
       - name: Verify reclaim after expiry
         run: pnpm verify:reclaim
+      - name: Verify the stranded ephemeral account monitor
+        run: pnpm verify:stranded
 
       - name: Verify the admin area and audit logging
         run: pnpm verify:admin
@@ -200,6 +198,36 @@ jobs:
 
       - name: Run
         run: pnpm test:e2e
+
+      # SPEC.md §10, issue #17. Playwright brings its own server up and down,
+      # so this starts one of its own against the build that already exists.
+      #
+      # It does NOT fail the job on a criterion that was merely not executed
+      # here — nothing in CI touches testnet, so criteria 1-3 correctly report
+      # as unexecuted rather than passing. It DOES fail on the header audit,
+      # which is fully executable and is the part that silently rots.
+      - name: SPEC §10 acceptance matrix and header audit
+        run: |
+          # The server's own log is captured so criterion 7 — no fragment-derived
+          # value in any log line — is EXECUTED here rather than deferred to a
+          # human. It is a regression-prone property and belongs in CI.
+          NODE_ENV=production pnpm start -p 3211 -H 127.0.0.1 > /tmp/kleym-server.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:3211/api/health >/dev/null && break
+            sleep 1
+          done
+          # A server that never came up must read as "the server never came
+          # up", not as a page of criteria failures — this output is what
+          # someone reads when deciding whether to release.
+          curl -sf http://127.0.0.1:3211/api/health >/dev/null || {
+            echo '::error::the server did not answer /api/health within 60s; its log follows'
+            cat /tmp/kleym-server.log
+            exit 1
+          }
+          BASE_URL=http://127.0.0.1:3211 SERVER_LOG=/tmp/kleym-server.log pnpm acceptance
+
+      - name: Batch path under load
+        run: pnpm loadtest
 
       - uses: actions/upload-artifact@v4
         if: failure()
