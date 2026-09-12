@@ -190,18 +190,23 @@ export async function revokeInvitation(
   userId: string,
   ip: string | null,
 ): Promise<RevokeOutcome> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, username: true, isActive: true, invitations: { where: { redeemedAt: null }, select: { id: true } } },
-  })
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, username: true } })
   if (!user) return { kind: 'not-found' }
-  if (user.isActive || user.invitations.length === 0) {
+
+  /*
+   * ONE statement, conditional on the state it acts on: still inactive, still
+   * holding an unredeemed invitation. A check-then-delete in two statements
+   * would let the invitee's redemption commit in between and delete an
+   * account that had just set a real password — the same race
+   * `redeemInvitation` guards with its conditional updateMany. The
+   * invitation row goes with the user (onDelete: Cascade).
+   */
+  const { count } = await prisma.user.deleteMany({
+    where: { id: user.id, isActive: false, invitations: { some: { redeemedAt: null } } },
+  })
+  if (count === 0) {
     return { kind: 'conflict', detail: `${user.username} has already set a password; deactivate the account instead.` }
   }
-
-  // The invitation goes with the user (onDelete: Cascade); a redeemed token
-  // cannot reach here because `isActive` would be true.
-  await prisma.user.delete({ where: { id: user.id } })
 
   await recordAudit({
     userId: actorId,

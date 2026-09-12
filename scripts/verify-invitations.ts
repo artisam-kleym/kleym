@@ -194,6 +194,28 @@ async function revocation(): Promise<void> {
   check('a redeemed account cannot be revoked', refused.kind === 'conflict', JSON.stringify(refused))
   check('and still exists', (await prisma.user.findUnique({ where: { id: real.user.id } })) !== null)
   check('an unknown id is not-found', (await revokeInvitation(actor, 'nope', null)).kind === 'not-found')
+
+  // Redeem and revoke at the same instant: the account is either redeemed
+  // (and kept) or revoked (and gone) — never deleted with a real password.
+  let kept = 0
+  let goneUnredeemed = 0
+  for (let i = 0; i < 6; i += 1) {
+    const raced = await createInvitedUser(actor, { username: `rr-${randomUUID().slice(0, 8)}`, role: 'SENDER' }, null)
+    if (raced.kind !== 'ok') return check('created', false)
+    const [redeemed, revokedNow] = await Promise.all([
+      redeemInvitation(tokenOf(raced.inviteUrl), 'a-perfectly-fine-password'),
+      revokeInvitation(actor, raced.user.id, null),
+    ])
+    const row = await prisma.user.findUnique({ where: { id: raced.user.id }, select: { isActive: true } })
+    if (redeemed.kind === 'ok') {
+      kept += row?.isActive ? 1 : 0
+      check(`race ${i}: redeemed → revoke refused and the account kept`, revokedNow.kind === 'conflict' && row?.isActive === true, JSON.stringify({ redeemed, revokedNow, row }))
+    } else {
+      goneUnredeemed += row === null ? 1 : 0
+      check(`race ${i}: revoked → redemption refused and the account gone`, revokedNow.kind === 'ok' && row === null, JSON.stringify({ redeemed, revokedNow, row }))
+    }
+  }
+  console.log(`        (${kept} redeemed first, ${goneUnredeemed} revoked first)`)
 }
 
 /** Two admins inviting the same username at once: one wins, the other gets a conflict, not a 500. */
