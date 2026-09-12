@@ -89,6 +89,9 @@ jobs:
       - name: Verify reconciliation and the expiry sweep
         run: pnpm verify:reconcile
 
+      - name: Verify reclaim after expiry
+        run: pnpm verify:reclaim
+
   e2e:
     name: CSV gate (real browser)
     runs-on: ubuntu-latest
