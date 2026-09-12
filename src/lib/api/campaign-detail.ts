@@ -50,7 +50,7 @@ export async function statusCounts(campaignId: string): Promise<StatusCounts> {
 }
 
 export const LINK_SELECT = {
-  id: true, status: true, label: true, claimedBy: true, claimTxHash: true, claimedAt: true,
+  id: true, status: true, label: true, reference: true, category: true, claimedBy: true, claimTxHash: true, claimedAt: true,
 } satisfies Prisma.ClaimLinkSelect
 
 export function linksWhere(campaignId: string, status?: LinkStatus): Prisma.ClaimLinkWhereInput {
@@ -83,6 +83,7 @@ export async function loadCampaignDetail(id: string, organizationId: string) {
     select: {
       id: true, userId: true, name: true, status: true, assetCode: true, amountPerLink: true,
       linkCount: true, expiresAt: true, senderPublicKey: true, network: true,
+      screeningDecision: true, screeningReason: true, screenedAt: true,
       links: { orderBy: LINK_ORDER, take: LINK_PREVIEW, select: LINK_SELECT },
       reclaims: {
         orderBy: { submittedAt: 'desc' },

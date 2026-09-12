@@ -91,6 +91,16 @@ const schema = z.object({
    */
   ALERT_WEBHOOK_URL: z.union([z.url(), z.literal('')]).default(''),
 
+  /**
+   * Compliance screening (#52). The callback URL itself is per organisation
+   * (`Organization.screeningUrl`); these are deployment-wide. The secret, when
+   * set, signs every callback request (HMAC-SHA256 over the body) so the
+   * receiver can tell Kleym from anyone who found the URL. The timeout is the
+   * whole budget for one screening call; past it the campaign is HELD.
+   */
+  SCREENING_WEBHOOK_SECRET: z.string().default(''),
+  SCREENING_TIMEOUT_MS: z.coerce.number().int().min(500).max(60_000).default(5000),
+
   // Batching
   MAX_OPS_PER_BATCH: z.coerce.number().int().positive().max(100).default(90),
   MAX_LINKS_PER_CAMPAIGN: z.coerce.number().int().positive().default(10_000),
@@ -129,6 +139,7 @@ export const SECRET_ENV_KEYS = [
   'SPONSOR_SECRET_KEY',
   'SPONSOR_SECRET_KEYS_EXTRA',
   'ALERT_WEBHOOK_URL',
+  'SCREENING_WEBHOOK_SECRET',
   'SESSION_SECRET',
   'RESEND_API_KEY',
   'SEED_ADMIN_PASSWORD',

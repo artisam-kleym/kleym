@@ -42,6 +42,7 @@
     "verify:organisations": "tsx scripts/verify-organisations.ts",
     "verify:privacy": "tsx scripts/verify-privacy.ts",
     "verify:approvals": "tsx scripts/verify-approvals.ts",
+    "verify:compliance": "tsx scripts/verify-compliance.ts",
     "verify:audit-chain": "tsx scripts/verify-audit-chain.ts",
     "verify:sponsors": "tsx scripts/verify-sponsors.ts"
   },

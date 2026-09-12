@@ -25,11 +25,19 @@
 import 'client-only'
 import { Keypair } from '@stellar/stellar-sdk'
 
+/** The sender's own reference data for one recipient (#52). Never key material. */
+export interface Attestation {
+  reference: string | null
+  category: string | null
+  note: string | null
+}
+
 export interface EphemeralKey {
   publicKey: string
   /** The seed. Exists in memory and in the downloaded CSV, nowhere else. */
   secret: string
   label: string | null
+  attestation: Attestation | null
 }
 
 /**
@@ -39,7 +47,7 @@ export interface EphemeralKey {
  * Called in a loop rather than batched so a partially generated set is never
  * held: either the whole campaign's keys exist or none do.
  */
-export function generateEphemeralKeys(count: number, labels: string[] = []): EphemeralKey[] {
+export function generateEphemeralKeys(count: number, labels: string[] = [], attestations: (Attestation | null)[] = []): EphemeralKey[] {
   if (!Number.isInteger(count) || count < 1) {
     throw new Error(`link count must be a positive integer, got ${count}`)
   }
@@ -50,14 +58,22 @@ export function generateEphemeralKeys(count: number, labels: string[] = []): Eph
       publicKey: keypair.publicKey(),
       secret: keypair.secret(),
       label: labels[index] ?? null,
+      attestation: attestations[index] ?? null,
     }
   })
 }
 
 /** Only the public halves. This is the ONLY shape that may be sent anywhere. */
-export function publicHalves(keys: EphemeralKey[]): { publicKeys: string[]; labels: (string | null)[] } {
+export function publicHalves(keys: EphemeralKey[]): {
+  publicKeys: string[]
+  labels: (string | null)[]
+  attestations?: (Attestation | null)[]
+} {
+  const attestations = keys.map((key) => key.attestation)
   return {
     publicKeys: keys.map((key) => key.publicKey),
     labels: keys.map((key) => key.label),
+    // Omitted entirely when nobody set one, so the request is what it always was.
+    ...(attestations.some((a) => a !== null) ? { attestations } : {}),
   }
 }

@@ -32,6 +32,7 @@ export async function registerLinks(
   organizationId: string,
   publicKeys: string[],
   labels?: (string | null)[],
+  attestations?: ({ reference?: string | null; category?: string | null; note?: string | null } | null)[],
 ): Promise<RegisterOutcome> {
   return prisma.$transaction(
     async (tx) => {
@@ -56,6 +57,9 @@ export async function registerLinks(
           campaignId,
           ephemeralPublicKey: publicKey,
           label: labels?.[index] ?? null,
+          reference: attestations?.[index]?.reference || null,
+          category: attestations?.[index]?.category || null,
+          note: attestations?.[index]?.note || null,
         })),
         skipDuplicates: true,
       })

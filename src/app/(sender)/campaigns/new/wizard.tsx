@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, Stepper } from '@/components/ui'
-import { generateEphemeralKeys, publicHalves } from '@/lib/campaign/keygen'
+import { generateEphemeralKeys, publicHalves, type Attestation } from '@/lib/campaign/keygen'
 import { parseLabels } from '@/lib/campaign/csv'
 import { affordability, computeCost, type CostBreakdown } from '@/lib/campaign/cost'
 import { triggerDownload } from './download-gate'
@@ -75,6 +75,7 @@ export function CampaignWizard(config: WizardConfig) {
   )
   const [reservePerLink, setReservePerLink] = useState<string | null>(null)
   const [labels, setLabels] = useState<string[]>([])
+  const [attestations, setAttestations] = useState<(Attestation | null)[]>([])
   const [labelError, setLabelError] = useState<string | null>(null)
   const [filename, setFilename] = useState<string | null>(null)
 
@@ -168,16 +169,19 @@ export function CampaignWizard(config: WizardConfig) {
     (raw: string) => {
       if (raw.trim() === '') {
         setLabels([])
+        setAttestations([])
         setLabelError(null)
         return
       }
       const parsed = parseLabels(raw, draft.linkCount)
       if (parsed.ok) {
         setLabels(parsed.labels)
+        setAttestations(parsed.attestations ?? [])
         setLabelError(null)
         return
       }
       setLabels([])
+      setAttestations([])
       setLabelError(labelErrorMessage(parsed, draft.linkCount))
     },
     [draft.linkCount],
@@ -187,13 +191,13 @@ export function CampaignWizard(config: WizardConfig) {
     wizard.setError(null)
     wizard.setPhase('generating')
     try {
-      wizard.replaceKeys(generateEphemeralKeys(draft.linkCount, labels))
+      wizard.replaceKeys(generateEphemeralKeys(draft.linkCount, labels, attestations))
       wizard.setPhase('awaiting-download')
     } catch (error) {
       wizard.setPhase('editing')
       wizard.setError(error instanceof Error ? error.message : 'Could not generate keys.')
     }
-  }, [draft.linkCount, labels, wizard])
+  }, [draft.linkCount, labels, attestations, wizard])
 
   /* THE GATE. Only this can open it, and only after the file is written. */
   const onDownload = useCallback(() => {
@@ -445,6 +449,8 @@ function labelErrorMessage(
       return `Line ${parsed.line} is a Stellar address. Labels are your own notes; each link is claimed by whoever opens it, so there is no address to record.`
     case 'too-many':
       return `${parsed.found} labels for ${linkCount} links. Raise the link count or remove some.`
+    case 'too-long':
+      return `Line ${parsed.line}: the ${parsed.column} column is over ${parsed.allowed} characters.`
     case 'empty':
       return 'No labels found.'
   }

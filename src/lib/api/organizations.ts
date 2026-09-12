@@ -199,6 +199,25 @@ export async function setApprovalPolicy(
   })
 }
 
+/** Point screening at the organisation's own provider, or switch it off (#52). */
+export async function setScreeningUrl(actorId: string, org: OrgScope, screeningUrl: string | null, ip: string | null): Promise<void> {
+  await prisma.organization.update({ where: { id: org.id }, data: { screeningUrl } })
+  await recordAudit({
+    userId: actorId, organizationId: org.id, action: 'org.screening_url', entityType: 'organization', entityId: org.id,
+    // The host only: a URL may carry a path that is itself a credential.
+    metadata: { from: hostOf(org.screeningUrl), to: hostOf(screeningUrl) }, ip,
+  })
+}
+
+function hostOf(url: string | null): string | null {
+  if (!url) return null
+  try {
+    return new URL(url).host
+  } catch {
+    return null
+  }
+}
+
 export async function renameOrganization(actorId: string, org: OrgScope, name: string, ip: string | null): Promise<void> {
   await prisma.organization.update({ where: { id: org.id }, data: { name } })
   await recordAudit({

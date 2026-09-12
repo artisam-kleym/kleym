@@ -189,6 +189,8 @@ export function RecipientsStep({
           <p className="font-mono text-label-sm text-on-surface-variant">
             Your own notes, one per line — a name or a handle. Never recipient addresses:
             each link is claimed by whoever opens it, so there is no address to record.
+            To attach your own reference data, paste a CSV with a header row naming any of{' '}
+            <span className="text-on-surface">label, reference, category, note</span>; other columns are ignored.
           </p>
           {labelError && (
             <p role="alert" className="font-mono text-label-sm text-error">
