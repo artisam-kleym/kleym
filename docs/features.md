@@ -53,6 +53,17 @@ row sat on the report forever reporting float as locked that had already returne
 such rows survived every sweep against real data. Settled links are now cleared
 explicitly, which is acceptance criterion 5.
 
+### After review
+
+**A scheduled pass is bounded.** `watchEphemerals` reads at most
+`WATCH_PASS_LIMIT` (3,000) candidates per run, oldest-first, continuing from an
+`ephemeral-watch:cursor` key in Redis and wrapping at the end — the same shape
+as reconciliation's pass, sharing `lib/queue/pass-cursor.ts`. What it does not
+reach is `remaining` in the report and a WARN in the log. Previously a
+10,000-link campaign meant a `*/15` pass that never finished inside its own
+interval, with nothing saying so. The verify script drives a limit of 2 over 3
+links and checks every one is reached across passes.
+
 **Verified by:** `pnpm verify:stranded`, 10 sections against a real Postgres with every
 ledger read injected — a monitor that describes the ledger cannot be checked against a
 stub of itself, and one that passes when Horizon is unreachable would report a healthy
