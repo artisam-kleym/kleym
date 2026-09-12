@@ -89,6 +89,9 @@ jobs:
       - name: Verify campaign list and history ownership, filters and ordering
         run: pnpm verify:campaign-list
 
+      - name: Verify the dashboard is scoped, claimed-only and bounded
+        run: pnpm verify:dashboard
+
       - name: Verify reconciliation and the expiry sweep
         run: pnpm verify:reconcile
 

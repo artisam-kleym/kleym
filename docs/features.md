@@ -20,6 +20,36 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — The sender dashboard (#42)
+
+`/dashboard` — the post-login landing page — now shows what `SPEC.md` §5.2
+asked for: total distributed by asset, active campaigns, pending claims (with
+how many are still claimable), and the five most recent campaigns linking
+into detail. The multi-tenancy note from #38 stays, because until
+organisations exist it is the only place a sender is told that colleagues
+cannot see their campaigns.
+
+**"Distributed" means claimed.** It is the sum of `amountPerLink` over links in
+`CLAIMED`, grouped by asset — one `SUM … GROUP BY` in SQL (`$queryRaw`, with
+the justification in the code: Prisma's `groupBy` cannot aggregate across a
+relation, and the JS alternative is unbounded in campaigns). Not
+`linkCount × amountPerLink`: created value is not distributed value, and the
+larger number under that heading is what a finance user stops trusting the
+product over. Every other figure is a `count`; recent campaigns carry a
+`_count` for claimed. Nothing loads a link row and nothing reads Horizon.
+Money is `Decimal` and rendered with `.toFixed()`.
+
+**Verified by:** `pnpm verify:dashboard` (in CI) against a real Postgres:
+mixed-asset claimed totals (1000.5 USDC from campaigns that *created* 2500.5;
+7.5 XLM; an unclaimed asset absent rather than zero), scoping between two
+users, the recent table equal to the head of `/campaigns` with the same
+claimed figures, outstanding excluding an expired campaign's links, one stroop
+rendering as `0.0000001` and the largest amount keeping every digit, and a
+10,000-link campaign loading in ~5 ms with a payload under 5 KB that contains
+no link. Production build renders the route. **Not verified by execution:**
+375px (criterion 5) — the metric grid collapses to one column below `md`,
+believed correct but not opened in a browser this pass.
+
 ## 2026-09-12 — Campaign list and cross-campaign history (#40)
 
 `/campaigns` and `/history` exist now; until this the sidebar linked to both

@@ -32,7 +32,8 @@
     "verify:stranded": "tsx scripts/verify-stranded.ts",
     "verify:admin": "tsx scripts/verify-admin.ts",
     "acceptance": "tsx scripts/acceptance.ts",
-    "loadtest": "tsx scripts/load-batches.ts"
+    "loadtest": "tsx scripts/load-batches.ts",
+    "verify:dashboard": "tsx scripts/verify-dashboard.ts"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.6.0",
