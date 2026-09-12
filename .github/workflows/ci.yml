@@ -100,6 +100,9 @@ jobs:
       - name: Verify the admin area and audit logging
         run: pnpm verify:admin
 
+      - name: Verify the campaign detail page is bounded at MAX_LINKS_PER_CAMPAIGN
+        run: pnpm verify:campaign-detail
+
   e2e:
     name: CSV gate (real browser)
     runs-on: ubuntu-latest

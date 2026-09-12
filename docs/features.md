@@ -20,6 +20,33 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — Campaign detail is bounded; the full link table has its own page (#41)
+
+`/campaigns/[id]` no longer loads every link. It used to select the whole
+table with no `take` — ten thousand rows into one RSC payload at
+`MAX_LINKS_PER_CAMPAIGN` — and then filter that array four times for the
+counts. The page now previews the first ten links and takes its counts from
+one `groupBy` (at most six rows), the same shape the admin campaign list
+already used. `/campaigns/[id]/links`, the table `SPEC.md` §5.2 specifies,
+is where the rest is: paginated, filterable by status, showing label, status,
+claimant, claim time and transaction hash, in `LINK_ORDER` — so the first page
+there is exactly the preview here.
+
+The loaders live in `lib/api/campaign-detail.ts` rather than in the page, so
+a script can drive them at full size. That is the regression guard the issue
+asks for: this is the second unbounded read to ship, and reading the code
+caught it neither time.
+
+**Verified by:** `pnpm verify:campaign-detail` (in CI) against a real
+Postgres with a 10,000-link campaign: the preview is ten rows and loads in
+~40 ms; the counts match the same campaign counted the slow way and sum to
+10,000; the preview equals page one of the table; a filtered page is bounded
+and its total is the filtered count; walking every page returns each link
+once; another user's loads answer null. With the `take` removed the first
+three checks fail (10,000 rows). Production build renders both routes.
+**Not verified by execution:** the two pages in a browser — the table uses
+the same furniture as `/settings`, believed correct but not opened this pass.
+
 ## 2026-09-12 — Campaign list and cross-campaign history (#40)
 
 `/campaigns` and `/history` exist now; until this the sidebar linked to both
