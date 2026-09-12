@@ -18,6 +18,73 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 ---
 
+## 2026-08-22 — Admin area and audit logging (#15)
+
+Admins get `/admin/users`, `/admin/campaigns` and `/admin/audit` alongside the sponsor
+float and drift report already there. Every mutating action now writes an audit row:
+who did it, to what, and from which address.
+
+Deactivating a user means signed out, not paused. It deletes their sessions rather than
+relying on the active-check that already blocks the next request — a session row that is
+merely inert still exists, still shows in a count, and would come back to life the moment
+the account was reactivated. Confirmed live: a sender's cookie went from working to
+redirecting the instant an admin deactivated them, and sign-in then failed with the same
+generic message as a wrong password, so the failure does not reveal account state.
+
+Audit `metadata` is scrubbed rather than trusted. Two independent rules, because either
+alone has a hole: field names that look like credentials are redacted whatever they hold
+— which is the only way to catch an opaque session token, since nothing about the string
+gives it away — and any value containing a Stellar seed is redacted whatever it is called,
+which catches a seed hiding under `note` or `label`. Callers being careful is still the
+real defence; this is the backstop for the one that is not. A seed reaching the server now
+writes an audit row too, recording the **field path** and never the value.
+
+Admin access is enforced in every route handler, not by hiding navigation. A signed-in
+sender gets **404 rather than 403** on all five admin pages and on the users API, so the
+route's existence is not disclosed; an anonymous request is redirected or gets a 401.
+
+### After review
+
+**The scrubber no longer treats `code` as a credential suffix.** It was in the
+forbidden list as a substring, so `assetCode`, `statusCode`, `resultCode` and
+`countryCode` would all have been silently redacted — and every campaign
+creation would have fired the "credential-shaped fields" alarm the moment
+someone added `assetCode` to its metadata. The credential words (`seed`,
+`secret`, `password`, `token`, `otp`, `apikey`, `privatekey`…) still match as
+substrings of the flattened key, whatever the spelling — a whole-segment
+rewrite was tried and let `apikey`, `privatekey` and `sessiontoken` through —
+and only a field named exactly `code` is treated as an OTP. `verify:admin`
+checks both lists, including run-together and all-caps spellings.
+
+**`sessionsEnded` is reported only on deactivation.** Activation used to
+sweep the user's expired sessions and return that count under the same name,
+so "activated Alice, 4 sessions ended" read as a sign-out. Activation now
+touches no sessions, returns `sessionsEnded: 0`, and its audit row carries no
+such field.
+
+**Verified by:** `pnpm verify:admin`, 7 sections against a real Postgres. The scrubber is
+attacked with the shapes a careless caller actually produces — a session token, an API
+key, an OTP, a password, an oddly-spelled secret, an authorization header, and a seed
+hidden under two innocent field names — because criterion 7 is a claim about every call
+site, present and future, not about the four written today. Each section first shown to
+fail against a planted regression: dropping the key rule, dropping the value rule, not
+deleting sessions on deactivation, and allowing an admin to deactivate themselves.
+
+Checked live against a production build: the access matrix above across all five pages
+and the users API; `GET /api/health` returns `{"status":"ok"}` with no auth and no
+version, dependency or internal detail; `GET /api/ready` reports reachability; the audit
+viewer renders, filters and pages; and posting a seed writes an audit row whose metadata
+contains the field name and, confirmed by query, the seed nowhere at all.
+
+**Honest caveat on one check.** `queryAudit` breaks `createdAt` ties on `id`, the fix
+#27/#28 needed for paged link lists. The section that walks 30 rows sharing one timestamp
+verifies that paging returns each row exactly once — but removing the tiebreaker does
+**not** fail it, because Postgres returns those rows consistently at this size either way.
+The tiebreaker stays because it is correct and free; it is not proven by a test.
+
+**Not wired yet:** `link.reclaim`, whose action is defined here but whose call site lives
+on #13's branch. It gets its `recordAudit` call when that merges.
+
 ## 2026-08-22 — Email delivery with OTP-gated retrieval (#14)
 
 Kleym can now email claim links, and email-delivered links ask for a six-digit code

@@ -95,6 +95,9 @@ jobs:
       - name: Verify reclaim after expiry
         run: pnpm verify:reclaim
 
+      - name: Verify the admin area and audit logging
+        run: pnpm verify:admin
+
   e2e:
     name: CSV gate (real browser)
     runs-on: ubuntu-latest
