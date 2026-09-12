@@ -4,6 +4,9 @@ import { pageScope } from '@/lib/api/session-guard'
 import { LINK_PREVIEW, loadCampaignDetail } from '@/lib/api/campaign-detail'
 import { StatusChip, StellarAddress, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
 import { ReclaimPanel } from './reclaim-panel'
+import { ApprovalPanel } from './approval-panel'
+import { approvalStatus } from '@/lib/api/approvals'
+import { roleAtLeast } from '@/lib/api/session-guard'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,11 +32,11 @@ const CHIP: Record<string, Status> = {
  * integers. The full, filterable table is `/campaigns/[id]/links`.
  */
 export default async function CampaignPage({ params }: { params: Promise<{ id: string }> }) {
-  const { org } = await pageScope()
+  const { user, org } = await pageScope()
   const { id } = await params
 
-  const loaded = await loadCampaignDetail(id, org.id)
-  if (!loaded) notFound()
+  const [loaded, approval] = await Promise.all([loadCampaignDetail(id, org.id), approvalStatus(id, org.id)])
+  if (!loaded || !approval) notFound()
   const { campaign, counts, outstanding, expired } = loaded
 
   return (
@@ -62,6 +65,20 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           </div>
         ))}
       </dl>
+
+      <ApprovalPanel
+        campaignId={campaign.id}
+        status={{
+          required: approval.required,
+          needed: approval.needed,
+          granted: approval.granted,
+          satisfied: approval.satisfied,
+          reason: approval.reason,
+          approvers: approval.approvers.map((a) => ({ ...a, at: a.at.toISOString() })),
+        }}
+        canDecide={roleAtLeast(org.role, 'APPROVER')}
+        isCreator={campaign.userId === user.id}
+      />
 
       <ReclaimPanel
         campaignId={campaign.id}

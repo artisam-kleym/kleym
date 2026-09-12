@@ -20,6 +20,46 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — Dual control: a second person approves before a campaign can disburse (#45)
+
+An organisation can require that a campaign worth more than a threshold —
+amount per link × link count, in its own asset, so raising the count is not a
+way round it — is approved by `N` **Approvers** other than its creator before
+any batch can be signed. The gate sits where money moves (`prepareBatch`,
+`submitBatch`) and beside the CSV gate on the CREATING → ACTIVE settle, not in
+front of the wizard: an Operator drafts and registers links freely, and the
+approver reviews exactly what will be signed. Off by default (null threshold),
+so nothing changes for a deployment that does not turn it on; Owners set the
+threshold and count under Settings.
+
+**An approval is bound to the terms, not the campaign.** Each decision stores
+a hash of (asset, issuer, amount per link, link count, expiry); a decision
+whose hash no longer matches counts for nothing, and the refusal names what
+changed and who had approved the old terms — approve small, edit large, sign
+is the first thing a penetration test tries. The creator's own approval never
+counts, at any role including Owner. Approvals and rejections are audited
+with approver, campaign and terms hash (and the terms themselves, so "what
+changed" can be named without a second table). A rejection blocks signing
+even alongside approvals. `/approvals` lists what is waiting; the campaign
+page shows the state and, for an Approver who is not the creator, the two
+buttons. Because the CSV export is already a discrete, audited moment, the
+audit log can show an auditor: terms approved by a second person → keys
+created → batches signed.
+
+**Verified by:** `pnpm verify:approvals` (in CI) against a real Postgres: a
+1,500 campaign is gated and a 500 one is not under a 1,000 threshold, with
+`prepareBatch` handing over no envelope and `submitBatch` refusing; approval
+opens the gate and empties the queue; dual control off gates nothing; the
+creator is refused as Owner and no row is written; a planted `linkCount`
+2 → 2,000 after approval is refused naming "link count" and the approver, a
+planted amount change names "amount per link", and re-approval reopens it;
+the hash covers exactly the five terms; approve and reject each audit with
+approver, campaign, hash and organisation; a rejection blocks despite an
+approval and 2-of-N counts; the policy is stored, audited, inclusive at the
+threshold, and computed with `Decimal` (0.0000001 × 10⁹ = 100). `verify:batches`
+and `verify:organisations` still pass. Not opened in a browser: the approval
+panel, the queue page and the policy form.
+
 ## 2026-09-12 — Organisations, memberships and roles (#44)
 
 A campaign now belongs to an **organisation**, not to the person who created

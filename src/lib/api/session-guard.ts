@@ -22,6 +22,9 @@ export interface OrgScope {
   id: string
   name: string
   role: OrgRole
+  /** Dual-control policy (#45): null threshold means off. */
+  approvalThreshold: string | null
+  approvalsRequired: number
 }
 
 export interface RequestScope {
@@ -45,7 +48,7 @@ export async function resolveScope(user: SessionUser): Promise<OrgScope | null> 
   const memberships = await prisma.membership.findMany({
     where: { userId: user.id },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    select: { role: true, organization: { select: { id: true, name: true } } },
+    select: { role: true, organization: { select: { id: true, name: true, approvalThreshold: true, approvalsRequired: true } } },
   })
   if (memberships.length === 0) return null
 
@@ -54,7 +57,13 @@ export async function resolveScope(user: SessionUser): Promise<OrgScope | null> 
     // Remember the fallback so the switcher and the pages agree next request.
     await setActiveOrganization(user.sessionId, chosen.organization.id).catch(() => undefined)
   }
-  return { id: chosen.organization.id, name: chosen.organization.name, role: chosen.role }
+  return {
+    id: chosen.organization.id,
+    name: chosen.organization.name,
+    role: chosen.role,
+    approvalThreshold: chosen.organization.approvalThreshold?.toFixed() ?? null,
+    approvalsRequired: chosen.organization.approvalsRequired,
+  }
 }
 
 /** Every organisation the user belongs to, for the switcher. */
