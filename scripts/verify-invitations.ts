@@ -16,7 +16,7 @@ applyEnvPlaceholders()
 const { prisma } = await import('../src/lib/db/client')
 const { verifyPassword } = await import('../src/lib/auth/password')
 const { scrubMetadata, REDACTED } = await import('../src/lib/api/audit')
-const { createInvitedUser, redeemInvitation, pendingInvitations, INVITATION_TTL_MS, createUserSchema } =
+const { createInvitedUser, redeemInvitation, revokeInvitation, pendingInvitations, INVITATION_TTL_MS, createUserSchema } =
   await import('../src/lib/api/invitations')
 const redeemRoute = await import('../src/app/api/invite/redeem/route')
 
@@ -163,6 +163,52 @@ function inputRules(): void {
   check('a password in the body is not a field', !createUserSchema.safeParse({ username: 'abc', password: 'x' }).success)
 }
 
+/**
+ * The admin can take the credential back. A link sent to the wrong person is
+ * revocable before it expires, and afterwards its token is simply unknown.
+ */
+async function revocation(): Promise<void> {
+  console.log('\n6. Revoking a pending invitation')
+  const actor = await admin()
+  const outcome = await createInvitedUser(actor, { username: `revoke-${randomUUID().slice(0, 8)}`, role: 'SENDER' }, null)
+  if (outcome.kind !== 'ok') return check('created', false)
+  const token = tokenOf(outcome.inviteUrl)
+
+  const revoked = await revokeInvitation(actor, outcome.user.id, '203.0.113.7')
+  check('it is revoked', revoked.kind === 'ok', JSON.stringify(revoked))
+  check('the account is gone', (await prisma.user.findUnique({ where: { id: outcome.user.id } })) === null)
+  check('and so is the invitation row', (await prisma.invitation.count({ where: { userId: outcome.user.id } })) === 0)
+  const later = await redeemInvitation(token, 'a-perfectly-fine-password')
+  const unknown = await redeemInvitation('0'.repeat(64), 'a-perfectly-fine-password')
+  check('the token now fails exactly as an unknown one', JSON.stringify(later) === JSON.stringify(unknown), JSON.stringify(later))
+  check('no longer pending', !(await pendingInvitations()).has(outcome.user.id))
+  const audit = await prisma.auditLog.findFirst({ where: { action: 'user.revoke_invitation', entityId: outcome.user.id } })
+  check('audited, naming the actor and the username', audit?.userId === actor && JSON.stringify(audit.metadata).includes(outcome.user.username))
+  check('and the username can be invited again', (await createInvitedUser(actor, { username: outcome.user.username, role: 'SENDER' }, null)).kind === 'ok')
+
+  // A redeemed account is not revocable: that would delete a real user.
+  const real = await createInvitedUser(actor, { username: `real-${randomUUID().slice(0, 8)}`, role: 'SENDER' }, null)
+  if (real.kind !== 'ok') return check('created', false)
+  await redeemInvitation(tokenOf(real.inviteUrl), 'a-perfectly-fine-password')
+  const refused = await revokeInvitation(actor, real.user.id, null)
+  check('a redeemed account cannot be revoked', refused.kind === 'conflict', JSON.stringify(refused))
+  check('and still exists', (await prisma.user.findUnique({ where: { id: real.user.id } })) !== null)
+  check('an unknown id is not-found', (await revokeInvitation(actor, 'nope', null)).kind === 'not-found')
+}
+
+/** Two admins inviting the same username at once: one wins, the other gets a conflict, not a 500. */
+async function usernameRace(): Promise<void> {
+  console.log('\n7. The same username invited twice at once')
+  const [a, b] = [await admin(), await admin()]
+  const username = `race-${randomUUID().slice(0, 8)}`
+  const results = await Promise.all([
+    createInvitedUser(a, { username, role: 'SENDER' }, null),
+    createInvitedUser(b, { username, role: 'SENDER' }, null),
+  ])
+  check('exactly one succeeds', results.filter((r) => r.kind === 'ok').length === 1, JSON.stringify(results.map((r) => r.kind)))
+  check('and the other is a conflict', results.filter((r) => r.kind === 'conflict').length === 1, JSON.stringify(results.map((r) => r.kind)))
+}
+
 async function main(): Promise<void> {
   try {
     await createsAnInactiveAccount()
@@ -170,6 +216,8 @@ async function main(): Promise<void> {
     await redeemsOnceOnly()
     await theRouteAnswersTheSameForEveryRefusal()
     inputRules()
+    await revocation()
+    await usernameRace()
   } finally {
     await prisma.$disconnect()
   }

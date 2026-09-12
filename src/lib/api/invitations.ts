@@ -21,6 +21,7 @@ import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
 import { env } from '@/lib/config/env'
 import { hashPassword } from '@/lib/auth/password'
+import { isUniqueViolation } from '@/lib/db/errors'
 import { recordAudit } from './audit'
 
 /** Three days: long enough to cross a weekend, short enough not to be a standing key. */
@@ -78,16 +79,24 @@ export async function createInvitedUser(
   // still reveals nothing.
   const placeholder = await hashPassword(randomBytes(32).toString('hex'))
 
-  const user = await prisma.user.create({
-    data: {
-      username: input.username,
-      role: input.role,
-      passwordHash: placeholder,
-      isActive: false,
-      invitations: { create: { createdById: actorId, tokenHash: hashToken(token), expiresAt } },
-    },
-    select: { id: true, username: true, role: true },
-  })
+  let user: { id: string; username: string; role: string }
+  try {
+    user = await prisma.user.create({
+      data: {
+        username: input.username,
+        role: input.role,
+        passwordHash: placeholder,
+        isActive: false,
+        invitations: { create: { createdById: actorId, tokenHash: hashToken(token), expiresAt } },
+      },
+      select: { id: true, username: true, role: true },
+    })
+  } catch (error) {
+    // Two admins inviting the same name at once: the loser of the unique
+    // index gets the same answer as the findUnique above, not a 500.
+    if (isUniqueViolation(error)) return { kind: 'conflict', detail: `${input.username} is already taken.` }
+    throw error
+  }
 
   await recordAudit({
     userId: actorId,
@@ -110,10 +119,11 @@ export type RedeemOutcome = { kind: 'ok'; username: string } | { kind: 'invalid'
 
 /**
  * Redeems an invitation: sets the password, activates the account, spends
- * the token. ONE outcome for unknown, expired, already-redeemed and
- * deactivated-in-the-meantime — an attacker probing tokens learns nothing
- * from the shape of the refusal, and a legitimate user with a stale link is
- * told the same thing in all three cases: ask the admin for a new one.
+ * the token. ONE outcome for unknown, expired, already-redeemed and revoked
+ * (a revoked invitation is deleted, so it IS unknown) — an attacker probing
+ * tokens learns nothing from the shape of the refusal, and a legitimate user
+ * with a stale link is told the same thing in every case: ask the admin for
+ * a new one.
  */
 export async function redeemInvitation(
   token: string,
@@ -161,4 +171,46 @@ export async function pendingInvitations(now: Date = new Date()): Promise<Map<st
     select: { userId: true, expiresAt: true },
   })
   return new Map(rows.map((row) => [row.userId, row.expiresAt]))
+}
+
+export type RevokeOutcome = { kind: 'ok'; username: string } | { kind: 'not-found' } | { kind: 'conflict'; detail: string }
+
+/**
+ * Revokes a pending invitation: deletes it AND the still-inactive account.
+ *
+ * The admin never holds a credential they cannot take back. A link sent to
+ * the wrong person, or under the wrong username, must be revocable before it
+ * expires — and until redemption the account has no other rows, so removing
+ * it leaves nothing behind. Only an account that is inactive with an
+ * unredeemed invitation qualifies; a redeemed one is deactivated instead
+ * (`setUserActive`), which is a different action with a different audit row.
+ */
+export async function revokeInvitation(
+  actorId: string,
+  userId: string,
+  ip: string | null,
+): Promise<RevokeOutcome> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, username: true, isActive: true, invitations: { where: { redeemedAt: null }, select: { id: true } } },
+  })
+  if (!user) return { kind: 'not-found' }
+  if (user.isActive || user.invitations.length === 0) {
+    return { kind: 'conflict', detail: `${user.username} has already set a password; deactivate the account instead.` }
+  }
+
+  // The invitation goes with the user (onDelete: Cascade); a redeemed token
+  // cannot reach here because `isActive` would be true.
+  await prisma.user.delete({ where: { id: user.id } })
+
+  await recordAudit({
+    userId: actorId,
+    action: 'user.revoke_invitation',
+    entityType: 'user',
+    entityId: user.id,
+    metadata: { username: user.username },
+    ip,
+  })
+  logger.info({ actorId, userId: user.id }, 'invitation revoked')
+  return { kind: 'ok', username: user.username }
 }

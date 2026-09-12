@@ -4,6 +4,7 @@ import { pendingInvitations } from '@/lib/api/invitations'
 import { Table, TableCell, TableHead, TableRow } from '@/components/ui'
 import { ActiveToggle } from './toggle'
 import { CreateUser } from './create-user'
+import { RevokeInvitation } from './revoke'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,7 +69,7 @@ export default async function AdminUsersPage() {
               <TableCell className="font-mono text-label-sm">{user.sessions}</TableCell>
               <TableCell>
                 {invited.has(user.id) ? (
-                  <span className="text-label-sm text-on-surface-variant">Awaiting invitation</span>
+                  <RevokeInvitation userId={user.id} username={user.username} />
                 ) : (
                   <ActiveToggle
                     userId={user.id}

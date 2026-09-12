@@ -41,16 +41,32 @@ unknown, expired and spent tokens all get the same 404 body. The redeem route
 is rate limited like login. `POST /api/admin/users` answers 404 to a signed-in
 non-admin, matching the rest of the admin surface.
 
+**An invitation can be revoked.** The point of the design is that the admin
+never holds a credential they cannot take back, so a link sent to the wrong
+person is revocable from `/admin/users` before it expires: the pending
+invitation and its still-inactive account (which owns nothing yet) are
+deleted, audited as `user.revoke_invitation`, and the token is thereafter
+simply unknown. A redeemed account is refused — that is a deactivation, a
+different action. `/invite/[token]` carries the token in its path, so it
+gets `/claim`'s `Referrer-Policy: no-referrer`. Two admins inviting the same
+username at once get one success and one conflict, not a 500.
+
 **Verified by:** `pnpm verify:invitations` (in CI) against a real Postgres and
 Redis — inactive on creation, hash ≠ token and token in no row, audit row
 naming actor and user without the token, planted password material redacted
 by the scrubber, first redemption sets the chosen password and the second is
 refused without touching it, expired ≡ unknown, one of two concurrent
 redemptions wins, the route's refusals are byte-identical, the sixth attempt
-per IP is 429. And over HTTP against a production build: no session 401,
+per IP is 429; revoke deletes account and row, the token then fails exactly
+as an unknown one, the username is free again, a redeemed account cannot be
+revoked, and a simultaneous double invite yields one success and one
+conflict. And over HTTP against a production build: no session 401,
 SENDER 404 on the route and the page, ADMIN 201, the invitee's login 401
 before redemption and 200 after, a second redemption 404, and zero
-occurrences of the token in the server log.
+occurrences of the token in the server log; `/invite/<token>` answers
+`no-referrer` where `/login` answers `strict-origin-when-cross-origin`;
+`DELETE …/invitation` is 401 without a session, 200 as admin, and the token
+is 404 afterwards.
 
 ## 2026-09-12 — Campaign detail is bounded; the full link table has its own page (#41)
 
