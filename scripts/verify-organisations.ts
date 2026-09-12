@@ -45,7 +45,7 @@ async function user(tag: string) {
 }
 async function org(name: string, owner: string) {
   const row = await prisma.organization.create({ data: { name, memberships: { create: { userId: owner, role: 'OWNER' } } }, select: { id: true, name: true } })
-  return { id: row.id, name: row.name, role: 'OWNER' as const, approvalThreshold: null, approvalsRequired: 1 }
+  return { id: row.id, name: row.name, role: 'OWNER' as const, approvalThreshold: null, approvalsRequired: 1, screeningUrl: null }
 }
 async function join(orgId: string, userId: string, role: Role) {
   await prisma.membership.create({ data: { organizationId: orgId, userId, role } })

@@ -121,6 +121,9 @@ jobs:
       - name: Verify dual control
         run: pnpm verify:approvals
 
+      - name: Verify compliance hooks (screening fail-closed, attestation, regulator export)
+        run: pnpm verify:compliance
+
       - name: Verify the audit chain, checkpoints, concurrency and signed export
         run: pnpm verify:audit-chain
 

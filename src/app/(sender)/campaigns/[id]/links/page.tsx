@@ -67,12 +67,16 @@ export default async function CampaignLinksPage({
       ) : (
         <div className="mt-lg">
           <Table>
-            <TableHead columns={['#', 'Label', 'Status', 'Claimant', 'Claimed', 'Transaction']} />
+            <TableHead columns={['#', 'Label', 'Reference', 'Status', 'Claimant', 'Claimed', 'Transaction']} />
             <tbody>
               {links.map((link, i) => (
                 <TableRow key={link.id}>
                   <TableCell className="text-on-surface-variant">{(page - 1) * perPage + i + 1}</TableCell>
                   <TableCell>{link.label ?? '—'}</TableCell>
+                  <TableCell className="text-on-surface-variant">
+                    {link.reference ?? '—'}
+                    {link.category && <span className="ml-sm text-label-sm">{link.category}</span>}
+                  </TableCell>
                   <TableCell><StatusChip status={CHIP[link.status] ?? 'pending'} /></TableCell>
                   <TableCell>{link.claimedBy ? <StellarAddress value={link.claimedBy} /> : '—'}</TableCell>
                   <TableCell>{link.claimedAt ? formatDate(link.claimedAt) : '—'}</TableCell>

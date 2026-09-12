@@ -92,6 +92,19 @@ export const patchCampaignSchema = z
     message: 'nothing to update',
   })
 
+/**
+ * The sender's own reference data for a recipient (#52). Free text, but
+ * seed-free like every other string that reaches the server, and capped so
+ * the export stays a table rather than a document store.
+ */
+export const attestationSchema = z
+  .object({
+    reference: seedFreeString.max(120).nullable().optional(),
+    category: seedFreeString.max(60).nullable().optional(),
+    note: seedFreeString.max(500).nullable().optional(),
+  })
+  .strict()
+
 export const registerLinksSchema = z
   .object({
     /*
@@ -104,11 +117,17 @@ export const registerLinksSchema = z
       .min(1)
       .refine((keys) => withinLinkLimit(keys.length), { message: linkLimitMessage() }),
     labels: z.array(seedFreeString.max(200)).optional(),
+    /** Attestation fields (#52), one entry (or null) per public key. */
+    attestations: z.array(attestationSchema.nullable()).optional(),
   })
   .strict()
   .refine((v) => v.labels === undefined || v.labels.length === v.publicKeys.length, {
     message: 'labels must have one entry per public key',
     path: ['labels'],
+  })
+  .refine((v) => v.attestations === undefined || v.attestations.length === v.publicKeys.length, {
+    message: 'attestations must have one entry per public key',
+    path: ['attestations'],
   })
 
 export const patchLinkSchema = z.object({ label: seedFreeString.max(200).nullable() }).strict()

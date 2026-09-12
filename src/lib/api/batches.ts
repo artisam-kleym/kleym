@@ -14,6 +14,7 @@ import { owned } from './session-guard'
 import { LINK_ORDER } from './link-order'
 import { isWriteConflict } from './links'
 import { approvalGate } from './approvals'
+import { screeningGate } from './screening'
 import {
   buildBatchTransaction,
   planBatches,
@@ -157,6 +158,12 @@ export async function prepareBatch(
   const unapproved = await approvalGate(campaign.id)
   if (unapproved) return conflict(unapproved)
 
+  // Compliance screening (#52): the organisation's own callback sees the
+  // terms and recipient references before any envelope exists. A hold or a
+  // block — or no answer at all — stops here. No URL: nothing happens.
+  const held = await screeningGate(campaign.id, { fresh: true })
+  if (held) return conflict(held)
+
   await ensurePlanned(campaign.id)
 
   const batches = await prisma.batch.findMany({
@@ -255,6 +262,11 @@ export async function submitBatch(
   // prepared before an approval was withdrawn does not get to submit it.
   const unapproved = await approvalGate(campaign.id)
   if (unapproved) return conflict(unapproved)
+
+  // Screening again at the moment money moves: a recorded ALLOW for exactly
+  // what was screened is honoured; anything else asks the callback again.
+  const held = await screeningGate(campaign.id, { fresh: false })
+  if (held) return conflict(held)
 
   const batch = await prisma.batch.findFirst({
     where: { campaignId: campaign.id, sequence: input.sequence },

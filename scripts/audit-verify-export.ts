@@ -3,7 +3,9 @@
  *
  * Verifies a saved export with the public key ALONE — no database, no Kleym.
  * This is the check a buyer's auditor runs. It also recomputes the row
- * hashes inside a JSON export, so a file edited after signing fails twice.
+ * hashes inside a JSON audit export, so a file edited after signing fails
+ * twice. A regulator export (#52) carries no hash chain — only the
+ * signature applies, and the script says so.
  */
 import { readFileSync } from 'node:fs'
 import { createPublicKey, verify } from 'node:crypto'
@@ -21,9 +23,11 @@ console.log(`signature: ${signed ? 'VALID' : 'INVALID'}`)
 
 let chain = 'n/a (csv)'
 if (file.endsWith('.json')) {
-  const doc = JSON.parse(bytes.toString('utf8')) as { rows: Array<Record<string, unknown>> }
+  const doc = JSON.parse(bytes.toString('utf8')) as { format?: string; rows: Array<Record<string, unknown>> }
   let ok = true
-  for (const r of doc.rows) {
+  const regulator = doc.format === 'kleym-regulator-export'
+  if (regulator) console.log(`format: ${doc.format} (${doc.rows.length} rows; signature only, no hash chain)`)
+  for (const r of regulator ? [] : doc.rows) {
     const recomputed = rowHashFor(String(r.prevHash ?? ''), canonicalRowV1({
       id: String(r.id), seq: BigInt(String(r.seq)), createdAt: new Date(String(r.createdAt)),
       userId: (r.userId as string | null) ?? null, organizationId: (r.organizationId as string | null) ?? null,
@@ -32,7 +36,7 @@ if (file.endsWith('.json')) {
     }))
     if (recomputed !== r.rowHash) { ok = false; console.log(`row seq ${r.seq}: hash does not recompute`); break }
   }
-  chain = ok ? 'VALID' : 'INVALID'
+  chain = regulator ? 'n/a (regulator export)' : ok ? 'VALID' : 'INVALID'
 }
 console.log(`row hashes: ${chain}`)
 process.exit(signed && chain !== 'INVALID' ? 0 : 1)
