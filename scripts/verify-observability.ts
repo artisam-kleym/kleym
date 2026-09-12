@@ -150,14 +150,16 @@ async function workerTrace(): Promise<void> {
   check('the job carries a traceparent, and nothing else new', !!job?.data.trace?.traceparent && Object.keys(job!.data).sort().join(',') === 'batchId,trace', JSON.stringify(job?.data))
   // Wait for the first attempt: the batch does not exist, so it fails fast.
   const deadline = Date.now() + 15_000
-  while (Date.now() < deadline && !spans.getFinishedSpans().some((s) => s.name === 'job.batch-confirm')) await sleep(100)
-  const jobSpan = spans.getFinishedSpans().find((s) => s.name === 'job.batch-confirm')
+  // Ours by batch id: another script may have left real batch-confirm jobs in the queue.
+  const ours = () => spans.getFinishedSpans().find((s) => s.name === 'job.batch-confirm' && s.attributes.batchId === batchId)
+  while (Date.now() < deadline && !ours()) await sleep(100)
+  const jobSpan = ours()
   check('the worker span exists', !!jobSpan)
   check('in the same trace as the request', jobSpan?.spanContext().traceId === traceId)
   check('with the queue and batch id, and an attempt number', jobSpan?.attributes.queue === 'batch-confirm' && jobSpan?.attributes.batchId === batchId && jobSpan?.attributes.attempt === 1, JSON.stringify(jobSpan?.attributes))
   await sleep(300)
   const durations = await points(METRIC.jobDuration)
-  check('the job\'s duration was recorded as failed for its queue', withAttrs(durations, { queue: 'batch-confirm', outcome: 'failed' }).length === 1, JSON.stringify(durations.map((d) => d.attributes)))
+  check('the job\'s duration was recorded as failed for its queue', withAttrs(durations, { queue: 'batch-confirm', outcome: 'failed' }).length >= 1, JSON.stringify(durations.map((d) => d.attributes)))
   await job?.remove().catch(() => undefined)
   await worker.close()
 }
