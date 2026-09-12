@@ -22,6 +22,9 @@ export default async function LoginPage() {
           Manage your campaigns and claim links.
         </p>
         <LoginForm />
+        <p className="mt-lg text-label-md text-on-surface-variant">
+          Your organisation uses single sign-on? <a href="/login/sso" className="underline">Sign in with your organisation</a>.
+        </p>
       </main>
     </>
   )

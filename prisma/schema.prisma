@@ -96,6 +96,8 @@ model User {
   campaigns   Campaign[]
   sessions    Session[]
   apiKeys     ApiKey[]
+  ssoIdentities SsoIdentity[]
+  scimGroups    ScimGroupMember[]
   auditLogs   AuditLog[]
   invitations Invitation[] @relation("invitee")
   invited     Invitation[] @relation("inviter")
@@ -130,6 +132,9 @@ model Organization {
   campaigns   Campaign[]
   apiKeys     ApiKey[]
   webhooks    WebhookEndpoint[]
+  sso         SsoConnection?
+  scimTokens  ScimToken[]
+  scimGroups  ScimGroup[]
   auditLogs   AuditLog[]
   invitations Invitation[]
 }
@@ -233,6 +238,117 @@ model Session {
 enum ApiKeyScope {
   READ
   WRITE
+}
+
+/// Federated identity (#46). One connection per organisation; OIDC today,
+/// the shape leaves room for SAML (issuer, endpoints and a subject claim
+/// are what both need) without a rewrite.
+enum SsoProtocol {
+  OIDC
+  SAML
+}
+
+model SsoConnection {
+  id             String      @id @default(cuid())
+  organizationId String      @unique
+  /// What a user types on /login/sso to find their organisation's IdP.
+  handle         String      @unique
+  protocol       SsoProtocol @default(OIDC)
+  issuer         String
+  clientId       String
+  /// The OIDC client secret, AES-256-GCM under MFA_ENCRYPTION_KEY. It is the
+  /// IdP's credential for Kleym, never a Stellar key; it is still never in the clear.
+  clientCiphertext String
+  scopes         String      @default("openid profile email")
+  /// The ID-token claim that is the STABLE subject identities link on — `sub`
+  /// for Okta and Google, `oid` for Entra ID. Never an email.
+  subjectClaim   String      @default("sub")
+  groupsClaim    String      @default("groups")
+  /// Refuse password sign-in for this organisation's members, server-side.
+  ssoOnly        Boolean     @default(false)
+  /// The role a provisioned member gets when no group mapping matches.
+  defaultRole    OrgRole     @default(VIEWER)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  identities   SsoIdentity[]
+  mappings     SsoGroupMapping[]
+}
+
+/// IdP group → Kleym role. A member's role is the highest mapped role among
+/// their groups, from the ID token at sign-in or from SCIM at sync.
+model SsoGroupMapping {
+  id           String  @id @default(cuid())
+  connectionId String
+  group        String
+  role         OrgRole
+
+  connection SsoConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, group])
+}
+
+/// A link between a Kleym user and an IdP subject. Made only on the stable
+/// subject identifier (`SsoConnection.subjectClaim`, or SCIM `externalId`),
+/// NEVER on an email address — an unverified email matched against an
+/// existing account is an account takeover.
+model SsoIdentity {
+  id           String    @id @default(cuid())
+  userId       String
+  connectionId String
+  subject      String
+  createdAt    DateTime  @default(now())
+  lastLoginAt  DateTime?
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection SsoConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, subject])
+  @@unique([userId, connectionId])
+}
+
+/// SCIM 2.0 bearer tokens, per organisation. Opaque, hashed like a session.
+model ScimToken {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  prefix         String
+  tokenHash      String    @unique
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+/// SCIM Groups as the IdP pushes them. Membership drives the role through
+/// SsoGroupMapping; a group change re-derives the role on that request.
+model ScimGroup {
+  id             String   @id @default(cuid())
+  organizationId String
+  externalId     String?
+  displayName    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      ScimGroupMember[]
+
+  @@unique([organizationId, displayName])
+  @@index([organizationId, externalId])
+}
+
+model ScimGroupMember {
+  groupId String
+  userId  String
+
+  group ScimGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
 }
 
 model ApiKey {

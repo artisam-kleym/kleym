@@ -64,6 +64,22 @@ const schema = z.object({
     { message: 'AUDIT_SIGNING_SEED must decode to exactly 32 bytes (44 base64 characters)' },
   ),
 
+  /**
+   * Credentials Kleym holds for OTHER systems (#46): an OIDC client secret
+   * is encrypted under this at rest. 32 bytes, base64. Not Stellar key
+   * material — those are never stored — but never in a column in the clear.
+   */
+  CREDENTIAL_ENCRYPTION_KEY: z.string().refine(
+    (v) => {
+      try {
+        return Buffer.from(v, 'base64').length === 32
+      } catch {
+        return false
+      }
+    },
+    { message: 'CREDENTIAL_ENCRYPTION_KEY must decode to exactly 32 bytes (44 base64 characters)' },
+  ),
+
   // Stellar
   STELLAR_NETWORK: z.enum(['testnet', 'public']).default('testnet'),
   HORIZON_URL: z.url(),
@@ -151,6 +167,7 @@ export const SECRET_ENV_KEYS = [
   'SCREENING_WEBHOOK_SECRET',
   'OTEL_EXPORTER_OTLP_HEADERS',
   'SESSION_SECRET',
+  'CREDENTIAL_ENCRYPTION_KEY',
   'RESEND_API_KEY',
   'SEED_ADMIN_PASSWORD',
   // Both embed credentials in the connection string.

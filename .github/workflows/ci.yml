@@ -129,6 +129,9 @@ jobs:
       - name: Verify the write API, webhooks and the SDK
         run: pnpm verify:write-api
 
+      - name: Verify SSO and SCIM (OIDC sign-in, SSO-only, deprovisioning, role mapping, no email linking, no token leaks)
+        run: pnpm verify:sso
+
       - name: Verify the audit chain, checkpoints, concurrency and signed export
         run: pnpm verify:audit-chain
 
@@ -224,6 +227,7 @@ jobs:
           echo "::add-mask::$PASSWORD"
           echo "SESSION_SECRET=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
           echo "AUDIT_SIGNING_SEED=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+          echo "CREDENTIAL_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
           echo "SEED_ADMIN_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
           echo "E2E_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
 

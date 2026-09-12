@@ -20,6 +20,42 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — Single sign-on (OIDC) and SCIM provisioning with deprovisioning (#46)
+
+An Owner connects their organisation's identity provider under Settings →
+Single sign-on (issuer, client id and secret, subject and groups claims,
+group → role mappings, default role, "SSO only"), and members sign in from
+`/login/sso` by handle: authorization code with PKCE, state and nonce held
+five minutes, the ID token verified against the IdP's JWKS, and then a
+normal Kleym session — no IdP token is stored or logged. Identities link
+on the IdP's stable subject only; an unknown subject asserting an existing
+account's email is refused, verified or not, until that account links
+explicitly from Settings. "SSO only" refuses password sign-in at the API,
+identically for a right and a wrong password. SCIM 2.0 (`/api/scim/v2`,
+per-organisation bearer tokens) creates members on `externalId` — the same
+id the IdP asserts at sign-in — maps groups to roles on every change, and
+on `active: false` or `DELETE` ends the membership and revokes every live
+session in the same request. The client secret is encrypted under
+`CREDENTIAL_ENCRYPTION_KEY` (new, required). SAML is deliberately not
+shipped: the connection model leaves room for it. `docs/sso.md`;
+`AGENT.md` §5.1 and §5.6; `docs/release.md` rollout note.
+
+**Verified by:** `pnpm verify:sso` (in CI) against Postgres and Redis with
+a local OpenID Provider signing real RS256 ID tokens and the login and SCIM
+route handlers in-process — full list in `docs/sso.md`: provisioning at the
+mapped role and a normal session; a group change reflected on the next
+sign-in; single-use state; wrong audience and issuer refused; SSO-only
+refusing both passwords identically with no session; SCIM create,
+duplicate, filter, OIDC/SCIM meeting on one id, group changes moving the
+role in-request, deactivation revoking four live sessions in one request
+and audited, reactivation, DELETE, cross-tenant isolation; the email
+collision refused for `email_verified` false and true with nothing created
+and the refusal audited, then the explicit link; no token or secret in any
+log line or row, planted ones redacted. `verify:admin`,
+`verify:organisations`, `verify:invitations`, `verify:api-keys`, 226 unit
+tests, typecheck, lint, build. Not exercised: the pages in a browser, a
+real IdP (Entra/Okta/Google), SAML.
+
 ## 2026-09-12 — Write API, outbound webhooks and a local-keygen SDK (#51)
 
 Kleym can now be driven by something other than a browser, without the

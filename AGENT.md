@@ -128,6 +128,7 @@ Structured JSON via `pino`. Redact by allowlist, not denylist — log named fiel
 - Rate limit login to 5 attempts per 15 minutes per IP, with per-account lockout after 10.
 - Identical error text and comparable response time for unknown username and wrong password.
 - Password change invalidates all other sessions.
+- Federated sign-in (#46): OIDC per organisation; identities link on the IdP's stable subject only, never on an email; "SSO only" is enforced at `/api/auth/login`; SCIM deactivation ends the membership and revokes every live session in one request. The session issued after the IdP handshake is Kleym's own — no IdP token is stored or logged. `docs/sso.md`.
 
 ### 5.2 The claim page is a hardened surface
 
@@ -169,6 +170,8 @@ Any environment variable containing a secret must not be prefixed `NEXT_PUBLIC_`
 | `/api/claims/prepare/claim` | 10 / min / IP |
 | `/api/claims/submit` | 10 / min / IP |
 | `/api/claims/otp/verify` | 5 attempts per OTP, then invalidate |
+| `/api/auth/sso/start` | 30 / 15 min / IP |
+| `/api/scim/v2/*` | 120 / min / token |
 | `/api/v1/*` (reads) | 100 / min / key |
 | `POST /api/v1/*` (writes, #51) | 30 / min / key, counted separately — a runaway integration cannot spend a key's read budget creating campaigns |
 

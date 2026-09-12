@@ -48,7 +48,8 @@
     "verify:audit-chain": "tsx scripts/verify-audit-chain.ts",
     "verify:sponsors": "tsx scripts/verify-sponsors.ts",
     "verify:observability": "tsx scripts/verify-observability.ts",
-    "verify:write-api": "tsx scripts/verify-write-api.ts"
+    "verify:write-api": "tsx scripts/verify-write-api.ts",
+    "verify:sso": "tsx scripts/verify-sso.ts"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.6.0",
@@ -70,6 +71,7 @@
     "clsx": "^2.1.1",
     "decimal.js": "^10.6.0",
     "ioredis": "^6.0.0",
+    "jose": "^6.2.12",
     "next": "^16.3.5",
     "pg": "^8.23.0",
     "pino": "^10.3.1",

@@ -38,7 +38,9 @@ export function LoginForm() {
     setError(
       response.status === 429
         ? 'Too many attempts. Wait a few minutes and try again.'
-        : (problem?.detail ?? 'That username and password combination was not recognised.'),
+        : response.status === 403 && String(problem?.type ?? '').endsWith('/sso-required')
+          ? 'Password sign-in is disabled for your organisation. Use "Sign in with your organisation" below.'
+          : (problem?.detail ?? 'That username and password combination was not recognised.'),
     )
     setPending(false)
   }

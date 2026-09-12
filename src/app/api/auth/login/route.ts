@@ -5,6 +5,8 @@
  * The ordering below is deliberate: the work happens before the decision, so
  * an unknown username costs what a real one does.
  */
+import { ssoOnlyFor } from '@/lib/auth/sso/accounts'
+import { ssoRequired } from '@/lib/auth/problems'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
@@ -61,6 +63,16 @@ export async function POST(request: Request) {
     if (!user.isActive) {
       logger.warn({ securityEvent: 'LOGIN_BLOCKED', ip, reason: 'inactive' }, 'login blocked')
       return invalidCredentials()
+    }
+
+    /*
+     * SSO-only (#46): refused at the API, not by hiding the form — and refused
+     * the same way whether the password was right or wrong, AFTER the verify
+     * has been paid for, so this branch is not a password oracle.
+     */
+    if (await ssoOnlyFor(user.id)) {
+      logger.warn({ securityEvent: 'LOGIN_BLOCKED', ip, reason: 'sso_only' }, 'login blocked')
+      return ssoRequired()
     }
 
     if (!passwordOk) {

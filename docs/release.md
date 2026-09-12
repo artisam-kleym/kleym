@@ -106,6 +106,14 @@ minutes, and the report says `remaining` when a pass stopped short. That is
 the honest number, and it is a number rather than a queue silently running
 behind.
 
+## Rolling out #46 (SSO and SCIM) on an existing deployment
+
+Set `CREDENTIAL_ENCRYPTION_KEY` (32 random bytes, base64: `openssl rand
+-base64 32`) in the secret store before the deploy — the environment schema
+requires it. It encrypts each organisation's OIDC client secret at rest;
+rotating it means Owners re-enter their client secrets. Nothing changes for
+existing users until an Owner connects an IdP.
+
 ## Rolling out #49 (audit chain) on an existing deployment
 
 Two steps before the deploy, in this order:
