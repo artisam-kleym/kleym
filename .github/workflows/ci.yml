@@ -89,6 +89,9 @@ jobs:
       - name: Verify the stranded ephemeral account monitor
         run: pnpm verify:stranded
 
+      - name: Verify reclaim after expiry
+        run: pnpm verify:reclaim
+
       - name: Verify the admin area and audit logging
         run: pnpm verify:admin
 
