@@ -34,6 +34,87 @@ reason in `package.json`. Details in the README.
 below the gate); typecheck, lint, 167 unit tests and a cold `pnpm build` pass.
 `prisma generate` and `migrate deploy` run under 7.10.0 in the verify scripts.
 
+## 2026-08-22 — Claim page: hardened surface and full state machine (#11)
+
+`/claim`, the route that handles a bearer secret in a URL fragment for an
+audience who may never have used Stellar. Fourteen states, each with a designed
+screen: the twelve `SPEC.md` §5.1 names, plus `materialising` and
+`awaiting_ledger`, which the two-transaction claim (§3.3) needs and the original
+issue text predates.
+
+The seed lives in one component ref for the length of one claim. It derives a
+public key and signs two transactions in memory, and is never sent, stored, or
+logged. `readFragment` returns a bare `false` on every failure — no reason, no
+echo of the input — so a caller cannot render or report a value that is very
+often a real seed with a typo.
+
+**Retry resumes at TX2, not at the start.** TX1 has landed by the time TX2 can
+fail, and the ephemeral account it created is sponsored by Kleym; restarting
+would materialise a second account and strand the first's reserves, which §3.3.2
+says Kleym cannot recover.
+
+### After review
+
+**The reason screens are wired to a discriminator, not to prose.** `expired`
+and `already_claimed` were reached by regex over the 409's `detail` — a
+copy-edit on the server would have left both screens unreachable with every
+test green. The conflict now carries a `type` (`…/conflict/expired`,
+`…/conflict/already-claimed`, `…/conflict/not-ready`) and both sides import
+the URIs from `lib/claim/problem-types.ts`; the machine test reads the
+response the route function actually emits, so a change to either side
+breaks there rather than in a browser.
+
+**`retryTarget` now drives the retry.** Its answer is passed into `run(from)`:
+`preparing` skips the wallet connect and TX1, `ready` runs the whole flow.
+Previously the value was overwritten by `run()`'s first `setState` and the
+skip was decided by a separate ref, so the tested function had no effect.
+
+**The ledger wait is no longer only a clock.** After TX1 the page waits about
+one ledger, then treats a `not-ready` 409 from `prepare/claim` as "ask again"
+— up to eight times, 2.5s apart — rather than as a failure with a message
+about waiting.
+
+### The fragment format changed
+
+The wizard was writing `/claim#<seed>` while `SPEC.md` §3.6 specified
+`#s=<base64url-encoded-seed>` — two merged pieces disagreeing. Settled as
+`#s=<seed>`: the spec's named parameter, so a second field can be added later,
+but the seed **raw**.
+
+Encoding it would blind every leak guard in the repo. `scanForSecretSeed`, the
+`NEXT_PUBLIC_` env scan and the CI grep all match `S[A-Z2-7]{55}`, and none of
+them recognises `U0FTWkJXWkRDUll…`. A format that hides a leaked seed from the
+machinery built to catch leaked seeds is worse than one that does not, and the
+fragment is withheld from the network either way. `SPEC.md` §3.6 and §5.1 and
+the wizard now agree.
+
+### Voice
+
+`BRAND.md` §8 matters more here than anywhere: this audience did not choose to
+be here, someone sent them a link. No "crypto", "web3", "dApp", "protocol" or
+"non-custodial" — the footer says "Only you can access these funds. Kleym never
+holds them." No exclamations: "Claimed", not "Success!". The failure screen
+leads with *your funds are untouched*, because that is the first thing a person
+fears.
+
+**Verified by:** 26 unit tests over the fragment reader and the state machine —
+including that a base64url seed is refused, that a failure reveals nothing about
+what it rejected, and that the retry target is `preparing` rather than `ready`.
+15 Playwright tests against a production build with the real CSP: zero
+third-party requests, `Referrer-Policy: no-referrer`, no `unsafe-inline` or
+`unsafe-eval`, the fragment gone from the URL and absent from every request,
+cookie, storage entry **and the DOM**, and the public key — not the seed —
+crossing the wire.
+
+The hydration test is the one that matters most: #6 shipped a CSP that refused
+every script while the route still returned 200, so reaching `ready` is asserted
+rather than a status code. Two leaks were planted and both caught — a
+`clearFragment` made into a no-op, and the seed sent where the public key
+belongs.
+
+Closes the two criteria #6 carried forward and could not verify: §10.7 (no log
+line derived from a fragment) and §10.8 (zero third-party requests).
+
 ## 2026-08-22 — Claim API: resolve, prepare, submit (#10)
 
 The server half of the claim flow — the only place Kleym signs on a recipient's

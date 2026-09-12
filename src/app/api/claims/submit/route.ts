@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       parsed.data.phase,
     )
     if (outcome.kind === 'not-found') return claimNotFound()
-    if (outcome.kind === 'conflict') return claimConflict(outcome.detail)
+    if (outcome.kind === 'conflict') return claimConflict(outcome.detail, outcome.reason)
     if (outcome.kind === 'unavailable') return claimUnavailable(outcome.detail)
 
     return Response.json(outcome.value, { headers: { 'cache-control': 'no-store' } })
