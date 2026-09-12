@@ -71,14 +71,20 @@ async function metadataNeverCarriesACredential(): Promise<void> {
    * credential alarm on every campaign creation. Whole segments, not substrings.
    */
   const ordinary = scrubMetadata({
-    assetCode: 'USDC', statusCode: 409, resultCode: 'tx_bad_seq', countryCode: 'PH', ephemeralPublicKey: 'GABC',
+    assetCode: 'USDC', statusCode: 409, resultCode: 'tx_bad_seq', countryCode: 'PH', ephemeralPublicKey: 'GABC', publickey: 'G',
   })
   check('assetCode, statusCode, resultCode and countryCode are not credentials',
     ordinary.removed.length === 0 && ordinary.clean.assetCode === 'USDC', JSON.stringify(ordinary))
-  check('a public key is not a private one', ordinary.clean.ephemeralPublicKey === 'GABC', JSON.stringify(ordinary))
-  const stillCaught = scrubMetadata({ otp_code: '1', otpCode: '2', code: '3', sessionToken: 't', private_key: 'S', PrivateKey: 'S' })
-  check('while otpCode, otp_code, a bare code, sessionToken and private_key still are',
-    ['otp_code', 'otpCode', 'code', 'sessionToken', 'private_key', 'PrivateKey'].every((k) => stillCaught.clean[k] === REDACTED),
+  check('a public key is not a private one', ordinary.clean.ephemeralPublicKey === 'GABC' && ordinary.clean.publickey === 'G', JSON.stringify(ordinary))
+  // Every spelling, INCLUDING run-together and all-caps ones: a whole-segment
+  // rule once let `apikey`, `privatekey` and `sessiontoken` through.
+  const caught = {
+    otp_code: '1', otpCode: '2', code: '3', sessionToken: 't', private_key: 'S', PrivateKey: 'S',
+    apikey: 'k', APIKEY: 'k', privatekey: 'S', secretkey: 'S', sessiontoken: 't', passwordhash: 'h', 'x-api-key': 'k',
+  }
+  const stillCaught = scrubMetadata(caught)
+  check('while otpCode, otp_code, a bare code, sessionToken, private_key, apikey, APIKEY, sessiontoken and passwordhash are',
+    Object.keys(caught).every((k) => stillCaught.clean[k] === REDACTED),
     JSON.stringify(stillCaught))
 }
 
