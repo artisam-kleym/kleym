@@ -39,6 +39,9 @@ const CLIENT_ID = 'kleym-client'
 const CLIENT_SECRET = `secret-${randomUUID()}`
 const idp = {
   issuer: '',
+  /** Discovery-document misbehaviour for the tests below. */
+  docMode: 'ok' as 'ok' | 'claims-other-issuer' | 'loopback-token-endpoint',
+  userinfoSub: null as string | null,
   /** What the next ID token asserts. */
   claims: {} as Record<string, unknown>,
   codes: new Map<string, { nonce: string; challenge: string }>(),
@@ -52,10 +55,13 @@ const server: Server = createServer((req, res) => {
     res.end(JSON.stringify(body))
   }
   if (url.pathname === '/.well-known/openid-configuration') {
-    return json(200, { issuer: idp.issuer, authorization_endpoint: `${idp.issuer}/authorize`, token_endpoint: `${idp.issuer}/token`, jwks_uri: `${idp.issuer}/jwks`, userinfo_endpoint: `${idp.issuer}/userinfo` })
+    const doc = { issuer: idp.issuer, authorization_endpoint: `${idp.issuer}/authorize`, token_endpoint: `${idp.issuer}/token`, jwks_uri: `${idp.issuer}/jwks`, userinfo_endpoint: `${idp.issuer}/userinfo` }
+    if (idp.docMode === 'claims-other-issuer') doc.issuer = 'https://accounts.google.com'
+    if (idp.docMode === 'loopback-token-endpoint') doc.token_endpoint = 'http://127.0.0.1:3000/internal'
+    return json(200, doc)
   }
   if (url.pathname === '/jwks') return json(200, { keys: [jwk] })
-  if (url.pathname === '/userinfo') return json(200, { sub: idp.claims.sub, groups: idp.claims.groups ?? [] })
+  if (url.pathname === '/userinfo') return json(200, { sub: idp.userinfoSub ?? idp.claims.sub, groups: idp.claims.groups ?? [], userinfoGroups: ['from-userinfo'] })
   if (url.pathname === '/token' && req.method === 'POST') {
     let raw = ''
     req.on('data', (c) => (raw += c))
@@ -105,7 +111,7 @@ const resolveSessionByToken = async (token: string) => {
   const row = await prisma.session.findUnique({ where: { tokenHash: createHash('sha256').update(token).digest('hex') }, select: { userId: true, expiresAt: true } })
   return row && row.expiresAt.getTime() > Date.now() ? { user: { id: row.userId } } : null
 }
-const { beginAuthorization, completeAuthorization } = await import('../src/lib/auth/sso/oidc')
+const { beginAuthorization, completeAuthorization, discover, forgetDiscovery, DiscoveryError } = await import('../src/lib/auth/sso/oidc')
 const { resolveIdentity, linkIdentity, ssoOnlyFor, roleFor } = await import('../src/lib/auth/sso/accounts')
 const { upsertConnection, connectionForOrg, asOidc, asRoleSource } = await import('../src/lib/auth/sso/connections')
 const { issueScimToken } = await import('../src/lib/auth/sso/scim')
@@ -132,10 +138,8 @@ async function tenant(mappings: { group: string; role: 'VIEWER' | 'OPERATOR' | '
   const orgId = await personalOrg(prisma, owner.id)
   const org = { id: orgId, name: 'sso', role: 'OWNER' as const, approvalThreshold: null, approvalsRequired: 1, screeningUrl: null }
   const handle = `acme-${randomUUID().slice(0, 6)}`
-  const saved = await upsertConnection(owner.id, org, { handle, issuer: idp.issuer.replace('http://', 'https://'), clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, scopes: 'openid profile email', subjectClaim: 'sub', groupsClaim: 'groups', ssoOnly, defaultRole: 'VIEWER', mappings }, null)
-  if (saved.kind !== 'ok') throw new Error(`connection: ${saved.kind}`)
-  // The schema insists on https; the stand-in provider is plain http on loopback.
-  await prisma.ssoConnection.update({ where: { organizationId: orgId }, data: { issuer: idp.issuer } })
+  const saved = await upsertConnection(owner.id, org, { handle, issuer: idp.issuer, clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, scopes: 'openid profile email', subjectClaim: 'sub', groupsClaim: 'groups', ssoOnly, defaultRole: 'VIEWER', mappings }, null)
+  if (saved.kind !== 'ok') throw new Error(`connection: ${JSON.stringify(saved)}`)
   const connection = (await connectionForOrg(orgId))!
   return { owner, orgId, org, handle, connection }
 }
@@ -143,7 +147,13 @@ async function tenant(mappings: { group: string; role: 'VIEWER' | 'OPERATOR' | '
 /** The whole browser round trip, at the library level: start → IdP → callback. */
 async function signIn(connection: NonNullable<Awaited<ReturnType<typeof connectionForOrg>>>, claims: Record<string, unknown>) {
   idp.claims = claims
-  const { url } = await beginAuthorization(asOidc(connection), 'login')
+  let url: string
+  try {
+    url = (await beginAuthorization(asOidc(connection), 'login')).url
+  } catch (error) {
+    // The start route turns this into a redirect back to /login/sso?error=idp.
+    return { result: { ok: false as const, reason: error instanceof DiscoveryError ? (`discovery:${error.reason}` as const) : ('discovery:unknown' as const) }, outcome: null, state: '' }
+  }
   const { code, state } = authorize(url)
   const result = await completeAuthorization(async (id) => (id === connection.id ? asOidc(connection) : null), { code, state })
   if (!result.ok) return { result, outcome: null, state }
@@ -194,6 +204,59 @@ async function oidcSignIn(): Promise<void> {
   check('roleFor picks the highest mapped role', roleFor(['a', 'b'], { defaultRole: 'VIEWER', mappings: [{ group: 'a', role: 'OPERATOR' }, { group: 'b', role: 'OWNER' }] }) === 'OWNER')
 }
 
+/* ── 1c. the discovery document is tenant-controlled input ─────────────── */
+
+async function discoveryIsChecked(): Promise<void> {
+  console.log('\n1c. The discovery document is checked: issuer agreement, and every endpoint through the outbound-URL rule')
+  const t = await tenant()
+  const owner = t.owner
+  const org = t.org
+  forgetDiscovery(idp.issuer)
+  const prod = await discover(idp.issuer, fetch, 'production').catch((e: Error) => e)
+  check('under the production rule, a loopback provider is refused outright (endpoint-refused)', prod instanceof DiscoveryError && prod.reason === 'endpoint-refused', String(prod))
+  idp.docMode = 'loopback-token-endpoint'
+  forgetDiscovery(idp.issuer)
+  const loop = await discover(idp.issuer, fetch, 'production').catch((e: Error) => e)
+  check('a document naming a loopback token_endpoint is refused under the production rule', loop instanceof DiscoveryError && loop.reason === 'endpoint-refused', String(loop))
+  idp.docMode = 'claims-other-issuer'
+  forgetDiscovery(idp.issuer)
+  const other = await discover(idp.issuer).catch((e: Error) => e)
+  check('a document claiming another issuer is refused (issuer-mismatch)', other instanceof DiscoveryError && other.reason === 'issuer-mismatch', String(other))
+  const saveBad = await upsertConnection(owner.id, org, { handle: t.handle, issuer: idp.issuer, clientId: CLIENT_ID, scopes: 'openid profile email', subjectClaim: 'sub', groupsClaim: 'groups', ssoOnly: false, defaultRole: 'VIEWER', mappings: [] }, null)
+  check('saving a connection whose document misbehaves is refused at save time', saveBad.kind === 'discovery-refused', JSON.stringify(saveBad))
+  const flow = await signIn(t.connection, { sub: `x-${RUN}`, groups: [] })
+  check('and a sign-in against it is refused at the start of the flow too (the document can change after saving)', !flow.result.ok && flow.result.reason === 'discovery:issuer-mismatch', JSON.stringify(flow.result))
+  // And at the callback: a document that turns bad BETWEEN start and callback.
+  idp.docMode = 'ok'
+  forgetDiscovery(idp.issuer)
+  idp.claims = { sub: `mid-${RUN}`, groups: [] }
+  const { url: midUrl } = await beginAuthorization(asOidc(t.connection), 'login')
+  const mid = authorize(midUrl)
+  idp.docMode = 'claims-other-issuer'
+  forgetDiscovery(idp.issuer)
+  const midResult = await completeAuthorization(async () => asOidc(t.connection), mid, fetch)
+  check('a document that turns bad between start and callback is refused at the callback', !midResult.ok && midResult.reason === 'exchange-failed', JSON.stringify(midResult))
+  idp.docMode = 'ok'
+  forgetDiscovery(idp.issuer)
+  idp.docMode = 'ok'
+  forgetDiscovery(idp.issuer)
+  const goodSave = await upsertConnection(owner.id, org, { handle: t.handle, issuer: idp.issuer, clientId: CLIENT_ID, scopes: 'openid profile email', subjectClaim: 'sub', groupsClaim: 'groups', ssoOnly: false, defaultRole: 'VIEWER', mappings: [] }, null)
+  check('a well-behaved document saves', goodSave.kind === 'ok')
+  const withCreds = await upsertConnection(owner.id, org, { handle: t.handle, issuer: 'https://user:pw@idp.example.com', clientId: CLIENT_ID, scopes: 'openid profile email', subjectClaim: 'sub', groupsClaim: 'groups', ssoOnly: false, defaultRole: 'VIEWER', mappings: [] }, null).catch((e: Error) => e)
+  check('an issuer with credentials never reaches discovery', withCreds instanceof Error || (withCreds as { kind: string }).kind === 'discovery-refused')
+
+  // userinfo whose sub is not the ID token's is ignored.
+  idp.userinfoSub = 'somebody-else'
+  const conn = (await connectionForOrg(t.orgId))!
+  await prisma.ssoConnection.update({ where: { id: conn.id }, data: { groupsClaim: 'userinfoGroups' } })
+  const mismatch = await signIn((await connectionForOrg(t.orgId))!, { sub: `ui-${RUN}`, groups: [] })
+  check('userinfo with a different sub is ignored: no groups merged from it', mismatch.result.ok && mismatch.result.claims.groups.length === 0, JSON.stringify(mismatch.result.ok ? mismatch.result.claims.groups : mismatch.result))
+  idp.userinfoSub = null
+  const match = await signIn((await connectionForOrg(t.orgId))!, { sub: `ui-${RUN}`, groups: [] })
+  check('userinfo with the matching sub is merged', match.result.ok && match.result.claims.groups.join(',') === 'from-userinfo')
+  await prisma.ssoConnection.update({ where: { id: conn.id }, data: { groupsClaim: 'groups' } })
+}
+
 /* ── 2. SSO only ───────────────────────────────────────────────────────── */
 
 async function ssoOnly(): Promise<void> {
@@ -209,7 +272,7 @@ async function ssoOnly(): Promise<void> {
   check('the wrong password is refused identically — no password oracle', wrong.status === 403 && wrongBody.replace(/"correlationId":"[^"]+"/, '') === rightBody.replace(/"correlationId":"[^"]+"/, ''))
   check('no session was created', (await prisma.session.count({ where: { userId: t.owner.id } })) === 0)
   const open = await tenant([], false)
-  const ok = await loginRoute.POST(new Request('http://kleym.test/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.250' }, body: JSON.stringify({ username: open.owner.username, password: 'wrong' }) })).catch((e: Error) => e)
+  const ok = await loginRoute.POST(new Request('http://kleym.test/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': `198.51.100.${Math.floor(Math.random() * 250)}` }, body: JSON.stringify({ username: open.owner.username, password: 'wrong' }) })).catch((e: Error) => e)
   check('with SSO only off, a wrong password is the ordinary 401', ok instanceof Response && ok.status === 401, ok instanceof Response ? `${ok.status}` : String(ok))
 }
 
@@ -334,6 +397,7 @@ async function noTokensLeak(): Promise<void> {
 async function main(): Promise<void> {
   try {
     await oidcSignIn()
+    await discoveryIsChecked()
     await ssoOnly()
     await scim()
     await emailCollision()

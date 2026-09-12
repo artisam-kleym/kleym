@@ -54,7 +54,7 @@ and the refusal audited, then the explicit link; no token or secret in any
 log line or row, planted ones redacted. `verify:admin`,
 `verify:organisations`, `verify:invitations`, `verify:api-keys`, 226 unit
 tests, typecheck, lint, build. Not exercised: the pages in a browser, a
-real IdP (Entra/Okta/Google), SAML.
+real IdP (Entra/Okta/Google), SAML. Review: the discovery document is now checked at save time and on every start and callback — its `issuer` must equal the configured one, and every endpoint it names goes through the shared `outboundUrl` rule; the ID token is verified against the configured issuer and a `userinfo` `sub` that differs from the token's is ignored. Verified: a document claiming another issuer, and one naming a loopback `token_endpoint` under the production rule, are refused at discovery, at save, at start and mid-flow at the callback; a mismatched `userinfo` merges nothing while a matching one does.
 
 ## 2026-09-12 — Write API, outbound webhooks and a local-keygen SDK (#51)
 

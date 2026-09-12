@@ -25,12 +25,29 @@ most one `userinfo` call, and both are dropped before anything else happens.
 | Client ID / secret | the app registration at the IdP; the secret is sent once and stored AES-256-GCM under `CREDENTIAL_ENCRYPTION_KEY` (new, required, in `SECRET_ENV_KEYS`) |
 | Subject claim | the **stable** identifier identities link on: `sub` for Okta and Google, `oid` for Entra ID |
 | Groups claim | where the IdP puts group names (ID token or userinfo) |
-| Default role | for a member no mapping reaches |
+| Default role | for a member no mapping reaches — `VIEWER` means *anyone the IdP will authenticate can read this organisation's campaigns and links*; the IdP's app assignment is the real gate, so assign the app narrowly, or map every group and treat the default as the floor |
 | Mappings | `group=ROLE` lines; a member's role is the highest mapped role among their groups, re-derived on every sign-in and every SCIM group change |
 | SSO only | refuse password sign-in for members, server-side |
 
 Redirect URI for the IdP: `<APP_URL>/api/auth/sso/callback`. SCIM base:
 `<APP_URL>/api/scim/v2`, bearer tokens issued on the same page, shown once.
+
+## The discovery document is tenant-controlled input
+
+The issuer URL an Owner enters goes through the same `outboundUrl` rule as a
+screening callback or a webhook (HTTPS, no credentials, loopback only outside
+production) — and so does **every endpoint the discovery document names**
+(`authorization_endpoint`, `token_endpoint`, `jwks_uri`, `userinfo_endpoint`),
+because the token exchange POSTs the client secret, the code and the verifier
+wherever `token_endpoint` says. The document's `issuer` must equal the
+configured one (OIDC Discovery §4.3): a document served from one host that
+claims another issuer would have that issuer's tokens accepted for a
+connection nobody configured for it. Both checks run at save time and again on
+every `start` and `callback`, since the document can change after the
+connection was saved; a refusal is `discovery-refused` on the form and
+`/login/sso?error=idp` on the flow. The ID token is verified against the
+**configured** issuer. A `userinfo` response whose `sub` is not the ID
+token's is ignored (OIDC Core §5.3.2).
 
 ## Sign-in
 

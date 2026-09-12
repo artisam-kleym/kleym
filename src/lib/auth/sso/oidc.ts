@@ -15,6 +15,7 @@ import { redis } from '@/lib/redis/client'
 import { env } from '@/lib/config/env'
 import { logger } from '@/lib/config/logger'
 import { decryptAtRest } from '@/lib/auth/at-rest'
+import { outboundUrlFor } from '@/lib/validation/outbound-url'
 
 export interface OidcConnection {
   id: string
@@ -38,16 +39,55 @@ const discoveryCache = new Map<string, { at: number; doc: Discovery }>()
 const DISCOVERY_TTL_MS = 10 * 60 * 1000
 const FLOW_TTL_SECONDS = 300
 
-export async function discover(issuer: string, fetchImpl: typeof fetch = fetch): Promise<Discovery> {
+export class DiscoveryError extends Error {
+  constructor(message: string, public readonly reason: 'unreachable' | 'incomplete' | 'issuer-mismatch' | 'endpoint-refused') {
+    super(message)
+    this.name = 'DiscoveryError'
+  }
+}
+
+const trimSlash = (v: string) => v.replace(/\/$/, '')
+
+/**
+ * Discovery, with the document treated as what it is: a tenant-controlled
+ * input one layer down from the issuer URL.
+ *
+ * - The document's `issuer` MUST equal the configured one (OIDC Discovery
+ *   §4.3): a host serving a document that claims another issuer would have
+ *   that issuer's tokens accepted for a connection nobody configured for it.
+ * - Every endpoint the document names goes through the same `outboundUrl`
+ *   rule the screening callback and webhooks use (HTTPS, no credentials,
+ *   loopback only outside production) — otherwise Kleym's own process would
+ *   POST the client secret, the code and the verifier wherever the document
+ *   said. Checked here, so it holds at save time AND on every flow, since the
+ *   document can change after the connection was saved.
+ */
+export async function discover(issuer: string, fetchImpl: typeof fetch = fetch, nodeEnv = process.env.NODE_ENV ?? 'development'): Promise<Discovery> {
   const cached = discoveryCache.get(issuer)
   if (cached && Date.now() - cached.at < DISCOVERY_TTL_MS) return cached.doc
-  const url = `${issuer.replace(/\/$/, '')}/.well-known/openid-configuration`
-  const response = await fetchImpl(url, { signal: AbortSignal.timeout(5000), redirect: 'error' })
-  if (!response.ok) throw new Error(`discovery failed: HTTP ${response.status}`)
-  const doc = (await response.json()) as Discovery
-  if (!doc.authorization_endpoint || !doc.token_endpoint || !doc.jwks_uri) throw new Error('discovery document incomplete')
-  discoveryCache.set(issuer, { at: Date.now(), doc })
-  return doc
+  const url = `${trimSlash(issuer)}/.well-known/openid-configuration`
+  let response: Response
+  try {
+    response = await fetchImpl(url, { signal: AbortSignal.timeout(5000), redirect: 'error' })
+  } catch (error) {
+    throw new DiscoveryError(`discovery failed: ${error instanceof Error ? error.message : 'unreachable'}`, 'unreachable')
+  }
+  if (!response.ok) throw new DiscoveryError(`discovery failed: HTTP ${response.status}`, 'unreachable')
+  const doc = (await response.json().catch(() => ({}))) as Partial<Discovery>
+  if (!doc.authorization_endpoint || !doc.token_endpoint || !doc.jwks_uri || !doc.issuer) throw new DiscoveryError('discovery document incomplete', 'incomplete')
+  if (trimSlash(doc.issuer) !== trimSlash(issuer)) throw new DiscoveryError(`discovery document claims issuer ${doc.issuer}, configured ${issuer}`, 'issuer-mismatch')
+  const rule = outboundUrlFor(nodeEnv)
+  for (const [name, endpoint] of [['authorization_endpoint', doc.authorization_endpoint], ['token_endpoint', doc.token_endpoint], ['jwks_uri', doc.jwks_uri], ['userinfo_endpoint', doc.userinfo_endpoint]] as const) {
+    if (endpoint !== undefined && !rule.safeParse(endpoint).success) throw new DiscoveryError(`${name} is not a URL Kleym will call`, 'endpoint-refused')
+  }
+  const checked: Discovery = { issuer: doc.issuer, authorization_endpoint: doc.authorization_endpoint, token_endpoint: doc.token_endpoint, jwks_uri: doc.jwks_uri, ...(doc.userinfo_endpoint ? { userinfo_endpoint: doc.userinfo_endpoint } : {}) }
+  discoveryCache.set(issuer, { at: Date.now(), doc: checked })
+  return checked
+}
+
+/** For tests and the settings form: forget what was discovered for an issuer. */
+export function forgetDiscovery(issuer: string): void {
+  discoveryCache.delete(issuer)
 }
 
 export type FlowPurpose = 'login' | 'link'
@@ -119,7 +159,13 @@ export async function completeAuthorization(
   const connection = await loadConnection(flow.connectionId)
   if (!connection) return { ok: false, reason: 'no-flow' }
 
-  const doc = await discover(connection.issuer, fetchImpl)
+  let doc: Discovery
+  try {
+    doc = await discover(connection.issuer, fetchImpl)
+  } catch (error) {
+    logger.warn({ connectionId: connection.id, reason: error instanceof Error ? error.message : 'unknown' }, 'sso: discovery refused at callback')
+    return { ok: false, reason: 'exchange-failed' }
+  }
   let tokens: { id_token?: string; access_token?: string }
   try {
     const body = new URLSearchParams({
@@ -147,7 +193,8 @@ export async function completeAuthorization(
   let payload: JWTPayload
   try {
     const jwks = createRemoteJWKSet(new URL(doc.jwks_uri), { [Symbol.for('jose.customFetch')]: fetchImpl } as never)
-    const verified = await jwtVerify(tokens.id_token, jwks, { issuer: doc.issuer, audience: connection.clientId, clockTolerance: 60 })
+    // Against the CONFIGURED issuer — discover() has already required the document to agree.
+    const verified = await jwtVerify(tokens.id_token, jwks, { issuer: [connection.issuer, trimSlash(connection.issuer), `${trimSlash(connection.issuer)}/`], audience: connection.clientId, clockTolerance: 60 })
     payload = verified.payload
   } catch (error) {
     logger.warn({ connectionId: connection.id, reason: error instanceof Error ? error.message : 'unknown' }, 'sso: id token rejected')
@@ -160,7 +207,12 @@ export async function completeAuthorization(
   if (doc.userinfo_endpoint && tokens.access_token && !(connection.groupsClaim in payload)) {
     try {
       const response = await fetchImpl(doc.userinfo_endpoint, { headers: { authorization: `Bearer ${tokens.access_token}` }, signal: AbortSignal.timeout(5000), redirect: 'error' })
-      if (response.ok) extra = (await response.json()) as Record<string, unknown>
+      if (response.ok) {
+        const info = (await response.json()) as Record<string, unknown>
+        // OIDC Core §5.3.2: the userinfo `sub` MUST match the ID token's; otherwise it is not this user's.
+        if (info.sub === payload.sub) extra = info
+        else logger.warn({ connectionId: connection.id }, 'sso: userinfo sub does not match the id token; ignored')
+      }
     } catch {
       /* groups unavailable this time; the mapping falls back to the default role */
     }

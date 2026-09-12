@@ -33,6 +33,7 @@ export async function PUT(request: Request) {
     const outcome = await upsertConnection(user.id, org, parsed.data, clientIp(request))
     if (outcome.kind === 'handle-taken') return conflict('That handle belongs to another organisation.')
     if (outcome.kind === 'secret-required') return validationProblem([{ path: 'clientSecret', message: 'required when creating the connection' }])
+    if (outcome.kind === 'discovery-refused') return validationProblem([{ path: 'issuer', message: outcome.detail }])
     return Response.json({ connection: publicView(await connectionForOrg(org.id)) })
   } catch (error) {
     logger.error({ userId: user.id, organizationId: org.id, reason: error instanceof Error ? error.message : 'unknown' }, 'sso connection save failed')

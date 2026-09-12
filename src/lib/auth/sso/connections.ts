@@ -5,7 +5,8 @@ import { prisma } from '@/lib/db/client'
 import { recordAudit } from '@/lib/api/audit'
 import type { OrgScope } from '@/lib/api/session-guard'
 import { encryptAtRest } from '@/lib/auth/at-rest'
-import type { OidcConnection } from './oidc'
+import { outboundUrl } from '@/lib/validation/outbound-url'
+import { discover, forgetDiscovery, type OidcConnection } from './oidc'
 import type { RoleSource } from './accounts'
 
 export const ROLES = ['VIEWER', 'OPERATOR', 'APPROVER', 'OWNER'] as const
@@ -13,7 +14,8 @@ export const ROLES = ['VIEWER', 'OPERATOR', 'APPROVER', 'OWNER'] as const
 export const connectionSchema = z
   .object({
     handle: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{1,38}$/, 'letters, digits and dashes, 2–39 characters'),
-    issuer: z.string().trim().url().refine((v) => v.startsWith('https://'), 'an https issuer URL'),
+    // The same rule every tenant-supplied URL gets: HTTPS, no credentials, loopback only outside production.
+    issuer: outboundUrl,
     clientId: z.string().trim().min(1).max(200),
     /** Omit on update to keep the stored one. */
     clientSecret: z.string().min(1).max(500).optional(),
@@ -66,13 +68,20 @@ export function publicView(row: ConnectionRow | null) {
   }
 }
 
-export type UpsertOutcome = { kind: 'ok' } | { kind: 'handle-taken' } | { kind: 'secret-required' }
+export type UpsertOutcome = { kind: 'ok' } | { kind: 'handle-taken' } | { kind: 'secret-required' } | { kind: 'discovery-refused'; detail: string }
 
-export async function upsertConnection(actorId: string, org: OrgScope, input: ConnectionInput, ip: string | null): Promise<UpsertOutcome> {
+export async function upsertConnection(actorId: string, org: OrgScope, input: ConnectionInput, ip: string | null, opts: { fetch?: typeof fetch } = {}): Promise<UpsertOutcome> {
   const existing = await prisma.ssoConnection.findUnique({ where: { organizationId: org.id }, select: { id: true } })
   if (!existing && !input.clientSecret) return { kind: 'secret-required' }
   const handleOwner = await prisma.ssoConnection.findUnique({ where: { handle: input.handle }, select: { organizationId: true } })
   if (handleOwner && handleOwner.organizationId !== org.id) return { kind: 'handle-taken' }
+  // The discovery document is checked at save time too: issuer agreement and every endpoint through outboundUrl.
+  try {
+    forgetDiscovery(input.issuer)
+    await discover(input.issuer, opts.fetch)
+  } catch (error) {
+    return { kind: 'discovery-refused', detail: error instanceof Error ? error.message : 'discovery failed' }
+  }
 
   const fields = {
     handle: input.handle, issuer: input.issuer, clientId: input.clientId, scopes: input.scopes, subjectClaim: input.subjectClaim,
