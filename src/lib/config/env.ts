@@ -56,7 +56,26 @@ const schema = z.object({
   NETWORK_PASSPHRASE: z.string().min(1),
   SPONSOR_PUBLIC_KEY: z.string().regex(PUBLIC_KEY, 'must be a Stellar public key (G…)'),
   SPONSOR_SECRET_KEY: z.string().regex(SECRET_SEED, 'must be a Stellar secret seed (S…)'),
+  /**
+   * Further sponsor seeds, comma-separated, forming a pool with the primary
+   * (#48). Their public keys are derived. Every one is a secret in the same
+   * class as SPONSOR_SECRET_KEY, and the whole variable is redacted.
+   */
+  SPONSOR_SECRET_KEYS_EXTRA: z
+    .string()
+    .default('')
+    .transform((v) => v.split(',').map((k) => k.trim()).filter(Boolean))
+    .refine((keys) => keys.every((k) => SECRET_SEED.test(k)), { message: 'every entry must be a Stellar secret seed (S…)' }),
   SPONSOR_MIN_BALANCE_ALERT: z.coerce.number().nonnegative().default(100),
+  /** Below this spendable XLM a sponsor is not chosen for NEW campaigns. */
+  SPONSOR_WORKING_THRESHOLD: z.coerce.number().nonnegative().default(50),
+  /**
+   * Outbound alert receiver (#48): a webhook URL that gets a JSON POST when a
+   * sponsor crosses the alert threshold or the pool fails over. Optional;
+   * unset means alerts go to the log only. May embed a token, so it is a
+   * secret.
+   */
+  ALERT_WEBHOOK_URL: z.union([z.url(), z.literal('')]).default(''),
 
   // Batching
   MAX_OPS_PER_BATCH: z.coerce.number().int().positive().max(100).default(90),
@@ -94,6 +113,8 @@ const schema = z.object({
  */
 export const SECRET_ENV_KEYS = [
   'SPONSOR_SECRET_KEY',
+  'SPONSOR_SECRET_KEYS_EXTRA',
+  'ALERT_WEBHOOK_URL',
   'SESSION_SECRET',
   'RESEND_API_KEY',
   'SEED_ADMIN_PASSWORD',

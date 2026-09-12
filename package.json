@@ -38,7 +38,8 @@
     "verify:invitations": "tsx scripts/verify-invitations.ts",
     "verify:organisations": "tsx scripts/verify-organisations.ts",
     "verify:privacy": "tsx scripts/verify-privacy.ts",
-    "verify:approvals": "tsx scripts/verify-approvals.ts"
+    "verify:approvals": "tsx scripts/verify-approvals.ts",
+    "verify:sponsors": "tsx scripts/verify-sponsors.ts"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.6.0",

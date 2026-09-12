@@ -18,6 +18,8 @@ import { logger } from '@/lib/config/logger'
 import { assetOf, hasTrustline, horizon, accountExists, loadClaimableBalance, sponsorSpendable } from '@/lib/stellar/horizon'
 import { buildClaim, buildMaterialise, signAsSponsor, type ClaimContext } from '@/lib/stellar/claim'
 import type { ClaimConflictReason } from '@/lib/claim/problem-types'
+import { sponsorFor, sponsorSecret } from '@/lib/stellar/sponsors'
+import { alert } from '@/lib/alerts'
 
 const PUBLIC_KEY = /^G[A-Z2-7]{55}$/
 
@@ -142,6 +144,8 @@ interface LinkForClaim {
   asset: Asset
   amount: string
   expiresAt: Date
+  /** The sponsor this campaign is bound to (#48). */
+  sponsorPublicKey: string
 }
 
 /**
@@ -173,7 +177,7 @@ export async function loadClaimable(
     select: {
       id: true, status: true, balanceId: true, campaignId: true,
       campaign: {
-        select: { assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true, status: true },
+        select: { assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true, status: true, sponsorPublicKey: true },
       },
     },
   })
@@ -237,6 +241,7 @@ export async function loadClaimable(
       // The LEDGER's amount. It is what TX2 must actually move.
       amount: new Decimal(onChain.amount).toFixed(7),
       expiresAt: link.campaign.expiresAt,
+      sponsorPublicKey: sponsorFor(link.campaign.sponsorPublicKey).publicKey,
     },
   }
 }
@@ -249,14 +254,21 @@ export async function loadClaimable(
  * `tx_insufficient_balance`, which the recipient cannot act on and which leaves
  * a half-finished claim if it happens between TX1 and TX2.
  */
-async function guardSponsor(): Promise<Outcome<Decimal>> {
-  const spendable = await sponsorSpendable(env.SPONSOR_PUBLIC_KEY)
+/**
+ * The chokepoint every claim passes through, now per sponsor: the campaign's
+ * bound sponsor is what is checked and what signs, so a pool failover for
+ * new campaigns never touches a claim in flight (#48).
+ */
+async function guardSponsor(sponsorPublicKey: string): Promise<Outcome<Decimal>> {
+  const spendable = await sponsorSpendable(sponsorPublicKey)
 
   if (spendable.lessThan(env.SPONSOR_MIN_BALANCE_ALERT)) {
-    logger.error(
-      { spendable: spendable.toString(), threshold: env.SPONSOR_MIN_BALANCE_ALERT },
-      'sponsor balance below alert threshold',
-    )
+    // Logged AND sent outward, deduplicated per sponsor for an hour.
+    await alert('sponsor.low_balance', {
+      sponsor: sponsorPublicKey,
+      spendable: spendable.toFixed(),
+      threshold: env.SPONSOR_MIN_BALANCE_ALERT,
+    }, { dedupeKey: sponsorPublicKey })
   }
 
   // Two accounts plus two trustlines at a 0.5 base reserve, with headroom.
@@ -277,10 +289,10 @@ async function claimContext(
    * is not an `Account` — it carries the sequence number but not the shape
    * TransactionBuilder wants, and the builder increments what it is given.
    */
-  const sponsor = await horizon().loadAccount(env.SPONSOR_PUBLIC_KEY)
+  const sponsor = await horizon().loadAccount(link.sponsorPublicKey)
   return {
     sponsorAccount: new Account(sponsor.accountId(), sponsor.sequenceNumber()),
-    sponsorPublicKey: env.SPONSOR_PUBLIC_KEY,
+    sponsorPublicKey: link.sponsorPublicKey,
     ephemeralPublicKey,
     recipientPublicKey,
     asset: link.asset,
@@ -306,7 +318,7 @@ export async function prepareMaterialise(ephemeralPublicKey: string): Promise<Ou
   const loaded = await loadClaimable(ephemeralPublicKey)
   if (loaded.kind !== 'ok') return loaded
 
-  const sponsor = await guardSponsor()
+  const sponsor = await guardSponsor(loaded.value.sponsorPublicKey)
   if (sponsor.kind !== 'ok') return sponsor
 
   if (await accountExists(ephemeralPublicKey)) {
@@ -320,7 +332,7 @@ export async function prepareMaterialise(ephemeralPublicKey: string): Promise<Ou
     kind: 'ok',
     value: {
       alreadyExists: false,
-      xdr: signAsSponsor(built.xdr, env.NETWORK_PASSPHRASE, env.SPONSOR_SECRET_KEY),
+      xdr: signAsSponsor(built.xdr, env.NETWORK_PASSPHRASE, sponsorSecret(loaded.value.sponsorPublicKey)),
       operations: built.operations,
     },
   }
@@ -348,7 +360,7 @@ export async function prepareClaim(
   const loaded = await loadClaimable(ephemeralPublicKey)
   if (loaded.kind !== 'ok') return loaded
 
-  const sponsor = await guardSponsor()
+  const sponsor = await guardSponsor(loaded.value.sponsorPublicKey)
   if (sponsor.kind !== 'ok') return sponsor
 
   if (!(await accountExists(ephemeralPublicKey))) {
@@ -372,7 +384,7 @@ export async function prepareClaim(
   return {
     kind: 'ok',
     value: {
-      xdr: signAsSponsor(plan.xdr, env.NETWORK_PASSPHRASE, env.SPONSOR_SECRET_KEY),
+      xdr: signAsSponsor(plan.xdr, env.NETWORK_PASSPHRASE, sponsorSecret(loaded.value.sponsorPublicKey)),
       needsRecipientSignature: plan.needsRecipientSignature,
       operations: plan.operations,
     },
@@ -416,7 +428,10 @@ export async function submitClaim(
 ): Promise<Outcome<Submitted>> {
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
-    select: { id: true, status: true, campaignId: true, claimTxHash: true, claimedBy: true, balanceId: true },
+    select: {
+      id: true, status: true, campaignId: true, claimTxHash: true, claimedBy: true, balanceId: true,
+      campaign: { select: { sponsorPublicKey: true } },
+    },
   })
   if (!link) return { kind: 'not-found' }
 
@@ -434,7 +449,9 @@ export async function submitClaim(
    * caller, so without this check anyone could hand us an arbitrary signed
    * transaction and have Kleym submit it and record a claim against a link.
    */
-  if (transaction.source !== env.SPONSOR_PUBLIC_KEY) {
+  // THIS campaign's sponsor, not any sponsor in the pool: an envelope built
+  // for one sponsor is not a Kleym envelope for a campaign bound to another.
+  if (transaction.source !== sponsorFor(link.campaign.sponsorPublicKey).publicKey) {
     return conflict('That transaction was not prepared by Kleym.')
   }
 

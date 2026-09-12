@@ -2,6 +2,7 @@ import Decimal from 'decimal.js'
 import { env } from '@/lib/config/env'
 import { logger } from '@/lib/config/logger'
 import { sponsorSpendable } from '@/lib/stellar/horizon'
+import { sponsorStatuses } from '@/lib/api/sponsor-status'
 import { strandedSummary } from '@/lib/api/stranded'
 import { Table, TableCell, TableHead, TableRow, StellarAddress, WarningPanel } from '@/components/ui'
 
@@ -37,7 +38,7 @@ async function sponsor(): Promise<{ spendable: string } | { error: string }> {
 }
 
 export default async function AdminPage() {
-  const [stranded, float] = await Promise.all([strandedSummary(), sponsor()])
+  const [stranded, float, sponsors] = await Promise.all([strandedSummary(), sponsor(), sponsorStatuses()])
 
   const low =
     'spendable' in float &&
@@ -86,6 +87,32 @@ export default async function AdminPage() {
           </WarningPanel>
         </div>
       )}
+
+      <h2 className="mt-xl text-headline-md text-on-surface">Sponsor pool</h2>
+      <p className="mt-sm max-w-3xl text-body-md text-on-surface-variant">
+        New campaigns are bound to the first sponsor with at least {env.SPONSOR_WORKING_THRESHOLD} XLM
+        spendable, in pool order; a campaign keeps its sponsor for life, because reserves return to the
+        account that sponsored them. Runway is &ldquo;at the current claim rate&rdquo; — fees over the
+        last seven days&rsquo; claims — and says nothing about a burst. Top-up and rotation:
+        <span className="font-mono"> docs/sponsor-runbook.md</span>.
+      </p>
+      <Table className="mt-md">
+        <TableHead columns={['Sponsor', 'Spendable', 'Live campaigns', 'Claims / day (7d)', 'Runway']} />
+        <tbody>
+          {sponsors.map((s) => (
+            <TableRow key={s.publicKey}>
+              <TableCell>
+                <StellarAddress value={s.publicKey} />
+                <span className="ml-sm text-label-sm text-on-surface-variant">{s.index === 0 ? 'primary' : `#${s.index + 1}`}</span>
+              </TableCell>
+              <TableCell className={s.low ? 'text-error' : undefined}>{s.spendable === null ? 'unknown' : `${s.spendable} XLM`}</TableCell>
+              <TableCell>{s.campaigns}</TableCell>
+              <TableCell>{s.claimsPerDay}</TableCell>
+              <TableCell>{s.runwayDays === null ? (s.claimsPerDay === '0' ? 'no claims in 7 days' : '—') : `${s.runwayDays} days`}</TableCell>
+            </TableRow>
+          ))}
+        </tbody>
+      </Table>
 
       <h2 className="mt-xl text-headline-md text-on-surface">Stranded ephemeral accounts</h2>
       <p className="mt-sm max-w-3xl text-body-md text-on-surface-variant">
