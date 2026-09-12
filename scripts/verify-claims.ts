@@ -206,16 +206,16 @@ async function staleRowsAreRefused(): Promise<void> {
    */
   const vanished = await loadClaimable(live, absent)
   check(
-    'an ACTIVE row whose balance has left the ledger is refused',
-    vanished.kind === 'conflict' && /already been claimed/.test(vanished.detail),
+    'an ACTIVE row whose balance has left the ledger is refused, with the reason the page reads',
+    vanished.kind === 'conflict' && vanished.reason === 'already-claimed',
     JSON.stringify(vanished).slice(0, 140),
   )
 
   const expired = await makeLink({ expiresAt: new Date(Date.now() - 1000) })
   const past = await loadClaimable(expired, present)
   check(
-    'an ACTIVE row past expiresAt is refused as expired',
-    past.kind === 'conflict' && /expired/.test(past.detail),
+    'an ACTIVE row past expiresAt is refused as expired, with the reason the page reads',
+    past.kind === 'conflict' && past.reason === 'expired',
     JSON.stringify(past).slice(0, 140),
   )
 
