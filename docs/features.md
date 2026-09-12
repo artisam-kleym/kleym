@@ -85,9 +85,79 @@ unknown keys; and the seed appears in no log line.
 a placeholder, so every provider call 401s — which usefully exercised the failure paths
 but means no message has actually been delivered end to end. Stated rather than implied,
 per `AGENT.md` §6.5.
+## 2026-08-22 — Reconciliation and expiry sweeps (#12)
+
+The database no longer has the last word on whether a link was claimed. A sweep runs
+every five minutes comparing every ACTIVE link against the ledger and correcting the
+row in the chain's favour, and an hourly sweep expires links and campaigns past their
+date. Senders see nothing new; admins get `/admin/reconciliation`, a drift report with
+severity and a "Resync now" button.
+
+Two rules matter more than the corrections. Reconciliation never guesses: a balance
+that has left the ledger without an indexed claim operation is recorded as unresolved
+and re-read next run, not assigned an invented claimant. And it never auto-corrects the
+critical case — a link the database calls CLAIMED that the ledger still holds — because
+that discrepancy means something is wrong that a status update would paper over
+(SPEC §7.2 step 5). It is reported at error severity and left exactly as it was.
+
+Three bugs here were found by running it, not by reading it. A Horizon 404 — what an
+unindexed balance looks like — threw rather than returning "no disposal"; combined with
+an unguarded loop, one unreadable link aborted the entire run, so a single bad row would
+have stopped reconciliation for every remaining campaign. And the "Resync now" button had
+no deduplication, so twenty clicks queued twenty full multi-minute sweeps to run one
+after another. All three are fixed and each has a check that fails without the fix.
+
+### After review
+
+**Criticals sort first, by definition.** `severity` was a String sorted `desc`,
+which is lexicographic — `warn > info > error` — so every critical landed at the
+bottom of the report under a comment claiming the opposite. It is now a Prisma
+enum declared in display order (`error`, `warn`, `info`); Postgres sorts an enum
+by declaration order, so `asc` means "as declared" rather than an alphabetical
+accident that the next severity name would break. The migration casts the
+existing column in place. A check now records a warn before an error and reads
+the report in page order; it fails with the old direction.
+
+**A scheduled pass is bounded.** `reconcileAll` reads at most
+`RECONCILE_PASS_LIMIT` (1,000) links per run, oldest-first, continuing from a
+Redis cursor where the previous pass stopped and wrapping at the end. What it
+did not reach is `remaining` in the report and a WARN in the log — previously a
+10,000-link campaign meant a pass that never finished inside its own five-minute
+interval, with nothing saying so. The cursor lives in Redis rather than a column
+because advancing a per-link column would write every row on every run, which is
+the noise §10.13 says a second run must not add. The manual per-campaign resync
+stays unbounded: an admin asked for that campaign.
+
+`BalanceDisposal.reclaimed` is gone. It was always `false`, carried a comment
+promising the caller would fill it in, and the caller computed its own answer.
+
+**Verified by:** `pnpm verify:reconcile`, 10 sections against a real Postgres, every one
+first shown to fail against a planted regression — including auto-correcting the critical
+case, inventing a claimant, expiring CLAIMED/PENDING links, rethrowing the 404, removing
+the per-link isolation, and dropping the queue deduplication (which queued 20 sweeps).
+The live Horizon reader is exercised against the real network, not a stub, because the
+other checks inject a fake reader and structurally cannot cover it. End to end on the
+worker: an admin request reached the queue, the worker picked it up and logged
+`reconciliation completed`. `/admin/reconciliation` checked in a browser — 200 with the
+drift report, `POST /api/admin/reconcile` returns 202, and unauthenticated returns 404
+rather than 403 so the route's existence is not disclosed.
 
 
 <!-- Entries begin below. Newest first. -->
+
+## 2026-09-12 — Dependency bump: audit gate green again
+
+No user-facing change. Advisories published since 22 Aug turned CI's
+`pnpm audit --audit-level=moderate` red on every open PR without any of them
+touching the lockfile — two critical unauthenticated-RCE advisories on Next.js
+among them. `next` → 16.3.5, `prisma`/`@prisma/client`/`@prisma/adapter-pg` →
+7.10.0, `@creit.tech/stellar-wallets-kit` → 2.6.0, plus same-major
+`pnpm.overrides` for `mysql2`, `fast-uri` and `stream-json`, each with its
+reason in `package.json`. Details in the README.
+
+**Verified by:** `pnpm audit --audit-level=moderate` exits 0 (one low remains,
+below the gate); typecheck, lint, 167 unit tests and a cold `pnpm build` pass.
+`prisma generate` and `migrate deploy` run under 7.10.0 in the verify scripts.
 
 ## 2026-08-22 — Claim page: hardened surface and full state machine (#11)
 

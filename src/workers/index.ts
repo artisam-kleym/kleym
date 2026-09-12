@@ -2,16 +2,28 @@
  * kleym-worker entrypoint. SPEC.md §2.2.
  *
  * BullMQ consumers and cron jobs are registered here as they land: batch-confirm
- * (#9) is live; reconcile and expiry-sweep (#12), ephemeral-watch (#19) and
+ * (#9), reconcile and expiry-sweep (#12) are live; ephemeral-watch (#19) and
  * email-deliver (#14) follow. Kept as a separate process so a slow job never blocks a request.
  */
 import { logger } from '@/lib/config/logger'
 import { startBatchConfirmWorker } from './batch-confirm'
 import { startEmailWorker } from './email'
+import { startExpiryWorker, startReconcileWorker } from './maintenance'
+import { scheduleMaintenance } from '@/lib/queue/maintenance'
 
 async function main() {
-  const workers = [startBatchConfirmWorker(), startEmailWorker()]
-  logger.info({ service: 'kleym-worker', queues: ['batch-confirm', 'email-deliver'] }, 'worker started')
+  const workers = [startBatchConfirmWorker(), startEmailWorker(), startReconcileWorker(), startExpiryWorker()]
+
+  /*
+   * Installed on every start, with fixed scheduler ids so a restart or a second
+   * replica refreshes the schedule rather than adding another one.
+   */
+  await scheduleMaintenance()
+
+  logger.info(
+    { service: 'kleym-worker', queues: ['batch-confirm', 'email-deliver', 'reconcile', 'expiry-sweep'] },
+    'worker started',
+  )
 
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'shutting down')
