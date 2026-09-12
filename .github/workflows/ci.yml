@@ -96,6 +96,9 @@ jobs:
     name: CSV gate (real browser)
     runs-on: ubuntu-latest
 
+    # Also runs e2e/claim-page.spec.ts — SPEC.md §10.7 and §10.8, which #6
+    # explicitly left unticked because there was no fragment reader to exercise.
+    #
     # SPEC.md §10.11 says the Continue button must be unreachable until the CSV
     # download has fired, and the issue is explicit that this be verified by a
     # browser rather than by reading the component. "The button is disabled" is
