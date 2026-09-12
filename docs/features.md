@@ -20,6 +20,26 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — Scheduled passes report their shortfall on the admin page (#43)
+
+The bounded maintenance passes (#33, #35) already said in the log when they
+stopped short of their candidate set. `/admin/reconciliation` now shows it
+too: for `reconcile` and `ephemeral-watch`, how many links the last pass read
+of its limit, how many it left for the next one, and when it ran — flagged
+when the remainder is non-zero or when a job has not run for two of its
+intervals. The last report per job lives in Redis beside the pass cursor,
+overwritten each run and kept a week, so a job that has stopped shows as
+stale rather than as absent. A failed write never fails the pass.
+
+This closes #43: bounding, resuming, reporting in the log and on the page,
+and the load test at `MAX_LINKS_PER_CAMPAIGN` (#38) — all in place.
+
+**Verified by:** `verify:reconcile` and `verify:stranded` each assert that
+after a limit-2 pass over a 3-link set the recorded report carries the same
+`checked`, `remaining` and `limit` as the pass returned, and that the final
+pass records zero. Production build renders the page. Not opened in a browser
+this pass.
+
 ## 2026-09-12 — The sender dashboard (#42)
 
 `/dashboard` — the post-login landing page — now shows what `SPEC.md` §5.2

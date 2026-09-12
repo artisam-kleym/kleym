@@ -1,4 +1,5 @@
 import { openFindings, findingsValue } from '@/lib/api/reconcile'
+import { lastPassReports, type PassJob, type PassReport } from '@/lib/queue/pass-report'
 import { Table, TableCell, TableHead, TableRow, StellarAddress } from '@/components/ui'
 import { ResyncButton } from './resync-button'
 
@@ -32,9 +33,46 @@ function Severity({ severity }: { severity: string }) {
   )
 }
 
+/**
+ * The last scheduled pass of each bounded job. A pass that stopped short
+ * says how many links it left; a job that has not run for two intervals
+ * says so instead of showing a comforting old number.
+ */
+function PassRow({ job, label, report, now }: { job: PassJob; label: string; report?: PassReport; now: number }) {
+  if (!report) {
+    return (
+      <TableRow>
+        <TableCell>{label}</TableCell>
+        <TableCell className="text-on-surface-variant" >—</TableCell>
+        <TableCell className="text-on-surface-variant">—</TableCell>
+        <TableCell className="text-on-surface-variant">No pass recorded yet</TableCell>
+      </TableRow>
+    )
+  }
+  const age = now - new Date(report.finishedAt).getTime()
+  const stale = age > 2 * report.intervalMs
+  const behind = report.remaining > 0
+  return (
+    <TableRow>
+      <TableCell>{label}</TableCell>
+      <TableCell>{report.checked} of {report.limit}</TableCell>
+      <TableCell className={behind ? 'text-error' : undefined} data-testid={`${job}-remaining`}>{report.remaining}</TableCell>
+      <TableCell className={stale ? 'text-error' : 'text-on-surface-variant'}>
+        {Math.round(age / 60_000)} min ago{stale ? ' — expected every ' + report.intervalMs / 60_000 + ' min' : ''}
+      </TableCell>
+    </TableRow>
+  )
+}
+
+/** Loaded outside render: "how old is this?" is a clock question, answered once with the data. */
+async function loadPasses() {
+  return { passes: await lastPassReports(), now: Date.now() }
+}
+
 export default async function ReconciliationPage() {
-  const findings = await openFindings()
+  const [findings, { passes, now }] = await Promise.all([openFindings(), loadPasses()])
   const critical = findings.filter((finding) => finding.severity === 'error')
+  const behind = Object.values(passes).filter((p) => p && p.remaining > 0)
 
   return (
     <>
@@ -62,6 +100,27 @@ export default async function ReconciliationPage() {
           </p>
         </div>
       )}
+
+      <section aria-label="Scheduled passes" className="mt-xl">
+        <h2 className="text-headline-sm text-on-surface">Scheduled passes</h2>
+        <p className="mt-xs max-w-2xl text-body-md text-on-surface-variant">
+          Each pass reads a bounded number of links and continues from where the last one
+          stopped. A non-zero remainder means the set is larger than one pass — coverage
+          takes several — and a pass that has not run for two intervals is flagged.
+        </p>
+        {behind.length > 0 && (
+          <p role="status" className="mt-sm font-mono text-label-sm text-error">
+            {behind.map((p) => `${p!.job}: ${p!.remaining} links not yet reached`).join(' · ')}
+          </p>
+        )}
+        <Table className="mt-md">
+          <TableHead columns={['Job', 'Read last pass', 'Remaining', 'Last run']} />
+          <tbody>
+            <PassRow job="reconcile" label="Reconcile (every 5 min)" report={passes.reconcile} now={now} />
+            <PassRow job="ephemeral-watch" label="Ephemeral watch (every 15 min)" report={passes['ephemeral-watch']} now={now} />
+          </tbody>
+        </Table>
+      </section>
 
       <div className="mt-xl">
         {findings.length === 0 ? (
