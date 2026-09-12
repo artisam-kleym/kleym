@@ -299,10 +299,17 @@ model ClaimLink {
   @@index([balanceId])
 }
 
+/// Where a link was emailed. The address is the only recipient PII Kleym
+/// holds, belongs to someone who is not a Kleym user, and has a lifecycle
+/// (#50): it is REDACTED — nulled, with `redactedAt` set — by the retention
+/// sweep once the campaign has settled, or on an erasure request. What
+/// survives redaction is the claim that a delivery happened (`sentAt`,
+/// `openedAt`); the money's record lives on ClaimLink and is untouched.
 model Delivery {
   id          String    @id @default(cuid())
   linkId      String    @unique
-  email       String
+  email       String? // null once redacted
+  redactedAt  DateTime?
   sentAt      DateTime?
   openedAt    DateTime?
   otpHash     String? // argon2id, 6-digit

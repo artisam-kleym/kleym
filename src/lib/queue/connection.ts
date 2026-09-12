@@ -27,4 +27,5 @@ export const QUEUE = {
   reconcile: 'reconcile',
   expirySweep: 'expiry-sweep',
   ephemeralWatch: 'ephemeral-watch',
+  deliveryRetention: 'delivery-retention',
 } as const
