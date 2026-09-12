@@ -102,6 +102,17 @@ row sat on the report forever reporting float as locked that had already returne
 such rows survived every sweep against real data. Settled links are now cleared
 explicitly, which is acceptance criterion 5.
 
+### After review
+
+**A scheduled pass is bounded.** `watchEphemerals` reads at most
+`WATCH_PASS_LIMIT` (3,000) candidates per run, oldest-first, continuing from an
+`ephemeral-watch:cursor` key in Redis and wrapping at the end — the same shape
+as reconciliation's pass, sharing `lib/queue/pass-cursor.ts`. What it does not
+reach is `remaining` in the report and a WARN in the log. Previously a
+10,000-link campaign meant a `*/15` pass that never finished inside its own
+interval, with nothing saying so. The verify script drives a limit of 2 over 3
+links and checks every one is reached across passes.
+
 **Verified by:** `pnpm verify:stranded`, 10 sections against a real Postgres with every
 ledger read injected — a monitor that describes the ledger cannot be checked against a
 stub of itself, and one that passes when Horizon is unreachable would report a healthy
@@ -141,6 +152,30 @@ an unguarded loop, one unreadable link aborted the entire run, so a single bad r
 have stopped reconciliation for every remaining campaign. And the "Resync now" button had
 no deduplication, so twenty clicks queued twenty full multi-minute sweeps to run one
 after another. All three are fixed and each has a check that fails without the fix.
+
+### After review
+
+**Criticals sort first, by definition.** `severity` was a String sorted `desc`,
+which is lexicographic — `warn > info > error` — so every critical landed at the
+bottom of the report under a comment claiming the opposite. It is now a Prisma
+enum declared in display order (`error`, `warn`, `info`); Postgres sorts an enum
+by declaration order, so `asc` means "as declared" rather than an alphabetical
+accident that the next severity name would break. The migration casts the
+existing column in place. A check now records a warn before an error and reads
+the report in page order; it fails with the old direction.
+
+**A scheduled pass is bounded.** `reconcileAll` reads at most
+`RECONCILE_PASS_LIMIT` (1,000) links per run, oldest-first, continuing from a
+Redis cursor where the previous pass stopped and wrapping at the end. What it
+did not reach is `remaining` in the report and a WARN in the log — previously a
+10,000-link campaign meant a pass that never finished inside its own five-minute
+interval, with nothing saying so. The cursor lives in Redis rather than a column
+because advancing a per-link column would write every row on every run, which is
+the noise §10.13 says a second run must not add. The manual per-campaign resync
+stays unbounded: an admin asked for that campaign.
+
+`BalanceDisposal.reclaimed` is gone. It was always `false`, carried a comment
+promising the caller would fill it in, and the caller computed its own answer.
 
 **Verified by:** `pnpm verify:reconcile`, 10 sections against a real Postgres, every one
 first shown to fail against a planted regression — including auto-correcting the critical

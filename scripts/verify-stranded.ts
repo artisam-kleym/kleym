@@ -19,6 +19,7 @@ const { prisma } = await import('../src/lib/db/client')
 const { watchEphemerals, strandedSummary, lockedReserve, STRAND_AFTER_MS } = await import(
   '../src/lib/api/stranded'
 )
+const { memoryPassCursor } = await import('../src/lib/queue/pass-cursor')
 
 let failures = 0
 const check = (name: string, pass: boolean, detail = ''): void => {
@@ -303,6 +304,38 @@ async function totalsMatchTheRows(): Promise<void> {
   )
 }
 
+/**
+ * A scheduled pass is bounded, says what it did not reach, and the next pass
+ * carries on from there. Same shape as reconcile's — one serial Horizon read
+ * per link on a fixed schedule cannot cover 10,000 links inside its interval,
+ * and an unbounded pass that never finishes reports nothing about it.
+ */
+async function aPassIsBoundedAndResumes(): Promise<void> {
+  console.log('\n· a pass of limit 2 over a candidate set the limit does not cover')
+  const f = await fixture(3)
+  const mine = new Set(f.links.map((l) => l.key))
+  const d = deps({}, f.links.map((l) => l.balanceId)) // no accounts on the ledger: nothing stranded
+  const cursor = memoryPassCursor()
+  const limit = 2
+
+  const candidates = await prisma.claimLink.count({
+    where: { status: { in: ['ACTIVE', 'EXPIRED'] }, balanceId: { not: null } },
+  })
+  const passes = Math.ceil(candidates / limit)
+
+  const first = await watchEphemerals(d, JUST_NOW, { limit, cursor })
+  check('the first pass stops at the limit', first.checked === limit, JSON.stringify(first))
+  check('and reports what it left', first.remaining === candidates - limit, `${first.remaining} of ${candidates - limit}`)
+  check('the cursor moved', cursor.value !== null)
+
+  let last = first
+  for (let i = 1; i < passes; i += 1) last = await watchEphemerals(d, JUST_NOW, { limit, cursor })
+  check('the final pass reports nothing remaining', last.remaining === 0, JSON.stringify(last))
+  const reached = d.asked.filter((key) => mine.has(key))
+  check('every one of these links was read across the passes', new Set(reached).size === 3, `${new Set(reached).size} of 3`)
+  check('the cursor is cleared at the end of the set', cursor.value === null, `${cursor.value}`)
+}
+
 async function main(): Promise<void> {
   try {
     await reportsAnAbandonedTx1()
@@ -315,6 +348,7 @@ async function main(): Promise<void> {
     await isIdempotent()
     await ignoresFinishedLinks()
     await totalsMatchTheRows()
+    await aPassIsBoundedAndResumes()
   } finally {
     await prisma.$disconnect()
   }

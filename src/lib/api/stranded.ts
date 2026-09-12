@@ -17,10 +17,12 @@
  * claimed (a retry skips TX1, §3.3.2).
  */
 import Decimal from 'decimal.js'
+import type { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
 import { baseReserve, horizon, loadClaimableBalance } from '@/lib/stellar/horizon'
 import { requestReconcile } from '@/lib/queue/maintenance'
+import { redisPassCursor, type PassCursor } from '@/lib/queue/pass-cursor'
 
 /**
  * How long after TX1 an unfinished claim counts as stranded.
@@ -104,6 +106,31 @@ export interface StrandedReport {
   /** Handed to reconciliation because the claim had actually succeeded. */
   handedOff: number
   lockedXlm: string
+  /**
+   * Candidates this pass left for the next one because it hit `limit` first.
+   * Reported and logged rather than hidden — see `WATCH_PASS_LIMIT`.
+   */
+  remaining: number
+}
+
+/**
+ * Candidates one scheduled pass will read before stopping.
+ *
+ * The same shape as `RECONCILE_PASS_LIMIT` and for the same reason: one
+ * serial Horizon read per link on a `*\/15 * * * *` schedule cannot cover
+ * `MAX_LINKS_PER_CAMPAIGN` inside its own interval, so an unbounded pass
+ * runs permanently behind with nothing saying so. Bounded, the shortfall is
+ * a number in the report and a WARN in the log, and the cursor carries the
+ * next pass on from here. Fifteen minutes buys three times reconcile's
+ * budget at the same read rate.
+ */
+export const WATCH_PASS_LIMIT = 3_000
+
+const cursorForScheduledPass = redisPassCursor('ephemeral-watch:cursor')
+
+export interface WatchOptions {
+  limit?: number
+  cursor?: PassCursor
 }
 
 /**
@@ -128,20 +155,32 @@ export function lockedReserve(base: Decimal, subentryCount: number): Decimal {
 export async function watchEphemerals(
   deps: StrandedDeps = LIVE,
   now: Date = new Date(),
+  { limit = WATCH_PASS_LIMIT, cursor = cursorForScheduledPass }: WatchOptions = {},
 ): Promise<StrandedReport> {
   const report: StrandedReport = {
-    checked: 0, stranded: 0, critical: 0, resolved: 0, handedOff: 0, lockedXlm: '0',
+    checked: 0, stranded: 0, critical: 0, resolved: 0, handedOff: 0, lockedXlm: '0', remaining: 0,
   }
 
   /*
    * Candidates are links that have an on-chain balance and are not finished.
    * A CLAIMED link's ephemeral account was merged away by TX2; a PENDING one
    * never had a balance to claim in the first place.
+   *
+   * Read in id order (cuids are time-ordered: oldest first), at most `limit`
+   * per pass, from wherever the previous pass stopped, wrapping at the end.
    */
-  const candidates = await prisma.claimLink.findMany({
-    where: { status: { in: ['ACTIVE', 'EXPIRED'] }, balanceId: { not: null } },
-    select: { id: true, campaignId: true, ephemeralPublicKey: true, balanceId: true },
-  })
+  const candidate: Prisma.ClaimLinkWhereInput = { status: { in: ['ACTIVE', 'EXPIRED'] }, balanceId: { not: null } }
+  const page = (after: string | null) =>
+    prisma.claimLink.findMany({
+      where: after ? { ...candidate, id: { gt: after } } : candidate,
+      orderBy: { id: 'asc' },
+      take: limit,
+      select: { id: true, campaignId: true, ephemeralPublicKey: true, balanceId: true },
+    })
+
+  const after = await cursor.get()
+  let candidates = await page(after)
+  if (candidates.length === 0 && after) candidates = await page(null)
 
   const base = await deps.reserve()
   let locked = new Decimal(0)
@@ -164,6 +203,20 @@ export async function watchEphemerals(
         'could not check this ephemeral account; continuing',
       )
     }
+  }
+
+  const last = candidates.at(-1)
+  if (candidates.length < limit || !last) {
+    await cursor.set(null)
+  } else {
+    report.remaining = await prisma.claimLink.count({ where: { ...candidate, id: { gt: last.id } } })
+    await cursor.set(report.remaining > 0 ? last.id : null)
+  }
+  if (report.remaining > 0) {
+    logger.warn(
+      { checked: report.checked, remaining: report.remaining, limit },
+      'ephemeral watch hit its limit before the end of its candidate set; the rest continue next run',
+    )
   }
 
   /*
