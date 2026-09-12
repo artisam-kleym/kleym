@@ -1,9 +1,8 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getSessionUser } from '@/lib/auth/session'
-import { prisma } from '@/lib/db/client'
-import { owned } from '@/lib/api/session-guard'
-import { LINK_ORDER } from '@/lib/api/link-order'
-import { StatusChip, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
+import { LINK_PREVIEW, loadCampaignDetail } from '@/lib/api/campaign-detail'
+import { StatusChip, StellarAddress, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
 import { ReclaimPanel } from './reclaim-panel'
 
 export const dynamic = 'force-dynamic'
@@ -24,51 +23,19 @@ const CHIP: Record<string, Status> = {
  * can actually be returned is decided by a live ledger query when the sender
  * asks (SPEC.md §3.4), so the number shown below and the number reclaimed can
  * legitimately differ if a recipient claimed in between. The panel says so.
- */
-/**
- * Loaded outside the component body.
  *
- * "Has this expired?" is a question about the clock, and reading the clock
- * during render is exactly what React's purity rule forbids — two renders of
- * the same campaign could disagree. It is answered once, here, alongside the
- * data it describes.
+ * The link table is a PREVIEW — the first `LINK_PREVIEW` rows — and the counts
+ * are a `groupBy`, so a 10,000-link campaign costs this page ten rows and six
+ * integers. The full, filterable table is `/campaigns/[id]/links`.
  */
-async function load(id: string, userId: string) {
-  const campaign = await prisma.campaign.findFirst({
-    where: owned(id, userId),
-    select: {
-      id: true, name: true, status: true, assetCode: true, amountPerLink: true,
-      linkCount: true, expiresAt: true, senderPublicKey: true, network: true,
-      links: {
-        orderBy: LINK_ORDER,
-        select: { id: true, status: true, label: true, claimTxHash: true },
-      },
-      reclaims: {
-        orderBy: { submittedAt: 'desc' },
-        select: { transactionHash: true, amount: true, balanceCount: true, submittedAt: true },
-      },
-    },
-  })
-  if (!campaign) return null
-
-  const counted = (status: string) => campaign.links.filter((link) => link.status === status).length
-
-  return {
-    campaign,
-    counted,
-    outstanding: counted('ACTIVE') + counted('EXPIRED'),
-    expired: campaign.expiresAt.getTime() <= Date.now(),
-  }
-}
-
 export default async function CampaignPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser()
   if (!user) notFound()
   const { id } = await params
 
-  const loaded = await load(id, user.id)
+  const loaded = await loadCampaignDetail(id, user.id)
   if (!loaded) notFound()
-  const { campaign, counted, outstanding, expired } = loaded
+  const { campaign, counts, outstanding, expired } = loaded
 
   return (
     <>
@@ -85,10 +52,10 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
 
       <dl className="mt-lg grid grid-cols-2 gap-md md:grid-cols-4">
         {[
-          ['Claimed', counted('CLAIMED')],
+          ['Claimed', counts.CLAIMED],
           ['Unclaimed', outstanding],
-          ['Reclaimed', counted('RECLAIMED')],
-          ['Not yet live', counted('PENDING') + counted('FAILED')],
+          ['Reclaimed', counts.RECLAIMED],
+          ['Not yet live', counts.PENDING + counts.FAILED],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg border border-outline-variant/50 bg-surface-container p-md">
             <dt className="text-label-md text-on-surface-variant">{label}</dt>
@@ -112,9 +79,19 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         }))}
       />
 
-      <h2 className="mt-xl text-headline-md text-on-surface">Links</h2>
+      <div className="mt-xl flex flex-wrap items-baseline justify-between gap-md">
+        <h2 className="text-headline-md text-on-surface">Links</h2>
+        <Link
+          href={`/campaigns/${campaign.id}/links`}
+          className="font-mono text-label-md text-primary underline-offset-4 hover:underline"
+        >
+          {campaign.linkCount > LINK_PREVIEW
+            ? `Showing the first ${Math.min(LINK_PREVIEW, campaign.links.length)} — see all ${campaign.linkCount}`
+            : 'Open the full table'}
+        </Link>
+      </div>
       <Table className="mt-md">
-        <TableHead columns={['Label', 'Status', 'Transaction']} />
+        <TableHead columns={['Label', 'Status', 'Claimant', 'Transaction']} />
         <tbody>
           {campaign.links.map((link) => (
             <TableRow key={link.id}>
@@ -122,9 +99,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
               <TableCell>
                 <StatusChip status={CHIP[link.status] ?? 'pending'} />
               </TableCell>
-              <TableCell className="font-mono text-label-sm">
-                {link.claimTxHash ? `${link.claimTxHash.slice(0, 12)}…` : '—'}
-              </TableCell>
+              <TableCell>{link.claimedBy ? <StellarAddress value={link.claimedBy} /> : '—'}</TableCell>
+              <TableCell>{link.claimTxHash ? <StellarAddress value={link.claimTxHash} /> : '—'}</TableCell>
             </TableRow>
           ))}
         </tbody>
