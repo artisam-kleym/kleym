@@ -18,6 +18,141 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 ---
 
+## 2026-08-22 — Admin area and audit logging (#15)
+
+Admins get `/admin/users`, `/admin/campaigns` and `/admin/audit` alongside the sponsor
+float and drift report already there. Every mutating action now writes an audit row:
+who did it, to what, and from which address.
+
+Deactivating a user means signed out, not paused. It deletes their sessions rather than
+relying on the active-check that already blocks the next request — a session row that is
+merely inert still exists, still shows in a count, and would come back to life the moment
+the account was reactivated. Confirmed live: a sender's cookie went from working to
+redirecting the instant an admin deactivated them, and sign-in then failed with the same
+generic message as a wrong password, so the failure does not reveal account state.
+
+Audit `metadata` is scrubbed rather than trusted. Two independent rules, because either
+alone has a hole: field names that look like credentials are redacted whatever they hold
+— which is the only way to catch an opaque session token, since nothing about the string
+gives it away — and any value containing a Stellar seed is redacted whatever it is called,
+which catches a seed hiding under `note` or `label`. Callers being careful is still the
+real defence; this is the backstop for the one that is not. A seed reaching the server now
+writes an audit row too, recording the **field path** and never the value.
+
+Admin access is enforced in every route handler, not by hiding navigation. A signed-in
+sender gets **404 rather than 403** on all five admin pages and on the users API, so the
+route's existence is not disclosed; an anonymous request is redirected or gets a 401.
+
+### After review
+
+**The scrubber no longer treats `code` as a credential suffix.** It was in the
+forbidden list as a substring, so `assetCode`, `statusCode`, `resultCode` and
+`countryCode` would all have been silently redacted — and every campaign
+creation would have fired the "credential-shaped fields" alarm the moment
+someone added `assetCode` to its metadata. The credential words (`seed`,
+`secret`, `password`, `token`, `otp`, `apikey`, `privatekey`…) still match as
+substrings of the flattened key, whatever the spelling — a whole-segment
+rewrite was tried and let `apikey`, `privatekey` and `sessiontoken` through —
+and only a field named exactly `code` is treated as an OTP. `verify:admin`
+checks both lists, including run-together and all-caps spellings.
+
+**`sessionsEnded` is reported only on deactivation.** Activation used to
+sweep the user's expired sessions and return that count under the same name,
+so "activated Alice, 4 sessions ended" read as a sign-out. Activation now
+touches no sessions, returns `sessionsEnded: 0`, and its audit row carries no
+such field.
+
+**Verified by:** `pnpm verify:admin`, 7 sections against a real Postgres. The scrubber is
+attacked with the shapes a careless caller actually produces — a session token, an API
+key, an OTP, a password, an oddly-spelled secret, an authorization header, and a seed
+hidden under two innocent field names — because criterion 7 is a claim about every call
+site, present and future, not about the four written today. Each section first shown to
+fail against a planted regression: dropping the key rule, dropping the value rule, not
+deleting sessions on deactivation, and allowing an admin to deactivate themselves.
+
+Checked live against a production build: the access matrix above across all five pages
+and the users API; `GET /api/health` returns `{"status":"ok"}` with no auth and no
+version, dependency or internal detail; `GET /api/ready` reports reachability; the audit
+viewer renders, filters and pages; and posting a seed writes an audit row whose metadata
+contains the field name and, confirmed by query, the seed nowhere at all.
+
+**Honest caveat on one check.** `queryAudit` breaks `createdAt` ties on `id`, the fix
+#27/#28 needed for paged link lists. The section that walks 30 rows sharing one timestamp
+verifies that paging returns each row exactly once — but removing the tiebreaker does
+**not** fail it, because Postgres returns those rows consistently at this size either way.
+The tiebreaker stays because it is correct and free; it is not proven by a test.
+
+**Not wired yet:** `link.reclaim`, whose action is defined here but whose call site lives
+on #13's branch. It gets its `recordAudit` call when that merges.
+
+## 2026-08-22 — Email delivery with OTP-gated retrieval (#14)
+
+Kleym can now email claim links, and email-delivered links ask for a six-digit code
+before they will pay out. Senders choose this at the end of the wizard, where the
+default is still to take the file and send it themselves.
+
+This is **the one deliberate exception** in the system (SPEC §6.5). Everywhere else,
+link material never touches the server; here the sender's browser sends the full claim
+URL per recipient. Every mitigation the spec requires is implemented somewhere
+specific: the URL goes to the mail provider and is discarded, reaches no database
+column, is in no log line, and its queue job is removed from Redis on completion **and**
+on final failure — `removeOnFail: true`, unlike every other queue here, because a
+delivery that gives up must not leave a claim URL sitting in Redis.
+
+The exception is kept narrow rather than blanket. The seed guard still runs on the
+delivery request, over the body with the URLs removed, so a seed smuggled into an email
+address or any other field is rejected exactly as it would be anywhere else. And each
+URL must parse as this deployment's own `/claim` page with a fragment whose seed derives
+the public key of the link it is being sent for — without that, a compromised sender
+page could have Kleym email any URL at all from Kleym's own address.
+
+The code exists because email is the one channel Kleym does not control: a forwarded
+message or a shared inbox turns a link into a bearer instrument (§12). The code
+re-binds it to the address the sender chose. Sender-distributed links have no delivery
+record and are not gated — Kleym never saw those URLs and has nothing to bind them to.
+Codes are argon2id-hashed, single-use, ten minutes, five attempts, and destroyed rather
+than merely counted out when those attempts run out.
+
+One bug was found by testing the live routes: a request for a code on a real
+email-delivered link answered **500** when the mail provider was unreachable, while an
+unknown key answered **200**. That pair of answers is an enumeration oracle — exactly
+what the identical-response rule closes on `resolve` — so a provider outage would have
+revealed which keys are live emailed links. A failed send now answers identically and
+logs the failure for an operator instead.
+
+### After review
+
+**The gate's wiring is checked, not only the gate.** Every earlier check
+exercised `otpSatisfied` as a function; deleting the `otpGate` call from
+`submit/route.ts` — the route that moves the money — left all of them green.
+`verify:email` now sends three requests against a gated link through the
+`prepare/claim` and `submit` route handlers themselves: no header and a wrong
+header are refused, the right token gets past the gate. The refusal carries
+its own problem `type` (`…/conflict/otp-required`) and the check reads that,
+not the prose — with the gate deleted from `submit`, the route still answers
+409 for an unrelated reason, so a status-only check would have missed it.
+The claim page maps that type back to `otp_required`, so a token lapsing
+mid-flow asks for the code again rather than landing on `failed`.
+
+**Verified by:** `pnpm verify:email`, 10 sections against real Postgres and real Redis.
+The mailer is injected and records what it was asked to send; the Redis assertions scan
+the actual keyspace after the job completes, and the database assertion walks every text
+column in the schema looking for the seed rather than checking the columns someone
+remembered. Each section first shown to fail against a planted regression: persisting the
+URL, keeping completed jobs, mailing any client-supplied URL, removing the five-attempt
+lockout, adding a tracking pixel, and restoring the 500 that created the oracle.
+
+Checked live against a production build: a real seed inside `claimUrl` is accepted (202,
+queued); **the same seed in the email field is rejected 400 SEED_SUBMITTED**; an
+off-origin URL is skipped with a reason; a claim action without a code returns 409 and
+with a forged token returns 409; `resolve` returns the same field set for known and
+unknown keys; and the seed appears in no log line.
+
+**Not yet verified:** a real send through Resend. This environment's `RESEND_API_KEY` is
+a placeholder, so every provider call 401s — which usefully exercised the failure paths
+but means no message has actually been delivered end to end. Stated rather than implied,
+per `AGENT.md` §6.5.
+
 ## 2026-08-22 — Stranded ephemeral account monitor (#19)
 
 `/admin` now shows what the sponsor float has lost to abandoned claims: how many

@@ -83,6 +83,9 @@ jobs:
       - name: Verify claim resolve, limits and ledger authority
         run: pnpm verify:claims
 
+      - name: Verify email delivery and OTP
+        run: pnpm verify:email
+
       - name: Verify reconciliation and the expiry sweep
         run: pnpm verify:reconcile
 
@@ -91,6 +94,9 @@ jobs:
 
       - name: Verify reclaim after expiry
         run: pnpm verify:reclaim
+
+      - name: Verify the admin area and audit logging
+        run: pnpm verify:admin
 
       - name: Verify the campaign detail page is bounded at MAX_LINKS_PER_CAMPAIGN
         run: pnpm verify:campaign-detail

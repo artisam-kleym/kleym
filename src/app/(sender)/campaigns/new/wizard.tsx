@@ -314,6 +314,8 @@ export function CampaignWizard(config: WizardConfig) {
             onDownload={onDownload}
             onSign={() => void onSign()}
             onFinish={onFinish}
+            campaignId={wizard.campaignId}
+            appUrl={config.appUrl}
           />
         )}
 
