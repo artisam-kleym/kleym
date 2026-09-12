@@ -115,6 +115,9 @@ jobs:
       - name: Verify delivery retention and erasure
         run: pnpm verify:privacy
 
+      - name: Verify dual control
+        run: pnpm verify:approvals
+
   e2e:
     name: CSV gate (real browser)
     runs-on: ubuntu-latest

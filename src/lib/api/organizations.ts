@@ -186,6 +186,19 @@ export async function removeMember(
   return { kind: 'ok', username: membership.user.username }
 }
 
+export async function setApprovalPolicy(
+  actorId: string,
+  org: OrgScope,
+  policy: { approvalThreshold: string | null; approvalsRequired: number },
+  ip: string | null,
+): Promise<void> {
+  await prisma.organization.update({ where: { id: org.id }, data: policy })
+  await recordAudit({
+    userId: actorId, organizationId: org.id, action: 'org.approval_policy', entityType: 'organization', entityId: org.id,
+    metadata: { approvalThreshold: policy.approvalThreshold, approvalsRequired: policy.approvalsRequired }, ip,
+  })
+}
+
 export async function renameOrganization(actorId: string, org: OrgScope, name: string, ip: string | null): Promise<void> {
   await prisma.organization.update({ where: { id: org.id }, data: { name } })
   await recordAudit({

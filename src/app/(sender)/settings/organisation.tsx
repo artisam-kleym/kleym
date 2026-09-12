@@ -24,11 +24,13 @@ export function Organisation({
   role,
   selfId,
   members,
+  policy,
 }: {
   name: string
   role: string
   selfId: string
   members: MemberView[]
+  policy: { approvalThreshold: string | null; approvalsRequired: number }
 }) {
   const router = useRouter()
   const owner = role === 'OWNER'
@@ -62,6 +64,19 @@ export function Organisation({
     await call('/api/org', { method: 'PATCH', body: JSON.stringify({ name: String(form.get('name') ?? '') }) })
   }
 
+  async function savePolicy(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const threshold = String(form.get('approvalThreshold') ?? '').trim()
+    await call('/api/org', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        approvalThreshold: form.get('enabled') === 'on' && threshold ? threshold : null,
+        approvalsRequired: Number(form.get('approvalsRequired') ?? 1) || 1,
+      }),
+    })
+  }
+
   async function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -89,6 +104,30 @@ export function Organisation({
           <Button type="submit" variant="secondary" disabled={busy}>Rename</Button>
         </form>
       )}
+
+      <div className="mt-lg rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
+        <h3 className="text-body-md font-bold text-on-surface">Dual control</h3>
+        <p className="mt-xs text-body-md text-on-surface-variant">
+          {policy.approvalThreshold === null
+            ? 'Off. Any operator can sign a campaign alone.'
+            : `On. A campaign worth ${policy.approvalThreshold} or more (amount per link × links, in units of the campaign's own asset — 100 gates 100 USDC and 100 XLM alike) needs ${policy.approvalsRequired} ${policy.approvalsRequired === 1 ? 'approval' : 'approvals'} from approvers other than its creator before a batch can be signed. Approvals are bound to the terms: change any and they are needed again. Each campaign keeps the policy it was created under, so loosening this later affects only new campaigns.`}
+        </p>
+        {owner && (
+          <form onSubmit={savePolicy} className="mt-md flex flex-wrap items-end gap-md">
+            <label className="flex items-center gap-sm font-mono text-label-md text-on-surface">
+              <input type="checkbox" name="enabled" defaultChecked={policy.approvalThreshold !== null} className="h-5 w-5" />
+              Require approval
+            </label>
+            <div className="min-w-[10rem]">
+              <Input label="From value" name="approvalThreshold" inputMode="decimal" defaultValue={policy.approvalThreshold ?? ''} placeholder="e.g. 1000" pattern="^\d+(\.\d{1,7})?$" />
+            </div>
+            <div className="min-w-[8rem]">
+              <Input label="Approvals" name="approvalsRequired" type="number" min={1} max={10} defaultValue={policy.approvalsRequired} />
+            </div>
+            <Button type="submit" variant="secondary" disabled={busy}>Save</Button>
+          </form>
+        )}
+      </div>
 
       <Table className="mt-lg">
         <TableHead columns={['Member', 'Role', 'Status', owner ? '' : ' ']} />

@@ -38,6 +38,7 @@ export default async function SettingsPage() {
         role={org.role}
         selfId={user.id}
         members={members.map((m) => ({ userId: m.userId, username: m.username, role: m.role, invited: m.invited, isActive: m.isActive }))}
+        policy={{ approvalThreshold: org.approvalThreshold, approvalsRequired: org.approvalsRequired }}
       />
 
       <section className="mt-2xl">

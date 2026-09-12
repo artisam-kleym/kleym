@@ -45,7 +45,7 @@ async function user(tag: string) {
 }
 async function org(name: string, owner: string) {
   const row = await prisma.organization.create({ data: { name, memberships: { create: { userId: owner, role: 'OWNER' } } }, select: { id: true, name: true } })
-  return { id: row.id, name: row.name, role: 'OWNER' as const }
+  return { id: row.id, name: row.name, role: 'OWNER' as const, approvalThreshold: null, approvalsRequired: 1 }
 }
 async function join(orgId: string, userId: string, role: Role) {
   await prisma.membership.create({ data: { organizationId: orgId, userId, role } })
@@ -141,8 +141,8 @@ async function removingAMembershipEndsAccess(): Promise<void> {
    * refusal as a plain last-owner attempt.
    */
   for (const [label, act] of [
-    ['demote', (o: { id: string; name: string; role: 'OWNER' }, actor: string, target: string) => changeRole(actor, o, target, 'VIEWER', null)],
-    ['remove', (o: { id: string; name: string; role: 'OWNER' }, actor: string, target: string) => removeMember(actor, o, target, null)],
+    ['demote', (o: Awaited<ReturnType<typeof org>>, actor: string, target: string) => changeRole(actor, o, target, 'VIEWER', null)],
+    ['remove', (o: Awaited<ReturnType<typeof org>>, actor: string, target: string) => removeMember(actor, o, target, null)],
   ] as const) {
     for (let round = 0; round < 4; round += 1) {
       const a = await user(`ownA-${label}`)

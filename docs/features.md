@@ -20,6 +20,58 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — Dual control: a second person approves before a campaign can disburse (#45)
+
+An organisation can require that a campaign worth more than a threshold —
+amount per link × link count, in its own asset, so raising the count is not a
+way round it — is approved by `N` **Approvers** other than its creator before
+any batch can be signed. The gate sits where money moves (`prepareBatch`,
+`submitBatch`) and beside the CSV gate on the CREATING → ACTIVE settle, not in
+front of the wizard: an Operator drafts and registers links freely, and the
+approver reviews exactly what will be signed. Off by default (null threshold),
+so nothing changes for a deployment that does not turn it on; Owners set the
+threshold and count under Settings.
+
+**Each campaign keeps the policy it was created under.** The threshold and
+count are snapshotted onto the campaign at creation and the gate reads the
+stricter of that and the organisation's current policy — so loosening the
+policy affects only campaigns made afterwards, and an Owner who created a
+campaign cannot switch the gate off, sign, and switch it back on. Tightening
+still reaches campaigns in flight. The threshold is in units of the
+campaign's own asset (100 gates 100 USDC and 100 XLM alike); the settings
+page says so.
+
+**An approval is bound to the terms, not the campaign.** Each decision stores
+a hash of (asset, issuer, amount per link, link count, expiry); a decision
+whose hash no longer matches counts for nothing, and the refusal names what
+changed and who had approved the old terms — approve small, edit large, sign
+is the first thing a penetration test tries. The creator's own approval never
+counts, at any role including Owner. Approvals and rejections are audited
+with approver, campaign and terms hash (and the terms themselves, so "what
+changed" can be named without a second table). A rejection blocks signing
+even alongside approvals. `/approvals` lists what is waiting; the campaign
+page shows the state and, for an Approver who is not the creator, the two
+buttons. Because the CSV export is already a discrete, audited moment, the
+audit log can show an auditor: terms approved by a second person → keys
+created → batches signed.
+
+**Verified by:** `pnpm verify:approvals` (in CI) against a real Postgres: a
+1,500 campaign is gated and a 500 one is not under a 1,000 threshold, with
+`prepareBatch` handing over no envelope and `submitBatch` refusing; approval
+opens the gate and empties the queue; dual control off gates nothing; the
+creator is refused as Owner and no row is written; a planted `linkCount`
+2 → 2,000 after approval is refused naming "link count" and the approver, a
+planted amount change names "amount per link", and re-approval reopens it;
+the hash covers exactly the five terms; approve and reject each audit with
+approver, campaign, hash and organisation; a rejection blocks despite an
+approval and 2-of-N counts; the policy is stored, audited, inclusive at the
+threshold, and computed with `Decimal` (0.0000001 × 10⁹ = 100); an Owner-creator
+setting the threshold to null leaves their existing campaign gated and
+`prepareBatch` still refusing, while a campaign created afterwards is not
+gated, and tightening reaches both. `verify:batches`
+and `verify:organisations` still pass. Not opened in a browser: the approval
+panel, the queue page and the policy form.
+
 ## 2026-09-12 — Recipient addresses have a lifecycle: retention and erasure (#50)
 
 The address a link was emailed to is the only recipient PII Kleym holds, and
