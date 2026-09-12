@@ -237,7 +237,7 @@ export async function watchEphemerals(
 
   const rows = await prisma.strandedAccount.findMany({ select: { lockedReserve: true } })
   for (const row of rows) locked = locked.plus(row.lockedReserve.toString())
-  report.lockedXlm = locked.toString()
+  report.lockedXlm = locked.toFixed()
 
   logger.info({ ...report }, 'ephemeral watch completed')
   return report
@@ -283,7 +283,7 @@ async function inspect(
 
   const detail = critical
     ? `This ephemeral account holds ${held.map((h) => `${h.balance} ${h.asset}`).join(', ')}. A claim applied partially — the funds moved but the account was not merged. This needs a person.`
-    : `TX1 landed and TX2 never followed. ${reserve.toString()} XLM of sponsor reserve is locked here until this link is claimed. Kleym cannot recover it: the merge needs the ephemeral key, which Kleym does not hold.`
+    : `TX1 landed and TX2 never followed. ${reserve.toFixed()} XLM of sponsor reserve is locked here until this link is claimed. Kleym cannot recover it: the merge needs the ephemeral key, which Kleym does not hold.`
 
   if (critical) {
     logger.error(
@@ -298,13 +298,13 @@ async function inspect(
       linkId: link.id,
       campaignId: link.campaignId,
       ephemeralPublicKey: link.ephemeralPublicKey,
-      lockedReserve: reserve.toString(),
+      lockedReserve: reserve.toFixed(),
       critical,
       detail,
       lastLedgerActivity: account.lastActivity,
     },
     update: {
-      lockedReserve: reserve.toString(),
+      lockedReserve: reserve.toFixed(),
       critical,
       detail,
       lastLedgerActivity: account.lastActivity,
@@ -354,13 +354,13 @@ export async function strandedSummary(): Promise<StrandedSummary> {
   return {
     count: rows.length,
     critical: rows.filter((row) => row.critical).length,
-    lockedXlm: locked.toString(),
+    lockedXlm: locked.toFixed(),
     accounts: rows.map((row) => ({
       linkId: row.linkId,
       campaignId: row.campaignId,
       campaignName: row.campaign.name,
       ephemeralPublicKey: row.ephemeralPublicKey,
-      lockedReserve: row.lockedReserve.toString(),
+      lockedReserve: row.lockedReserve.toFixed(),
       critical: row.critical,
       detail: row.detail,
       firstSeenAt: row.firstSeenAt,
