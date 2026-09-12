@@ -118,6 +118,11 @@ model Organization {
   /// before a batch can be signed. Null threshold: dual control is off.
   approvalThreshold Decimal? @db.Decimal(23, 7)
   approvalsRequired Int      @default(1)
+  /// Compliance screening callback (#52). When set, every batch is screened
+  /// through this URL before an envelope is handed over, and a callback that
+  /// holds, blocks, errors or times out stops submission. Null: no screening,
+  /// and the signing path is untouched.
+  screeningUrl String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -126,6 +131,13 @@ model Organization {
   apiKeys     ApiKey[]
   auditLogs   AuditLog[]
   invitations Invitation[]
+}
+
+/// What the organisation's screening callback last said about a campaign (#52).
+enum ScreeningDecision {
+  ALLOW
+  HOLD
+  BLOCK
 }
 
 enum ApprovalDecision {
@@ -245,6 +257,14 @@ model Campaign {
   /// back on for a campaign they made.
   approvalThreshold Decimal? @db.Decimal(23, 7)
   approvalsRequired Int      @default(1)
+  /// The last screening result (#52), bound to `screeningHash` — a digest of
+  /// the terms and recipient references that were screened, so an ALLOW
+  /// does not outlive a change to what it allowed. BLOCK is durable: the
+  /// callback is not asked again.
+  screeningDecision ScreeningDecision?
+  screeningReason   String?
+  screeningHash     String?
+  screenedAt        DateTime?
   /// The sponsor account (G…) bound to this campaign at creation (#48).
   /// Reserves return to the sponsoring account on merge, so a campaign stays
   /// with the sponsor that funded it for its whole life; failover in the
@@ -328,6 +348,15 @@ model ClaimLink {
   balanceId String?    @unique // set once the batch confirms
   status    LinkStatus @default(PENDING)
   label     String? // sender's own note: handle, email, etc.
+
+  /// Attestation fields (#52): the sender's OWN reference data for this
+  /// recipient — a case or payroll reference, a category, a note. Carried
+  /// through CSV import/export, sent to the screening callback and the
+  /// regulator export, and NEVER read on the claim path: `resolveLink`
+  /// does not select them (SPEC.md §6.4).
+  reference String?
+  category  String?
+  note      String?
 
   claimedBy   String? // recipient G...
   claimedAt   DateTime?

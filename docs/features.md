@@ -78,6 +78,62 @@ typecheck, lint, build. Not exercised: Next.js's own request spans and the
 and the server-side extraction are exercised at the library level), and a
 real OTLP backend.
 
+## 2026-09-12 — Compliance hooks: screening callback, attestation fields, regulator export (#52)
+
+An organisation that must screen its distributions points Kleym at its own
+provider: an Owner sets a callback URL under Settings → Organisation, and
+from then on every batch is screened **before** an envelope is handed over —
+`prepareBatch`, and again at `submitBatch` — with the campaign's terms and
+one entry per recipient carrying the sender's label and reference fields.
+The provider answers `allow`, `hold` or `block`; a hold or block refuses
+signing with the provider's reason in the 409 and on the campaign page, a
+block is final, and an allow is bound to a digest of exactly what was
+screened so a changed reference or URL asks again. No answer — timeout
+(`SCREENING_TIMEOUT_MS`), connection error, 5xx, unreadable body — **holds**,
+and the audit row says why. Requests are HMAC-signed when
+`SCREENING_WEBHOOK_SECRET` is set. With no URL configured nothing runs: no
+request, no row, no audit. Kleym ships the contract (`docs/compliance.md`),
+not a provider or a list.
+
+Recipients gain three optional attestation fields — `reference`, `category`,
+`note` — the sender's own reference data. They import through the wizard's
+Labels box from a CSV whose header names them (other columns still ignored;
+addresses and seeds still refused in any named column), export in the
+secrets CSV after the existing four columns, show on the links page, go to
+the screening callback and the regulator export, and appear in no
+`/api/claims/*` response: `resolveLink` selects none of them, so a link with
+attestation answers with the same keys as one without.
+
+`GET /api/org/compliance/export` (Owner) is the regulator export: one row
+per link with who sent what, to whom, when, the funding and claim
+transactions and the screening decision, scoped to the session's
+organisation, signed byte-for-byte with the audit-log key and verifiable
+offline with `pnpm audit:verify-export`. Delivery email is deliberately not in it.
+
+**Verified by:** `pnpm verify:compliance` (in CI) against Postgres with a
+real local HTTP receiver: the request carries version, terms, organisation
+and per-recipient reference fields, no key material, and a valid HMAC; an
+allow lets `prepareBatch` through to Horizon and is recorded and audited
+with the provider reference; hold refuses `prepareBatch` and `submitBatch`
+with the reason (not the case id) and lifts on the next allow; block refuses
+and is never asked again; timeout, 5xx, unreadable body and connection
+refused all hold within the budget with `source` audited; `submitBatch`
+honours an allow without a second call and asks again after a changed
+reference or URL; with no URL the gate answers null, no fetch of any kind is
+made, nothing is written, no audit row; attestation is stored, absent from
+`resolveLink` by key set and by value, and `claims.ts` selects none of the
+columns; the export has one row per link of the organisation only, carries
+creator, amount, category, claimant and claim hash, has no email column,
+signs both formats, fails on one flipped byte, and honours a window; the URL
+schema accepts https and loopback http and refuses plain http, credentials
+and other schemes. CSV round-trip (export → import), header-named columns,
+key material in a named column and per-column caps are unit-tested. Migration
+applied to a reset database; `verify:approvals`, `verify:organisations`,
+`verify:batches`, `verify:audit-chain`, `verify:claims`, 217 unit tests,
+typecheck and lint. Not exercised: the settings form and the campaign-page
+notice in a browser (typechecked only), and a live provider end-to-end
+through the signing UI. Review: the loopback-HTTP exception is refused in production (`screeningUrlSchemaFor('production')` checked in the verify script); the DNS-rebinding residual and the deliberate `redirect: 'error'` are stated in `docs/compliance.md`; a 409 from prepare (screening hold/block, approval, unfunded sender) now surfaces its detail in the wizard instead of ending the run as "complete"; the wizard says batches are screened while signing.
+
 ## 2026-09-12 — Disaster recovery: stated RPO and RTO, rehearsed restore, runbooks (#54)
 
 `docs/disaster-recovery.md` states the objectives with their reasoning:

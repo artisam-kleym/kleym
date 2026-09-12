@@ -73,8 +73,21 @@ describe('CSV', () => {
 
   it('has a header and one row per link', () => {
     const lines = buildCsv(rows()).trimEnd().split('\n')
-    expect(lines[0]).toBe('label,public_key,secret,claim_url')
+    expect(lines[0]).toBe('label,public_key,secret,claim_url,reference,category,note')
     expect(lines).toHaveLength(3)
+  })
+
+  // #52: the sender's reference data goes out with the file it came in with,
+  // and reads back through the same parser — a round trip, not two formats.
+  it('round-trips attestation fields through export and import', () => {
+    const keys = generateEphemeralKeys(2, ['alice', 'bob'], [{ reference: 'PAY-1', category: 'payroll', note: 'Q3, "bonus"' }, null])
+    const csv = buildCsv(keys.map((key) => ({ key, url: 'https://kleym.app/claim#x' })))
+    const back = parseLabels(csv, 10)
+    expect(back).toEqual({
+      ok: true,
+      labels: ['alice', 'bob'],
+      attestations: [{ reference: 'PAY-1', category: 'payroll', note: 'Q3, "bonus"' }, null],
+    })
   })
 
   /*
@@ -133,6 +146,25 @@ describe('label parsing', () => {
   it('refuses an address that arrives quoted', () => {
     const result = parseLabels(`"${Keypair.random().publicKey()}"`, 10)
     expect(result).toMatchObject({ ok: false, reason: 'address' })
+  })
+
+  it('reads attestation columns only when the header names them', () => {
+    expect(parseLabels('label,reference,category\nalice,REF-1,vendor\nbob,,', 10)).toEqual({
+      ok: true,
+      labels: ['alice', 'bob'],
+      attestations: [{ reference: 'REF-1', category: 'vendor', note: null }, null],
+    })
+    // Unnamed later columns stay unread, exactly as before.
+    expect(parseLabels('alice,REF-1\nbob,REF-2', 10)).toEqual({ ok: true, labels: ['alice', 'bob'] })
+  })
+
+  it('refuses key material in a named attestation column too', () => {
+    expect(parseLabels(`label,note\nalice,${Keypair.random().publicKey()}`, 10)).toMatchObject({ ok: false, reason: 'address', line: 2 })
+    expect(parseLabels(`label,reference\nalice,${Keypair.random().secret()}`, 10)).toMatchObject({ ok: false, reason: 'seed', line: 2 })
+  })
+
+  it('caps each attestation column', () => {
+    expect(parseLabels(`label,category\nalice,${'x'.repeat(61)}`, 10)).toMatchObject({ ok: false, reason: 'too-long', line: 2, column: 'category', allowed: 60 })
   })
 
   it('refuses more labels than there are links', () => {

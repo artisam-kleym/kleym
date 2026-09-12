@@ -66,6 +66,20 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         ))}
       </dl>
 
+      {campaign.screeningDecision && campaign.screeningDecision !== 'ALLOW' && (
+        <div role="status" className="mt-lg rounded-xl border border-error/40 bg-error-container/30 p-md">
+          <p className="text-body-md font-bold text-on-surface">
+            {campaign.screeningDecision === 'BLOCK' ? 'Screening block' : 'Screening hold'}
+          </p>
+          <p className="mt-xs text-body-md text-on-surface-variant">
+            {campaign.screeningReason ?? (campaign.screeningDecision === 'BLOCK'
+              ? 'Your organisation’s screening callback blocked this campaign. It cannot be signed.'
+              : 'Your organisation’s screening callback has not allowed this campaign yet. Signing will ask it again.')}
+            {campaign.screenedAt && <> · {campaign.screenedAt.toISOString().replace('T', ' ').slice(0, 16)} UTC</>}
+          </p>
+        </div>
+      )}
+
       <ApprovalPanel
         campaignId={campaign.id}
         status={{

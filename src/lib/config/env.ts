@@ -92,6 +92,16 @@ const schema = z.object({
   ALERT_WEBHOOK_URL: z.union([z.url(), z.literal('')]).default(''),
 
   /**
+   * Compliance screening (#52). The callback URL itself is per organisation
+   * (`Organization.screeningUrl`); these are deployment-wide. The secret, when
+   * set, signs every callback request (HMAC-SHA256 over the body) so the
+   * receiver can tell Kleym from anyone who found the URL. The timeout is the
+   * whole budget for one screening call; past it the campaign is HELD.
+   */
+  SCREENING_WEBHOOK_SECRET: z.string().default(''),
+  SCREENING_TIMEOUT_MS: z.coerce.number().int().min(500).max(60_000).default(5000),
+
+  /**
    * OpenTelemetry (#53). Set the endpoint and both processes export traces and
    * metrics over OTLP/HTTP; unset, nothing is registered. Headers carry the
    * backend's token, so they are a secret.
@@ -99,7 +109,6 @@ const schema = z.object({
   OTEL_EXPORTER_OTLP_ENDPOINT: z.union([z.url(), z.literal('')]).default(''),
   OTEL_EXPORTER_OTLP_HEADERS: z.string().default(''),
   OTEL_METRIC_EXPORT_INTERVAL_MS: z.coerce.number().int().min(1000).max(300_000).default(15_000),
-
 
   // Batching
   MAX_OPS_PER_BATCH: z.coerce.number().int().positive().max(100).default(90),
@@ -139,6 +148,7 @@ export const SECRET_ENV_KEYS = [
   'SPONSOR_SECRET_KEY',
   'SPONSOR_SECRET_KEYS_EXTRA',
   'ALERT_WEBHOOK_URL',
+  'SCREENING_WEBHOOK_SECRET',
   'OTEL_EXPORTER_OTLP_HEADERS',
   'SESSION_SECRET',
   'RESEND_API_KEY',

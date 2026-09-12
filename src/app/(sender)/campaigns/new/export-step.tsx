@@ -35,6 +35,7 @@ export function ExportStep({
   onFinish,
   campaignId,
   appUrl,
+  screening,
 }: {
   phase: Phase
   keys: EphemeralKey[]
@@ -49,6 +50,7 @@ export function ExportStep({
   onFinish: () => void
   campaignId: string | null
   appUrl: string
+  screening: boolean
 }) {
   const generated = keys.length > 0
 
@@ -155,6 +157,7 @@ export function ExportStep({
           <p role="status" className="font-mono text-label-md text-on-surface">
             Batch {progress.signed} / {progress.total} signed
             {progress.failed > 0 && ` · ${progress.failed} failed`}
+            {screening && ' · each batch is screened by your organisation first, which can take a few seconds'}
           </p>
         )}
 

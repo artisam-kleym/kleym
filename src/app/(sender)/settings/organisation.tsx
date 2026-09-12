@@ -14,6 +14,15 @@ export interface MemberView {
 
 const ROLES = ['VIEWER', 'OPERATOR', 'APPROVER', 'OWNER'] as const
 
+/** The host only: a callback URL may carry a token in its path. */
+function safeHost(url: string): string {
+  try {
+    return new URL(url).host
+  } catch {
+    return 'the configured callback'
+  }
+}
+
 /**
  * The organisation's members, and what an Owner can do about them. Every
  * action here is refused server-side below Owner; the controls are hidden
@@ -25,12 +34,14 @@ export function Organisation({
   selfId,
   members,
   policy,
+  screeningUrl,
 }: {
   name: string
   role: string
   selfId: string
   members: MemberView[]
   policy: { approvalThreshold: string | null; approvalsRequired: number }
+  screeningUrl: string | null
 }) {
   const router = useRouter()
   const owner = role === 'OWNER'
@@ -75,6 +86,13 @@ export function Organisation({
         approvalsRequired: Number(form.get('approvalsRequired') ?? 1) || 1,
       }),
     })
+  }
+
+  async function saveScreening(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const url = String(form.get('screeningUrl') ?? '').trim()
+    await call('/api/org', { method: 'PATCH', body: JSON.stringify({ screeningUrl: url || null }) })
   }
 
   async function add(event: FormEvent<HTMLFormElement>) {
@@ -126,6 +144,29 @@ export function Organisation({
             </div>
             <Button type="submit" variant="secondary" disabled={busy}>Save</Button>
           </form>
+        )}
+      </div>
+
+      <div className="mt-lg rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
+        <h3 className="text-body-md font-bold text-on-surface">Compliance screening</h3>
+        <p className="mt-xs text-body-md text-on-surface-variant">
+          {screeningUrl === null
+            ? 'Off. Campaigns are signed without an external check.'
+            : `On. Before any batch is signed, the campaign's terms and each recipient's reference fields are sent to ${safeHost(screeningUrl)}, which answers allow, hold or block. No answer, or an error, holds the campaign. Kleym ships the callback, not a screening provider — see docs/compliance.md for the contract.`}
+        </p>
+        {owner && (
+          <form onSubmit={saveScreening} className="mt-md flex flex-wrap items-end gap-md">
+            <div className="min-w-[18rem] flex-1">
+              <Input label="Callback URL" name="screeningUrl" type="url" defaultValue={screeningUrl ?? ''} placeholder="https://compliance.example.com/kleym/screen" />
+            </div>
+            <Button type="submit" variant="secondary" disabled={busy}>Save</Button>
+          </form>
+        )}
+        {owner && (
+          <p className="mt-sm text-label-md text-on-surface-variant">
+            Leave the field empty and save to switch screening off.{' '}
+            <a className="underline" href="/api/org/compliance/export">Download the signed regulator export</a> for this organisation.
+          </p>
         )}
       </div>
 

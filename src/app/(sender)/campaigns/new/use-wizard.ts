@@ -24,6 +24,8 @@ export interface WizardConfig {
   maxOpsPerBatch: number
   maxLinksPerCampaign: number
   baseFeeStroops: string
+  /** Whether the organisation screens batches (#52) — copy only; the server decides. */
+  screening: boolean
 }
 
 export interface DraftCampaign {
