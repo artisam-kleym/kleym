@@ -7,7 +7,7 @@ import { logger } from '@/lib/config/logger'
 import { clientIp } from '@/lib/auth/client-ip'
 import { requireUser } from '@/lib/api/session-guard'
 import { serverError, validationProblem } from '@/lib/api/problems'
-import { renameOrganization, renameSchema, setApprovalPolicy, setScreeningUrl } from '@/lib/api/organizations'
+import { mfaPolicySchema, renameOrganization, renameSchema, setApprovalPolicy, setMfaPolicy, setScreeningUrl } from '@/lib/api/organizations'
 import { policySchema } from '@/lib/api/approvals'
 import { screeningUrlSchema } from '@/lib/api/screening'
 import { zodErrors } from '@/lib/api/campaigns'
@@ -19,7 +19,7 @@ export async function GET() {
   const { org, response } = await requireUser()
   if (!org) return response
   return Response.json({
-    organization: { id: org.id, name: org.name, approvalThreshold: org.approvalThreshold, approvalsRequired: org.approvalsRequired, screeningUrl: org.screeningUrl },
+    organization: { id: org.id, name: org.name, approvalThreshold: org.approvalThreshold, approvalsRequired: org.approvalsRequired, screeningUrl: org.screeningUrl, mfaPolicy: org.mfaPolicy },
     role: org.role,
   })
 }
@@ -32,11 +32,16 @@ export async function PATCH(request: Request) {
   const asPolicy = policySchema.safeParse(body)
   const asRename = renameSchema.safeParse(body)
   const asScreening = screeningUrlSchema.safeParse(body)
-  if (!asPolicy.success && !asRename.success && !asScreening.success) {
+  const asMfa = mfaPolicySchema.safeParse(body)
+  if (!asPolicy.success && !asRename.success && !asScreening.success && !asMfa.success) {
     const shape = body && typeof body === 'object' && 'screeningUrl' in body ? asScreening.error : asRename.error
     return validationProblem(zodErrors(shape))
   }
   try {
+    if (asMfa.success) {
+      await setMfaPolicy(user.id, org, asMfa.data.mfaPolicy, clientIp(request))
+      return Response.json({ organization: { id: org.id, name: org.name, mfaPolicy: asMfa.data.mfaPolicy } })
+    }
     if (asScreening.success) {
       await setScreeningUrl(user.id, org, asScreening.data.screeningUrl, clientIp(request))
       return Response.json({ organization: { id: org.id, name: org.name, screeningUrl: asScreening.data.screeningUrl } })

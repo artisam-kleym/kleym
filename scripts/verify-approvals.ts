@@ -39,7 +39,7 @@ async function orgWith(threshold: string | null, approvalsRequired: number, memb
     data: { name: `dc-${randomUUID().slice(0, 6)}`, approvalThreshold: threshold, approvalsRequired, memberships: { create: members.map((m) => ({ userId: m.id, role: m.role })) } },
     select: { id: true, name: true, approvalThreshold: true, approvalsRequired: true },
   })
-  return { id: row.id, name: row.name, role: 'OWNER' as const, approvalThreshold: row.approvalThreshold?.toFixed() ?? null, approvalsRequired: row.approvalsRequired, screeningUrl: null }
+  return { id: row.id, name: row.name, role: 'OWNER' as const, approvalThreshold: row.approvalThreshold?.toFixed() ?? null, approvalsRequired: row.approvalsRequired, screeningUrl: null, mfaPolicy: 'OFF' as const }
 }
 async function campaign(orgId: string, creator: string, amount: string, links: number) {
   // The route snapshots the organisation's policy at creation; so does this.

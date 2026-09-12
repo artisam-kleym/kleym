@@ -35,6 +35,7 @@ export function Organisation({
   members,
   policy,
   screeningUrl,
+  mfaPolicy,
 }: {
   name: string
   role: string
@@ -42,6 +43,7 @@ export function Organisation({
   members: MemberView[]
   policy: { approvalThreshold: string | null; approvalsRequired: number }
   screeningUrl: string | null
+  mfaPolicy: 'OFF' | 'APPROVERS' | 'ALL'
 }) {
   const router = useRouter()
   const owner = role === 'OWNER'
@@ -95,6 +97,12 @@ export function Organisation({
     await call('/api/org', { method: 'PATCH', body: JSON.stringify({ screeningUrl: url || null }) })
   }
 
+  async function saveMfaPolicy(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    await call('/api/org', { method: 'PATCH', body: JSON.stringify({ mfaPolicy: String(form.get('mfaPolicy') ?? 'OFF') }) })
+  }
+
   async function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -142,6 +150,30 @@ export function Organisation({
             <div className="min-w-[8rem]">
               <Input label="Approvals" name="approvalsRequired" type="number" min={1} max={10} defaultValue={policy.approvalsRequired} />
             </div>
+            <Button type="submit" variant="secondary" disabled={busy}>Save</Button>
+          </form>
+        )}
+      </div>
+
+      <div className="mt-lg rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
+        <h3 className="text-body-md font-bold text-on-surface">Second factor policy</h3>
+        <p className="mt-xs text-body-md text-on-surface-variant">
+          {mfaPolicy === 'OFF'
+            ? 'Off. Members may enrol a second factor; none is required to sign in.'
+            : mfaPolicy === 'APPROVERS'
+              ? 'Approvers and Owners must have a second factor to sign in. Enforced on every request from the moment it is set.'
+              : 'Every member must have a second factor to sign in. Enforced on every request from the moment it is set.'}
+        </p>
+        {owner && (
+          <form onSubmit={saveMfaPolicy} className="mt-md flex flex-wrap items-end gap-md">
+            <label className="flex flex-col gap-xs">
+              <span className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">Required for</span>
+              <select name="mfaPolicy" defaultValue={mfaPolicy} className="rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface">
+                <option value="OFF">Nobody</option>
+                <option value="APPROVERS">Approvers and Owners</option>
+                <option value="ALL">All members</option>
+              </select>
+            </label>
             <Button type="submit" variant="secondary" disabled={busy}>Save</Button>
           </form>
         )}

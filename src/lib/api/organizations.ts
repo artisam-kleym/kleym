@@ -199,6 +199,17 @@ export async function setApprovalPolicy(
   })
 }
 
+export const mfaPolicySchema = z.object({ mfaPolicy: z.enum(['OFF', 'APPROVERS', 'ALL']) }).strict()
+
+/** Who must have a second factor to sign in (#47). Enforced on every request from the moment it is set. */
+export async function setMfaPolicy(actorId: string, org: OrgScope, mfaPolicy: 'OFF' | 'APPROVERS' | 'ALL', ip: string | null): Promise<void> {
+  await prisma.organization.update({ where: { id: org.id }, data: { mfaPolicy } })
+  await recordAudit({
+    userId: actorId, organizationId: org.id, action: 'org.mfa_policy', entityType: 'organization', entityId: org.id,
+    metadata: { from: org.mfaPolicy, to: mfaPolicy }, ip,
+  })
+}
+
 /** Point screening at the organisation's own provider, or switch it off (#52). */
 export async function setScreeningUrl(actorId: string, org: OrgScope, screeningUrl: string | null, ip: string | null): Promise<void> {
   await prisma.organization.update({ where: { id: org.id }, data: { screeningUrl } })

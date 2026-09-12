@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react'
 import { Button, Input, Table, TableCell, TableHead, TableRow, WarningPanel } from '@/components/ui'
+import { useStepUp } from '@/components/mfa/use-step-up'
 
 interface KeyRow {
   id: string
@@ -25,6 +26,7 @@ export function ApiKeys({ initialKeys }: { initialKeys: KeyRow[] }) {
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const stepUp = useStepUp()
 
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -35,6 +37,12 @@ export function ApiKeys({ initialKeys }: { initialKeys: KeyRow[] }) {
     const data = new FormData(form)
     const name = String(data.get('name') ?? '').trim()
     const scope = data.get('scope') === 'WRITE' ? 'WRITE' : 'READ'
+
+    // Step-up (#47): a key is a standing credential; a fresh second factor first, if one is enrolled.
+    if (!(await stepUp.ensure())) {
+      setPending(false)
+      return
+    }
 
     const response = await fetch('/api/settings/api-keys', {
       method: 'POST',
@@ -92,6 +100,8 @@ export function ApiKeys({ initialKeys }: { initialKeys: KeyRow[] }) {
         A write key can create campaigns, register public keys, mark the export gate and submit batches you signed.
         Keys issued before scopes existed are read-only. Neither scope can ever hand us a seed.
       </p>
+
+      {stepUp.panel}
 
       {error && (
         <p role="alert" className="text-body-md text-error">

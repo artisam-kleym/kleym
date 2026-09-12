@@ -9,7 +9,7 @@ import { logger } from '@/lib/config/logger'
 import { recordAudit } from '@/lib/api/audit'
 import { clientIp } from '@/lib/auth/client-ip'
 import { guardRequestBody } from '@/lib/security/guard'
-import { requireUser } from '@/lib/api/session-guard'
+import { requireStepUp, requireUser } from '@/lib/api/session-guard'
 import { serverError, validationProblem } from '@/lib/api/problems'
 import { zodErrors } from '@/lib/api/campaigns'
 import { issueApiKey, listApiKeys } from '@/lib/auth/api-key'
@@ -34,6 +34,9 @@ export async function GET() {
 export async function POST(request: Request) {
   const { user, org, response } = await requireUser('OPERATOR')
   if (!user) return response
+  // Step-up (#47): a key is a standing credential; issuing one takes a fresh factor.
+  const stepUp = await requireStepUp(user)
+  if (stepUp) return stepUp
 
   let body: unknown
   try {

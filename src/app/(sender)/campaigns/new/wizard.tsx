@@ -17,6 +17,7 @@ import { triggerDownload } from './download-gate'
 import { canContinuePastExport, useWizard, type WizardConfig } from './use-wizard'
 import { AssetStep, RecipientsStep } from './steps'
 import { ExportStep } from './export-step'
+import { useStepUp } from '@/components/mfa/use-step-up'
 import { connectWallet, signEnvelope, walletErrorMessage } from '@/lib/wallet/signing'
 
 const STEPS = [
@@ -37,6 +38,7 @@ const EMPTY_BALANCES: Balance[] = []
 export function CampaignWizard(config: WizardConfig) {
   const router = useRouter()
   const wizard = useWizard()
+  const stepUp = useStepUp()
 
   const [draft, setDraft] = useState({
     name: '',
@@ -213,6 +215,8 @@ export function CampaignWizard(config: WizardConfig) {
   const onSign = useCallback(async () => {
     if (!canContinuePastExport(wizard.downloaded, wizard.keys)) return
     wizard.setError(null)
+    // Step-up (#47): signing moves money; a fresh second factor first, if one is enrolled.
+    if (!(await stepUp.ensure())) return
     wizard.setPhase('batching')
 
     try {
@@ -250,7 +254,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
     }
-  }, [wizard, draft, cost])
+  }, [wizard, draft, cost, stepUp])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -305,6 +309,7 @@ export function CampaignWizard(config: WizardConfig) {
             affordable={affordable}
           />
         )}
+        {wizard.step === 2 && stepUp.panel}
         {wizard.step === 2 && (
           <ExportStep
             phase={wizard.phase}
