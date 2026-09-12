@@ -49,6 +49,7 @@ export async function listUsers(): Promise<AdminUserRow[]> {
 }
 
 export type AdminOutcome =
+  /** `sessionsEnded` is only meaningful on deactivation; activation ends none. */
   | { kind: 'ok'; sessionsEnded: number }
   | { kind: 'not-found' }
   | { kind: 'conflict'; detail: string }
@@ -90,28 +91,39 @@ export async function setUserActive(
     return { kind: 'conflict', detail: `${target.username} is already ${isActive ? 'active' : 'deactivated'}.` }
   }
 
-  const [, sessions] = await prisma.$transaction([
-    prisma.user.update({ where: { id: targetId }, data: { isActive } }),
-    isActive
-      ? prisma.session.deleteMany({ where: { userId: targetId, expiresAt: { lt: new Date() } } })
-      : prisma.session.deleteMany({ where: { userId: targetId } }),
-  ])
+  /*
+   * Only deactivation touches sessions. Activation used to sweep the user's
+   * EXPIRED sessions in the same transaction and report the count as
+   * `sessionsEnded` — housekeeping wearing the name of a sign-out, so
+   * "activated Alice, 4 sessions ended" read as if reactivating someone
+   * logged them out. Expired rows are inert; leave them to their own cleanup.
+   */
+  let sessionsEnded = 0
+  if (isActive) {
+    await prisma.user.update({ where: { id: targetId }, data: { isActive } })
+  } else {
+    const [, sessions] = await prisma.$transaction([
+      prisma.user.update({ where: { id: targetId }, data: { isActive } }),
+      prisma.session.deleteMany({ where: { userId: targetId } }),
+    ])
+    sessionsEnded = sessions.count
+  }
 
   await recordAudit({
     userId: actorId,
     action: isActive ? 'user.activate' : 'user.deactivate',
     entityType: 'user',
     entityId: targetId,
-    metadata: { username: target.username, sessionsEnded: sessions.count },
+    metadata: isActive ? { username: target.username } : { username: target.username, sessionsEnded },
     ip,
   })
 
   logger.info(
-    { actorId, targetId, isActive, sessionsEnded: sessions.count },
+    isActive ? { actorId, targetId, isActive } : { actorId, targetId, isActive, sessionsEnded },
     isActive ? 'user activated' : 'user deactivated',
   )
 
-  return { kind: 'ok', sessionsEnded: sessions.count }
+  return { kind: 'ok', sessionsEnded }
 }
 
 export interface AdminCampaignRow {

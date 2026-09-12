@@ -46,14 +46,41 @@ export const REDACTED = '[redacted]'
  *
  * Matched on the key rather than the value, because a session token and an API
  * key are both just opaque strings — there is no pattern to recognise them by
- * once they are out of context. Substring matching, so `otpCode`,
- * `sessionToken` and `newPassword` are all caught rather than only exact
- * spellings.
+ * once they are out of context.
+ *
+ * Matched on whole NAME SEGMENTS, not raw substrings. `otpCode`,
+ * `session_token` and `newPassword` are all caught, because `otp`, `token`
+ * and `password` are segments of them. `assetCode`, `statusCode` and
+ * `resultCode` are not, because `code` is an ordinary English suffix and a
+ * substring rule on it redacted every one of them — and fired the
+ * credential-shaped alarm on a normal campaign creation, which is how people
+ * learn to ignore the alarm. Only a field named exactly `code` is treated as
+ * an OTP.
  */
-const FORBIDDEN_KEYS = [
-  'seed', 'secret', 'privatekey', 'password', 'token', 'apikey', 'api_key',
-  'otp', 'code', 'authorization', 'cookie', 'signature',
-]
+const FORBIDDEN_SEGMENTS = new Set([
+  'seed', 'secret', 'password', 'passwd', 'token', 'otp',
+  'authorization', 'cookie', 'signature',
+])
+/** Two-segment names that are credentials as a pair: `apiKey`, `private_key`. */
+const FORBIDDEN_PAIRS = new Set(['apikey', 'privatekey', 'secretkey'])
+const FORBIDDEN_EXACT = new Set(['code'])
+
+/** `assetCode` → ['asset','code']; `Secret_Key` → ['secret','key']. */
+function segments(key: string): string[] {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+}
+
+export function isForbiddenKey(key: string): boolean {
+  const parts = segments(key)
+  if (FORBIDDEN_EXACT.has(parts.join(''))) return true
+  if (parts.some((part) => FORBIDDEN_SEGMENTS.has(part))) return true
+  return parts.some((part, i) => i > 0 && FORBIDDEN_PAIRS.has(parts[i - 1]! + part))
+}
 
 /**
  * Metadata with anything credential-shaped removed.
@@ -71,9 +98,7 @@ export function scrubMetadata(
   const removed: string[] = []
 
   for (const [key, value] of Object.entries(metadata)) {
-    const suspiciousKey = FORBIDDEN_KEYS.some((forbidden) =>
-      key.toLowerCase().replace(/[^a-z_]/g, '').includes(forbidden),
-    )
+    const suspiciousKey = isForbiddenKey(key)
     const suspiciousValue = typeof value === 'string' && containsSecretSeed(value)
 
     if (suspiciousKey || suspiciousValue) {

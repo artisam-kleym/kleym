@@ -43,6 +43,24 @@ Admin access is enforced in every route handler, not by hiding navigation. A sig
 sender gets **404 rather than 403** on all five admin pages and on the users API, so the
 route's existence is not disclosed; an anonymous request is redirected or gets a 401.
 
+### After review
+
+**The scrubber matches whole name segments, not substrings.** `code` was in
+the forbidden list as a substring, so `assetCode`, `statusCode`, `resultCode`
+and `countryCode` would all have been silently redacted — and every campaign
+creation would have fired the "credential-shaped fields" alarm the moment
+someone added `assetCode` to its metadata. Keys are now split into camelCase
+and snake_case segments; `otp`, `token`, `password`, `secret`, `seed`… are
+matched as segments, `apiKey`/`private_key`/`secretKey` as pairs, and only a
+field named exactly `code` is treated as an OTP. `verify:admin` checks both
+directions.
+
+**`sessionsEnded` is reported only on deactivation.** Activation used to
+sweep the user's expired sessions and return that count under the same name,
+so "activated Alice, 4 sessions ended" read as a sign-out. Activation now
+touches no sessions, returns `sessionsEnded: 0`, and its audit row carries no
+such field.
+
 **Verified by:** `pnpm verify:admin`, 7 sections against a real Postgres. The scrubber is
 attacked with the shapes a careless caller actually produces — a session token, an API
 key, an OTP, a password, an oddly-spelled secret, an authorization header, and a seed
