@@ -237,6 +237,8 @@ jobs:
           BASE_URL=http://127.0.0.1:3211 SERVER_LOG=/tmp/kleym-server.log pnpm acceptance
 
       - name: Batch path under load
+        # A hang here once cost six hours; a bounded step turns it into a loud failure.
+        timeout-minutes: 15
         run: pnpm loadtest
 
       - uses: actions/upload-artifact@v4

@@ -20,6 +20,7 @@ const { watchEphemerals, strandedSummary, lockedReserve, STRAND_AFTER_MS } = awa
   '../src/lib/api/stranded'
 )
 const { memoryPassCursor } = await import('../src/lib/queue/pass-cursor')
+const { lastPassReports } = await import('../src/lib/queue/pass-report')
 
 let failures = 0
 const check = (name: string, pass: boolean, detail = ''): void => {
@@ -326,6 +327,8 @@ async function aPassIsBoundedAndResumes(): Promise<void> {
   const first = await watchEphemerals(d, JUST_NOW, { limit, cursor })
   check('the first pass stops at the limit', first.checked === limit, JSON.stringify(first))
   check('and reports what it left', first.remaining === candidates - limit, `${first.remaining} of ${candidates - limit}`)
+  const recorded = (await lastPassReports())['ephemeral-watch']
+  check('the shortfall is recorded for the admin page', recorded?.remaining === first.remaining && recorded.checked === limit, JSON.stringify(recorded))
   check('the cursor moved', cursor.value !== null)
 
   let last = first
