@@ -46,10 +46,14 @@ describe('keygen', () => {
 })
 
 describe('claim URL', () => {
+  /*
+   * `#s=<seed>`, raw. See lib/claim/fragment.ts for why not base64url: the
+   * encoded form is invisible to every seed guard in the repo.
+   */
   it('puts the secret in the fragment, never the path or query', () => {
     const secret = Keypair.random().secret()
     const url = new URL(claimUrl('https://kleym.app', secret))
-    expect(url.hash).toBe(`#${secret}`)
+    expect(url.hash).toBe(`#s=${secret}`)
     expect(url.search).toBe('')
     expect(url.pathname).toBe('/claim')
     // What the server would receive: everything before the '#'.
@@ -57,7 +61,7 @@ describe('claim URL', () => {
   })
 
   it('does not double a trailing slash', () => {
-    expect(claimUrl('https://kleym.app/', 'S123')).toBe('https://kleym.app/claim#S123')
+    expect(claimUrl('https://kleym.app/', 'S123')).toBe('https://kleym.app/claim#s=S123')
   })
 })
 
