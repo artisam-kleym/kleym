@@ -82,12 +82,36 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  campaigns Campaign[]
-  sessions  Session[]
-  apiKeys   ApiKey[]
-  auditLogs AuditLog[]
+  campaigns   Campaign[]
+  sessions    Session[]
+  apiKeys     ApiKey[]
+  auditLogs   AuditLog[]
+  invitations Invitation[] @relation("invitee")
+  invited     Invitation[] @relation("inviter")
 
   @@index([username])
+}
+
+/// An admin-issued, single-use, time-bounded invitation. SPEC.md §5.4.
+///
+/// The admin never chooses or sees a password: the user sets their own at
+/// /invite/[token], through the same argon2id path as a password change.
+/// The token is stored as a SHA-256 hash exactly like Session.tokenHash —
+/// the plaintext exists only in the URL the admin hands over, once.
+model Invitation {
+  id          String    @id @default(cuid())
+  userId      String
+  createdById String
+  tokenHash   String    @unique // sha256 of the opaque URL token
+  expiresAt   DateTime
+  redeemedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  user      User @relation("invitee", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("inviter", fields: [createdById], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Session {

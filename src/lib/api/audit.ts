@@ -21,6 +21,8 @@ export type AuditAction =
   | 'campaign.create'
   | 'campaign.cancel'
   | 'link.reclaim'
+  | 'user.create'
+  | 'user.revoke_invitation'
   | 'user.activate'
   | 'user.deactivate'
   | 'auth.password_change'

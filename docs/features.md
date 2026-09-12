@@ -20,6 +20,54 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — Users are created by invitation (#39)
+
+Until now the only code path that created a `User` was the seed script, and
+it only ever made an admin; onboarding a second sender meant a shell on
+production. `/admin/users` now has **Invite a user**: an admin enters a
+username and role, and gets back a single-use link, shown once. The person
+opens `/invite/[token]`, chooses their own password (12+ characters, argon2id,
+the same path a password change uses), and can sign in. The users table shows
+them as *Invited* until then.
+
+**The admin never sets, sees or transmits a password.** The token is 32 random
+bytes, stored only as a SHA-256 hash like a session cookie; the plaintext is in
+the URL handed to the admin and nowhere else — not the database, not the audit
+row, not a log line. The account is created inactive with an unguessable
+placeholder hash, so nothing can sign in before redemption. Redemption is
+single-use (a conditional update inside a transaction, so two simultaneous
+redemptions produce exactly one password), expires after three days, and
+unknown, expired and spent tokens all get the same 404 body. The redeem route
+is rate limited like login. `POST /api/admin/users` answers 404 to a signed-in
+non-admin, matching the rest of the admin surface.
+
+**An invitation can be revoked.** The point of the design is that the admin
+never holds a credential they cannot take back, so a link sent to the wrong
+person is revocable from `/admin/users` before it expires: the pending
+invitation and its still-inactive account (which owns nothing yet) are
+deleted, audited as `user.revoke_invitation`, and the token is thereafter
+simply unknown. A redeemed account is refused — that is a deactivation, a
+different action. `/invite/[token]` carries the token in its path, so it
+gets `/claim`'s `Referrer-Policy: no-referrer`. Two admins inviting the same
+username at once get one success and one conflict, not a 500.
+
+**Verified by:** `pnpm verify:invitations` (in CI) against a real Postgres and
+Redis — inactive on creation, hash ≠ token and token in no row, audit row
+naming actor and user without the token, planted password material redacted
+by the scrubber, first redemption sets the chosen password and the second is
+refused without touching it, expired ≡ unknown, one of two concurrent
+redemptions wins, the route's refusals are byte-identical, the sixth attempt
+per IP is 429; revoke deletes account and row, the token then fails exactly
+as an unknown one, the username is free again, a redeemed account cannot be
+revoked, and a simultaneous double invite yields one success and one
+conflict. And over HTTP against a production build: no session 401,
+SENDER 404 on the route and the page, ADMIN 201, the invitee's login 401
+before redemption and 200 after, a second redemption 404, and zero
+occurrences of the token in the server log; `/invite/<token>` answers
+`no-referrer` where `/login` answers `strict-origin-when-cross-origin`;
+`DELETE …/invitation` is 401 without a session, 200 as admin, and the token
+is 404 afterwards.
+
 ## 2026-09-12 — Scheduled passes report their shortfall on the admin page (#43)
 
 The bounded maintenance passes (#33, #35) already said in the log when they

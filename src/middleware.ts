@@ -7,8 +7,14 @@
  */
 import { NextResponse, type NextRequest } from 'next/server'
 
-/** Routes that handle a URL-fragment secret and must leak nothing outward. */
-const FRAGMENT_SECRET_ROUTES = ['/claim']
+/**
+ * Routes that carry a bearer secret in the URL and must leak nothing outward.
+ * `/claim` holds it in the fragment; `/invite/[token]` holds it in the path,
+ * which `strict-origin-when-cross-origin` already strips cross-origin — but
+ * the page is one external link away from depending on that, so it gets the
+ * same `no-referrer` and the same reasoning.
+ */
+const FRAGMENT_SECRET_ROUTES = ['/claim', '/invite']
 
 function isFragmentSecretRoute(pathname: string): boolean {
   return FRAGMENT_SECRET_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`))
