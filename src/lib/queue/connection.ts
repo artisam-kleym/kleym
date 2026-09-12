@@ -23,4 +23,6 @@ export function queueConnection(): ConnectionOptions {
 /** Queue names, in one place so a worker and a producer cannot disagree. */
 export const QUEUE = {
   batchConfirm: 'batch-confirm',
+  reconcile: 'reconcile',
+  expirySweep: 'expiry-sweep',
 } as const

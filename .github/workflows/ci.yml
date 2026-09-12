@@ -83,6 +83,9 @@ jobs:
       - name: Verify claim resolve, limits and ledger authority
         run: pnpm verify:claims
 
+      - name: Verify reconciliation and the expiry sweep
+        run: pnpm verify:reconcile
+
   e2e:
     name: CSV gate (real browser)
     runs-on: ubuntu-latest
