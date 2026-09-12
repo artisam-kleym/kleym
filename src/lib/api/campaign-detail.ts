@@ -77,9 +77,9 @@ export async function linksPage(campaignId: string, query: LinksQuery) {
  * Everything the detail page renders. `links` is the first `LINK_PREVIEW`
  * rows and nothing more; the counts come from `statusCounts`, not from them.
  */
-export async function loadCampaignDetail(id: string, userId: string) {
+export async function loadCampaignDetail(id: string, organizationId: string) {
   const campaign = await prisma.campaign.findFirst({
-    where: owned(id, userId),
+    where: owned(id, organizationId),
     select: {
       id: true, name: true, status: true, assetCode: true, amountPerLink: true,
       linkCount: true, expiresAt: true, senderPublicKey: true, network: true,
@@ -103,9 +103,9 @@ export async function loadCampaignDetail(id: string, userId: string) {
 }
 
 /** The campaign header the links table needs, ownership-scoped. */
-export function loadCampaignHeader(id: string, userId: string) {
+export function loadCampaignHeader(id: string, organizationId: string) {
   return prisma.campaign.findFirst({
-    where: owned(id, userId),
+    where: owned(id, organizationId),
     select: { id: true, name: true, assetCode: true, amountPerLink: true, linkCount: true },
   })
 }

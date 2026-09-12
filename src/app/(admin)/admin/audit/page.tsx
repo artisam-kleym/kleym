@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { auditActions, queryAudit } from '@/lib/api/audit'
 import { listUsers } from '@/lib/api/admin'
+import { listOrganizations } from '@/lib/api/organizations'
 import { Table, TableCell, TableHead, TableRow } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
@@ -28,6 +29,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
   const params = await searchParams
   const filters = {
     userId: one(params.userId) || undefined,
+    organizationId: one(params.organizationId) || undefined,
     action: one(params.action) || undefined,
     entityId: one(params.entityId) || undefined,
     from: parseDate(one(params.from)),
@@ -35,10 +37,11 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
     page: Number(one(params.page) ?? '1') || 1,
   }
 
-  const [page, actions, users] = await Promise.all([
+  const [page, actions, users, organizations] = await Promise.all([
     queryAudit(filters),
     auditActions(),
     listUsers(),
+    listOrganizations(),
   ])
 
   const href = (next: Record<string, string | number | undefined>) => {
@@ -70,6 +73,22 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
             {users.map((user) => (
               <option key={user.id} value={user.id}>
                 {user.username}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-xs">
+          <span className="text-label-md text-on-surface-variant">Organisation</span>
+          <select
+            name="organizationId"
+            defaultValue={filters.organizationId ?? ''}
+            className="rounded-lg border border-outline-variant bg-surface px-sm py-2 text-body-md text-on-surface"
+          >
+            <option value="">Any</option>
+            {organizations.map((org) => (
+              <option key={org.id} value={org.id}>
+                {org.name}
               </option>
             ))}
           </select>
@@ -132,7 +151,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
       </form>
 
       <Table className="mt-lg">
-        <TableHead columns={['When', 'Who', 'Action', 'Entity', 'IP', 'Detail']} />
+        <TableHead columns={['When', 'Who', 'Organisation', 'Action', 'Entity', 'IP', 'Detail']} />
         <tbody>
           {page.rows.map((row) => (
             <TableRow key={row.id}>
@@ -140,6 +159,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
                 {row.createdAt.toISOString().replace('T', ' ').slice(0, 19)}
               </TableCell>
               <TableCell className="font-mono text-label-sm">{row.username ?? '—'}</TableCell>
+              <TableCell className="font-mono text-label-sm">{row.organization ?? '—'}</TableCell>
               <TableCell className="font-mono text-label-sm">{row.action}</TableCell>
               <TableCell className="font-mono text-label-sm">
                 {row.entityType ? `${row.entityType} ${row.entityId ?? ''}`.trim() : '—'}

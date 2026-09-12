@@ -29,14 +29,14 @@ export type RegisterOutcome =
  */
 export async function registerLinks(
   campaignId: string,
-  userId: string,
+  organizationId: string,
   publicKeys: string[],
   labels?: (string | null)[],
 ): Promise<RegisterOutcome> {
   return prisma.$transaction(
     async (tx) => {
       const campaign = await tx.campaign.findFirst({
-        where: owned(campaignId, userId),
+        where: owned(campaignId, organizationId),
         select: { id: true, status: true, linkCount: true },
       })
       if (!campaign) return { kind: 'not-found' }

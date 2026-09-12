@@ -15,6 +15,7 @@
 import { randomUUID } from 'node:crypto'
 import { Account, Asset, Keypair, Networks, TransactionBuilder, type Transaction } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 // Before any import that touches config. DATABASE_URL is deliberately NOT
 // defaulted over: this script only means anything against a real database.
@@ -47,13 +48,16 @@ async function makeUser(): Promise<string> {
     data: { username: `verify-${randomUUID()}`, passwordHash: 'x', role: 'SENDER' },
     select: { id: true },
   })
+  await personalOrg(prisma, user.id)
   return user.id
 }
+const orgOf = (userId: string) => `org_${userId}`
 
 async function makeCampaign(userId: string, linkCount: number, sender: Keypair) {
   const campaign = await prisma.campaign.create({
     data: {
       userId,
+      organizationId: orgOf(userId),
       name: 'verify-batches',
       network: 'testnet',
       senderPublicKey: sender.publicKey(),
@@ -76,7 +80,7 @@ async function makeCampaign(userId: string, linkCount: number, sender: Keypair) 
    */
   const outcome = await registerLinks(
     campaign.id,
-    userId,
+    orgOf(userId),
     Array.from({ length: linkCount }, () => Keypair.random().publicKey()),
   )
   if (outcome.kind !== 'ok') throw new Error(`fixture registration failed: ${outcome.kind}`)
@@ -228,7 +232,7 @@ async function retryTouchesOnlyFailedLinks(): Promise<void> {
 
   const failedLinkIds = batches[2]!.links.map((l) => l.id).sort()
 
-  const outcome = await retryFailedBatches(campaignId, user)
+  const outcome = await retryFailedBatches(campaignId, orgOf(user))
   check('retry reports the failed sequence', outcome.kind === 'ok' && outcome.value.retried.join(',') === '3', JSON.stringify(outcome))
 
   const after = await batchesOf(campaignId)
@@ -281,7 +285,7 @@ async function resubmissionIsANoOp(): Promise<void> {
 
   // A deliberately invalid envelope: reaching verification or Horizon at all
   // would be the bug. The replay must return before either.
-  const outcome = await submitBatch(campaignId, user, { sequence: 1, signedXdr: 'not-a-transaction' })
+  const outcome = await submitBatch(campaignId, orgOf(user), { sequence: 1, signedXdr: 'not-a-transaction' })
 
   check('the replay succeeds', outcome.kind === 'ok', JSON.stringify(outcome))
   check('it returns the original hash', outcome.kind === 'ok' && outcome.value.transactionHash === hash)

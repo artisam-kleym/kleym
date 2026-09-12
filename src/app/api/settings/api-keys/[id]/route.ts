@@ -17,18 +17,19 @@ export const dynamic = 'force-dynamic'
 type Params = { params: Promise<{ id: string }> }
 
 export async function DELETE(request: Request, { params }: Params) {
-  const { user, response } = await requireUser()
+  const { user, org, response } = await requireUser('OPERATOR')
   if (!user) return response
   const { id } = await params
 
   try {
     // Scoped by owner in the query, so another user's key id is a 404 and not
     // an authorisation decision made after the row was already read.
-    const revoked = await revokeApiKey(id, user.id)
+    const revoked = await revokeApiKey(id, org.id)
     if (!revoked) return notFound()
 
     await recordAudit({
       userId: user.id,
+      organizationId: org.id,
       action: 'apikey.revoke',
       entityType: 'apikey',
       entityId: id,

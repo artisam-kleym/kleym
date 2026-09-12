@@ -53,9 +53,9 @@ const conflict = (detail: string) => ({ kind: 'conflict' as const, detail })
 
 type CampaignRow = NonNullable<Awaited<ReturnType<typeof loadCampaign>>>
 
-async function loadCampaign(campaignId: string, userId: string) {
+async function loadCampaign(campaignId: string, organizationId: string) {
   return prisma.campaign.findFirst({
-    where: owned(campaignId, userId),
+    where: owned(campaignId, organizationId),
     select: {
       id: true, name: true, status: true, network: true, senderPublicKey: true,
       assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true,
@@ -141,10 +141,10 @@ export interface PreparedBatch {
  */
 export async function prepareBatch(
   campaignId: string,
-  userId: string,
+  organizationId: string,
   input: PrepareInput,
 ): Promise<BatchOutcome<PreparedBatch>> {
-  const campaign = await loadCampaign(campaignId, userId)
+  const campaign = await loadCampaign(campaignId, organizationId)
   if (!campaign) return { kind: 'not-found' }
 
   const blocked = notReadyToSign(campaign)
@@ -238,10 +238,10 @@ export interface SubmittedBatch {
  */
 export async function submitBatch(
   campaignId: string,
-  userId: string,
+  organizationId: string,
   input: SubmitInput,
 ): Promise<BatchOutcome<SubmittedBatch>> {
-  const campaign = await loadCampaign(campaignId, userId)
+  const campaign = await loadCampaign(campaignId, organizationId)
   if (!campaign) return { kind: 'not-found' }
 
   const batch = await prisma.batch.findFirst({
@@ -311,9 +311,9 @@ export async function submitBatch(
  */
 export async function retryFailedBatches(
   campaignId: string,
-  userId: string,
+  organizationId: string,
 ): Promise<BatchOutcome<{ retried: number[] }>> {
-  const campaign = await loadCampaign(campaignId, userId)
+  const campaign = await loadCampaign(campaignId, organizationId)
   if (!campaign) return { kind: 'not-found' }
 
   const failed = await prisma.batch.findMany({

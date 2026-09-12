@@ -4,6 +4,9 @@ import { clsx } from 'clsx'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Icon, type IconName } from '@/components/ui'
+import { OrgSwitcher, type OrgOption } from './org-switcher'
+
+export type { OrgOption }
 
 interface NavItem {
   href: string
@@ -45,7 +48,13 @@ function NavLinks({ pathname }: { pathname: string }) {
   )
 }
 
-export function Sidebar() {
+export function Sidebar({
+  organizations,
+  activeOrganizationId,
+}: {
+  organizations: OrgOption[]
+  activeOrganizationId: string | null
+}) {
   const pathname = usePathname()
 
   return (
@@ -60,6 +69,7 @@ export function Sidebar() {
           <Icon name="toll" size={24} filled />
           <span className="text-headline-md">Kleym</span>
         </Link>
+        <OrgSwitcher organizations={organizations} activeOrganizationId={activeOrganizationId} />
         <div className="flex flex-col gap-xs">
           <NavLinks pathname={pathname} />
         </div>

@@ -10,6 +10,7 @@
  */
 import { randomUUID } from 'node:crypto'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 
@@ -33,24 +34,27 @@ const check = (name: string, pass: boolean, detail = ''): void => {
 const bearer = (key: string) =>
   new Request('https://kleym.test/api/v1/campaigns', { headers: { authorization: `Bearer ${key}` } })
 
+/** A user with a personal organisation (the #44 shape); the org id is `org_<userId>`. */
 async function makeUser(tag: string): Promise<string> {
   const user = await prisma.user.create({
     data: { username: `${tag}-${randomUUID()}`, passwordHash: 'x', role: 'SENDER' },
     select: { id: true },
   })
+  await personalOrg(prisma, user.id)
   return user.id
 }
+const orgOf = (userId: string) => `org_${userId}`
 
 async function keysAuthenticateAndRevoke(): Promise<void> {
   console.log('\n1. A live key authenticates; a revoked one stops working immediately')
 
   const userId = await makeUser('keyholder')
-  const issued = await issueApiKey(userId, 'ci')
+  const issued = await issueApiKey(userId, orgOf(userId), 'ci')
 
   const resolved = await resolveApiKey(bearer(issued.key))
   check('the key resolves to its owner', resolved.ok && resolved.caller.userId === userId, JSON.stringify(resolved))
 
-  await revokeApiKey(issued.id, userId)
+  await revokeApiKey(issued.id, orgOf(userId))
   const afterRevoke = await resolveApiKey(bearer(issued.key))
   check('a revoked key no longer resolves', !afterRevoke.ok)
 
@@ -77,7 +81,7 @@ async function keysAuthenticateAndRevoke(): Promise<void> {
    * survives a spot check. One key proves nothing; a batch does.
    */
   const batch = await Promise.all(
-    Array.from({ length: 25 }, (_, i) => issueApiKey(userId, `batch-${i}`)),
+    Array.from({ length: 25 }, (_, i) => issueApiKey(userId, orgOf(userId), `batch-${i}`)),
   )
   const resolvedAll = await Promise.all(batch.map((k) => resolveApiKey(bearer(k.key))))
   const bad = resolvedAll.filter((r) => !r.ok).length
@@ -93,9 +97,9 @@ async function theKeyIsShownOnce(): Promise<void> {
   console.log('\n2. The full key is never retrievable after issue')
 
   const userId = await makeUser('once')
-  const issued = await issueApiKey(userId, 'reporting')
+  const issued = await issueApiKey(userId, orgOf(userId), 'reporting')
 
-  const listed = await listApiKeys(userId)
+  const listed = await listApiKeys(orgOf(userId))
   const row = listed.find((k) => k.id === issued.id)!
   const serialised = JSON.stringify(listed)
 
@@ -121,7 +125,7 @@ async function lastUsedIsRecorded(): Promise<void> {
   console.log('\n3. lastUsedAt updates on a successful request')
 
   const userId = await makeUser('tracked')
-  const issued = await issueApiKey(userId, 'tracked')
+  const issued = await issueApiKey(userId, orgOf(userId), 'tracked')
 
   const before = await prisma.apiKey.findUniqueOrThrow({ where: { id: issued.id }, select: { lastUsedAt: true } })
   check('a new key has never been used', before.lastUsedAt === null)
@@ -133,7 +137,7 @@ async function lastUsedIsRecorded(): Promise<void> {
   check('lastUsedAt is set', after.lastUsedAt !== null)
 
   // A revoked key must not have its use recorded — it had none.
-  await revokeApiKey(issued.id, userId)
+  await revokeApiKey(issued.id, orgOf(userId))
   const stamp = (await prisma.apiKey.findUniqueOrThrow({ where: { id: issued.id }, select: { lastUsedAt: true } })).lastUsedAt
   await touchApiKey(issued.id)
   const unchanged = (await prisma.apiKey.findUniqueOrThrow({ where: { id: issued.id }, select: { lastUsedAt: true } })).lastUsedAt
@@ -144,8 +148,8 @@ async function theLimitIsPerKey(): Promise<void> {
   console.log(`\n4. ${API_RATE_LIMIT.limit} requests per minute, counted per KEY`)
 
   const userId = await makeUser('busy')
-  const first = await issueApiKey(userId, 'first')
-  const second = await issueApiKey(userId, 'second')
+  const first = await issueApiKey(userId, orgOf(userId), 'first')
+  const second = await issueApiKey(userId, orgOf(userId), 'second')
 
   let allowed = 0
   let limited = 0
@@ -176,11 +180,12 @@ async function keysCannotCrossAccounts(): Promise<void> {
 
   const alice = await makeUser('alice')
   const bob = await makeUser('bob')
-  const aliceKey = await issueApiKey(alice, 'alice')
+  const aliceKey = await issueApiKey(alice, orgOf(alice), 'alice')
 
   const campaign = await prisma.campaign.create({
     data: {
       userId: bob,
+      organizationId: orgOf(bob),
       name: "bob's campaign",
       network: 'testnet',
       senderPublicKey: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB',
@@ -194,18 +199,20 @@ async function keysCannotCrossAccounts(): Promise<void> {
 
   const resolved = await resolveApiKey(bearer(aliceKey.key))
   const callerId = resolved.ok ? resolved.caller.userId : ''
+  const callerOrg = resolved.ok ? resolved.caller.organizationId : ''
   check("alice's key resolves to alice", callerId === alice)
+  check("and to alice's organisation — the scope v1 reads in", callerOrg === orgOf(alice))
 
   // The query the route runs. Ownership is IN it, so a foreign id is simply
   // absent rather than found-then-refused.
   const { owned } = await import('../src/lib/api/session-guard')
-  const visible = await prisma.campaign.findFirst({ where: owned(campaign.id, callerId), select: { id: true } })
+  const visible = await prisma.campaign.findFirst({ where: owned(campaign.id, callerOrg), select: { id: true } })
   check("bob's campaign is invisible to alice's key", visible === null)
 
-  const links = await prisma.claimLink.findMany({ where: { campaignId: campaign.id, campaign: { userId: callerId } } })
+  const links = await prisma.claimLink.findMany({ where: { campaignId: campaign.id, campaign: { organizationId: callerOrg } } })
   check("bob's links are invisible too", links.length === 0)
 
-  const asBob = await prisma.campaign.findFirst({ where: owned(campaign.id, bob), select: { id: true } })
+  const asBob = await prisma.campaign.findFirst({ where: owned(campaign.id, orgOf(bob)), select: { id: true } })
   check('and bob can still see his own', asBob !== null)
 }
 
@@ -228,6 +235,7 @@ async function pagingIsStable(): Promise<void> {
   const campaign = await prisma.campaign.create({
     data: {
       userId,
+      organizationId: orgOf(userId),
       name: 'paging',
       network: 'testnet',
       senderPublicKey: Keypair.random().publicKey(),
@@ -240,7 +248,7 @@ async function pagingIsStable(): Promise<void> {
   })
   const registered = await registerLinks(
     campaign.id,
-    userId,
+    orgOf(userId),
     Array.from({ length: 90 }, () => Keypair.random().publicKey()),
   )
   if (registered.kind !== 'ok') throw new Error(`fixture registration failed: ${registered.kind}`)

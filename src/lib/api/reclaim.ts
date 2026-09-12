@@ -136,9 +136,9 @@ const LIVE: ReclaimDeps = {
   submit: liveSubmit,
 }
 
-async function loadCampaign(campaignId: string, userId: string) {
+async function loadCampaign(campaignId: string, organizationId: string) {
   return prisma.campaign.findFirst({
-    where: owned(campaignId, userId),
+    where: owned(campaignId, organizationId),
     select: {
       id: true, name: true, status: true, senderPublicKey: true,
       assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true,
@@ -191,10 +191,10 @@ export interface PreparedReclaim {
  */
 export async function prepareReclaim(
   campaignId: string,
-  userId: string,
+  organizationId: string,
   deps: ReclaimDeps = LIVE,
 ): Promise<ReclaimOutcome<PreparedReclaim>> {
-  const campaign = await loadCampaign(campaignId, userId)
+  const campaign = await loadCampaign(campaignId, organizationId)
   if (!campaign) return { kind: 'not-found' }
 
   if (Date.now() < campaign.expiresAt.getTime()) {
@@ -267,11 +267,11 @@ export interface SubmittedReclaim {
  */
 export async function submitReclaim(
   campaignId: string,
-  userId: string,
+  organizationId: string,
   input: ReclaimSubmitInput,
   deps: ReclaimDeps = LIVE,
 ): Promise<ReclaimOutcome<SubmittedReclaim>> {
-  const campaign = await loadCampaign(campaignId, userId)
+  const campaign = await loadCampaign(campaignId, organizationId)
   if (!campaign) return { kind: 'not-found' }
 
   if (Date.now() < campaign.expiresAt.getTime()) {

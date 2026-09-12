@@ -63,6 +63,14 @@ export function unauthenticated(): Response {
   )
 }
 
+/**
+ * 403: signed in, a member, but the role does not allow this. Distinct from
+ * 404 (not this organisation's) — a member may know the campaign exists.
+ */
+export function forbidden(detail: string): Response {
+  return problem({ type: `${BASE}/forbidden`, title: 'Not allowed', status: 403, detail }, 403)
+}
+
 export function idempotencyKeyRequired(): Response {
   return problem(
     {

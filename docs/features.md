@@ -20,6 +20,63 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — Organisations, memberships and roles (#44)
+
+A campaign now belongs to an **organisation**, not to the person who created
+it. Every user is a member of at least one — the migration gave every existing
+user a personal organisation with themselves as Owner, so a single-user
+deployment behaves exactly as before — and members see each other's
+campaigns subject to their role: **Viewer** reads campaigns, links and
+history; **Operator** creates, signs, resends and reclaims; **Approver** adds
+approval (#45, later); **Owner** manages members and settings. Kleym's `ADMIN`
+stays orthogonal — staff, not a customer role.
+
+**This is a query-scope change, not a feature.** `owned()` builds
+`{ id, organizationId }` instead of `{ id, userId }`, and every campaign route
+and library inherits it; the scope comes from the session's active membership,
+resolved on every request, so removing a membership ends that user's access at
+once — live session included. Roles are enforced server-side at the route
+(`requireUser('OPERATOR')` → 403 for a Viewer), never by hiding a button; the
+CSV export is one of those routes. API keys read an organisation's campaigns,
+not their issuer's; audit rows carry the organisation and `/admin/audit`
+filters by it. Invitations now name the organisation and role the invitee
+joins as; owners add members (existing accounts join at once, unknown
+usernames are invited) from a new section on `/settings`, and a switcher in
+the sidebar moves between organisations.
+
+**Known limitation — adding a member is a username oracle.** An Owner types a
+username: an existing account joins at once, an unknown one is invited, and
+the two answers differ — so an Owner of any organisation can tell whether a
+username exists on the deployment, and can attach an existing account to
+their organisation without that person's consent (as a role the Owner
+chooses, in an organisation whose data the Owner already controls). Bounded,
+and for an admin-provisioned deployment probably what is wanted; the fix if
+it stops being is for Owners to always *invite*, with existing accounts
+accepting a pending membership from their own settings page and one response
+shape either way.
+
+The last-owner guard is one serializable transaction (count and write see the
+same rows), so two owners demoting or removing each other at the same moment
+leave exactly one owner — the loser gets the same refusal as a plain attempt.
+
+**Verified by:** the #44 migration applied on top of a populated pre-#44
+database — three users, three campaigns, a key, audit rows, a pending
+invitation — with every row landing in its user's personal organisation and
+audit rows without an actor left without one. All 13 existing verify suites
+pass on the new schema with fixture-only edits (rows created directly by a
+script need the new required column; no assertion changed). New
+`pnpm verify:organisations`: two members share a campaign; a member of A gets
+nothing for B's campaign by id, detail, search or write at each of the four
+roles; the role order; a removed Viewer's live session resolves to no
+organisation; the last owner cannot be removed or demoted, and eight rounds
+of two owners demoting/removing each other at once each leave one owner
+(seven of the eight fail with the transaction dropped to Read Committed);
+audit rows filter by organisation. Over HTTP against a production build: Viewer 200 on read,
+403 on export and on registering links; outsider 404 on the API and the page;
+switching to a non-member organisation 404; a removed member's live session
+404 on the next request; the last owner's self-removal 409. 213 unit tests,
+typecheck, lint, build.
+
 ## 2026-09-12 — Users are created by invitation (#39)
 
 Until now the only code path that created a `User` was the seed script, and

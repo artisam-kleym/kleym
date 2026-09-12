@@ -105,11 +105,11 @@ export interface DeliverReport {
  */
 export async function queueDeliveries(
   campaignId: string,
-  userId: string,
+  organizationId: string,
   input: DeliverInput,
 ): Promise<DeliverOutcome<DeliverReport>> {
   const campaign = await prisma.campaign.findFirst({
-    where: owned(campaignId, userId),
+    where: owned(campaignId, organizationId),
     select: {
       id: true, name: true, assetCode: true, amountPerLink: true, expiresAt: true,
       user: { select: { username: true } },

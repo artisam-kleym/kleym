@@ -15,6 +15,7 @@
 import { randomUUID } from 'node:crypto'
 import { Keypair } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 
@@ -40,6 +41,7 @@ const check = (name: string, pass: boolean, detail = ''): void => {
 
 interface Fixture {
   userId: string
+  organizationId: string
   campaignId: string
   links: { id: string; key: string; seed: string; url: string }[]
 }
@@ -51,7 +53,7 @@ async function fixture(count: number): Promise<Fixture> {
   })
   const campaign = await prisma.campaign.create({
     data: {
-      userId: user.id, name: 'verify-email', network: 'testnet',
+      userId: user.id, organizationId: await personalOrg(prisma, user.id), name: 'verify-email', network: 'testnet',
       senderPublicKey: Keypair.random().publicKey(), assetCode: 'USDC',
       amountPerLink: '500.0000000', linkCount: count,
       expiresAt: new Date(Date.now() + 30 * 86_400_000), status: 'ACTIVE',
@@ -77,7 +79,7 @@ async function fixture(count: number): Promise<Fixture> {
       url: `${env.APP_URL.replace(/\/$/, '')}/claim#s=${seed}`,
     })
   }
-  return { userId: user.id, campaignId: campaign.id, links }
+  return { userId: user.id, organizationId: `org_${user.id}`, campaignId: campaign.id, links }
 }
 
 /** A mailer that records rather than sends. */
@@ -99,7 +101,7 @@ async function theUrlReachesTheProviderAndNowhereElse(): Promise<void> {
   const queue = deliveryJobs()
   await queue.obliterate({ force: true })
 
-  const outcome = await queueDeliveries(f.campaignId, f.userId, {
+  const outcome = await queueDeliveries(f.campaignId, f.organizationId, {
     recipients: [{ publicKey: link.key, email: 'recipient@example.com', claimUrl: link.url }],
   })
   check('the delivery is queued', outcome.kind === 'ok' && outcome.value.queued === 1, JSON.stringify(outcome))
@@ -170,7 +172,7 @@ async function exhaustedRetriesLeaveNothingBehind(): Promise<void> {
   const queue = deliveryJobs()
   await queue.obliterate({ force: true })
 
-  await queueDeliveries(f.campaignId, f.userId, {
+  await queueDeliveries(f.campaignId, f.organizationId, {
     recipients: [{ publicKey: link.key, email: 'nope@example.com', claimUrl: link.url }],
   })
 
@@ -245,7 +247,7 @@ async function refusesAUrlThatIsNotThisLink(): Promise<void> {
   check('a URL with no fragment is refused', !urlMatchesLink(`${env.APP_URL}/claim`, mine.key))
   check('garbage is refused', !urlMatchesLink('not a url', mine.key))
 
-  const outcome = await queueDeliveries(f.campaignId, f.userId, {
+  const outcome = await queueDeliveries(f.campaignId, f.organizationId, {
     recipients: [{ publicKey: mine.key, email: 'a@example.com', claimUrl: `https://evil.example/claim#s=${mine.seed}` }],
   })
   check('and the delivery is skipped, not queued', outcome.kind === 'ok' && outcome.value.queued === 0, JSON.stringify(outcome))

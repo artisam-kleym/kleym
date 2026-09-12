@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { Keypair } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 
@@ -181,7 +182,7 @@ async function seedRejectedAtLinks(): Promise<void> {
 
   const campaign = await prisma.campaign.create({
     data: {
-      userId: owner.id, name: 'acceptance', network: 'testnet',
+      userId: owner.id, organizationId: await personalOrg(prisma, owner.id), name: 'acceptance', network: 'testnet',
       senderPublicKey: Keypair.random().publicKey(), assetCode: 'XLM',
       amountPerLink: '1.0000000', linkCount: 1,
       expiresAt: new Date(Date.now() + 30 * 86_400_000), status: 'DRAFT',

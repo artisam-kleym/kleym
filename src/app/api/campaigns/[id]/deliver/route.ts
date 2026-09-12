@@ -62,7 +62,7 @@ function withoutUrls(body: unknown): unknown {
 }
 
 export async function POST(request: Request, { params }: Params) {
-  const { user, response } = await requireUser()
+  const { user, org, response } = await requireUser('OPERATOR')
   if (!user) return response
   const { id } = await params
 
@@ -88,7 +88,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!idempotency.reserved) return idempotency.response
 
   try {
-    const outcome = await queueDeliveries(id, user.id, parsed.data)
+    const outcome = await queueDeliveries(id, org.id, parsed.data)
     if (outcome.kind !== 'ok') {
       await releaseIdempotency(request, context)
       return outcome.kind === 'not-found' ? notFound() : conflict(outcome.detail)

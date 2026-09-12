@@ -58,13 +58,17 @@ export interface IssuedKey {
 }
 
 /**
- * Issues a key for a user.
+ * Issues a key for an organisation, recording who issued it.
+ *
+ * The key reads the ORGANISATION's campaigns (issue #44): a key outlives the
+ * membership of the person who made it, and a key that followed its issuer
+ * out of the organisation would take the organisation's data with them.
  *
  * The prefix is unique in the schema, so a collision is retried rather than
  * surfacing as a 500. Six random bytes make one vanishingly unlikely; handling
  * it is cheaper than reasoning about how unlikely.
  */
-export async function issueApiKey(userId: string, name: string): Promise<IssuedKey> {
+export async function issueApiKey(userId: string, organizationId: string, name: string): Promise<IssuedKey> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const prefix = randomBytes(PREFIX_BYTES).toString('hex')
     const secret = randomBytes(SECRET_BYTES).toString('base64url')
@@ -72,7 +76,7 @@ export async function issueApiKey(userId: string, name: string): Promise<IssuedK
 
     try {
       const row = await prisma.apiKey.create({
-        data: { userId, name, prefix, keyHash: await argon2.hash(key, OPTIONS) },
+        data: { userId, organizationId, name, prefix, keyHash: await argon2.hash(key, OPTIONS) },
         select: { id: true, prefix: true },
       })
       return { id: row.id, prefix: row.prefix, key }
@@ -92,7 +96,10 @@ function isPrefixCollision(error: unknown): boolean {
 
 export interface ApiKeyCaller {
   keyId: string
+  /** Who issued the key — provenance for logs, not the scope. */
   userId: string
+  /** The scope every v1 query runs in. */
+  organizationId: string
 }
 
 export type ApiKeyResolution =
@@ -123,7 +130,7 @@ export async function resolveApiKey(request: Request): Promise<ApiKeyResolution>
 
   const row = await prisma.apiKey.findUnique({
     where: { prefix: parsed[1]! },
-    select: { id: true, userId: true, keyHash: true, revokedAt: true },
+    select: { id: true, userId: true, organizationId: true, keyHash: true, revokedAt: true },
   })
 
   if (!row) {
@@ -142,7 +149,7 @@ export async function resolveApiKey(request: Request): Promise<ApiKeyResolution>
   const live = row.revokedAt === null
   if (!(matches && live)) return { ok: false, reason: 'invalid' }
 
-  return { ok: true, caller: { keyId: row.id, userId: row.userId } }
+  return { ok: true, caller: { keyId: row.id, userId: row.userId, organizationId: row.organizationId } }
 }
 
 /**
@@ -157,19 +164,19 @@ export async function touchApiKey(keyId: string): Promise<void> {
   })
 }
 
-/** Revokes a key. Scoped by owner, per AGENT.md §5.4. */
-export async function revokeApiKey(keyId: string, userId: string): Promise<boolean> {
+/** Revokes a key. Scoped by organisation, per AGENT.md §5.4. */
+export async function revokeApiKey(keyId: string, organizationId: string): Promise<boolean> {
   const result = await prisma.apiKey.updateMany({
-    where: { id: keyId, userId, revokedAt: null },
+    where: { id: keyId, organizationId, revokedAt: null },
     data: { revokedAt: new Date() },
   })
   return result.count > 0
 }
 
 /** What the settings page lists. Never includes the hash or the key. */
-export async function listApiKeys(userId: string) {
+export async function listApiKeys(organizationId: string) {
   return prisma.apiKey.findMany({
-    where: { userId },
+    where: { organizationId },
     // Ties are far less likely here — keys are created one at a time — but the
     // ordering costs nothing to make total, and this list is not paginated only
     // because it is short today.

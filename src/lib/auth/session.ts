@@ -27,6 +27,10 @@ export interface SessionUser {
   id: string
   username: string
   role: 'ADMIN' | 'SENDER'
+  /** This session's row, so the active organisation can be switched on it. */
+  sessionId: string
+  /** The organisation this session last chose to act in; validated per request. */
+  activeOrganizationId: string | null
 }
 
 /**
@@ -64,6 +68,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     select: {
       id: true,
       expiresAt: true,
+      activeOrganizationId: true,
       user: { select: { id: true, username: true, role: true, isActive: true } },
     },
   })
@@ -80,7 +85,18 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   // rather than whenever the session happens to expire.
   if (!session.user.isActive) return null
 
-  return { id: session.user.id, username: session.user.username, role: session.user.role }
+  return {
+    id: session.user.id,
+    username: session.user.username,
+    role: session.user.role,
+    sessionId: session.id,
+    activeOrganizationId: session.activeOrganizationId,
+  }
+}
+
+/** Remembers which organisation this session acts in. Membership is re-checked on every request regardless. */
+export async function setActiveOrganization(sessionId: string, organizationId: string): Promise<void> {
+  await prisma.session.update({ where: { id: sessionId }, data: { activeOrganizationId: organizationId } })
 }
 
 export async function revokeSession(token: string): Promise<void> {

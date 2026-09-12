@@ -26,7 +26,7 @@ export const dynamic = 'force-dynamic'
 type Params = { params: Promise<{ id: string }> }
 
 export async function GET(request: Request, { params }: Params) {
-  const { user, response } = await requireUser()
+  const { user, org, response } = await requireUser()
   if (!user) return response
   const { id } = await params
 
@@ -35,7 +35,7 @@ export async function GET(request: Request, { params }: Params) {
   const { page, perPage } = parsed.data
 
   try {
-    const campaign = await prisma.campaign.findFirst({ where: owned(id, user.id), select: { id: true } })
+    const campaign = await prisma.campaign.findFirst({ where: owned(id, org.id), select: { id: true } })
     if (!campaign) return notFound()
 
     const [total, links] = await Promise.all([
@@ -60,7 +60,7 @@ export async function GET(request: Request, { params }: Params) {
 }
 
 export async function POST(request: Request, { params }: Params) {
-  const { user, response } = await requireUser()
+  const { user, org, response } = await requireUser('OPERATOR')
   if (!user) return response
   const { id } = await params
 
@@ -94,7 +94,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!idempotency.reserved) return idempotency.response
 
   try {
-    const outcome = await registerLinks(id, user.id, parsed.data.publicKeys, parsed.data.labels)
+    const outcome = await registerLinks(id, org.id, parsed.data.publicKeys, parsed.data.labels)
 
     if (outcome.kind !== 'ok') {
       await releaseIdempotency(request, context)

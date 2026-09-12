@@ -22,6 +22,7 @@ export interface AdminUserRow {
   isLocked: boolean
   campaigns: number
   sessions: number
+  organizations: { id: string; name: string; role: string }[]
 }
 
 export async function listUsers(): Promise<AdminUserRow[]> {
@@ -32,6 +33,7 @@ export async function listUsers(): Promise<AdminUserRow[]> {
       id: true, username: true, role: true, isActive: true,
       createdAt: true, lockedUntil: true,
       _count: { select: { campaigns: true, sessions: true } },
+      memberships: { select: { role: true, organization: { select: { id: true, name: true } } } },
     },
   })
 
@@ -45,6 +47,7 @@ export async function listUsers(): Promise<AdminUserRow[]> {
     isLocked: user.lockedUntil !== null && user.lockedUntil.getTime() > now,
     campaigns: user._count.campaigns,
     sessions: user._count.sessions,
+    organizations: user.memberships.map((m) => ({ id: m.organization.id, name: m.organization.name, role: m.role })),
   }))
 }
 

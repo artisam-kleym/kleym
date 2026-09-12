@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getSessionUser } from '@/lib/auth/session'
+import { pageScope } from '@/lib/api/session-guard'
 import { StatusChip, StellarAddress, Table, TableCell, TableHead, TableRow } from '@/components/ui'
 import {
   EmptyState, FilterBar, FilterField, FilterInput, FilterSelect, Pagination, firstValues, formatDate,
@@ -20,14 +20,14 @@ export default async function HistoryPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const user = (await getSessionUser())!
+  const { org } = await pageScope()
   const raw = firstValues(await searchParams)
   // A malformed field is not an error page; that field falls back, the rest hold.
   const query = parseFilters(historyQuerySchema, raw)
 
   const [{ rows, total, page, perPage }, campaigns] = await Promise.all([
-    claimHistory(user.id, query),
-    campaignNames(user.id),
+    claimHistory(org.id, query),
+    campaignNames(org.id),
   ])
   const params = { campaignId: query.campaignId, from: raw.from, to: raw.to, perPage: raw.perPage }
 

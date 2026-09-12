@@ -9,6 +9,7 @@
 import { randomUUID } from 'node:crypto'
 import { Keypair } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 
@@ -26,19 +27,22 @@ const check = (name: string, pass: boolean, detail = ''): void => {
   }
 }
 
+/** Returns the user's personal ORGANISATION id — the scope the dashboard reads in. */
 async function user(): Promise<string> {
-  return (await prisma.user.create({
+  const row = await prisma.user.create({
     data: { username: `dash-${randomUUID()}`, passwordHash: 'x', role: 'SENDER' },
     select: { id: true },
-  })).id
+  })
+  return personalOrg(prisma, row.id)
 }
+const userOf = (organizationId: string) => organizationId.replace(/^org_/, '')
 
 const ISSUER = Keypair.random().publicKey()
 type S = 'PENDING' | 'ACTIVE' | 'CLAIMED' | 'EXPIRED' | 'RECLAIMED' | 'FAILED'
-async function campaign(userId: string, opts: { asset: string; amount: string; links: S[]; expiresAt?: Date; status?: 'ACTIVE' | 'EXPIRED' | 'DRAFT'; network?: 'testnet' | 'public'; issuer?: string }) {
+async function campaign(organizationId: string, opts: { asset: string; amount: string; links: S[]; expiresAt?: Date; status?: 'ACTIVE' | 'EXPIRED' | 'DRAFT'; network?: 'testnet' | 'public'; issuer?: string }) {
   const c = await prisma.campaign.create({
     data: {
-      userId, name: `dash ${opts.asset} ${opts.amount}`, network: opts.network ?? 'testnet',
+      userId: userOf(organizationId), organizationId, name: `dash ${opts.asset} ${opts.amount}`, network: opts.network ?? 'testnet',
       senderPublicKey: Keypair.random().publicKey(), assetCode: opts.asset,
       assetIssuer: opts.asset === 'XLM' ? null : (opts.issuer ?? ISSUER),
       amountPerLink: opts.amount, linkCount: opts.links.length,

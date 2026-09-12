@@ -11,7 +11,7 @@ import { Button, Input } from '@/components/ui'
  * hash — so it is shown until dismissed and the admin is told so, the same
  * way a new API key is handled on /settings.
  */
-export function CreateUser() {
+export function CreateUser({ organizations }: { organizations: { id: string; name: string }[] }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -28,7 +28,12 @@ export function CreateUser() {
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ username: String(form.get('username') ?? ''), role: String(form.get('role') ?? 'SENDER') }),
+        body: JSON.stringify({
+          username: String(form.get('username') ?? ''),
+          role: String(form.get('role') ?? 'SENDER'),
+          organizationId: String(form.get('organizationId') ?? ''),
+          orgRole: String(form.get('orgRole') ?? 'OPERATOR'),
+        }),
       })
       const body = (await response.json().catch(() => ({}))) as {
         detail?: string; errors?: { message: string }[]
@@ -103,6 +108,35 @@ export function CreateUser() {
         >
           <option value="SENDER">Sender</option>
           <option value="ADMIN">Admin</option>
+        </select>
+      </div>
+      <div className="flex flex-col gap-xs">
+        <label htmlFor="new-user-org" className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">
+          Organisation
+        </label>
+        <select
+          id="new-user-org"
+          name="organizationId"
+          defaultValue={organizations[0]?.id ?? ''}
+          className="min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface"
+        >
+          {organizations.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+        </select>
+      </div>
+      <div className="flex flex-col gap-xs">
+        <label htmlFor="new-user-org-role" className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">
+          Org role
+        </label>
+        <select
+          id="new-user-org-role"
+          name="orgRole"
+          defaultValue="OPERATOR"
+          className="min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface"
+        >
+          <option value="VIEWER">Viewer</option>
+          <option value="OPERATOR">Operator</option>
+          <option value="APPROVER">Approver</option>
+          <option value="OWNER">Owner</option>
         </select>
       </div>
       <Button type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create invitation'}</Button>

@@ -2,7 +2,7 @@
  * The sender dashboard's figures. SPEC.md §5.2, issue #42.
  *
  * Every number here is an AGGREGATE — a `count`, a `groupBy`, or one SUM in
- * SQL — scoped to the signed-in user in the query. The dashboard is the
+ * SQL — scoped to the signed-in user's organisation in the query. The dashboard is the
  * post-login landing page, so it is the first thing a 10,000-link campaign
  * would slow down; nothing here loads a link row, and nothing here reads
  * Horizon.
@@ -41,9 +41,9 @@ export interface DistributedRow {
  * join to its links, grouped by the campaign's asset. Prisma's `groupBy`
  * cannot aggregate across a relation, and the alternative — loading one row
  * per campaign and summing in JS — is unbounded in the number of campaigns.
- * The query is a tagged template, so `userId` is a bound parameter.
+ * The query is a tagged template, so `organizationId` is a bound parameter.
  */
-export async function distributedByAsset(userId: string): Promise<DistributedRow[]> {
+export async function distributedByAsset(organizationId: string): Promise<DistributedRow[]> {
   const rows = await prisma.$queryRaw<
     { network: string; assetCode: string; assetIssuer: string | null; amount: Prisma.Decimal | string | null; claimed: bigint }[]
   >(
@@ -55,7 +55,7 @@ export async function distributedByAsset(userId: string): Promise<DistributedRow
              COUNT(l."id") AS "claimed"
       FROM "ClaimLink" l
       JOIN "Campaign" c ON c."id" = l."campaignId"
-      WHERE c."userId" = ${userId} AND l."status" = 'CLAIMED'
+      WHERE c."organizationId" = ${organizationId} AND l."status" = 'CLAIMED'
       GROUP BY c."network", c."assetCode", c."assetIssuer"
       ORDER BY c."assetCode" ASC, c."network" DESC, c."assetIssuer" ASC NULLS FIRST
     `,
@@ -77,12 +77,12 @@ export interface DashboardCounts {
   outstanding: number
 }
 
-export async function dashboardCounts(userId: string, now: Date = new Date()): Promise<DashboardCounts> {
+export async function dashboardCounts(organizationId: string, now: Date = new Date()): Promise<DashboardCounts> {
   const [activeCampaigns, pendingClaims, outstanding] = await Promise.all([
-    prisma.campaign.count({ where: { userId, status: { in: ['ACTIVE', 'PARTIAL'] } } }),
-    prisma.claimLink.count({ where: { campaign: { userId }, status: 'ACTIVE', balanceId: { not: null } } }),
+    prisma.campaign.count({ where: { organizationId, status: { in: ['ACTIVE', 'PARTIAL'] } } }),
+    prisma.claimLink.count({ where: { campaign: { organizationId }, status: 'ACTIVE', balanceId: { not: null } } }),
     prisma.claimLink.count({
-      where: { campaign: { userId, expiresAt: { gt: now } }, status: 'ACTIVE', balanceId: { not: null } },
+      where: { campaign: { organizationId, expiresAt: { gt: now } }, status: 'ACTIVE', balanceId: { not: null } },
     }),
   ])
   return { activeCampaigns, pendingClaims, outstanding }
@@ -102,9 +102,9 @@ export interface RecentCampaign {
 }
 
 /** The most recent few, with a `_count` for claimed — never the links. */
-export async function recentCampaigns(userId: string): Promise<RecentCampaign[]> {
+export async function recentCampaigns(organizationId: string): Promise<RecentCampaign[]> {
   const rows = await prisma.campaign.findMany({
-    where: { userId },
+    where: { organizationId },
     orderBy: CAMPAIGN_ORDER,
     take: RECENT_CAMPAIGNS,
     select: {
@@ -124,11 +124,11 @@ export async function recentCampaigns(userId: string): Promise<RecentCampaign[]>
   }))
 }
 
-export async function loadDashboard(userId: string) {
+export async function loadDashboard(organizationId: string) {
   const [distributed, counts, recent] = await Promise.all([
-    distributedByAsset(userId),
-    dashboardCounts(userId),
-    recentCampaigns(userId),
+    distributedByAsset(organizationId),
+    dashboardCounts(organizationId),
+    recentCampaigns(organizationId),
   ])
   return { distributed, counts, recent }
 }

@@ -109,6 +109,9 @@ jobs:
       - name: Verify user provisioning by invitation
         run: pnpm verify:invitations
 
+      - name: Verify organisations, memberships and roles
+        run: pnpm verify:organisations
+
   e2e:
     name: CSV gate (real browser)
     runs-on: ubuntu-latest

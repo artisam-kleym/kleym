@@ -1,7 +1,9 @@
-import { getSessionUser } from '@/lib/auth/session'
+import { pageScope } from '@/lib/api/session-guard'
 import { listApiKeys } from '@/lib/auth/api-key'
 import { ApiKeys } from './api-keys'
 import { PasswordChange } from './password-change'
+import { Organisation } from './organisation'
+import { listMembers } from '@/lib/api/organizations'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,14 +15,14 @@ export const dynamic = 'force-dynamic'
  * anywhere that can return a key after the moment it was issued.
  */
 export default async function SettingsPage() {
-  const user = await getSessionUser()
-  const keys = await listApiKeys(user!.id)
+  const { user, org } = await pageScope()
+  const [keys, members] = await Promise.all([listApiKeys(org.id), listMembers(org.id)])
 
   return (
     <>
       <h1 className="text-display-lg text-primary max-md:text-headline-md">Settings</h1>
       <p className="mt-md font-mono text-label-md text-on-surface-variant">
-        Signed in as {user?.username}
+        Signed in as {user.username} · {org.name}
       </p>
 
       <section className="mt-2xl">
@@ -31,10 +33,17 @@ export default async function SettingsPage() {
         <PasswordChange />
       </section>
 
+      <Organisation
+        name={org.name}
+        role={org.role}
+        selfId={user.id}
+        members={members.map((m) => ({ userId: m.userId, username: m.username, role: m.role, invited: m.invited, isActive: m.isActive }))}
+      />
+
       <section className="mt-2xl">
         <h2 className="text-headline-sm text-on-surface">API keys</h2>
         <p className="mt-xs text-body-md text-on-surface-variant">
-          Read-only access to your campaigns and links. Creating a campaign needs a
+          Read-only access to this organisation&rsquo;s campaigns and links. Creating a campaign needs a
           browser, because the link keys are generated there and never reach us.
         </p>
         <ApiKeys initialKeys={keys.map(serialise)} />
