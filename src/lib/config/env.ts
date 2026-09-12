@@ -65,11 +65,12 @@ const schema = z.object({
   ),
 
   /**
-   * MFA (#47): the AES-256-GCM key TOTP shared keys are encrypted under at
-   * rest — 32 bytes, base64. A TOTP key is Kleym's, not Stellar key material,
-   * but it is a credential and never sits in a column in the clear.
+   * Credentials Kleym holds at rest (#46, #47): TOTP shared keys and OIDC
+   * client secrets, AES-256-GCM under this one key. 32 bytes, base64. Never
+   * Stellar key material — those are never stored — but never in a column
+   * in the clear either. lib/auth/at-rest.ts is the only reader.
    */
-  MFA_ENCRYPTION_KEY: z.string().refine(
+  CREDENTIAL_ENCRYPTION_KEY: z.string().refine(
     (v) => {
       try {
         return Buffer.from(v, 'base64').length === 32
@@ -77,7 +78,7 @@ const schema = z.object({
         return false
       }
     },
-    { message: 'MFA_ENCRYPTION_KEY must decode to exactly 32 bytes (44 base64 characters)' },
+    { message: 'CREDENTIAL_ENCRYPTION_KEY must decode to exactly 32 bytes (44 base64 characters)' },
   ),
   /** WebAuthn relying party. Defaults to APP_URL's hostname and origin. */
   WEBAUTHN_RP_ID: z.string().default(''),
@@ -170,7 +171,7 @@ export const SECRET_ENV_KEYS = [
   'SCREENING_WEBHOOK_SECRET',
   'OTEL_EXPORTER_OTLP_HEADERS',
   'SESSION_SECRET',
-  'MFA_ENCRYPTION_KEY',
+  'CREDENTIAL_ENCRYPTION_KEY',
   'RESEND_API_KEY',
   'SEED_ADMIN_PASSWORD',
   // Both embed credentials in the connection string.

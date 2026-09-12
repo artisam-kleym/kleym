@@ -128,7 +128,8 @@ Structured JSON via `pino`. Redact by allowlist, not denylist — log named fiel
 - Rate limit login to 5 attempts per 15 minutes per IP, with per-account lockout after 10.
 - Identical error text and comparable response time for unknown username and wrong password.
 - Password change invalidates all other sessions.
-- Second factor (#47): TOTP (RFC 6238) and passkeys (WebAuthn), recovery codes single-use and argon2id-hashed. A session whose user has a factor unlocks nothing until the factor is presented; an organisation policy (`OFF` / `APPROVERS` / `ALL`) holds a member without one at enrolment, enforced on every request. Step-up: batch signing, reclaim and API key issuance require a factor verified in the last five minutes, whatever the session's age. The TOTP key is encrypted at rest under `MFA_ENCRYPTION_KEY` (in `SECRET_ENV_KEYS`); TOTP guesses are counted before the comparison, five then a fifteen-minute lockout — the recipient OTP's semantics. `docs/mfa.md`.
+- Federated sign-in (#46): OIDC per organisation; identities link on the IdP's stable subject only, never on an email; "SSO only" is enforced at `/api/auth/login`; SCIM deactivation ends the membership and revokes every live session in one request. The session issued after the IdP handshake is Kleym's own — no IdP token is stored or logged. `docs/sso.md`.
+- Second factor (#47): TOTP (RFC 6238) and passkeys (WebAuthn), recovery codes single-use and argon2id-hashed. A session whose user has a factor unlocks nothing until the factor is presented; an organisation policy (`OFF` / `APPROVERS` / `ALL`) holds a member without one at enrolment, enforced on every request. Step-up: batch signing, reclaim and API key issuance require a factor verified in the last five minutes, whatever the session's age. The TOTP key is encrypted at rest under `CREDENTIAL_ENCRYPTION_KEY` (in `SECRET_ENV_KEYS`); TOTP guesses are counted before the comparison, five then a fifteen-minute lockout — the recipient OTP's semantics. `docs/mfa.md`.
 
 ### 5.2 The claim page is a hardened surface
 
@@ -170,6 +171,8 @@ Any environment variable containing a secret must not be prefixed `NEXT_PUBLIC_`
 | `/api/claims/prepare/claim` | 10 / min / IP |
 | `/api/claims/submit` | 10 / min / IP |
 | `/api/claims/otp/verify` | 5 attempts per OTP, then invalidate |
+| `/api/auth/sso/start` | 30 / 15 min / IP |
+| `/api/scim/v2/*` | 120 / min / token |
 | `/api/auth/mfa/verify`, `/api/auth/mfa/passkey/authenticate` | 20 / 15 min / IP, plus the factor's own 5-then-lock counter |
 | `/api/v1/*` (reads) | 100 / min / key |
 | `POST /api/v1/*` (writes, #51) | 30 / min / key, counted separately — a runaway integration cannot spend a key's read budget creating campaigns |

@@ -49,6 +49,7 @@
     "verify:sponsors": "tsx scripts/verify-sponsors.ts",
     "verify:observability": "tsx scripts/verify-observability.ts",
     "verify:write-api": "tsx scripts/verify-write-api.ts",
+    "verify:sso": "tsx scripts/verify-sso.ts",
     "verify:mfa": "tsx scripts/verify-mfa.ts"
   },
   "dependencies": {
@@ -73,6 +74,7 @@
     "clsx": "^2.1.1",
     "decimal.js": "^10.6.0",
     "ioredis": "^6.0.0",
+    "jose": "^6.2.12",
     "next": "^16.3.5",
     "pg": "^8.23.0",
     "pino": "^10.3.1",

@@ -3,6 +3,12 @@ import Link from 'next/link'
 import { listApiKeys } from '@/lib/auth/api-key'
 import { ApiKeys } from './api-keys'
 import { Webhooks } from './webhooks'
+import { SingleSignOn } from './sso'
+import { connectionForOrg, publicView } from '@/lib/auth/sso/connections'
+import { listScimTokens } from '@/lib/auth/sso/scim'
+import { redirectUri } from '@/lib/auth/sso/oidc'
+import { scimBase } from '@/lib/auth/sso/scim-http'
+import { prisma } from '@/lib/db/client'
 import { listEndpoints } from '@/lib/webhooks/manage'
 import { WEBHOOK_EVENTS } from '@/lib/webhooks/events'
 import { PasswordChange } from './password-change'
@@ -20,7 +26,8 @@ export const dynamic = 'force-dynamic'
  */
 export default async function SettingsPage() {
   const { user, org } = await pageScope()
-  const [keys, members, endpoints] = await Promise.all([listApiKeys(org.id), listMembers(org.id), listEndpoints(org.id)])
+  const [keys, members, endpoints, sso, scimTokens] = await Promise.all([listApiKeys(org.id), listMembers(org.id), listEndpoints(org.id), connectionForOrg(org.id), listScimTokens(org.id)])
+  const linked = sso ? (await prisma.ssoIdentity.count({ where: { userId: user.id, connectionId: sso.id } })) > 0 : false
 
   return (
     <>
@@ -65,6 +72,16 @@ export default async function SettingsPage() {
         </p>
         <ApiKeys initialKeys={keys.map(serialise)} />
       </section>
+
+      <SingleSignOn
+        connection={publicView(sso)}
+        redirectUri={redirectUri()}
+        scimBase={scimBase()}
+        scimTokens={scimTokens.map((t) => ({ id: t.id, name: t.name, prefix: t.prefix, lastUsedAt: t.lastUsedAt?.toISOString() ?? null, revokedAt: t.revokedAt?.toISOString() ?? null }))}
+        owner={org.role === 'OWNER'}
+        linked={linked}
+        handleForLink={sso?.handle ?? null}
+      />
 
       <Webhooks
         owner={org.role === 'OWNER'}

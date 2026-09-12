@@ -301,10 +301,10 @@ async function keyNeverInClear(ctx: { userId: string; keyBase32: string }): Prom
 
   // Planted in a log call, under the names a careless call site would use.
   const before = stdoutLines.length
-  logger.info({ totpSecret: ctx.keyBase32, totpKey: ctx.keyBase32, code: '123456', recoveryCode: 'abcd-efgh-ijkl', recoveryCodes: ['abcd-efgh-ijkl'], MFA_ENCRYPTION_KEY: env.MFA_ENCRYPTION_KEY, nested: { totpSecret: ctx.keyBase32, code: '654321' } }, 'mfa: planted for the redaction test')
+  logger.info({ totpSecret: ctx.keyBase32, totpKey: ctx.keyBase32, code: '123456', recoveryCode: 'abcd-efgh-ijkl', recoveryCodes: ['abcd-efgh-ijkl'], CREDENTIAL_ENCRYPTION_KEY: env.CREDENTIAL_ENCRYPTION_KEY, nested: { totpSecret: ctx.keyBase32, code: '654321' } }, 'mfa: planted for the redaction test')
   const planted = stdoutLines.slice(before).join('')
   check('the planted key, code and recovery code are redacted at the top level and nested', planted.includes('[redacted]') && !planted.includes(ctx.keyBase32) && !planted.includes('123456') && !planted.includes('654321') && !planted.includes('abcd-efgh-ijkl'), planted.slice(0, 200))
-  check('the encryption key is redacted by SECRET_ENV_KEYS', !planted.includes(env.MFA_ENCRYPTION_KEY))
+  check('the encryption key is redacted by SECRET_ENV_KEYS', !planted.includes(env.CREDENTIAL_ENCRYPTION_KEY))
   check('no line written so far by this run carries the key', !stdoutLines.some((l) => l.includes(ctx.keyBase32)))
 }
 

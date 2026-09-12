@@ -9,7 +9,7 @@ factor again, freshly, whatever the session's age.
 
 | Factor | How | At rest |
 |---|---|---|
-| **TOTP** (RFC 6238) | any authenticator app; SHA-1, 30 s, six digits, ±1 step | the shared key AES-256-GCM-encrypted under `MFA_ENCRYPTION_KEY` (`MfaTotp.ciphertext`); never in the clear |
+| **TOTP** (RFC 6238) | any authenticator app; SHA-1, 30 s, six digits, ±1 step | the shared key AES-256-GCM-encrypted under `CREDENTIAL_ENCRYPTION_KEY` (`MfaTotp.ciphertext`); never in the clear |
 | **Passkey** (WebAuthn) | a security key or the platform authenticator; attestation `none`, user verification preferred | the credential's public key, id and signature counter (`MfaPasskey`) |
 | **Recovery codes** | eight `xxxx-xxxx-xxxx`, shown once with the **first** factor of either kind | argon2id-hashed with the password parameters; single-use (`MfaRecoveryCode.usedAt`) |
 
@@ -97,7 +97,7 @@ are forgiven; the code never appears in the log or the audit row.
 
 ## Secrets and logs
 
-`MFA_ENCRYPTION_KEY` is in `SECRET_ENV_KEYS`, so the logger redacts it wherever
+`CREDENTIAL_ENCRYPTION_KEY` is in `SECRET_ENV_KEYS`, so the logger redacts it wherever
 it is spread. The logger also redacts `totpSecret`, `totpKey`, `code`,
 `recoveryCode(s)` at any depth — the verify script plants all of them in a log
 call and asserts none survives.

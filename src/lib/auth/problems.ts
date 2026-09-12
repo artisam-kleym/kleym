@@ -81,3 +81,11 @@ export function serverError(): Response {
     500,
   )
 }
+
+/** Password sign-in is off for this account's organisation (#46). Sign in through the IdP. */
+export function ssoRequired(): Response {
+  return new Response(
+    JSON.stringify({ type: 'https://kleym.app/problems/sso-required', title: 'Sign in with your organisation', status: 403, detail: 'Password sign-in is disabled for your organisation. Use single sign-on.' }),
+    { status: 403, headers: { 'content-type': 'application/problem+json' } },
+  )
+}

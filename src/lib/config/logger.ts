@@ -58,6 +58,17 @@ export const logger = pino({
       '*.password',
       'otp',
       '*.otp',
+      // SSO (#46): IdP tokens and client secrets never reach a log line.
+      'id_token',
+      '*.id_token',
+      'access_token',
+      '*.access_token',
+      'refresh_token',
+      '*.refresh_token',
+      'clientSecret',
+      '*.clientSecret',
+      'client_secret',
+      '*.client_secret',
       // MFA (#47): a TOTP key, a code or a recovery code in a log call is a credential.
       'totpSecret',
       '*.totpSecret',
