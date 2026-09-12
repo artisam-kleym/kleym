@@ -39,6 +39,27 @@ fail, and the ephemeral account it created is sponsored by Kleym; restarting
 would materialise a second account and strand the first's reserves, which §3.3.2
 says Kleym cannot recover.
 
+### After review
+
+**The reason screens are wired to a discriminator, not to prose.** `expired`
+and `already_claimed` were reached by regex over the 409's `detail` — a
+copy-edit on the server would have left both screens unreachable with every
+test green. The conflict now carries a `type` (`…/conflict/expired`,
+`…/conflict/already-claimed`, `…/conflict/not-ready`) and both sides import
+the URIs from `lib/claim/problem-types.ts`; the machine test reads the
+response the route function actually emits, so a change to either side
+breaks there rather than in a browser.
+
+**`retryTarget` now drives the retry.** Its answer is passed into `run(from)`:
+`preparing` skips the wallet connect and TX1, `ready` runs the whole flow.
+Previously the value was overwritten by `run()`'s first `setState` and the
+skip was decided by a separate ref, so the tested function had no effect.
+
+**The ledger wait is no longer only a clock.** After TX1 the page waits about
+one ledger, then treats a `not-ready` 409 from `prepare/claim` as "ask again"
+— up to eight times, 2.5s apart — rather than as a failure with a message
+about waiting.
+
 ### The fragment format changed
 
 The wizard was writing `/claim#<seed>` while `SPEC.md` §3.6 specified
