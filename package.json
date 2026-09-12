@@ -23,6 +23,7 @@
     "verify:api-keys": "tsx scripts/verify-api-keys.ts",
     "verify:batches": "tsx scripts/verify-batches.ts",
     "verify:claims": "tsx scripts/verify-claims.ts",
+    "verify:campaign-list": "tsx scripts/verify-campaign-list.ts",
     "verify:confirm": "tsx scripts/verify-confirm-worker.ts",
     "fixture:balance-id": "tsx scripts/make-balance-id-fixture.ts",
     "verify:email": "tsx scripts/verify-email.ts",
