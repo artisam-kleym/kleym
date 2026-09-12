@@ -8,10 +8,11 @@
  * from the database.
  */
 import { z } from 'zod'
-import type { OrgRole } from '@/generated/prisma/client'
+import type { OrgRole, Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
 import { isUniqueViolation } from '@/lib/db/errors'
+import { isWriteConflict } from './links'
 import { recordAudit } from './audit'
 import { createInvitedUser } from './invitations'
 import type { OrgScope } from './session-guard'
@@ -98,8 +99,37 @@ export async function addMember(
   return { kind: 'ok', username: existing.username }
 }
 
-async function ownersOf(organizationId: string): Promise<number> {
-  return prisma.membership.count({ where: { organizationId, role: 'OWNER', user: { isActive: true } } })
+const NEEDS_AN_OWNER = 'An organisation needs at least one owner.'
+
+/**
+ * A write that must leave at least one owner behind, done as ONE serializable
+ * transaction: the count and the write see the same rows, so two owners
+ * demoting (or removing) each other at the same moment cannot both pass the
+ * count and leave the organisation with none. The loser of the serialization
+ * conflict gets the same answer as a plain refusal — the other write won, and
+ * it is now the last owner. Same shape as `planOnce` in lib/api/batches.ts.
+ */
+async function keepingAnOwner(
+  organizationId: string,
+  isOwner: boolean,
+  write: (tx: Prisma.TransactionClient) => Promise<void>,
+): Promise<'ok' | 'last-owner'> {
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        if (isOwner) {
+          const owners = await tx.membership.count({ where: { organizationId, role: 'OWNER', user: { isActive: true } } })
+          if (owners <= 1) return 'last-owner' as const
+        }
+        await write(tx)
+        return 'ok' as const
+      },
+      { isolationLevel: 'Serializable' },
+    )
+  } catch (error) {
+    if (isWriteConflict(error)) return 'last-owner'
+    throw error
+  }
 }
 
 export async function changeRole(
@@ -114,10 +144,10 @@ export async function changeRole(
     select: { role: true, user: { select: { username: true } } },
   })
   if (!membership) return { kind: 'not-found' }
-  if (membership.role === 'OWNER' && role !== 'OWNER' && (await ownersOf(org.id)) <= 1) {
-    return { kind: 'conflict', detail: 'An organisation needs at least one owner.' }
-  }
-  await prisma.membership.update({ where: { organizationId_userId: { organizationId: org.id, userId } }, data: { role } })
+  const result = await keepingAnOwner(org.id, membership.role === 'OWNER' && role !== 'OWNER', (tx) =>
+    tx.membership.update({ where: { organizationId_userId: { organizationId: org.id, userId } }, data: { role } }).then(() => undefined),
+  )
+  if (result === 'last-owner') return { kind: 'conflict', detail: NEEDS_AN_OWNER }
   await recordAudit({
     userId: actorId, organizationId: org.id, action: 'org.member_role', entityType: 'user', entityId: userId,
     metadata: { username: membership.user.username, from: membership.role, to: role }, ip,
@@ -143,13 +173,11 @@ export async function removeMember(
     select: { role: true, user: { select: { username: true } } },
   })
   if (!membership) return { kind: 'not-found' }
-  if (membership.role === 'OWNER' && (await ownersOf(org.id)) <= 1) {
-    return { kind: 'conflict', detail: 'An organisation needs at least one owner.' }
-  }
-  await prisma.$transaction([
-    prisma.membership.delete({ where: { organizationId_userId: { organizationId: org.id, userId } } }),
-    prisma.session.updateMany({ where: { userId, activeOrganizationId: org.id }, data: { activeOrganizationId: null } }),
-  ])
+  const result = await keepingAnOwner(org.id, membership.role === 'OWNER', async (tx) => {
+    await tx.membership.delete({ where: { organizationId_userId: { organizationId: org.id, userId } } })
+    await tx.session.updateMany({ where: { userId, activeOrganizationId: org.id }, data: { activeOrganizationId: null } })
+  })
+  if (result === 'last-owner') return { kind: 'conflict', detail: NEEDS_AN_OWNER }
   await recordAudit({
     userId: actorId, organizationId: org.id, action: 'org.member_remove', entityType: 'user', entityId: userId,
     metadata: { username: membership.user.username, orgRole: membership.role }, ip,

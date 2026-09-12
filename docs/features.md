@@ -44,6 +44,21 @@ joins as; owners add members (existing accounts join at once, unknown
 usernames are invited) from a new section on `/settings`, and a switcher in
 the sidebar moves between organisations.
 
+**Known limitation — adding a member is a username oracle.** An Owner types a
+username: an existing account joins at once, an unknown one is invited, and
+the two answers differ — so an Owner of any organisation can tell whether a
+username exists on the deployment, and can attach an existing account to
+their organisation without that person's consent (as a role the Owner
+chooses, in an organisation whose data the Owner already controls). Bounded,
+and for an admin-provisioned deployment probably what is wanted; the fix if
+it stops being is for Owners to always *invite*, with existing accounts
+accepting a pending membership from their own settings page and one response
+shape either way.
+
+The last-owner guard is one serializable transaction (count and write see the
+same rows), so two owners demoting or removing each other at the same moment
+leave exactly one owner — the loser gets the same refusal as a plain attempt.
+
 **Verified by:** the #44 migration applied on top of a populated pre-#44
 database — three users, three campaigns, a key, audit rows, a pending
 invitation — with every row landing in its user's personal organisation and
@@ -53,8 +68,10 @@ script need the new required column; no assertion changed). New
 `pnpm verify:organisations`: two members share a campaign; a member of A gets
 nothing for B's campaign by id, detail, search or write at each of the four
 roles; the role order; a removed Viewer's live session resolves to no
-organisation; the last owner cannot be removed or demoted; audit rows filter
-by organisation. Over HTTP against a production build: Viewer 200 on read,
+organisation; the last owner cannot be removed or demoted, and eight rounds
+of two owners demoting/removing each other at once each leave one owner
+(seven of the eight fail with the transaction dropped to Read Committed);
+audit rows filter by organisation. Over HTTP against a production build: Viewer 200 on read,
 403 on export and on registering links; outsider 404 on the API and the page;
 switching to a non-member organisation 404; a removed member's live session
 404 on the next request; the last owner's self-removal 409. 213 unit tests,

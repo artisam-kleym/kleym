@@ -133,6 +133,29 @@ async function removingAMembershipEndsAccess(): Promise<void> {
   check('the last owner cannot be removed', lastOwner.kind === 'conflict', JSON.stringify(lastOwner))
   const demote = await changeRole(owner.id, team, owner.id, 'VIEWER', null)
   check('nor demoted', demote.kind === 'conflict', JSON.stringify(demote))
+
+  /*
+   * Two owners acting on EACH OTHER at the same moment. A count-then-write
+   * would let both see two owners and leave none; the serializable
+   * transaction lets exactly one through, and the loser gets the same
+   * refusal as a plain last-owner attempt.
+   */
+  for (const [label, act] of [
+    ['demote', (o: { id: string; name: string; role: 'OWNER' }, actor: string, target: string) => changeRole(actor, o, target, 'VIEWER', null)],
+    ['remove', (o: { id: string; name: string; role: 'OWNER' }, actor: string, target: string) => removeMember(actor, o, target, null)],
+  ] as const) {
+    for (let round = 0; round < 4; round += 1) {
+      const a = await user(`ownA-${label}`)
+      const b = await user(`ownB-${label}`)
+      const pair = await org(`Pair ${label} ${round}`, a.id)
+      await join(pair.id, b.id, 'OWNER')
+      const results = await Promise.all([act(pair, a.id, b.id), act(pair, b.id, a.id)])
+      const owners = await prisma.membership.count({ where: { organizationId: pair.id, role: 'OWNER' } })
+      check(`two owners ${label} each other at once, round ${round}: one wins, one is refused, one owner remains`,
+        results.filter((r) => r.kind === 'ok').length === 1 && results.filter((r) => r.kind === 'conflict').length === 1 && owners === 1,
+        JSON.stringify({ results: results.map((r) => r.kind), owners }))
+    }
+  }
 }
 
 async function auditRowsCarryTheOrganisation(): Promise<void> {
