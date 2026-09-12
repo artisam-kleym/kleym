@@ -26,7 +26,10 @@ export async function otpGate(
   const token = request.headers.get(OTP_HEADER)
   if (await otpSatisfied(ephemeralPublicKey, token)) return null
 
+  // The reason is the discriminator: a check that the gate is WIRED reads
+  // this, not the prose, and the page maps it back to `otp_required`.
   return claimConflict(
     'This link was sent by email, so it needs the six-digit code from that message.',
+    'otp-required',
   )
 }

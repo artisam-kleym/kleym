@@ -7,8 +7,12 @@
  * internals to someone probing the keyspace.
  */
 import { randomUUID } from 'node:crypto'
-
-const BASE = 'https://kleym.app/problems'
+import {
+  CLAIM_CONFLICT_GENERIC,
+  CLAIM_CONFLICT_TYPE,
+  CLAIM_PROBLEM_BASE as BASE,
+  type ClaimConflictReason,
+} from '@/lib/claim/problem-types'
 
 function problem(body: Record<string, unknown>, status: number, headers: HeadersInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -38,9 +42,19 @@ export function claimNotFound(): Response {
   )
 }
 
-export function claimConflict(detail: string): Response {
+/**
+ * 409. `reason` becomes the `type` discriminator the claim page switches on
+ * (lib/claim/problem-types.ts); without one the conflict is generic.
+ */
+export function claimConflict(detail: string, reason?: ClaimConflictReason): Response {
   return problem(
-    { type: `${BASE}/conflict`, title: 'Cannot claim', status: 409, detail, correlationId: randomUUID() },
+    {
+      type: reason ? CLAIM_CONFLICT_TYPE[reason] : CLAIM_CONFLICT_GENERIC,
+      title: 'Cannot claim',
+      status: 409,
+      detail,
+      correlationId: randomUUID(),
+    },
     409,
   )
 }

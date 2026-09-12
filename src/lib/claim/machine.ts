@@ -14,6 +14,7 @@
  * scratch would strand a second set of reserves.
  */
 import 'client-only'
+import { CLAIM_CONFLICT_TYPE } from './problem-types'
 
 export type ClaimState =
   | 'loading'
@@ -82,12 +83,29 @@ export function retryTarget(materialised: boolean): ClaimState {
  * recipient reaches only by acting on the link they hold. That split is the
  * point: a passer-by learns nothing, and the person holding the link is told
  * what happened.
+ *
+ * The reason is read from problem+json's `type`, never from the `detail`
+ * prose. Both sides import the URIs from lib/claim/problem-types.ts, so a
+ * rewording on the server cannot silently unwire the expired and
+ * already-claimed screens (§5.1: every state has a designed screen).
  */
-export function stateFromProblem(status: number, detail: string | null): ClaimState {
+export function stateFromProblem(status: number, type: string | null): ClaimState {
   if (status === 404) return 'invalid'
-  if (status === 409 && detail) {
-    if (/expired/i.test(detail)) return 'expired'
-    if (/already been claimed/i.test(detail)) return 'already_claimed'
+  if (status === 409 && type) {
+    if (type === CLAIM_CONFLICT_TYPE.expired) return 'expired'
+    if (type === CLAIM_CONFLICT_TYPE['already-claimed']) return 'already_claimed'
+    // The token lapsed mid-flow (30-minute TTL): ask for the code again
+    // rather than landing an emailed recipient on `failed`.
+    if (type === CLAIM_CONFLICT_TYPE['otp-required']) return 'otp_required'
   }
   return 'failed'
+}
+
+/**
+ * Whether a `prepare/claim` refusal means only that TX1 has not reached the
+ * ledger yet. §3.3.1 says the boundary is the ledger, not the clock, so the
+ * page answers this by asking again rather than by having slept long enough.
+ */
+export function isNotReady(status: number, type: string | null): boolean {
+  return status === 409 && type === CLAIM_CONFLICT_TYPE['not-ready']
 }

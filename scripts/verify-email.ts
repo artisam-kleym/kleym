@@ -430,6 +430,74 @@ async function codesAreDrawnSafely(): Promise<void> {
   check('and reaches the low range', [...seen].some((c) => c.startsWith('0')) || seen.size > 1900)
 }
 
+/**
+ * The gate is WIRED on the routes, not only correct as a function.
+ *
+ * Every check above exercises `otpSatisfied`. None of them would notice the
+ * `otpGate` call being deleted from a route — and `submit` is the one that
+ * moves the money. So: three requests against a gated link on `prepare/claim`
+ * and on `submit`, with no header, a wrong header and the right one, through
+ * the route handlers themselves. Refusal is read from the problem `type`,
+ * not the prose.
+ */
+async function theGateIsWiredOnTheMoneyRoutes(): Promise<void> {
+  console.log('\n11. No header, wrong header, right header — through the routes')
+  const prepareClaim = await import('../src/app/api/claims/prepare/claim/route')
+  const submit = await import('../src/app/api/claims/submit/route')
+  const { OTP_HEADER } = await import('../src/lib/api/otp-guard')
+  const { CLAIM_CONFLICT_TYPE } = await import('../src/lib/claim/problem-types')
+
+  const f = await fixture(1)
+  const link = f.links[0]!
+  const delivery = await prisma.delivery.create({
+    data: { linkId: link.id, email: 'r@example.com' },
+    select: { id: true },
+  })
+  const code = await issueOtp(delivery.id)
+  const verified = await verifyOtp(link.key, code)
+  if (!verified.ok) return check('a token was earned', false, JSON.stringify(verified))
+  const token = verified.token
+
+  // A fresh IP per request so the per-IP rate limits (10/min) stay out of it.
+  const post = (handler: (r: Request) => Promise<Response>, path: string, body: unknown, header?: string) =>
+    handler(
+      new Request(`http://localhost${path}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-forwarded-for': `10.1.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250) + 1}`,
+          ...(header ? { [OTP_HEADER]: header } : {}),
+        },
+        body: JSON.stringify(body),
+      }),
+    )
+  const refusedByGate = async (response: Response) =>
+    response.status === 409 &&
+    ((await response.clone().json()) as { type?: string }).type === CLAIM_CONFLICT_TYPE['otp-required']
+
+  const routes: [string, (r: Request) => Promise<Response>, unknown][] = [
+    ['/api/claims/prepare/claim', prepareClaim.POST, { ephemeralPublicKey: link.key, recipientPublicKey: Keypair.random().publicKey() }],
+    ['/api/claims/submit', submit.POST, { ephemeralPublicKey: link.key, signedXdr: 'AAAA', phase: 'claim' }],
+  ]
+
+  for (const [path, handler, body] of routes) {
+    const none = await post(handler, path, body)
+    check(`${path} with no header is refused by the gate`, await refusedByGate(none), `${none.status}`)
+
+    const wrong = await post(handler, path, body, 'x'.repeat(64))
+    check(`${path} with a wrong token is refused by the gate`, await refusedByGate(wrong), `${wrong.status}`)
+
+    /*
+     * With the right token the gate lets the request THROUGH. What happens
+     * next is not the point — there is no ledger here, so the route answers
+     * with some other refusal — only that it is not the gate's.
+     */
+    const right = await post(handler, path, body, token)
+    check(`${path} with the right token gets past the gate`, !(await refusedByGate(right)),
+      `${right.status} ${JSON.stringify(await right.clone().json().catch(() => null))}`)
+  }
+}
+
 async function main(): Promise<void> {
   try {
     await theUrlReachesTheProviderAndNowhereElse()
@@ -442,6 +510,7 @@ async function main(): Promise<void> {
     await emailsCarryNoTracking()
     await aFailedSendIsIndistinguishable()
     await codesAreDrawnSafely()
+    await theGateIsWiredOnTheMoneyRoutes()
   } finally {
     await deliveryJobs().obliterate({ force: true }).catch(() => undefined)
     await deliveryJobs().close().catch(() => undefined)

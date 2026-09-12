@@ -17,6 +17,7 @@ import { env } from '@/lib/config/env'
 import { logger } from '@/lib/config/logger'
 import { assetOf, hasTrustline, horizon, accountExists, loadClaimableBalance, sponsorSpendable } from '@/lib/stellar/horizon'
 import { buildClaim, buildMaterialise, signAsSponsor, type ClaimContext } from '@/lib/stellar/claim'
+import type { ClaimConflictReason } from '@/lib/claim/problem-types'
 
 const PUBLIC_KEY = /^G[A-Z2-7]{55}$/
 
@@ -43,10 +44,15 @@ export const submitSchema = z
 export type Outcome<T> =
   | { kind: 'ok'; value: T }
   | { kind: 'not-found' }
-  | { kind: 'conflict'; detail: string }
+  | { kind: 'conflict'; detail: string; reason?: ClaimConflictReason }
   | { kind: 'unavailable'; detail: string }
 
-const conflict = (detail: string) => ({ kind: 'conflict' as const, detail })
+/** `reason` is the discriminator the page reads; the detail is for a person. */
+const conflict = (detail: string, reason?: ClaimConflictReason) => ({
+  kind: 'conflict' as const,
+  detail,
+  ...(reason ? { reason } : {}),
+})
 
 /**
  * What `/api/claims/resolve` may say about a link.
@@ -178,7 +184,7 @@ export async function loadClaimable(
   if (link.campaign.status === 'CANCELLED') return { kind: 'not-found' }
 
   if (link.campaign.expiresAt.getTime() <= Date.now()) {
-    return conflict('This link has expired. The funds return to the sender.')
+    return conflict('This link has expired. The funds return to the sender.', 'expired')
   }
 
   // THE LEDGER, not the row. AGENT.md §4.2.
@@ -188,7 +194,7 @@ export async function loadClaimable(
       { linkId: link.id, campaignId: link.campaignId },
       'link is ACTIVE but its balance is not on the ledger',
     )
-    return conflict('This link has already been claimed.')
+    return conflict('This link has already been claimed.', 'already-claimed')
   }
 
   /*
@@ -346,7 +352,7 @@ export async function prepareClaim(
   if (sponsor.kind !== 'ok') return sponsor
 
   if (!(await accountExists(ephemeralPublicKey))) {
-    return conflict('Preparation is not finished yet. Complete the first step and wait one ledger.')
+    return conflict('Preparation is not finished yet. Complete the first step and wait one ledger.', 'not-ready')
   }
 
   const [recipientLive, recipientTrusts, ephemeralTrusts] = await Promise.all([
@@ -460,7 +466,7 @@ export async function submitClaim(
     return { kind: 'ok', value: { hash, phase, replay: true } }
   }
   if (phase === 'claim' && link.status === 'CLAIMED') {
-    return conflict('This link has already been claimed.')
+    return conflict('This link has already been claimed.', 'already-claimed')
   }
 
   /*
