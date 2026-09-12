@@ -20,6 +20,33 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-12 — Disaster recovery: stated RPO and RTO, rehearsed restore, runbooks (#54)
+
+`docs/disaster-recovery.md` states the objectives with their reasoning:
+the RPO is the backup interval, but only for what the ledger cannot rebuild
+— delivery state, the CSV-export gate, audit rows, sessions, API keys,
+approvals made after the backup — because money is re-derived from the
+chain by reconciliation; the RTO is measured. **The post-restore procedure
+is code:** `pnpm recover` checks migrations, verifies the audit chain,
+reconciles in bounded passes against the live ledger (the critical case is
+the operator's signal, not auto-corrected), and counts what cannot be
+rebuilt. Backup verification (`pnpm verify:backup`, last in CI's verify job)
+restores the dump into a clean database and *asks it* — row counts per
+table, the migration ledger, the audit chain, campaign→link joins — rather
+than checking that a file exists. Runbooks for sponsor exhaustion, Redis
+loss, worker failure and a partially-applied campaign. `SPEC.md` §12 gains
+the data-loss limitation and `/admin/reconciliation` states it in the
+product, where a person lands after a restore.
+
+**Verified by:** the rehearsal, recorded with its date in the doc — a
+database populated by the verification suites, dumped, restored into a
+Postgres container that had never seen Kleym, then `pnpm recover` against
+live testnet Horizon: 11.9 s from dump to "RECOVERY CHECKS PASSED" (schema
+current, chain intact, 0 corrected, 8 unresolved fixture balances, 0
+critical). `pnpm verify:backup` run locally: dump, restore, 18 tables with
+matching counts, migration ledger, chain and joins all pass in 1.3 s.
+Typecheck, lint, build. `verify:backup` refuses up front when the client is older than the server (proven with a stubbed `pg_dump` 16 against Postgres 17: exit 1, dump not attempted), and the join check compares link counts per campaign id against the source rather than asserting a tautology.
+
 ## 2026-09-12 — Sponsor pool with failover, outbound alerts and runway (#48)
 
 The sponsor account — Kleym's float, and until now an admitted single point

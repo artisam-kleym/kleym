@@ -34,6 +34,8 @@
     "acceptance": "tsx scripts/acceptance.ts",
     "loadtest": "tsx scripts/load-batches.ts",
     "audit:verify": "tsx scripts/audit-verify.ts",
+    "recover": "tsx scripts/recover.ts",
+    "verify:backup": "tsx scripts/verify-backup.ts",
     "audit:chain-backfill": "tsx scripts/audit-chain-backfill.ts",
     "audit:verify-export": "tsx scripts/audit-verify-export.ts",
     "verify:campaign-detail": "tsx scripts/verify-campaign-detail.ts",
