@@ -141,11 +141,32 @@ model Campaign {
   user     User        @relation(fields: [userId], references: [id])
   links    ClaimLink[]
   batches  Batch[]
+  reclaims ReclaimBatch[]
   findings ReconciliationFinding[]
   stranded StrandedAccount[]
 
   @@index([userId, status])
   @@index([expiresAt, status])
+}
+
+/// One submitted reclaim transaction. SPEC.md §3.4.
+///
+/// Membership is NOT planned in advance the way creation batches are. Which
+/// balances are reclaimable is a question only the ledger can answer, and the
+/// answer changes while the sender is signing, so each reclaim is built from a
+/// live Horizon query and recorded here once it is on its way.
+model ReclaimBatch {
+  id              String   @id @default(cuid())
+  campaignId      String
+  transactionHash String   @unique
+  balanceCount    Int
+  /// Summed from the LEDGER's amounts, not from amountPerLink.
+  amount          Decimal  @db.Decimal(23, 7)
+  submittedAt     DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
 }
 
 model Batch {

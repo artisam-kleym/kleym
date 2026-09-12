@@ -17,7 +17,7 @@ import { triggerDownload } from './download-gate'
 import { canContinuePastExport, useWizard, type WizardConfig } from './use-wizard'
 import { AssetStep, RecipientsStep } from './steps'
 import { ExportStep } from './export-step'
-import { connectWallet, signBatch, walletErrorMessage } from './signing'
+import { connectWallet, signEnvelope, walletErrorMessage } from '@/lib/wallet/signing'
 
 const STEPS = [
   { title: 'Asset & amount' },
@@ -232,7 +232,7 @@ export function CampaignWizard(config: WizardConfig) {
         const prepared = await prepareBatch(campaignId)
         if (!prepared) break
         try {
-          const signedXdr = await signBatch(prepared.xdr, draft.network, draft.senderPublicKey)
+          const signedXdr = await signEnvelope(prepared.xdr, draft.network, draft.senderPublicKey)
           await submitBatch(campaignId, prepared.sequence, signedXdr)
           signed += 1
         } catch {

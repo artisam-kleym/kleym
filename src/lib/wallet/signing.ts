@@ -1,7 +1,12 @@
 'use client'
 
 /**
- * Wallet signing for batch envelopes. SPEC.md §8.
+ * Wallet signing for envelopes the SENDER must approve. SPEC.md §8.
+ *
+ * Used by campaign creation (#8) and by reclaim (#13). It lives here rather
+ * than beside the wizard because both flows hand the sender's own wallet an
+ * unsigned envelope and get one back — the same operation, whatever the
+ * transaction turns out to contain.
  *
  * Goes through `@creit.tech/stellar-wallets-kit` rather than Freighter's API
  * directly: the kit gives xBull, Albedo, Rabet, Lobstr and Hana for the same
@@ -51,7 +56,7 @@ export async function connectWallet(network: Network): Promise<string> {
 }
 
 /**
- * Signs one batch envelope.
+ * Signs one envelope.
  *
  * Kleym holds no key that could sign this. The signed result is re-derived
  * against the campaign row server-side before submission
@@ -59,7 +64,7 @@ export async function connectWallet(network: Network): Promise<string> {
  * the one it was handed, and being the sender's own wallet does not change
  * that.
  */
-export async function signBatch(
+export async function signEnvelope(
   xdr: string,
   network: Network,
   senderPublicKey: string,

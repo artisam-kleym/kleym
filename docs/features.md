@@ -81,6 +81,76 @@ than rendering a zero that would raise a permanent false exhaustion warning. The
 registers `ephemeral-watch`, runs the job, and two consecutive runs produce an
 identical report.
 
+## 2026-08-22 — Reclaim: unclaimed funds return to source (#13)
+
+An expired campaign now has a "Reclaim" button on `/campaigns/[id]`, behind a
+confirmation that says plainly what it costs: every unclaimed link stops working.
+Signing returns the money to the funding wallet, in batches of 90, and the page
+then shows what came back and under which transaction. This closes the loop on the
+promise the wizard makes — *"Unclaimed funds return to source."*
+
+The rule underneath it is SPEC §3.4: the ledger decides what may be reclaimed, never
+the database. Stellar transactions are atomic, so one operation for a balance a
+recipient already took fails with `op_does_not_exist` and voids the other 89 refunds
+in the same batch. So the operation list is built from a live Horizon query, and the
+signed envelope is re-checked against a FRESH query before submission — a recipient
+claiming while the sender is in their wallet is the ordinary case, and the answer is
+to rebuild the batch, not to send a doomed one.
+
+Two things the sender never sees but is protected by. A signed envelope reaching for
+a balance belonging to a different campaign is refused, and so is one that reclaims
+correctly but smuggles an extra payment operation alongside — the wallet's answer is
+untrusted input even though the sender is authenticated. And the same envelope
+submitted twice, even simultaneously, records one reclaim and returns the same result
+to both callers rather than a 500 about a refund that in fact succeeded.
+
+### After review
+
+**`sequence` is gone from `prepare`.** It was documented as "omit for the first
+batch", implying a client walks 1, 2, 3 — but the batch list is recomputed from
+a live ledger read on every call, so once batch 1 lands the old batch 2 *is*
+batch 1, and asking for `sequence: 2` would have skipped 90 balances. The UI
+never used it (it loops on a bare `prepare` and stops at nothing-left, which
+is correct), so this was a footgun for the next client rather than a live bug.
+`prepare` now always builds the first batch of what is left and reports
+`batchesRemaining`; the verify check walks 200 links by shrinking the ledger
+between calls and asserts batch 2 is links 91–180.
+
+**The panel ends its loop on the nothing-left 409 only.** `prepare` also
+answers 409 for "not expired yet" and "sender account does not exist on this
+network"; breaking on any 409 turned both into "There was nothing left to
+reclaim". Conflicts now carry a `type` suffix (`…/conflict/nothing-left`,
+`…/conflict/not-expired`, `…/conflict/no-sender-account`) and the panel
+matches on that, surfacing the other two as errors.
+
+**Amounts are `toFixed()`, never `toString()`.** One stroop rendered as
+`1e-7` in the panel and was stored as `1e-7`; it is now `0.0000001` on the
+wire and in `ReclaimBatch.amount`, with a check. The panel's reclaimed total
+also summed with `Number` — a §4.1 violation — and now uses `Decimal`.
+
+**Verified by:** `pnpm verify:reclaim`, 10 sections against a real Postgres with the
+ledger reads and the network submit injected — a check that passes when Horizon is
+unreachable would prove nothing about a rule that is *about* the ledger. The
+envelopes are really signed and really parsed by the SDK; only the network boundary
+is faked. Each section was first shown to fail against a planted regression: removing
+the expiry refusal, deriving operations from rows instead of the ledger, dropping the
+staleness re-check, dropping the cross-campaign ownership check, and letting the
+duplicate-hash collision propagate. The concurrency section needed a barrier in the
+injected submit to make the race actually happen — without it, the first write
+finishes before the second reads and the check passes no matter what the code does.
+
+Checked in a browser against a production build: `/campaigns/[id]` renders the
+campaign, its links and the reclaim panel; the warning panel appears only on
+confirmation, not on load; `prepare` on a campaign with nothing on-chain returns 409
+with a plain explanation; unauthenticated returns 401 and the page redirects. Posting
+a real Stellar seed to `reclaim/submit` returns 400 `SEED_SUBMITTED`, records a
+security event, and the seed appears nowhere in the log.
+
+**Not yet verified:** the end-to-end testnet path — a funded campaign, expiry, and the
+sender's balance rising by exactly the reclaimed sum (SPEC §10.5 criterion 6). That
+needs a campaign whose expiry has genuinely passed on-chain, so it is a testnet run,
+not a unit check. Stated rather than implied, per `AGENT.md` §6.5.
+
 
 ## 2026-08-22 — Reconciliation and expiry sweeps (#12)
 
