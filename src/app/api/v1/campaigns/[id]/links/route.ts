@@ -1,5 +1,6 @@
 /**
- * GET /api/v1/campaigns/[id]/links — link statuses. SPEC.md §6.6.
+ * GET  /api/v1/campaigns/[id]/links — link statuses. SPEC.md §6.6.
+ * POST /api/v1/campaigns/[id]/links — register PUBLIC keys (#51).
  *
  * `ephemeralPublicKey` is a PUBLIC key and safe to return; the private half
  * exists only in the sender's browser and their CSV (AGENT.md §1). No claim
@@ -8,14 +9,19 @@
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
 import { owned } from '@/lib/api/session-guard'
-import { listQuerySchema, zodErrors } from '@/lib/api/campaigns'
+import { listQuerySchema, registerLinksSchema, zodErrors } from '@/lib/api/campaigns'
 import { LINK_ORDER } from '@/lib/api/link-order'
+import { clientIp } from '@/lib/auth/client-ip'
+import { guardRequestBody } from '@/lib/security/guard'
+import { isWriteConflict, registerLinks } from '@/lib/api/links'
 import {
+  apiConflict,
   apiNotFound,
   apiServerError,
   apiValidationProblem,
   jsonWithHeaders,
   requireApiCaller,
+  requireApiWriter,
 } from '@/lib/api/v1'
 
 export const runtime = 'nodejs'
@@ -58,6 +64,29 @@ export async function GET(request: Request, { params }: Params) {
     return jsonWithHeaders({ links, page, perPage, total }, auth.headers)
   } catch (error) {
     logger.error({ reason: error instanceof Error ? error.message : 'unknown' }, 'v1 link list failed')
+    return apiServerError()
+  }
+}
+
+export async function POST(request: Request, { params }: Params) {
+  const auth = await requireApiWriter(request, '/api/v1/campaigns/[id]/links')
+  if (!auth.caller) return auth.response
+  const { id } = await params
+  const blocked = guardRequestBody(auth.body, { route: '/api/v1/campaigns/[id]/links', ip: clientIp(request) })
+  if (blocked) return blocked.response
+
+  const parsed = registerLinksSchema.safeParse(auth.body)
+  if (!parsed.success) return apiValidationProblem(zodErrors(parsed.error))
+
+  try {
+    const outcome = await registerLinks(id, auth.caller.organizationId, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations)
+    if (outcome.kind === 'not-found') return apiNotFound()
+    if (outcome.kind === 'bad-status') return apiConflict(`Links can only be registered while a campaign is DRAFT or CREATING; this one is ${outcome.status}.`)
+    if (outcome.kind === 'over-limit') return apiConflict(`This campaign declares ${outcome.declared} links; registering ${outcome.adding} more would make ${outcome.wouldTotal}.`)
+    return jsonWithHeaders({ registered: outcome.registered, total: outcome.total }, auth.headers, 201)
+  } catch (error) {
+    if (isWriteConflict(error)) return apiConflict('Another registration for this campaign is in progress; retry.')
+    logger.error({ keyId: auth.caller.keyId, reason: error instanceof Error ? error.message : 'unknown' }, 'v1 link registration failed')
     return apiServerError()
   }
 }

@@ -6,6 +6,7 @@ import { Button, Input, Table, TableCell, TableHead, TableRow, WarningPanel } fr
 interface KeyRow {
   id: string
   name: string
+  scope: 'READ' | 'WRITE'
   prefix: string
   lastUsedAt: string | null
   revokedAt: string | null
@@ -31,12 +32,14 @@ export function ApiKeys({ initialKeys }: { initialKeys: KeyRow[] }) {
     setError(null)
 
     const form = event.currentTarget
-    const name = String(new FormData(form).get('name') ?? '').trim()
+    const data = new FormData(form)
+    const name = String(data.get('name') ?? '').trim()
+    const scope = data.get('scope') === 'WRITE' ? 'WRITE' : 'READ'
 
     const response = await fetch('/api/settings/api-keys', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, scope }),
     })
     const body = await response.json().catch(() => null)
 
@@ -50,7 +53,7 @@ export function ApiKeys({ initialKeys }: { initialKeys: KeyRow[] }) {
     setCopied(false)
     setIssued({ name: body.name, key: body.key })
     setKeys((current) => [
-      { id: body.id, name: body.name, prefix: body.prefix, lastUsedAt: null, revokedAt: null, createdAt: new Date().toISOString() },
+      { id: body.id, name: body.name, scope, prefix: body.prefix, lastUsedAt: null, revokedAt: null, createdAt: new Date().toISOString() },
       ...current,
     ])
     setPending(false)
@@ -72,12 +75,23 @@ export function ApiKeys({ initialKeys }: { initialKeys: KeyRow[] }) {
 
   return (
     <div className="mt-lg flex flex-col gap-lg">
-      <form onSubmit={create} className="flex max-w-md items-end gap-sm">
-        <Input label="Key name" name="name" maxLength={60} required className="flex-1" placeholder="CI reporting" />
+      <form onSubmit={create} className="flex max-w-2xl flex-wrap items-end gap-sm">
+        <Input label="Key name" name="name" maxLength={60} required className="min-w-[14rem] flex-1" placeholder="CI reporting" />
+        <label className="flex flex-col gap-xs">
+          <span className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">Scope</span>
+          <select name="scope" defaultValue="READ" className="rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface">
+            <option value="READ">Read — campaigns and links</option>
+            <option value="WRITE">Write — create and fund campaigns via the SDK</option>
+          </select>
+        </label>
         <Button type="submit" disabled={pending}>
           {pending ? 'Creating…' : 'Create key'}
         </Button>
       </form>
+      <p className="text-label-md text-on-surface-variant">
+        A write key can create campaigns, register public keys, mark the export gate and submit batches you signed.
+        Keys issued before scopes existed are read-only. Neither scope can ever hand us a seed.
+      </p>
 
       {error && (
         <p role="alert" className="text-body-md text-error">
@@ -116,11 +130,12 @@ export function ApiKeys({ initialKeys }: { initialKeys: KeyRow[] }) {
         <p className="text-body-md text-on-surface-variant">No API keys yet.</p>
       ) : (
         <Table>
-          <TableHead columns={['Name', 'Prefix', 'Last used', 'Status', 'Actions']} />
+          <TableHead columns={['Name', 'Scope', 'Prefix', 'Last used', 'Status', 'Actions']} />
           <tbody>
           {keys.map((key) => (
             <TableRow key={key.id}>
               <TableCell>{key.name}</TableCell>
+              <TableCell className="font-mono text-label-sm">{key.scope === 'WRITE' ? 'Write' : 'Read'}</TableCell>
               <TableCell>
                 <code className="font-mono text-label-sm text-on-surface-variant">{key.prefix}…</code>
               </TableCell>

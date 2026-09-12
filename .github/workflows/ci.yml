@@ -126,6 +126,9 @@ jobs:
       - name: Verify observability (traces, forced-condition metrics, status page)
         run: pnpm verify:observability
 
+      - name: Verify the write API, webhooks and the SDK
+        run: pnpm verify:write-api
+
       - name: Verify the audit chain, checkpoints, concurrency and signed export
         run: pnpm verify:audit-chain
 
@@ -324,16 +327,28 @@ jobs:
       - name: Audit
         run: pnpm audit --audit-level=moderate
 
-      # SPEC.md §6.6: /api/v1 is read-only in v1, by design and not by omission.
-      # Creating a campaign means generating keypairs, which happens in the
-      # sender's browser and must never reach a server (AGENT.md §1). A write
-      # endpoint here is not a feature — it is that guarantee being dropped.
-      - name: The public API has no write endpoints
+      # SPEC.md §6.6, issue #51. /api/v1 gained write endpoints, and the reason
+      # it was read-only has not changed: a seed must never reach a server
+      # (AGENT.md §1). So every write route must (a) go through the write
+      # preamble and (b) run `guardRequestBody` on its body, visibly, before
+      # any schema — the failure mode this codebase has met is a guard that
+      # exists but is not wired to every route. And no v1 schema may name a
+      # field a seed would go in.
+      - name: Every public write endpoint runs the seed guard
         run: |
-          if grep -rnE "^export (async )?function (POST|PUT|PATCH|DELETE)" src/app/api/v1/; then
-            echo "::error::/api/v1 must stay read-only (SPEC.md §6.6)"
-            exit 1
+          fail=0
+          for FILE in $(grep -rlE "^export (async )?function (POST|PUT|PATCH|DELETE)" src/app/api/v1/); do
+            if ! grep -q "requireApiWriter(" "$FILE"; then
+              echo "::error file=$FILE::a v1 write route does not use requireApiWriter (lib/api/v1.ts)"; fail=1
+            fi
+            if ! grep -q "guardRequestBody(" "$FILE"; then
+              echo "::error file=$FILE::a v1 write route does not run guardRequestBody (AGENT.md §1)"; fail=1
+            fi
+          done
+          if grep -rniE "(secret|seed|mnemonic|privateKey)[A-Za-z]*\s*:" src/app/api/v1/ src/lib/api/v1.ts; then
+            echo "::error::a v1 route or schema names a field for key material"; fail=1
           fi
+          exit $fail
 
       # SPEC.md §3.2: the base reserve must be read from the ledger at runtime.
       # It is 0.5 XLM today and has changed before; a literal here would

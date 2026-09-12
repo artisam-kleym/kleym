@@ -6,11 +6,9 @@
  */
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
-import { recordAudit } from '@/lib/api/audit'
 import { clientIp } from '@/lib/auth/client-ip'
 import { guardRequestBody } from '@/lib/security/guard'
 import { requireUser } from '@/lib/api/session-guard'
-import { chooseSponsor } from '@/lib/stellar/sponsors'
 import {
   beginIdempotency,
   releaseIdempotency,
@@ -18,6 +16,7 @@ import {
 } from '@/lib/api/idempotency'
 import { serverError, validationProblem } from '@/lib/api/problems'
 import {
+  createCampaign,
   createCampaignSchema,
   listQuerySchema,
   serialiseAmount,
@@ -100,42 +99,13 @@ export async function POST(request: Request) {
   if (!idempotency.reserved) return idempotency.response
 
   try {
-    // Bound to a sponsor for life (#48): the first in the pool with working
-    // float, or the best of them. Reads the ledger once, at creation.
-    const { sponsor } = await chooseSponsor()
-    const campaign = await prisma.campaign.create({
-      data: {
-        userId: user.id,
-        organizationId: org.id,
-        sponsorPublicKey: sponsor.publicKey,
-        // Dual-control policy snapshot (#45): loosening the organisation's
-        // policy later does not reach this campaign.
-        approvalThreshold: org.approvalThreshold,
-        approvalsRequired: org.approvalsRequired,
-        name: parsed.data.name,
-        network: parsed.data.network,
-        senderPublicKey: parsed.data.senderPublicKey,
-        assetCode: parsed.data.assetCode,
-        assetIssuer: parsed.data.assetIssuer ?? null,
-        amountPerLink: parsed.data.amountPerLink,
-        linkCount: parsed.data.linkCount,
-        expiresAt: new Date(parsed.data.expiresAt),
-      },
-      select: { id: true, name: true, status: true, amountPerLink: true, linkCount: true, createdAt: true },
-    })
+    // Sponsor binding (#48), policy snapshot (#45), audit and the outward
+    // event (#51) all live in createCampaign, shared with the v1 write API.
+    const created = await createCampaign({ userId: user.id, organizationId: org.id }, parsed.data, clientIp(request))
+    const campaign = { id: created.id, name: created.name, status: created.status, amountPerLink: created.amountPerLink, linkCount: created.linkCount, createdAt: created.createdAt }
 
     const payload = { ...campaign, amountPerLink: serialiseAmount(campaign.amountPerLink) }
     await storeIdempotentResult(request, context, { status: 201, body: payload })
-
-    await recordAudit({
-      userId: user.id,
-      organizationId: org.id,
-      action: 'campaign.create',
-      entityType: 'campaign',
-      entityId: campaign.id,
-      metadata: { name: campaign.name, linkCount: campaign.linkCount },
-      ip: clientIp(request),
-    })
     logger.info({ userId: user.id, campaignId: campaign.id }, 'campaign created')
     return Response.json(payload, { status: 201 })
   } catch (error) {

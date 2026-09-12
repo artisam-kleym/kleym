@@ -16,6 +16,7 @@ import { isWriteConflict } from './links'
 import { approvalGate } from './approvals'
 import { screeningGate } from './screening'
 import { recordBatchConfirmLatency } from '@/lib/observability/metrics'
+import { emitWebhook } from '@/lib/webhooks/emit'
 import {
   buildBatchTransaction,
   planBatches,
@@ -399,11 +400,15 @@ export async function confirmBatch(
     return tx.batch.update({
       where: { id: batchId },
       data: { status: 'CONFIRMED', confirmedAt },
-      select: { submittedAt: true, campaign: { select: { network: true } } },
+      select: { submittedAt: true, sequence: true, transactionHash: true, campaign: { select: { network: true, organizationId: true } } },
     })
   })
   // Submit-to-confirm latency (#53): the ledger's time to close, as this system sees it.
   if (batch.submittedAt) recordBatchConfirmLatency((confirmedAt.getTime() - batch.submittedAt.getTime()) / 1000, batch.campaign.network)
+  // Outward (#51): the batch is on the ledger; the organisation's systems may want to know.
+  await emitWebhook(batch.campaign.organizationId, 'batch.confirmed', {
+    campaignId, batchId, sequence: batch.sequence, transactionHash: batch.transactionHash ?? '', links: balanceIds.length,
+  })
   await settleCampaignStatus(campaignId)
 }
 
@@ -439,7 +444,8 @@ export async function settleCampaignStatus(campaignId: string): Promise<void> {
   // confirmed stays CREATING rather than announcing itself live.
   if (await approvalGate(campaignId)) return
 
-  await prisma.campaign.update({ where: { id: campaignId }, data: { status: 'ACTIVE' } })
+  const activated = await prisma.campaign.update({ where: { id: campaignId }, data: { status: 'ACTIVE' }, select: { organizationId: true, linkCount: true } })
+  await emitWebhook(activated.organizationId, 'campaign.activated', { campaignId, linkCount: activated.linkCount })
 }
 
 function notReadyToSign(campaign: CampaignRow): { kind: 'conflict'; detail: string } | null {

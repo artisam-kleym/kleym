@@ -23,6 +23,10 @@ import { env } from '@/lib/config/env'
 const withinLinkLimit = (count: number) => count <= env.MAX_LINKS_PER_CAMPAIGN
 const linkLimitMessage = () => `must not exceed MAX_LINKS_PER_CAMPAIGN`
 import { seedFreeString, stellarPublicKey } from '@/lib/validation/stellar'
+import { prisma } from '@/lib/db/client'
+import { recordAudit } from './audit'
+import { chooseSponsor } from '@/lib/stellar/sponsors'
+import { emitWebhook } from '@/lib/webhooks/emit'
 
 /**
  * Money crosses the API boundary as a STRING. AGENT.md §4.1.
@@ -147,4 +151,74 @@ export function zodErrors(error: z.ZodError) {
 /** Decimal columns come back as objects; the wire format is a string. */
 export function serialiseAmount(value: unknown): string {
   return new Decimal(String(value)).toFixed()
+}
+
+/* ── creation, shared by the session route and the v1 write API (#51) ─── */
+
+export interface CampaignCreator {
+  /** Provenance: the signed-in user, or the user who issued the API key. */
+  userId: string
+  organizationId: string
+}
+
+export type CreateCampaignInput = z.infer<typeof createCampaignSchema>
+
+/**
+ * Creates a draft: bound to a sponsor for life (#48), the organisation's
+ * dual-control policy snapshotted (#45), audited, and announced outward
+ * (`campaign.created`, #51). Public keys are registered separately — nothing
+ * here has seen one, and nothing here will ever see a seed.
+ */
+export async function createCampaign(creator: CampaignCreator, input: CreateCampaignInput, ip: string | null) {
+  const [{ sponsor }, org] = await Promise.all([
+    chooseSponsor(),
+    prisma.organization.findUniqueOrThrow({ where: { id: creator.organizationId }, select: { approvalThreshold: true, approvalsRequired: true } }),
+  ])
+  const campaign = await prisma.campaign.create({
+    data: {
+      userId: creator.userId,
+      organizationId: creator.organizationId,
+      sponsorPublicKey: sponsor.publicKey,
+      approvalThreshold: org.approvalThreshold,
+      approvalsRequired: org.approvalsRequired,
+      name: input.name,
+      network: input.network,
+      senderPublicKey: input.senderPublicKey,
+      assetCode: input.assetCode,
+      assetIssuer: input.assetIssuer ?? null,
+      amountPerLink: input.amountPerLink,
+      linkCount: input.linkCount,
+      expiresAt: new Date(input.expiresAt),
+    },
+    select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true },
+  })
+  await recordAudit({
+    userId: creator.userId, organizationId: creator.organizationId, action: 'campaign.create', entityType: 'campaign', entityId: campaign.id,
+    metadata: { name: campaign.name, linkCount: campaign.linkCount }, ip,
+  })
+  await emitWebhook(creator.organizationId, 'campaign.created', {
+    campaignId: campaign.id, name: campaign.name, network: campaign.network, assetCode: campaign.assetCode, assetIssuer: campaign.assetIssuer,
+    amountPerLink: serialiseAmount(campaign.amountPerLink), linkCount: campaign.linkCount, expiresAt: campaign.expiresAt.toISOString(),
+  })
+  return campaign
+}
+
+export type ExportMarkOutcome = { kind: 'not-found' } | { kind: 'no-links' } | { kind: 'ok'; csvExportedAt: Date }
+
+/**
+ * Records that the caller wrote the secrets file. The server cannot verify
+ * it and records the assertion; the consequence of lying falls on the sender
+ * alone (their funds strand until expiry). Refused before any link exists —
+ * an export of nothing would satisfy the gate with nothing to export.
+ */
+export async function markCsvExported(campaignId: string, organizationId: string): Promise<ExportMarkOutcome> {
+  const campaign = await prisma.campaign.findFirst({
+    where: { id: campaignId, organizationId },
+    select: { id: true, csvExportedAt: true, _count: { select: { links: true } } },
+  })
+  if (!campaign) return { kind: 'not-found' }
+  if (campaign._count.links === 0) return { kind: 'no-links' }
+  if (campaign.csvExportedAt) return { kind: 'ok', csvExportedAt: campaign.csvExportedAt }
+  const updated = await prisma.campaign.update({ where: { id: campaign.id }, data: { csvExportedAt: new Date() }, select: { csvExportedAt: true } })
+  return { kind: 'ok', csvExportedAt: updated.csvExportedAt! }
 }

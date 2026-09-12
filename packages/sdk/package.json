@@ -1,0 +1,21 @@
+{
+  "name": "@kleym/sdk",
+  "version": "0.1.0",
+  "description": "Kleym SDK and CLI: generate link keys locally, drive the write API with public keys only, sign batches with your own key, verify webhooks.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "bin": { "kleym": "./dist/cli.js" },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "@stellar/stellar-sdk": ">=13"
+  },
+  "engines": { "node": ">=20" }
+}

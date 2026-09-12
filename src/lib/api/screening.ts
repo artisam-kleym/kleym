@@ -23,6 +23,7 @@ import { logger } from '@/lib/config/logger'
 import { recordAudit } from './audit'
 import { canonicalJson } from './audit-chain'
 import { LINK_ORDER } from './link-order'
+import { outboundUrlFor } from '@/lib/validation/outbound-url'
 
 export const SCREENING_REQUEST_VERSION = 1
 
@@ -213,29 +214,7 @@ async function callScreening(url: string, request: ScreeningRequest, deps: Scree
  * connecting — see docs/compliance.md for the deployment-side half.
  */
 export function screeningUrlSchemaFor(nodeEnv: string) {
-  const loopbackAllowed = nodeEnv !== 'production'
-  return z
-    .object({
-      screeningUrl: z.union([
-        z.string().trim().url().max(2000).refine((v) => {
-          try {
-            const u = new URL(v)
-            if (u.username || u.password) return false
-            if (u.protocol === 'https:') return true
-            return loopbackAllowed && u.protocol === 'http:' && (u.hostname === '127.0.0.1' || u.hostname === 'localhost' || u.hostname === '[::1]')
-          } catch {
-            return false
-          }
-        }, loopbackAllowed ? 'an https URL (http only for a loopback address), without credentials' : 'an https URL, without credentials'),
-        z.null(),
-      ]),
-    })
-    .strict()
+  return z.object({ screeningUrl: z.union([outboundUrlFor(nodeEnv), z.null()]) }).strict()
 }
 
-/*
- * Bound to the raw NODE_ENV rather than `env.NODE_ENV`: route handlers are
- * evaluated during `next build`, which has no environment, and touching the
- * validated env at module load would fail the build (see lib/db/client.ts).
- */
 export const screeningUrlSchema = screeningUrlSchemaFor(process.env.NODE_ENV ?? 'development')
