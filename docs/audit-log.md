@@ -16,6 +16,35 @@ the length of the insert, so concurrent actions queue rather than fork.
 Rows with no `seq` were written outside `recordAudit`. Verification reports
 them as insertions.
 
+## What the chain is evidence against — and what it is not
+
+The chain catches anyone who edits, inserts or removes rows **without being
+able to recompute the chain**: an application bug, a script, a person with
+write access to the table but not the discipline to rehash everything after
+it. It does not catch a database superuser who rewrites rows *and*
+recomputes every hash *and* moves the head — that produces a chain that
+verifies, and no in-database chain can do better. The answer to that
+attacker is the signed export: take extracts periodically and keep them
+**outside** the database, with the public key recorded separately. A later
+export that disagrees with an earlier one is the evidence the chain alone
+cannot give.
+
+## Rolling out on a populated database
+
+Rows written before #49 have no chain position, and the verifier reports
+them as insertions — correctly, since it cannot tell a legacy row from a
+backdated forgery. Before the first deploy that carries the chain writes
+anything:
+
+```
+pnpm audit:chain-backfill
+```
+
+chains every existing row in `(createdAt, id)` order, once, and moves the
+head to the last of them. It refuses to run if the head has already moved
+(a live write has taken `seq` 1), because there is then no honest place for
+the legacy rows. `docs/release.md` lists it beside `AUDIT_SIGNING_SEED`.
+
 ## Verifying
 
 - `pnpm audit:verify` — recomputes the whole chain; exits non-zero and names
@@ -51,6 +80,14 @@ their own organisation by the session — never by a parameter) and
 `GET /api/admin/audit/export?organizationId&…` (staff) return the rows and
 sign the response body byte-for-byte with an Ed25519 key. The signature and
 the public key travel in `X-Kleym-Signature` and `X-Kleym-Signing-Key`.
+
+**Record the public key out of band.** `X-Kleym-Signing-Key` travels in the
+same response as the file and its signature, so verifying with the key from
+the header only proves that the server signed what the server sent. Record
+the public key once — from the first export, or from `signingPublicKey()`
+at deploy — keep it with the auditor, and verify every later file against
+*that* copy. A file whose header key differs from the recorded one is a
+finding, not a rotation, unless the rotation was announced.
 
 An auditor verifies the file they saved with the public key alone:
 

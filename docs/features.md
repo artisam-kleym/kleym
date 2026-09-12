@@ -35,10 +35,18 @@ across it. Owners export their organisation's rows as CSV or JSON, signed
 byte-for-byte with an Ed25519 key whose public half travels with the file;
 `pnpm audit:verify-export` checks a saved file with the public key alone and
 recomputes the row hashes inside a JSON export. New secret:
-`AUDIT_SIGNING_SEED`. `docs/audit-log.md` has the detail.
+`AUDIT_SIGNING_SEED`. Rows written before the chain are chained once by
+`pnpm audit:chain-backfill`, a pre-rollout step on a populated deployment
+(`docs/release.md`); it refuses once a live write has taken the first seq.
+`docs/audit-log.md` has the detail, including what the chain is and is not
+evidence against — a superuser who rehashes everything produces a chain that
+verifies, which is why signed exports are kept outside the database and the
+public key is recorded out of band.
 
 **Verified by:** `pnpm verify:audit-chain` (in CI) against a real Postgres:
-a modified row, an inserted (unchained) row, a deleted row, a forged
+five legacy (unchained) rows, two sharing a timestamp, are reported before
+the backfill and chained in `(createdAt, id)` order by it, after which the
+chain verifies from genesis and a second run refuses; a modified row, an inserted (unchained) row, a deleted row, a forged
 replacement at the same `seq` and a removed tail are each detected at the
 right link, and restoring heals; retention over a chain with a mid-chain
 gap removes the prefix, writes a checkpoint, and verification passes across

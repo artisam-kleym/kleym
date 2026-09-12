@@ -340,3 +340,58 @@ export function buildExport(rows: ChainRow[], query: ExportQuery, format: 'csv' 
   }
   return { body, contentType, signature: signBytes(body), publicKey: signingPublicKey() }
 }
+
+/* ── One-time backfill of rows older than the chain ────────────────────── */
+
+export interface BackfillResult {
+  chained: number
+  lastSeq: bigint
+}
+
+/**
+ * Chains every row that predates the chain, once, in `(createdAt, id)`
+ * order, and moves the head to the last of them. Refuses to run if the head
+ * has already moved past genesis: legacy rows can only take seqs 1…n, and
+ * once a live write has taken seq 1 there is no honest place to put them.
+ * Runs inside the maintenance flag, since the trigger otherwise refuses the
+ * UPDATE. Never tolerated by the verifier instead — a backdated forgery
+ * would slip through the exact check that exists to catch insertion.
+ */
+export async function backfillLegacyRows(): Promise<BackfillResult> {
+  return prisma.$transaction(async (tx) => {
+    const [head] = await tx.$queryRaw<{ seq: bigint; rowHash: string }[]>(
+      Prisma.sql`SELECT "seq", "rowHash" FROM "AuditChainHead" WHERE "id" = 1 FOR UPDATE`,
+    )
+    if (!head) throw new Error('audit chain head row is missing; run migrations')
+    if (head.seq !== 0n) {
+      throw new Error(`the chain head is already at seq ${head.seq}; the backfill must run before the first chained write`)
+    }
+    await tx.$executeRaw(Prisma.sql`SET LOCAL kleym.audit_maintenance = 'on'`)
+
+    let seq = 0n
+    let prevHash = ''
+    let after: { createdAt: Date; id: string } | null = null
+    for (;;) {
+      const rows: ChainRow[] = await tx.auditLog.findMany({
+        where: {
+          seq: null,
+          ...(after ? { OR: [{ createdAt: { gt: after.createdAt } }, { createdAt: after.createdAt, id: { gt: after.id } }] } : {}),
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: PAGE,
+      })
+      if (rows.length === 0) break
+      for (const row of rows) {
+        seq += 1n
+        const rowHash = rowHashFor(prevHash, canonicalRowV1({ ...row, seq }))
+        await tx.auditLog.update({ where: { id: row.id }, data: { seq, prevHash, rowHash, canonVersion: CANON_VERSION } })
+        prevHash = rowHash
+        after = { createdAt: row.createdAt, id: row.id }
+      }
+      if (rows.length < PAGE) break
+    }
+    if (seq > 0n) await tx.auditChainHead.update({ where: { id: 1 }, data: { seq, rowHash: prevHash } })
+    logger.info({ chained: Number(seq) }, 'legacy audit rows chained')
+    return { chained: Number(seq), lastSeq: seq }
+  }, { timeout: 10 * 60_000 })
+}

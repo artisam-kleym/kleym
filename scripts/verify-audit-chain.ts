@@ -27,7 +27,7 @@ applyEnvPlaceholders()
 
 const { prisma } = await import('../src/lib/db/client')
 const { recordAudit, REDACTED } = await import('../src/lib/api/audit')
-const { verifyChain, retainAudit, buildExport, exportRows, verifyBytes, CHECKPOINT_ACTION, canonicalJson } = await import('../src/lib/api/audit-chain')
+const { verifyChain, retainAudit, buildExport, exportRows, verifyBytes, backfillLegacyRows, CHECKPOINT_ACTION, canonicalJson } = await import('../src/lib/api/audit-chain')
 
 let failures = 0
 const check = (name: string, pass: boolean, detail = ''): void => {
@@ -188,8 +188,49 @@ async function scrubberStillRuns(): Promise<void> {
   check('and the chain still verifies', (await verifyChain()).ok)
 }
 
+/**
+ * The deployment case: rows written before the chain existed. They are
+ * chained once, in (createdAt, id) order, by the backfill — and only while
+ * the head is still at genesis. Runs on a database where earlier verify
+ * scripts have already written chained rows, so the "head already moved"
+ * refusal is what is exercised there; the fresh-database path is exercised
+ * by resetting the head on a private copy of the state.
+ */
+async function legacyRowsAreBackfilled(): Promise<void> {
+  console.log('\n0. Rows that predate the chain are chained once by the backfill')
+  const u = await actor()
+  const head = await prisma.auditChainHead.findUniqueOrThrow({ where: { id: 1 } })
+  if (head.seq !== 0n) {
+    let refused = ''
+    try { await backfillLegacyRows() } catch (e) { refused = (e as Error).message }
+    check('with live writes already chained, the backfill refuses rather than mis-sequencing', /already at seq/.test(refused), refused)
+    // Simulate the pre-rollout state on THIS table: unchain everything and park the head at genesis.
+    await asMaintenance(Prisma.sql`UPDATE "AuditLog" SET "seq" = NULL, "prevHash" = NULL, "rowHash" = NULL`)
+    await prisma.auditChainHead.update({ where: { id: 1 }, data: { seq: 0n, rowHash: '' } })
+  }
+  // Legacy rows: direct inserts with spread timestamps, plus a tie.
+  const tie = new Date('2026-01-01T00:00:00.000Z')
+  for (let i = 0; i < 5; i += 1) {
+    await prisma.auditLog.create({ data: { id: `legacy_${randomUUID().slice(0, 6)}`, userId: u, action: 'campaign.create', createdAt: i < 2 ? tie : new Date(tie.getTime() + i * 1000) } })
+  }
+  const before = await verifyChain()
+  check('before the backfill, verification reports the unchained rows', !before.ok && before.unchained >= 5)
+
+  const result = await backfillLegacyRows()
+  check('every legacy row was chained', result.chained >= 5 && (await prisma.auditLog.count({ where: { seq: null } })) === 0, JSON.stringify(result))
+  const after = await verifyChain()
+  check('and the chain now verifies from genesis', after.ok && after.firstSeq === 1n, JSON.stringify(after.broken))
+  const ordered = await prisma.auditLog.findMany({ where: { seq: { lte: 5n } }, orderBy: { seq: 'asc' }, select: { createdAt: true, id: true } })
+  check('in (createdAt, id) order, ties broken by id', ordered.every((r, i) => i === 0 || r.createdAt > ordered[i - 1]!.createdAt || (r.createdAt.getTime() === ordered[i - 1]!.createdAt.getTime() && r.id > ordered[i - 1]!.id)))
+  const again = await backfillLegacyRows().catch((e: Error) => e.message)
+  check('a second run refuses: the head has moved', typeof again === 'string' && /already at seq/.test(again))
+  await write(u, 2)
+  check('live writes continue the chain after the backfill', (await verifyChain()).ok)
+}
+
 async function main(): Promise<void> {
   try {
+    await legacyRowsAreBackfilled()
     await tamperingIsDetected()
     await retentionCheckpoint()
     await concurrentWritesDoNotFork()
