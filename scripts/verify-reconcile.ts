@@ -17,6 +17,7 @@ applyEnvPlaceholders()
 const { prisma } = await import('../src/lib/db/client')
 const { readDisposal } = await import('../src/lib/api/reconcile')
 const { reconcileJobs, requestReconcile } = await import('../src/lib/queue/maintenance')
+const { memoryPassCursor } = await import('../src/lib/queue/pass-cursor')
 const { reconcileCampaign, reconcileAll, sweepExpired, openFindings, findingsValue } = await import(
   '../src/lib/api/reconcile'
 )
@@ -444,8 +445,7 @@ async function aPassIsBoundedAndResumes(): Promise<void> {
     readDisposal: noDisposal,
   }
 
-  let stored: string | null = null
-  const cursor = { get: async () => stored, set: async (v: string | null) => void (stored = v) }
+  const cursor = memoryPassCursor()
 
   const candidates = await prisma.claimLink.count({
     where: { balanceId: { not: null }, campaign: { status: { in: ['ACTIVE', 'PARTIAL', 'EXPIRED'] } } },
@@ -456,13 +456,13 @@ async function aPassIsBoundedAndResumes(): Promise<void> {
   const first = await reconcileAll(deps, { limit, cursor })
   check('the first pass stops at the limit', first.linksChecked === limit, JSON.stringify(first))
   check('and reports what it left', first.remaining === candidates - limit, `${first.remaining} of ${candidates - limit}`)
-  check('the cursor moved', stored !== null)
+  check('the cursor moved', cursor.value !== null)
 
   let last = first
   for (let i = 1; i < passes; i += 1) last = await reconcileAll(deps, { limit, cursor })
   check('the final pass reports nothing remaining', last.remaining === 0, JSON.stringify(last))
   check('every one of these links was reached across the passes', visited.size === 3, `${visited.size} of 3`)
-  check('the cursor is cleared at the end of the set', stored === null, `${stored}`)
+  check('the cursor is cleared at the end of the set', cursor.value === null, `${cursor.value}`)
 
   visited.clear()
   await reconcileAll(deps, { limit, cursor })
