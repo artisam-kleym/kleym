@@ -23,6 +23,7 @@ import { logger } from '@/lib/config/logger'
 import { baseReserve, horizon, loadClaimableBalance } from '@/lib/stellar/horizon'
 import { requestReconcile } from '@/lib/queue/maintenance'
 import { redisPassCursor, type PassCursor } from '@/lib/queue/pass-cursor'
+import { WATCH_INTERVAL_MS, recordPassReport } from '@/lib/queue/pass-report'
 
 /**
  * How long after TX1 an unfinished claim counts as stranded.
@@ -218,6 +219,14 @@ export async function watchEphemerals(
       'ephemeral watch hit its limit before the end of its candidate set; the rest continue next run',
     )
   }
+  await recordPassReport({
+    job: 'ephemeral-watch',
+    finishedAt: now.toISOString(),
+    checked: report.checked,
+    remaining: report.remaining,
+    limit,
+    intervalMs: WATCH_INTERVAL_MS,
+  })
 
   /*
    * Rows whose link is no longer a candidate are cleared here, not in the loop.

@@ -20,6 +20,7 @@ import Decimal from 'decimal.js'
 import type { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
 import { redisPassCursor, type PassCursor } from '@/lib/queue/pass-cursor'
+import { RECONCILE_INTERVAL_MS, recordPassReport } from '@/lib/queue/pass-report'
 import { logger } from '@/lib/config/logger'
 import { horizon, loadClaimableBalance } from '@/lib/stellar/horizon'
 
@@ -389,6 +390,15 @@ export async function reconcileAll(
       'reconciliation pass hit its limit before the end of its candidate set; the rest continue next run',
     )
   }
+  // On the admin page as well as in the log — see lib/queue/pass-report.ts.
+  await recordPassReport({
+    job: 'reconcile',
+    finishedAt: new Date().toISOString(),
+    checked: report.linksChecked,
+    remaining: report.remaining,
+    limit,
+    intervalMs: RECONCILE_INTERVAL_MS,
+  })
 
   return report
 }
