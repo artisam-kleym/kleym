@@ -94,6 +94,9 @@ export function stateFromProblem(status: number, type: string | null): ClaimStat
   if (status === 409 && type) {
     if (type === CLAIM_CONFLICT_TYPE.expired) return 'expired'
     if (type === CLAIM_CONFLICT_TYPE['already-claimed']) return 'already_claimed'
+    // The token lapsed mid-flow (30-minute TTL): ask for the code again
+    // rather than landing an emailed recipient on `failed`.
+    if (type === CLAIM_CONFLICT_TYPE['otp-required']) return 'otp_required'
   }
   return 'failed'
 }

@@ -106,3 +106,16 @@ export const RESOLVE_LIMIT = { limit: 20, windowSeconds: 60 } as const
 export const MATERIALISE_LIMIT = { limit: 20, windowSeconds: 60 } as const
 export const CLAIM_LIMIT = { limit: 10, windowSeconds: 60 } as const
 export const SUBMIT_LIMIT = { limit: 10, windowSeconds: 60 } as const
+
+/*
+ * OTP limits are TIGHTER than the other claim routes and are applied per LINK
+ * as well as per IP.
+ *
+ * Per IP alone is not enough: an attacker with a forwarded email and a pool of
+ * addresses would still get unlimited attempts against one recipient. Per link
+ * alone is not enough either: one host could then sweep many links at once.
+ * SPEC.md §6.4 caps guesses at five, and these caps stop the REQUEST endpoint
+ * being used to mail a recipient repeatedly.
+ */
+export const OTP_REQUEST_LIMIT = { limit: 3, windowSeconds: 15 * 60 } as const
+export const OTP_VERIFY_LIMIT = { limit: 10, windowSeconds: 15 * 60 } as const

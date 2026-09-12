@@ -10,7 +10,7 @@
  * "Claimed", not "Success!". Errors name the fix and say the funds are safe,
  * because the first thing a person fears is that they just lost the money.
  */
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button, Icon, StellarAddress } from '@/components/ui'
 import type { ClaimState } from '@/lib/claim/machine'
 
@@ -75,6 +75,9 @@ export function ClaimScreen({
   claimedBy,
   onConnect,
   onRetry,
+  otpError,
+  onVerifyOtp,
+  onResendOtp,
 }: {
   state: ClaimState
   link: LinkDetails | null
@@ -85,6 +88,9 @@ export function ClaimScreen({
   claimedBy: string | null
   onConnect: () => void
   onRetry: () => void
+  otpError: string | null
+  onVerifyOtp: (code: string) => void
+  onResendOtp: () => void
 }) {
   switch (state) {
     case 'loading':
@@ -137,17 +143,7 @@ export function ClaimScreen({
       )
 
     case 'otp_required':
-      return (
-        <Centred>
-          <p className="text-headline-sm text-on-surface">Enter the code we emailed you</p>
-          <p className="text-body-md text-on-surface-variant">
-            Six digits, valid for ten minutes.
-          </p>
-          <p className="text-body-md text-on-surface-variant">
-            Code entry arrives with email delivery.
-          </p>
-        </Centred>
-      )
+      return <OtpPanel error={otpError} onVerify={onVerifyOtp} onResend={onResendOtp} />
 
     case 'wallet_connecting':
       return <Waiting heading="Waiting for your wallet" detail="Choose an account to continue." />
@@ -251,4 +247,75 @@ export function ClaimScreen({
         </Centred>
       )
   }
+}
+
+/**
+ * Six-digit code entry. SPEC.md §6.4, §5.1's `otp_required`.
+ *
+ * The code is held in component state and never written anywhere else — no
+ * URL, no storage, no logging. `inputMode="numeric"` and `autoComplete`
+ * `one-time-code` let a phone's keyboard and its OS autofill do the obvious
+ * thing, which is the difference between this being a small step and a chore.
+ */
+function OtpPanel({
+  error,
+  onVerify,
+  onResend,
+}: {
+  error: string | null
+  onVerify: (code: string) => void
+  onResend: () => void
+}) {
+  const [code, setCode] = useState('')
+  const complete = /^[0-9]{6}$/.test(code)
+
+  return (
+    <form
+      className="flex flex-col items-center gap-md text-center"
+      onSubmit={(event) => {
+        event.preventDefault()
+        if (complete) onVerify(code)
+      }}
+    >
+      <p className="text-headline-sm text-on-surface">Enter the code we emailed you</p>
+      <p className="text-body-md text-on-surface-variant">
+        Six digits, valid for ten minutes. This link was sent by email, so the code confirms
+        it reached the right person.
+      </p>
+
+      <label className="sr-only" htmlFor="otp">
+        Six-digit code
+      </label>
+      <input
+        id="otp"
+        name="otp"
+        value={code}
+        onChange={(event) => setCode(event.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        maxLength={6}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? 'otp-error' : undefined}
+        className="w-48 rounded-lg border border-outline-variant bg-surface px-md py-sm text-center font-mono text-headline-md tracking-[0.4em] text-on-surface"
+      />
+
+      {error && (
+        <p id="otp-error" role="alert" className="text-body-md text-error">
+          {error}
+        </p>
+      )}
+
+      <Button type="submit" disabled={!complete}>
+        Claim
+      </Button>
+
+      <button
+        type="button"
+        onClick={onResend}
+        className="text-label-md text-on-surface-variant underline underline-offset-4"
+      >
+        Send a new code
+      </button>
+    </form>
+  )
 }
