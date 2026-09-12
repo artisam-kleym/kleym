@@ -21,7 +21,9 @@ applyEnvPlaceholders()
 
 const { prisma } = await import('../src/lib/db/client')
 const { env } = await import('../src/lib/config/env')
-const { prepareReclaim, submitReclaim, settleReclaimStatus } = await import('../src/lib/api/reclaim')
+const { prepareReclaim, submitReclaim, settleReclaimStatus, reclaimPrepareSchema } = await import(
+  '../src/lib/api/reclaim'
+)
 
 let failures = 0
 const check = (name: string, pass: boolean, detail = ''): void => {
@@ -117,8 +119,10 @@ async function refusesBeforeExpiry(): Promise<void> {
   const f = await fixture(2, { expiresAt: new Date(Date.now() + 86_400_000) })
   const d = deps(f, f.links.map((l) => l.balanceId))
 
-  const outcome = await prepareReclaim(f.campaignId, f.userId, {}, d)
+  const outcome = await prepareReclaim(f.campaignId, f.userId, d)
   check('it is refused', outcome.kind === 'conflict', outcome.kind)
+  check('as not-expired, which the panel must NOT read as nothing-left',
+    outcome.kind === 'conflict' && outcome.reason === 'not-expired', JSON.stringify(outcome))
   check(
     'and says why, naming the date',
     outcome.kind === 'conflict' && /does not expire until/.test(outcome.detail),
@@ -132,7 +136,7 @@ async function derivesOpsFromTheLedger(): Promise<void> {
   // Every row says ACTIVE. The ledger holds only ONE of them — the other two
   // were claimed by recipients and the database has not caught up.
   const live = [f.links[1]!.balanceId]
-  const outcome = await prepareReclaim(f.campaignId, f.userId, {}, deps(f, live))
+  const outcome = await prepareReclaim(f.campaignId, f.userId, deps(f, live))
 
   check('it prepares', outcome.kind === 'ok', JSON.stringify(outcome))
   if (outcome.kind !== 'ok') return
@@ -144,29 +148,50 @@ async function derivesOpsFromTheLedger(): Promise<void> {
 }
 
 async function batchesAtNinety(): Promise<void> {
-  console.log('\n3. 200 unclaimed links produce exactly 3 batches')
+  console.log('\n3. 200 unclaimed links produce exactly 3 batches, walked by re-preparing')
   const f = await fixture(200)
   const all = f.links.map((l) => l.balanceId)
-  const first = await prepareReclaim(f.campaignId, f.userId, {}, deps(f, all))
+  const first = await prepareReclaim(f.campaignId, f.userId, deps(f, all))
 
   check('it prepares', first.kind === 'ok', JSON.stringify(first))
   if (first.kind !== 'ok') return
-  check('exactly 3 batches', first.value.totalBatches === 3, `${first.value.totalBatches}`)
+  check('exactly 3 batches remain', first.value.batchesRemaining === 3, `${first.value.batchesRemaining}`)
   check('the first holds 90', first.value.balanceCount === 90, `${first.value.balanceCount}`)
 
-  const third = await prepareReclaim(f.campaignId, f.userId, { sequence: 3 }, deps(f, all))
+  /*
+   * There is no `sequence` to ask for batch 2 with. `prepare` always builds
+   * the first batch of what the ledger STILL holds, so a client walks the set
+   * by submitting and preparing again — the shrinking set is the cursor.
+   * (A `sequence` parameter existed and would have skipped 91–180 once batch
+   * 1 landed; the review on #34 caught it.)
+   */
+  const afterFirst = all.slice(90)
+  const second = await prepareReclaim(f.campaignId, f.userId, deps(f, afterFirst))
+  check('after batch 1 lands, 2 remain', second.kind === 'ok' && second.value.batchesRemaining === 2,
+    second.kind === 'ok' ? `${second.value.batchesRemaining}` : second.kind)
+  check('and the next holds 90 — links 91–180, not 181–200',
+    second.kind === 'ok' && second.value.balanceCount === 90,
+    second.kind === 'ok' ? `${second.value.balanceCount}` : second.kind)
+
+  const afterSecond = all.slice(180)
+  const third = await prepareReclaim(f.campaignId, f.userId, deps(f, afterSecond))
   check('the third holds the remaining 20', third.kind === 'ok' && third.value.balanceCount === 20,
     third.kind === 'ok' ? `${third.value.balanceCount}` : third.kind)
 
-  const fourth = await prepareReclaim(f.campaignId, f.userId, { sequence: 4 }, deps(f, all))
-  check('there is no fourth', fourth.kind === 'not-found', fourth.kind)
+  const fourth = await prepareReclaim(f.campaignId, f.userId, deps(f, []))
+  check('then nothing is left, and it says so by reason, not only by prose',
+    fourth.kind === 'conflict' && fourth.reason === 'nothing-left',
+    JSON.stringify(fourth))
+
+  const sequence = reclaimPrepareSchema.safeParse({ sequence: 2 })
+  check('a `sequence` in the body is rejected', !sequence.success)
 }
 
 async function survivesAClaimWhileSigning(): Promise<void> {
   console.log('\n4. A balance claimed while the sender signs does not fail the batch')
   const f = await fixture(3)
   const all = f.links.map((l) => l.balanceId)
-  const prepared = await prepareReclaim(f.campaignId, f.userId, {}, deps(f, all))
+  const prepared = await prepareReclaim(f.campaignId, f.userId, deps(f, all))
   if (prepared.kind !== 'ok') return check('prepared', false, prepared.kind)
 
   const signed = sign(prepared.value.xdr, f.sender)
@@ -190,7 +215,7 @@ async function survivesAClaimWhileSigning(): Promise<void> {
   check('and no row was marked reclaimed', untouched === 0, `${untouched}`)
 
   // Preparing again yields the two that remain, and that one submits.
-  const again = await prepareReclaim(f.campaignId, f.userId, {}, d)
+  const again = await prepareReclaim(f.campaignId, f.userId, d)
   if (again.kind !== 'ok') return check('it prepares again', false, again.kind)
   check('the rebuilt batch drops the claimed one', again.value.balanceCount === 2, `${again.value.balanceCount}`)
 
@@ -208,7 +233,7 @@ async function recordsWhatTheLedgerSaid(): Promise<void> {
   const d = deps(f, all)
   d.readBalances = async () => new Map([[all[0]!, '0.1000000'], [all[1]!, '0.2000000']])
 
-  const prepared = await prepareReclaim(f.campaignId, f.userId, {}, d)
+  const prepared = await prepareReclaim(f.campaignId, f.userId, d)
   if (prepared.kind !== 'ok') return check('prepared', false, prepared.kind)
   check('the quoted total is the ledger sum', prepared.value.amount === '0.3', prepared.value.amount)
   check('and not the float answer', prepared.value.amount !== `${0.1 + 0.2}`, prepared.value.amount)
@@ -235,6 +260,24 @@ async function recordsWhatTheLedgerSaid(): Promise<void> {
   })
   check('the reclaim total is exact', new Decimal(stored.amount.toString()).equals(new Decimal('0.3')), stored.amount.toString())
   check('over two balances', stored.balanceCount === 2, `${stored.balanceCount}`)
+
+  /*
+   * One stroop. Decimal's toString() renders it as "1e-7", which Postgres
+   * parses but a sender reading "1e-7 XLM" does not — §4.1 is about money
+   * being unambiguous where a person acts on it.
+   */
+  const stroop = await fixture(1)
+  const one = deps(stroop, [stroop.links[0]!.balanceId])
+  one.readBalances = async () => new Map([[stroop.links[0]!.balanceId, '0.0000001']])
+  const smallest = await prepareReclaim(stroop.campaignId, stroop.userId, one)
+  check('one stroop is quoted as 0.0000001, not 1e-7',
+    smallest.kind === 'ok' && smallest.value.amount === '0.0000001',
+    smallest.kind === 'ok' ? smallest.value.amount : smallest.kind)
+  if (smallest.kind === 'ok') {
+    const sent = await submitReclaim(stroop.campaignId, stroop.userId, { signedXdr: sign(smallest.value.xdr, stroop.sender) }, one)
+    check('and submitted the same way', sent.kind === 'ok' && sent.value.amount === '0.0000001',
+      sent.kind === 'ok' ? sent.value.amount : sent.kind)
+  }
 
   const campaign = await prisma.campaign.findUniqueOrThrow({
     where: { id: f.campaignId },
@@ -329,7 +372,7 @@ async function replayDoesNotDoubleRecord(): Promise<void> {
   const all = f.links.map((l) => l.balanceId)
   const d = deps(f, all)
 
-  const prepared = await prepareReclaim(f.campaignId, f.userId, {}, d)
+  const prepared = await prepareReclaim(f.campaignId, f.userId, d)
   if (prepared.kind !== 'ok') return check('prepared', false, prepared.kind)
   const signed = sign(prepared.value.xdr, f.sender)
 
@@ -365,7 +408,7 @@ async function concurrentSubmitsRecordOnce(): Promise<void> {
   const all = f.links.map((l) => l.balanceId)
   const d = deps(f, all)
 
-  const prepared = await prepareReclaim(f.campaignId, f.userId, {}, d)
+  const prepared = await prepareReclaim(f.campaignId, f.userId, d)
   if (prepared.kind !== 'ok') return check('prepared', false, prepared.kind)
   const signed = sign(prepared.value.xdr, f.sender)
 
@@ -429,7 +472,7 @@ async function doesNotClaimAFullyClaimedCampaign(): Promise<void> {
 
   // The ledger holds nothing: the recipients took it all.
   const d = deps(f, [])
-  const outcome = await prepareReclaim(f.campaignId, f.userId, {}, d)
+  const outcome = await prepareReclaim(f.campaignId, f.userId, d)
   check('there is nothing to reclaim', outcome.kind === 'conflict', outcome.kind)
   check(
     'and it says so plainly',

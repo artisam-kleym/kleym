@@ -42,17 +42,17 @@ export async function POST(request: Request, { params }: Params) {
   if (!idempotency.reserved) return idempotency.response
 
   try {
-    const outcome = await prepareReclaim(id, user.id, parsed.data)
+    const outcome = await prepareReclaim(id, user.id)
     if (outcome.kind !== 'ok') {
       await releaseIdempotency(request, context)
-      return outcome.kind === 'not-found' ? notFound() : conflict(outcome.detail)
+      return outcome.kind === 'not-found' ? notFound() : conflict(outcome.detail, outcome.reason)
     }
 
     const payload = outcome.value
     await storeIdempotentResult(request, context, { status: 200, body: payload })
 
     logger.info(
-      { userId: user.id, campaignId: id, sequence: payload.sequence, balances: payload.balanceCount },
+      { userId: user.id, campaignId: id, batchesRemaining: payload.batchesRemaining, balances: payload.balanceCount },
       'reclaim prepared',
     )
     return Response.json(payload)

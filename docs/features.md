@@ -41,6 +41,30 @@ untrusted input even though the sender is authenticated. And the same envelope
 submitted twice, even simultaneously, records one reclaim and returns the same result
 to both callers rather than a 500 about a refund that in fact succeeded.
 
+### After review
+
+**`sequence` is gone from `prepare`.** It was documented as "omit for the first
+batch", implying a client walks 1, 2, 3 — but the batch list is recomputed from
+a live ledger read on every call, so once batch 1 lands the old batch 2 *is*
+batch 1, and asking for `sequence: 2` would have skipped 90 balances. The UI
+never used it (it loops on a bare `prepare` and stops at nothing-left, which
+is correct), so this was a footgun for the next client rather than a live bug.
+`prepare` now always builds the first batch of what is left and reports
+`batchesRemaining`; the verify check walks 200 links by shrinking the ledger
+between calls and asserts batch 2 is links 91–180.
+
+**The panel ends its loop on the nothing-left 409 only.** `prepare` also
+answers 409 for "not expired yet" and "sender account does not exist on this
+network"; breaking on any 409 turned both into "There was nothing left to
+reclaim". Conflicts now carry a `type` suffix (`…/conflict/nothing-left`,
+`…/conflict/not-expired`, `…/conflict/no-sender-account`) and the panel
+matches on that, surfacing the other two as errors.
+
+**Amounts are `toFixed()`, never `toString()`.** One stroop rendered as
+`1e-7` in the panel and was stored as `1e-7`; it is now `0.0000001` on the
+wire and in `ReclaimBatch.amount`, with a check. The panel's reclaimed total
+also summed with `Number` — a §4.1 violation — and now uses `Decimal`.
+
 **Verified by:** `pnpm verify:reclaim`, 10 sections against a real Postgres with the
 ledger reads and the network submit injected — a check that passes when Horizon is
 unreachable would prove nothing about a rule that is *about* the ledger. The

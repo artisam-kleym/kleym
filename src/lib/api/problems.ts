@@ -39,8 +39,16 @@ export function notFound(): Response {
   )
 }
 
-export function conflict(detail: string): Response {
-  return problem({ type: `${BASE}/conflict`, title: 'Conflict', status: 409, detail }, 409)
+/**
+ * 409. `reason` becomes a suffix on `type` so a client can tell conflicts
+ * apart without matching the prose — `…/conflict/nothing-left` is a
+ * discriminator, the detail is for a person and free to change.
+ */
+export function conflict(detail: string, reason?: string): Response {
+  return problem(
+    { type: reason ? `${BASE}/conflict/${reason}` : `${BASE}/conflict`, title: 'Conflict', status: 409, detail },
+    409,
+  )
 }
 
 export function unauthenticated(): Response {

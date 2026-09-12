@@ -29,24 +29,39 @@ import { horizonResultCode } from './batches'
 /** How long a prepared envelope stays valid for the sender to sign. */
 const SIGNING_WINDOW_SECONDS = 600
 
-export const reclaimPrepareSchema = z
-  .object({
-    /** Omit for the first batch. */
-    sequence: z.number().int().positive().optional(),
-  })
-  .strict()
+/**
+ * No body. `prepare` always builds the FIRST batch of whatever is still on
+ * the ledger, and the client loops until it answers nothing-left.
+ *
+ * It used to accept a `sequence`, documented as "omit for the first batch",
+ * which implied a client could walk 1, 2, 3. It could not: the batch list is
+ * recomputed from a live ledger query on every call, so once batch 1 lands
+ * the old batch 2 has become batch 1, and asking for `sequence: 2` skips it.
+ * A documented parameter whose documented use strands funds is worse than no
+ * parameter — the review on #34 found it, so it is gone.
+ */
+export const reclaimPrepareSchema = z.object({}).strict()
 
 export const reclaimSubmitSchema = z.object({ signedXdr: z.string().min(1) }).strict()
 
-export type ReclaimPrepareInput = z.infer<typeof reclaimPrepareSchema>
 export type ReclaimSubmitInput = z.infer<typeof reclaimSubmitSchema>
+
+/**
+ * The conflicts a client has to tell apart. `nothing-left` ends the reclaim
+ * loop; the other two are things the sender needs to be shown.
+ */
+export type ReclaimConflictReason = 'nothing-left' | 'not-expired' | 'no-sender-account'
 
 export type ReclaimOutcome<T> =
   | { kind: 'ok'; value: T }
   | { kind: 'not-found' }
-  | { kind: 'conflict'; detail: string }
+  | { kind: 'conflict'; detail: string; reason?: ReclaimConflictReason }
 
-const conflict = (detail: string) => ({ kind: 'conflict' as const, detail })
+const conflict = (detail: string, reason?: ReclaimConflictReason) => ({
+  kind: 'conflict' as const,
+  detail,
+  ...(reason ? { reason } : {}),
+})
 
 /**
  * A duplicate-key error, in either shape Prisma 7 reports it.
@@ -157,8 +172,8 @@ async function reclaimable(
 }
 
 export interface PreparedReclaim {
-  sequence: number
-  totalBatches: number
+  /** Batches still to go, counting this one, as of this ledger read. */
+  batchesRemaining: number
   balanceCount: number
   /** Exact total this batch returns, summed from the ledger's own amounts. */
   amount: string
@@ -177,7 +192,6 @@ export interface PreparedReclaim {
 export async function prepareReclaim(
   campaignId: string,
   userId: string,
-  input: ReclaimPrepareInput,
   deps: ReclaimDeps = LIVE,
 ): Promise<ReclaimOutcome<PreparedReclaim>> {
   const campaign = await loadCampaign(campaignId, userId)
@@ -186,22 +200,28 @@ export async function prepareReclaim(
   if (Date.now() < campaign.expiresAt.getTime()) {
     return conflict(
       `This campaign does not expire until ${campaign.expiresAt.toISOString()}. Unclaimed funds can only be returned after that.`,
+      'not-expired',
     )
   }
 
   const available = await reclaimable(campaign, deps)
   if (available.length === 0) {
-    return conflict('There is nothing left to reclaim — the ledger holds no unclaimed balances for this campaign.')
+    return conflict(
+      'There is nothing left to reclaim — the ledger holds no unclaimed balances for this campaign.',
+      'nothing-left',
+    )
   }
 
+  // Always the first batch of what is left: see reclaimPrepareSchema.
   const batches = chunkLinks(available, env.MAX_OPS_PER_BATCH)
-  const sequence = input.sequence ?? 1
-  const target = batches[sequence - 1]
-  if (!target) return { kind: 'not-found' }
+  const target = batches[0]!
 
   const senderAccount = await deps.loadAccount(campaign.senderPublicKey)
   if (!senderAccount) {
-    return conflict('The sender account does not exist on this network. Fund it and try again.')
+    return conflict(
+      'The sender account does not exist on this network. Fund it and try again.',
+      'no-sender-account',
+    )
   }
 
   const { xdr } = buildReclaimTransaction({
@@ -216,10 +236,10 @@ export async function prepareReclaim(
   return {
     kind: 'ok',
     value: {
-      sequence,
-      totalBatches: batches.length,
+      batchesRemaining: batches.length,
       balanceCount: target.length,
-      amount: target.reduce((sum, b) => sum.plus(b.amount), new Decimal(0)).toString(),
+      // toFixed, not toString: one stroop is "0.0000001", never "1e-7". AGENT.md §4.1.
+      amount: target.reduce((sum, b) => sum.plus(b.amount), new Decimal(0)).toFixed(),
       xdr,
       networkPassphrase: env.NETWORK_PASSPHRASE,
     },
@@ -255,7 +275,7 @@ export async function submitReclaim(
   if (!campaign) return { kind: 'not-found' }
 
   if (Date.now() < campaign.expiresAt.getTime()) {
-    return conflict('This campaign has not expired yet.')
+    return conflict('This campaign has not expired yet.', 'not-expired')
   }
 
   const claimed = claimedBalanceIds(input.signedXdr, env.NETWORK_PASSPHRASE)
@@ -324,7 +344,7 @@ export async function submitReclaim(
       value: {
         transactionHash: hash,
         balanceCount: already.balanceCount,
-        amount: already.amount.toString(),
+        amount: already.amount.toFixed(),
         remaining: state.remaining,
         campaignStatus: state.status,
         replay: true,
@@ -362,7 +382,7 @@ export async function submitReclaim(
           campaignId: campaign.id,
           transactionHash: hash,
           balanceCount: claimed.length,
-          amount: amount.toString(),
+          amount: amount.toFixed(),
         },
       }),
       prisma.claimLink.updateMany({
@@ -388,7 +408,7 @@ export async function submitReclaim(
       value: {
         transactionHash: hash,
         balanceCount: winner.balanceCount,
-        amount: winner.amount.toString(),
+        amount: winner.amount.toFixed(),
         remaining: raced.remaining,
         campaignStatus: raced.status,
         replay: true,
@@ -399,7 +419,7 @@ export async function submitReclaim(
   const state = await settleReclaimStatus(campaign.id)
 
   logger.info(
-    { campaignId: campaign.id, hash, balances: claimed.length, amount: amount.toString() },
+    { campaignId: campaign.id, hash, balances: claimed.length, amount: amount.toFixed() },
     'reclaim submitted',
   )
 
@@ -408,7 +428,7 @@ export async function submitReclaim(
     value: {
       transactionHash: hash,
       balanceCount: claimed.length,
-      amount: amount.toString(),
+      amount: amount.toFixed(),
       remaining: state.remaining,
       campaignStatus: state.status,
       replay: false,
