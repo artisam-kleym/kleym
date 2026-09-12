@@ -55,7 +55,7 @@ export async function POST(request: Request, { params }: Params) {
     const outcome = await submitReclaim(id, user.id, parsed.data)
     if (outcome.kind !== 'ok') {
       await releaseIdempotency(request, context)
-      return outcome.kind === 'not-found' ? notFound() : conflict(outcome.detail)
+      return outcome.kind === 'not-found' ? notFound() : conflict(outcome.detail, outcome.reason)
     }
 
     const payload = outcome.value

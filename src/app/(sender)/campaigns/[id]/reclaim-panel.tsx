@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Decimal from 'decimal.js'
 import { Button, WarningPanel } from '@/components/ui'
 import { connectWallet, signEnvelope, walletErrorMessage } from '@/lib/wallet/signing'
 
@@ -81,12 +82,20 @@ export function ReclaimPanel({
        * Each round is one batch of at most 90 balances and one signature. The
        * server rebuilds from a live ledger query every time, so a recipient
        * claiming mid-flow shrinks the next batch rather than failing it.
+       *
+       * ONLY the nothing-left conflict ends the loop. `prepare` also answers
+       * 409 for "not expired yet" and "the sender account does not exist on
+       * this network", and both of those are things the sender has to see —
+       * breaking on any 409 turned them into "nothing left to reclaim".
        */
       const collected: Done[] = []
       for (;;) {
         const prepared = await post('prepare', {})
-        if (prepared.status === 409) break
-        if (!prepared.ok) throw new Error(await detail(prepared))
+        if (!prepared.ok) {
+          const problem = await readProblem(prepared)
+          if (prepared.status === 409 && problem.type?.endsWith('/conflict/nothing-left')) break
+          throw new Error(problem.detail)
+        }
 
         const plan = (await prepared.json()) as { xdr: string }
         const signedXdr = await signEnvelope(plan.xdr, network, senderPublicKey)
@@ -109,7 +118,8 @@ export function ReclaimPanel({
     }
   }
 
-  const reclaimedTotal = done.reduce((sum, d) => sum + Number(d.amount), 0)
+  // Decimal, not Number — this is money on a page the sender reads. AGENT.md §4.1.
+  const reclaimedTotal = done.reduce((sum, d) => sum.plus(d.amount), new Decimal(0)).toFixed()
 
   if (done.length > 0 && phase !== 'confirming' && phase !== 'reclaiming') {
     return (
@@ -181,11 +191,19 @@ export function ReclaimPanel({
 }
 
 /** The problem+json detail, or a plain fallback. */
-async function detail(response: Response): Promise<string> {
+/** problem+json, read once: `type` is the discriminator, `detail` is for the sender. */
+async function readProblem(response: Response): Promise<{ type: string | null; detail: string }> {
   try {
-    const body = (await response.json()) as { detail?: string; title?: string }
-    return body.detail ?? body.title ?? 'The reclaim could not be completed.'
+    const body = (await response.json()) as { type?: string; detail?: string; title?: string }
+    return {
+      type: body.type ?? null,
+      detail: body.detail ?? body.title ?? 'The reclaim could not be completed.',
+    }
   } catch {
-    return 'The reclaim could not be completed.'
+    return { type: null, detail: 'The reclaim could not be completed.' }
   }
+}
+
+async function detail(response: Response): Promise<string> {
+  return (await readProblem(response)).detail
 }

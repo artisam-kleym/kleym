@@ -151,6 +151,30 @@ untrusted input even though the sender is authenticated. And the same envelope
 submitted twice, even simultaneously, records one reclaim and returns the same result
 to both callers rather than a 500 about a refund that in fact succeeded.
 
+### After review
+
+**`sequence` is gone from `prepare`.** It was documented as "omit for the first
+batch", implying a client walks 1, 2, 3 — but the batch list is recomputed from
+a live ledger read on every call, so once batch 1 lands the old batch 2 *is*
+batch 1, and asking for `sequence: 2` would have skipped 90 balances. The UI
+never used it (it loops on a bare `prepare` and stops at nothing-left, which
+is correct), so this was a footgun for the next client rather than a live bug.
+`prepare` now always builds the first batch of what is left and reports
+`batchesRemaining`; the verify check walks 200 links by shrinking the ledger
+between calls and asserts batch 2 is links 91–180.
+
+**The panel ends its loop on the nothing-left 409 only.** `prepare` also
+answers 409 for "not expired yet" and "sender account does not exist on this
+network"; breaking on any 409 turned both into "There was nothing left to
+reclaim". Conflicts now carry a `type` suffix (`…/conflict/nothing-left`,
+`…/conflict/not-expired`, `…/conflict/no-sender-account`) and the panel
+matches on that, surfacing the other two as errors.
+
+**Amounts are `toFixed()`, never `toString()`.** One stroop rendered as
+`1e-7` in the panel and was stored as `1e-7`; it is now `0.0000001` on the
+wire and in `ReclaimBatch.amount`, with a check. The panel's reclaimed total
+also summed with `Number` — a §4.1 violation — and now uses `Decimal`.
+
 **Verified by:** `pnpm verify:reclaim`, 10 sections against a real Postgres with the
 ledger reads and the network submit injected — a check that passes when Horizon is
 unreachable would prove nothing about a rule that is *about* the ledger. The
@@ -298,6 +322,30 @@ an unguarded loop, one unreadable link aborted the entire run, so a single bad r
 have stopped reconciliation for every remaining campaign. And the "Resync now" button had
 no deduplication, so twenty clicks queued twenty full multi-minute sweeps to run one
 after another. All three are fixed and each has a check that fails without the fix.
+
+### After review
+
+**Criticals sort first, by definition.** `severity` was a String sorted `desc`,
+which is lexicographic — `warn > info > error` — so every critical landed at the
+bottom of the report under a comment claiming the opposite. It is now a Prisma
+enum declared in display order (`error`, `warn`, `info`); Postgres sorts an enum
+by declaration order, so `asc` means "as declared" rather than an alphabetical
+accident that the next severity name would break. The migration casts the
+existing column in place. A check now records a warn before an error and reads
+the report in page order; it fails with the old direction.
+
+**A scheduled pass is bounded.** `reconcileAll` reads at most
+`RECONCILE_PASS_LIMIT` (1,000) links per run, oldest-first, continuing from a
+Redis cursor where the previous pass stopped and wrapping at the end. What it
+did not reach is `remaining` in the report and a WARN in the log — previously a
+10,000-link campaign meant a pass that never finished inside its own five-minute
+interval, with nothing saying so. The cursor lives in Redis rather than a column
+because advancing a per-link column would write every row on every run, which is
+the noise §10.13 says a second run must not add. The manual per-campaign resync
+stays unbounded: an admin asked for that campaign.
+
+`BalanceDisposal.reclaimed` is gone. It was always `false`, carried a comment
+promising the caller would fill it in, and the caller computed its own answer.
 
 **Verified by:** `pnpm verify:reconcile`, 10 sections against a real Postgres, every one
 first shown to fail against a planted regression — including auto-correcting the critical

@@ -17,7 +17,9 @@
  * unreachable, which is the false-pass shape #31's review caught.
  */
 import Decimal from 'decimal.js'
+import type { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
+import { redisPassCursor, type PassCursor } from '@/lib/queue/pass-cursor'
 import { logger } from '@/lib/config/logger'
 import { horizon, loadClaimableBalance } from '@/lib/stellar/horizon'
 
@@ -28,11 +30,9 @@ export type FindingKind =
   | 'unresolved'
 
 export interface BalanceDisposal {
-  /** Who took it, per the ledger. */
+  /** Who took it, per the ledger. Whether that is the sender is the CALLER's call, against the campaign. */
   claimant: string
   transactionHash: string
-  /** The sender reclaiming after expiry, rather than the recipient claiming. */
-  reclaimed: boolean
 }
 
 /**
@@ -68,12 +68,7 @@ export const readDisposal: DisposalReader = async (balanceId) => {
   const claimant = (claim as unknown as { claimant?: string }).claimant
   if (!claimant) return null
 
-  return {
-    claimant,
-    transactionHash: claim.transaction_hash,
-    // Filled in by the caller, which knows the campaign's sender.
-    reclaimed: false,
-  }
+  return { claimant, transactionHash: claim.transaction_hash }
 }
 
 export interface ReconcileDeps {
@@ -89,7 +84,22 @@ export interface ReconcileReport {
   corrected: number
   critical: number
   unresolved: number
+  /**
+   * Links a scheduled pass left for the next one, because it hit
+   * `RECONCILE_PASS_LIMIT` first. Zero from `reconcileCampaign`, which is
+   * unbounded. Non-zero is reported, not hidden — see `reconcileAll`.
+   */
+  remaining: number
 }
+
+const emptyReport = (): ReconcileReport => ({
+  campaignsChecked: 0,
+  linksChecked: 0,
+  corrected: 0,
+  critical: 0,
+  unresolved: 0,
+  remaining: 0,
+})
 
 /** Records a finding, or refreshes the one already open for this link and kind. */
 async function record(
@@ -128,9 +138,9 @@ export async function reconcileCampaign(
 ): Promise<ReconcileReport> {
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
-    select: { id: true, senderPublicKey: true, amountPerLink: true, expiresAt: true },
+    select: { id: true, senderPublicKey: true },
   })
-  if (!campaign) return { campaignsChecked: 0, linksChecked: 0, corrected: 0, critical: 0, unresolved: 0 }
+  if (!campaign) return emptyReport()
 
   /*
    * Only links whose batch confirmed. A PENDING link has no balanceId, so
@@ -139,18 +149,28 @@ export async function reconcileCampaign(
    */
   const links = await prisma.claimLink.findMany({
     where: { campaignId, balanceId: { not: null } },
-    select: { id: true, balanceId: true, status: true, claimedBy: true, claimTxHash: true },
+    select: LINK_SELECT,
   })
 
-  const report: ReconcileReport = {
-    campaignsChecked: 1,
-    linksChecked: links.length,
-    corrected: 0,
-    critical: 0,
-    unresolved: 0,
-  }
+  const report = { ...emptyReport(), campaignsChecked: 1 }
+  await reconcileLinks(links.map((link) => ({ ...link, campaign })), deps, report)
+  return report
+}
+
+const LINK_SELECT = {
+  id: true, balanceId: true, status: true, claimedBy: true, claimTxHash: true, campaignId: true,
+} as const
+
+/** Walks a list of links, isolating each one's failure. Shared by both entry points. */
+async function reconcileLinks(
+  links: (LinkRow & { campaign: { senderPublicKey: string } })[],
+  deps: ReconcileDeps,
+  report: ReconcileReport,
+): Promise<void> {
+  report.linksChecked += links.length
 
   for (const link of links) {
+    const campaignId = link.campaignId
     /*
      * One link's failure must not abort the run.
      *
@@ -161,7 +181,7 @@ export async function reconcileCampaign(
      * isolated, counted as unresolved, and re-read next time.
      */
     try {
-      await reconcileLink(link, campaign, campaignId, deps, report)
+      await reconcileLink(link, link.campaign, campaignId, deps, report)
     } catch (error) {
       report.unresolved += 1
       logger.error(
@@ -177,12 +197,11 @@ export async function reconcileCampaign(
       )
     }
   }
-
-  return report
 }
 
 interface LinkRow {
   id: string
+  campaignId: string
   balanceId: string | null
   status: string
   claimedBy: string | null
@@ -300,31 +319,78 @@ async function reconcileLink(
   }
 }
 
-/** Reconciles every campaign that could still have live balances. */
-export async function reconcileAll(deps: ReconcileDeps = LIVE): Promise<ReconcileReport> {
-  const campaigns = await prisma.campaign.findMany({
-    where: { status: { in: ['ACTIVE', 'PARTIAL', 'EXPIRED'] } },
-    select: { id: true },
-  })
+/**
+ * Links one scheduled pass will read before stopping.
+ *
+ * A pass is one serial Horizon read per link, on a `*\/5 * * * *` schedule.
+ * At `MAX_LINKS_PER_CAMPAIGN` (10,000 — a supported number) an unbounded pass
+ * cannot finish inside its own interval, so the queue runs continuously and
+ * permanently behind, and nothing says so. Bounding it turns that into a
+ * visible number: `remaining` in the report, and a WARN when it is non-zero.
+ * The cursor makes the next pass pick up where this one stopped, so the whole
+ * set is still covered — just across passes rather than within one.
+ */
+export const RECONCILE_PASS_LIMIT = 1_000
 
-  const total: ReconcileReport = {
-    campaignsChecked: 0,
-    linksChecked: 0,
-    corrected: 0,
-    critical: 0,
-    unresolved: 0,
+/** See lib/queue/pass-cursor.ts for why this is in Redis and not a column. */
+const cursorForScheduledPass = redisPassCursor('reconcile:cursor')
+
+export interface PassOptions {
+  limit?: number
+  cursor?: PassCursor
+}
+
+const LIVE_CAMPAIGN: Prisma.CampaignWhereInput = { status: { in: ['ACTIVE', 'PARTIAL', 'EXPIRED'] } }
+
+/**
+ * One scheduled pass over every campaign that could still have live balances.
+ *
+ * Reads at most `limit` links in id order (cuids are time-ordered, so that is
+ * oldest-first), starting after wherever the previous pass stopped, and
+ * wraps to the top once it reaches the end. Whatever it did not reach is
+ * counted in `remaining` and logged — a pass that quietly never finishes is
+ * reconciliation that is permanently behind with nobody told.
+ */
+export async function reconcileAll(
+  deps: ReconcileDeps = LIVE,
+  { limit = RECONCILE_PASS_LIMIT, cursor = cursorForScheduledPass }: PassOptions = {},
+): Promise<ReconcileReport> {
+  const candidate: Prisma.ClaimLinkWhereInput = { campaign: LIVE_CAMPAIGN, balanceId: { not: null } }
+  const page = (where: Prisma.ClaimLinkWhereInput) =>
+    prisma.claimLink.findMany({
+      where,
+      orderBy: { id: 'asc' },
+      take: limit,
+      select: { ...LINK_SELECT, campaign: { select: { senderPublicKey: true } } },
+    })
+
+  const after = await cursor.get()
+  let links = await page(after ? { ...candidate, id: { gt: after } } : candidate)
+
+  // Past the end of the set: wrap to the top rather than doing nothing.
+  if (links.length === 0 && after) links = await page(candidate)
+
+  const report = emptyReport()
+  report.campaignsChecked = new Set(links.map((link) => link.campaignId)).size
+  await reconcileLinks(links, deps, report)
+
+  const last = links.at(-1)
+  if (links.length < limit || !last) {
+    // Reached the end. Next pass starts from the top.
+    await cursor.set(null)
+  } else {
+    report.remaining = await prisma.claimLink.count({ where: { ...candidate, id: { gt: last.id } } })
+    await cursor.set(report.remaining > 0 ? last.id : null)
   }
 
-  for (const campaign of campaigns) {
-    const report = await reconcileCampaign(campaign.id, deps)
-    total.campaignsChecked += report.campaignsChecked
-    total.linksChecked += report.linksChecked
-    total.corrected += report.corrected
-    total.critical += report.critical
-    total.unresolved += report.unresolved
+  if (report.remaining > 0) {
+    logger.warn(
+      { linksChecked: report.linksChecked, remaining: report.remaining, limit },
+      'reconciliation pass hit its limit before the end of its candidate set; the rest continue next run',
+    )
   }
 
-  return total
+  return report
 }
 
 export interface ExpiryReport {
@@ -371,8 +437,15 @@ export async function sweepExpired(now: Date = new Date()): Promise<ExpiryReport
 export async function openFindings() {
   return prisma.reconciliationFinding.findMany({
     where: { resolvedAt: null },
-    // Critical first, then oldest — the ones that have been open longest.
-    orderBy: [{ severity: 'desc' }, { firstSeenAt: 'asc' }],
+    /*
+     * Critical first, then oldest — the ones that have been open longest.
+     *
+     * `severity` is an enum declared in that order (schema.prisma), and
+     * Postgres sorts an enum by declaration order, so `asc` here means "as
+     * declared". It used to be a String with `desc`, which sorted 'warn'
+     * above 'error' and put every critical at the bottom of the table.
+     */
+    orderBy: [{ severity: 'asc' }, { firstSeenAt: 'asc' }],
     select: {
       id: true, kind: true, severity: true, detail: true,
       firstSeenAt: true, lastSeenAt: true,
