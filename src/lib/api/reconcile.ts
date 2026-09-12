@@ -19,7 +19,7 @@
 import Decimal from 'decimal.js'
 import type { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
-import { redis } from '@/lib/redis/client'
+import { redisPassCursor, type PassCursor } from '@/lib/queue/pass-cursor'
 import { logger } from '@/lib/config/logger'
 import { horizon, loadClaimableBalance } from '@/lib/stellar/horizon'
 
@@ -332,26 +332,8 @@ async function reconcileLink(
  */
 export const RECONCILE_PASS_LIMIT = 1_000
 
-/**
- * Where the last scheduled pass stopped. Redis, not a column: advancing a
- * per-link column would write every row on every run, which is exactly the
- * noise §10.13 asks a second run not to add. Losing the cursor costs one
- * pass restarting from the top, which is harmless.
- */
-export interface PassCursor {
-  get(): Promise<string | null>
-  set(afterLinkId: string | null): Promise<void>
-}
-
-const CURSOR_KEY = 'reconcile:cursor'
-
-const redisCursor: PassCursor = {
-  get: () => redis.get(CURSOR_KEY),
-  set: async (id) => {
-    if (id === null) await redis.del(CURSOR_KEY)
-    else await redis.set(CURSOR_KEY, id)
-  },
-}
+/** See lib/queue/pass-cursor.ts for why this is in Redis and not a column. */
+const cursorForScheduledPass = redisPassCursor('reconcile:cursor')
 
 export interface PassOptions {
   limit?: number
@@ -371,7 +353,7 @@ const LIVE_CAMPAIGN: Prisma.CampaignWhereInput = { status: { in: ['ACTIVE', 'PAR
  */
 export async function reconcileAll(
   deps: ReconcileDeps = LIVE,
-  { limit = RECONCILE_PASS_LIMIT, cursor = redisCursor }: PassOptions = {},
+  { limit = RECONCILE_PASS_LIMIT, cursor = cursorForScheduledPass }: PassOptions = {},
 ): Promise<ReconcileReport> {
   const candidate: Prisma.ClaimLinkWhereInput = { campaign: LIVE_CAMPAIGN, balanceId: { not: null } }
   const page = (where: Prisma.ClaimLinkWhereInput) =>
