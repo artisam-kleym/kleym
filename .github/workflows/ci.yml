@@ -89,6 +89,9 @@ jobs:
       - name: Verify reconciliation and the expiry sweep
         run: pnpm verify:reconcile
 
+      - name: Verify the stranded ephemeral account monitor
+        run: pnpm verify:stranded
+
       - name: Verify reclaim after expiry
         run: pnpm verify:reclaim
 

@@ -26,4 +26,5 @@ export const QUEUE = {
   emailDeliver: 'email-deliver',
   reconcile: 'reconcile',
   expirySweep: 'expiry-sweep',
+  ephemeralWatch: 'ephemeral-watch',
 } as const
