@@ -54,6 +54,16 @@ enum LinkStatus {
   FAILED // batch failed; no on-chain entry
 }
 
+/// Declared in DISPLAY order. Postgres sorts an enum by declaration order, so
+/// `orderBy: { severity: 'asc' }` puts critical findings first because this
+/// list says so — not because "error" happens to sort before "warn"
+/// alphabetically, which is the accident the String column relied on.
+enum FindingSeverity {
+  error // critical: not auto-corrected, a person has to look
+  warn // drift that was corrected, or a row that could not be read
+  info
+}
+
 enum BatchStatus {
   PENDING
   SUBMITTED
@@ -250,7 +260,7 @@ model ReconciliationFinding {
   linkId     String
   campaignId String
   kind       String // "claimed_on_chain" | "reclaimed_on_chain" | "critical_still_on_ledger" | "unresolved"
-  severity   String // "info" | "warn" | "error"
+  severity   FindingSeverity
   detail     String
   /// Set when the finding was acted on, or when a later run found it resolved.
   resolvedAt DateTime?
