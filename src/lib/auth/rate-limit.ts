@@ -56,3 +56,9 @@ export const LOGIN_RATE_LIMIT = { limit: 5, windowSeconds: 15 * 60 } as const
  * credential-checking endpoint with nothing in front of it.
  */
 export const PASSWORD_CHANGE_RATE_LIMIT = { limit: 5, windowSeconds: 15 * 60 } as const
+
+/**
+ * /api/invite/redeem accepts a credential-shaped token from an unauthenticated
+ * caller — the category AGENT.md §5.6 governs. Same shape as login.
+ */
+export const INVITE_REDEEM_RATE_LIMIT = { limit: 5, windowSeconds: 15 * 60 } as const

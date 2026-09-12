@@ -29,7 +29,8 @@
     "verify:email": "tsx scripts/verify-email.ts",
     "verify:stranded": "tsx scripts/verify-stranded.ts",
     "verify:reclaim": "tsx scripts/verify-reclaim.ts",
-    "verify:admin": "tsx scripts/verify-admin.ts"
+    "verify:admin": "tsx scripts/verify-admin.ts",
+    "verify:invitations": "tsx scripts/verify-invitations.ts"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.6.0",

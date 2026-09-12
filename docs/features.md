@@ -18,6 +18,38 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 ---
 
+## 2026-09-12 — Users are created by invitation (#39)
+
+Until now the only code path that created a `User` was the seed script, and
+it only ever made an admin; onboarding a second sender meant a shell on
+production. `/admin/users` now has **Invite a user**: an admin enters a
+username and role, and gets back a single-use link, shown once. The person
+opens `/invite/[token]`, chooses their own password (12+ characters, argon2id,
+the same path a password change uses), and can sign in. The users table shows
+them as *Invited* until then.
+
+**The admin never sets, sees or transmits a password.** The token is 32 random
+bytes, stored only as a SHA-256 hash like a session cookie; the plaintext is in
+the URL handed to the admin and nowhere else — not the database, not the audit
+row, not a log line. The account is created inactive with an unguessable
+placeholder hash, so nothing can sign in before redemption. Redemption is
+single-use (a conditional update inside a transaction, so two simultaneous
+redemptions produce exactly one password), expires after three days, and
+unknown, expired and spent tokens all get the same 404 body. The redeem route
+is rate limited like login. `POST /api/admin/users` answers 404 to a signed-in
+non-admin, matching the rest of the admin surface.
+
+**Verified by:** `pnpm verify:invitations` (in CI) against a real Postgres and
+Redis — inactive on creation, hash ≠ token and token in no row, audit row
+naming actor and user without the token, planted password material redacted
+by the scrubber, first redemption sets the chosen password and the second is
+refused without touching it, expired ≡ unknown, one of two concurrent
+redemptions wins, the route's refusals are byte-identical, the sixth attempt
+per IP is 429. And over HTTP against a production build: no session 401,
+SENDER 404 on the route and the page, ADMIN 201, the invitee's login 401
+before redemption and 200 after, a second redemption 404, and zero
+occurrences of the token in the server log.
+
 ## 2026-08-22 — Admin area and audit logging (#15)
 
 Admins get `/admin/users`, `/admin/campaigns` and `/admin/audit` alongside the sponsor

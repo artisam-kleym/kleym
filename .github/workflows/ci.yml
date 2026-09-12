@@ -98,6 +98,9 @@ jobs:
       - name: Verify the admin area and audit logging
         run: pnpm verify:admin
 
+      - name: Verify user provisioning by invitation
+        run: pnpm verify:invitations
+
   e2e:
     name: CSV gate (real browser)
     runs-on: ubuntu-latest
