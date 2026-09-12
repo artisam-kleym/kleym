@@ -13,6 +13,10 @@ export const WATCH_EVERY_MINUTES = 15
 export const RECONCILE_INTERVAL_MS = RECONCILE_EVERY_MINUTES * 60_000
 export const WATCH_INTERVAL_MS = WATCH_EVERY_MINUTES * 60_000
 
+/** The delivery retention sweep (#50) runs once a day, at an off-hour minute. */
+export const RETENTION_CRON = '23 3 * * *'
+export const RETENTION_INTERVAL_MS = 24 * 60 * 60_000
+
 // A "*\/N * * * *" cron pattern; N must divide 60 for the gaps to be even.
 export function everyMinutes(minutes: number): string {
   if (60 % minutes !== 0) throw new Error(`a ${minutes}-minute cadence does not divide the hour evenly`)

@@ -7,7 +7,7 @@
  */
 import { Queue } from 'bullmq'
 import { QUEUE, queueConnection } from './connection'
-import { RECONCILE_EVERY_MINUTES, WATCH_EVERY_MINUTES, everyMinutes } from './schedule'
+import { RECONCILE_EVERY_MINUTES, RETENTION_CRON, WATCH_EVERY_MINUTES, everyMinutes } from './schedule'
 
 /**
  * A fixed job id per schedule.
@@ -22,6 +22,7 @@ import { RECONCILE_EVERY_MINUTES, WATCH_EVERY_MINUTES, everyMinutes } from './sc
 const RECONCILE_SCHEDULE = 'reconcile-every-5m'
 const EXPIRY_SCHEDULE = 'expiry-sweep-hourly'
 const EPHEMERAL_SCHEDULE = 'ephemeral-watch-every-15m'
+const RETENTION_SCHEDULE = 'delivery-retention-daily'
 
 let reconcileQueue: Queue | undefined
 let expiryQueue: Queue | undefined
@@ -63,11 +64,26 @@ export function ephemeralWatchJobs(): Queue {
   }))
 }
 
+let retentionQueue: Queue | undefined
+
+export function retentionJobs(): Queue {
+  return (retentionQueue ??= new Queue(QUEUE.deliveryRetention, {
+    connection: queueConnection(),
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 60_000 },
+      removeOnComplete: { age: 7 * 86_400, count: 200 },
+      removeOnFail: { age: 7 * 86_400 },
+    },
+  }))
+}
+
 /** Installs every schedule. Safe to call on every worker start. */
 export async function scheduleMaintenance(): Promise<void> {
   await reconcileJobs().upsertJobScheduler(RECONCILE_SCHEDULE, { pattern: everyMinutes(RECONCILE_EVERY_MINUTES) })
   await expiryJobs().upsertJobScheduler(EXPIRY_SCHEDULE, { pattern: '17 * * * *' })
   await ephemeralWatchJobs().upsertJobScheduler(EPHEMERAL_SCHEDULE, { pattern: everyMinutes(WATCH_EVERY_MINUTES) })
+  await retentionJobs().upsertJobScheduler(RETENTION_SCHEDULE, { pattern: RETENTION_CRON })
 }
 
 /**

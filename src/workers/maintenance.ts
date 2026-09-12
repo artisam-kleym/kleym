@@ -9,6 +9,7 @@ import { logger } from '@/lib/config/logger'
 import { QUEUE, queueConnection } from '@/lib/queue/connection'
 import { reconcileAll, reconcileCampaign, sweepExpired } from '@/lib/api/reconcile'
 import { watchEphemerals } from '@/lib/api/stranded'
+import { sweepDeliveryRetention } from '@/lib/api/privacy'
 
 interface ReconcileJob {
   campaignId?: string
@@ -93,5 +94,18 @@ export function startEphemeralWatchWorker(): Worker {
     )
   })
 
+  return worker
+}
+
+/** The daily delivery retention sweep (#50). */
+export function startRetentionWorker(): Worker {
+  const worker = new Worker(
+    QUEUE.deliveryRetention,
+    async () => sweepDeliveryRetention(),
+    { connection: queueConnection(), concurrency: 1 },
+  )
+  worker.on('failed', (job, error) => {
+    logger.warn({ attempt: job?.attemptsMade, reason: error.message }, 'delivery retention attempt failed')
+  })
   return worker
 }

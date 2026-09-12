@@ -112,6 +112,9 @@ jobs:
       - name: Verify organisations, memberships and roles
         run: pnpm verify:organisations
 
+      - name: Verify delivery retention and erasure
+        run: pnpm verify:privacy
+
       - name: Verify dual control
         run: pnpm verify:approvals
 

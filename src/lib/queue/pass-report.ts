@@ -11,7 +11,7 @@
 import { redis } from '@/lib/redis/client'
 import { logger } from '@/lib/config/logger'
 
-export type PassJob = 'reconcile' | 'ephemeral-watch'
+export type PassJob = 'reconcile' | 'ephemeral-watch' | 'delivery-retention'
 
 export interface PassReport {
   job: PassJob
@@ -52,7 +52,7 @@ export const recordPassReport: PassReportSink = async (report) => {
 }
 
 export async function lastPassReports(): Promise<Partial<Record<PassJob, PassReport>>> {
-  const jobs: PassJob[] = ['reconcile', 'ephemeral-watch']
+  const jobs: PassJob[] = ['reconcile', 'ephemeral-watch', 'delivery-retention']
   const out: Partial<Record<PassJob, PassReport>> = {}
   try {
     const values = await redis.mget(jobs.map(KEY))

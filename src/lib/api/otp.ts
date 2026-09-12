@@ -48,11 +48,16 @@ export type OtpOutcome =
   | { kind: 'no-link' }
   | { kind: 'locked'; detail: string }
 
-/** Whether this link is email-delivered, and to which address. */
+/**
+ * Whether this link is email-delivered, and to which address. `email` is
+ * null once the address has been redacted (#50): the link stays gated —
+ * it WAS emailed, and the gate is what stops a forwarded URL being enough —
+ * but there is no longer anywhere to send a code.
+ */
 export async function gateFor(ephemeralPublicKey: string): Promise<{
   linkId: string
   deliveryId: string
-  email: string
+  email: string | null
 } | null> {
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
