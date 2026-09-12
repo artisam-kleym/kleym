@@ -271,12 +271,19 @@ async function filteringAndPaging(): Promise<void> {
    */
   const tied = await user()
   const sameInstant = new Date('2031-03-04T05:06:07.000Z')
-  await prisma.auditLog.createMany({
-    data: Array.from({ length: 30 }, (_, i) => ({
+  // Through the chain (#49) — a direct insert would be an unchained row that
+  // verify:audit-chain rightly reports as an insertion — with the time set.
+  const { appendChained } = await import('../src/lib/api/audit-chain')
+  const { Prisma } = await import('../src/generated/prisma/client')
+  for (let i = 0; i < 30; i += 1) {
+    await appendChained({
+      id: `tied_${run}_${i}`,
       userId: tied.id,
+      organizationId: null,
       action: 'campaign.create',
       entityType: 'campaign',
       entityId: `tied_${run}_${i}`,
+      metadata: Prisma.JsonNull,
       ip: null,
       // The SAME instant, to the millisecond, for all thirty — sequential
       // inserts are milliseconds apart and never tie.
@@ -289,8 +296,8 @@ async function filteringAndPaging(): Promise<void> {
       // hit exactly this bug on larger paged data — but what is proven below
       // is that paging returns every row once, not that the sort is stable.
       createdAt: sameInstant,
-    })),
-  })
+    })
+  }
 
   const seen = new Set<string>()
   let walked = 0

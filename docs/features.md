@@ -61,6 +61,45 @@ fee-per-claim and runway arithmetic in `Decimal`. Both pool seeds and the
 webhook URL planted in log calls are redacted. `verify:claims`,
 `verify:stranded`, 213 unit tests, build.
 
+## 2026-09-12 — The audit log is tamper-evident, append-only and exportable (#49)
+
+Every audit row is now hash-chained to its predecessor (`seq`, `prevHash`,
+`rowHash = SHA-256(prevHash ‖ canonical(row))`, with a versioned canonical
+form so an upgrade cannot orphan history), written under a lock on a single
+head row so concurrent actions queue rather than fork. `pnpm audit:verify`
+and `GET /api/admin/audit/verify` recompute the whole chain and name the
+first broken link. A database trigger refuses `UPDATE` and `DELETE` on the
+table for any connection, except inside the retention job's own transaction
+— which removes only a prefix and appends a chained **checkpoint** naming
+what it removed, so deletion is itself audited and verification passes
+across it. Owners export their organisation's rows as CSV or JSON, signed
+byte-for-byte with an Ed25519 key whose public half travels with the file;
+`pnpm audit:verify-export` checks a saved file with the public key alone and
+recomputes the row hashes inside a JSON export. New secret:
+`AUDIT_SIGNING_SEED`. Rows written before the chain are chained once by
+`pnpm audit:chain-backfill`, a pre-rollout step on a populated deployment
+(`docs/release.md`); it refuses once a live write has taken the first seq.
+`docs/audit-log.md` has the detail, including what the chain is and is not
+evidence against — a superuser who rehashes everything produces a chain that
+verifies, which is why signed exports are kept outside the database and the
+public key is recorded out of band.
+
+**Verified by:** `pnpm verify:audit-chain` (in CI) against a real Postgres:
+five legacy (unchained) rows, two sharing a timestamp, are reported before
+the backfill and chained in `(createdAt, id)` order by it, after which the
+chain verifies from genesis and a second run refuses; a modified row, an inserted (unchained) row, a deleted row, a forged
+replacement at the same `seq` and a removed tail are each detected at the
+right link, and restoring heals; retention over a chain with a mid-chain
+gap removes the prefix, writes a checkpoint, and verification passes across
+it while a tampered checkpoint is caught; sixty concurrent `recordAudit`
+calls produce contiguous `seq`s with each `prevHash` the previous `rowHash`;
+JSON and CSV exports verify, one flipped byte fails, and the CLI verifies a
+saved file with only the public key while an edited file fails both checks;
+`UPDATE` and `DELETE` through Prisma and raw SQL are all refused by the
+trigger; the scrubber still redacts before hashing. Every other verify suite
+passes and the chain verifies over everything they wrote. The DB-role
+`GRANT` in the issue is replaced by the trigger, for the reason in the doc.
+
 ## 2026-09-12 — Dual control: a second person approves before a campaign can disburse (#45)
 
 An organisation can require that a campaign worth more than a threshold —

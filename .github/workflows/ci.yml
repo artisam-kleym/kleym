@@ -121,6 +121,9 @@ jobs:
       - name: Verify dual control
         run: pnpm verify:approvals
 
+      - name: Verify the audit chain, checkpoints, concurrency and signed export
+        run: pnpm verify:audit-chain
+
   e2e:
     name: CSV gate (real browser)
     runs-on: ubuntu-latest
@@ -191,6 +194,7 @@ jobs:
           PASSWORD="$(openssl rand -base64 24)"
           echo "::add-mask::$PASSWORD"
           echo "SESSION_SECRET=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+          echo "AUDIT_SIGNING_SEED=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
           echo "SEED_ADMIN_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
           echo "E2E_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
 

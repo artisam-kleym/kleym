@@ -106,6 +106,21 @@ minutes, and the report says `remaining` when a pass stopped short. That is
 the honest number, and it is a number rather than a queue silently running
 behind.
 
+## Rolling out #49 (audit chain) on an existing deployment
+
+Two steps before the deploy, in this order:
+
+1. Set `AUDIT_SIGNING_SEED` (32 random bytes, base64) in the secret store.
+   Record the public key it produces (`signingPublicKey()`, or the
+   `X-Kleym-Signing-Key` header of the first export) somewhere outside the
+   database — that copy is what auditors verify against.
+2. Run the migration, then `pnpm audit:chain-backfill` against the
+   production database **before** the new build serves traffic. It chains
+   every existing audit row once; it refuses if a live write has already
+   taken `seq` 1. Then `pnpm audit:verify` should be `ok`.
+
+A fresh deployment needs only step 1.
+
 ## Known limitations, and where the product states them
 
 `SPEC.md` §12 requires these in the product, not only in a document.
