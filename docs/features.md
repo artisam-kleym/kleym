@@ -45,7 +45,7 @@ live testnet Horizon: 11.9 s from dump to "RECOVERY CHECKS PASSED" (schema
 current, chain intact, 0 corrected, 8 unresolved fixture balances, 0
 critical). `pnpm verify:backup` run locally: dump, restore, 18 tables with
 matching counts, migration ledger, chain and joins all pass in 1.3 s.
-Typecheck, lint, build.
+Typecheck, lint, build. `verify:backup` refuses up front when the client is older than the server (proven with a stubbed `pg_dump` 16 against Postgres 17: exit 1, dump not attempted), and the join check compares link counts per campaign id against the source rather than asserting a tautology.
 
 ## 2026-09-12 — Sponsor pool with failover, outbound alerts and runway (#48)
 

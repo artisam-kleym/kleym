@@ -131,6 +131,12 @@ jobs:
         env:
           RESTORE_DATABASE_URL: postgresql://kleym:kleym@localhost:5432/kleym_restore
         run: |
+          # The runner ships the Postgres 16 client; the service is 17, and
+          # pg_dump refuses to dump a newer server. Match the client first —
+          # the PGDG repo is already configured on ubuntu-latest.
+          sudo apt-get install -y -q postgresql-client-17
+          export PATH=/usr/lib/postgresql/17/bin:$PATH
+          pg_dump --version
           PGPASSWORD=kleym psql -h localhost -U kleym -d kleym -c 'CREATE DATABASE kleym_restore'
           pnpm verify:backup
 

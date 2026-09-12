@@ -119,6 +119,15 @@ by hand — reconciliation would refuse the mismatch, and correctly.
 `pnpm verify:backup` dumps `DATABASE_URL`, restores it into
 `RESTORE_DATABASE_URL` (a clean database), and then **asks the restored
 copy**: every table's row count matches, the migration ledger is intact,
-the audit chain verifies, campaigns join to their links. It runs in CI on
-every push, last in the verify job so the database the suites populated is
-what gets restored. A check that looks for a file is not a backup check.
+the audit chain verifies, and a sample of campaigns has the same link
+count on both sides (the FK survived, compared per campaign id). It runs
+in CI on every push, last in the verify job so the database the suites
+populated is what gets restored. A check that looks for a file is not a
+backup check.
+
+It checks the **client against the server first**: `pg_dump` refuses to dump
+a server newer than itself, and a laptop whose client lags the server is
+exactly what an operator brings on restore day. The script stops with
+"pg_dump is version 16 and the server is 17 … install postgresql-client-17"
+before touching anything. CI installs the matching client for the same
+reason (`ubuntu-latest` ships 16; the service is 17).
