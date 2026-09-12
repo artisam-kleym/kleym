@@ -17,7 +17,7 @@ applyEnvPlaceholders()
 const { prisma } = await import('../src/lib/db/client')
 const { readDisposal } = await import('../src/lib/api/reconcile')
 const { reconcileJobs, requestReconcile } = await import('../src/lib/queue/maintenance')
-const { reconcileCampaign, sweepExpired, openFindings, findingsValue } = await import(
+const { reconcileCampaign, reconcileAll, sweepExpired, openFindings, findingsValue } = await import(
   '../src/lib/api/reconcile'
 )
 
@@ -86,7 +86,6 @@ const noDisposal = async () => null
 const disposalBy = (claimant: string, hash = randomUUID().replace(/-/g, '')) => async () => ({
   claimant,
   transactionHash: hash,
-  reclaimed: false,
 })
 
 async function correctsDriftTowardsTheChain(): Promise<void> {
@@ -377,6 +376,99 @@ async function theManualTriggerDeduplicates(): Promise<void> {
   await queue.close()
 }
 
+/**
+ * The drift report puts criticals FIRST across mixed severities.
+ *
+ * Review on #12 found `orderBy: { severity: 'desc' }` on a String column,
+ * which sorted 'warn' above 'error' — every critical at the bottom, below
+ * every routine drift row, with a comment saying the opposite. The earlier
+ * check only looked at one link's own finding, so no ordering was exercised.
+ * This one produces a warn BEFORE an error and reads the list as the page does.
+ */
+async function criticalsSortFirst(): Promise<void> {
+  console.log('\n· a warn finding recorded before an error one still lists after it')
+
+  // Corrected drift → warn. Recorded first, so `firstSeenAt` would put it first.
+  const drift = await fixture(['ACTIVE'])
+  await reconcileCampaign(drift.campaignId, {
+    loadBalance: holding([]),
+    readDisposal: disposalBy(Keypair.random().publicKey()),
+  })
+  // Settled row, balance still on the ledger → error.
+  const critical = await fixture(['CLAIMED'])
+  await reconcileCampaign(critical.campaignId, {
+    loadBalance: holding([critical.links[0]!.balanceId]),
+    readDisposal: noDisposal,
+  })
+
+  const mine = new Set([drift.campaignId, critical.campaignId])
+  const listed = (await openFindings()).filter((finding) => mine.has(finding.campaign.id))
+  check('both findings are open', listed.length === 2, JSON.stringify(listed.map((f) => f.severity)))
+  check('the error is listed first', listed[0]?.severity === 'error', JSON.stringify(listed.map((f) => f.severity)))
+  check('the warn after it', listed[1]?.severity === 'warn', JSON.stringify(listed.map((f) => f.severity)))
+
+  const whole = await openFindings()
+  const firstWarn = whole.findIndex((f) => f.severity === 'warn')
+  const lastError = whole.map((f) => f.severity).lastIndexOf('error')
+  check(
+    'and across the whole report no error sits below a warn',
+    firstWarn === -1 || lastError === -1 || lastError < firstWarn,
+    `last error at ${lastError}, first warn at ${firstWarn}`,
+  )
+}
+
+/**
+ * A scheduled pass is bounded, reports what it did not reach, and the next
+ * pass continues from there rather than re-reading the same links.
+ *
+ * With one serial Horizon read per link and a five-minute schedule, an
+ * unbounded pass over 10,000 links never finishes inside its interval and
+ * nothing says so. The cursor is injected (in memory) so this does not depend
+ * on Redis state left by a previous run.
+ */
+async function aPassIsBoundedAndResumes(): Promise<void> {
+  console.log('\n· a pass of limit 2 over a set the limit does not cover')
+
+  // Every other live link in the database is a candidate too, so this check
+  // reads visits by which of ITS links got corrected, not by the totals.
+  const f = await fixture(['ACTIVE', 'ACTIVE', 'ACTIVE'])
+  const mine = new Set(f.links.map((l) => l.balanceId))
+  const visited = new Set<string>()
+  const deps = {
+    loadBalance: async (balanceId: string) => {
+      if (mine.has(balanceId)) visited.add(balanceId)
+      // Still on the ledger, so nothing is corrected and the rows stay ACTIVE
+      // — the check is about coverage, not drift.
+      return { id: balanceId, asset: 'native', amount: '2.5000000', claimants: [] }
+    },
+    readDisposal: noDisposal,
+  }
+
+  let stored: string | null = null
+  const cursor = { get: async () => stored, set: async (v: string | null) => void (stored = v) }
+
+  const candidates = await prisma.claimLink.count({
+    where: { balanceId: { not: null }, campaign: { status: { in: ['ACTIVE', 'PARTIAL', 'EXPIRED'] } } },
+  })
+  const limit = 2
+  const passes = Math.ceil(candidates / limit)
+
+  const first = await reconcileAll(deps, { limit, cursor })
+  check('the first pass stops at the limit', first.linksChecked === limit, JSON.stringify(first))
+  check('and reports what it left', first.remaining === candidates - limit, `${first.remaining} of ${candidates - limit}`)
+  check('the cursor moved', stored !== null)
+
+  let last = first
+  for (let i = 1; i < passes; i += 1) last = await reconcileAll(deps, { limit, cursor })
+  check('the final pass reports nothing remaining', last.remaining === 0, JSON.stringify(last))
+  check('every one of these links was reached across the passes', visited.size === 3, `${visited.size} of 3`)
+  check('the cursor is cleared at the end of the set', stored === null, `${stored}`)
+
+  visited.clear()
+  await reconcileAll(deps, { limit, cursor })
+  check('the next pass starts again from the top', visited.size <= limit)
+}
+
 async function main(): Promise<void> {
   try {
     await correctsDriftTowardsTheChain()
@@ -387,6 +479,8 @@ async function main(): Promise<void> {
     await sweepsExpiry()
     await reportsValueExactly()
     await oneBadLinkDoesNotAbortTheRun()
+    await criticalsSortFirst()
+    await aPassIsBoundedAndResumes()
     await theLiveReaderSurvivesAnUnknownBalance()
     await theManualTriggerDeduplicates()
   } finally {
