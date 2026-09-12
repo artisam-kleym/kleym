@@ -51,6 +51,27 @@ anyone holding the link can claim it and to claim rather than forward, and `/das
 states that campaigns belong to one account — no colleague, and not Kleym, can see or
 reclaim them.
 
+### After review
+
+**The load test measures the maintenance jobs.** At 10,000 links the ceiling
+is not the batch path but `reconcileAll` and `watchEphemerals`, one serial
+Horizon read per link on fixed schedules. `pnpm loadtest` now walks both over
+the same 10,000 live links with the reads stubbed, counts the passes the
+bounded limits take to cover the set, and projects a pass at a nominal Horizon
+latency against its schedule interval — failing if it does not fit or a walk
+misses a link. Result at 150 ms/read: reconcile ≈150 s per pass of 300 s, full
+coverage every ≈55 min; ephemeral-watch ≈450 s of 900 s, every ≈60 min. The
+numbers are in `docs/release.md`.
+
+**A server that never starts reads as that.** The acceptance step's readiness
+loop now fails the job with the server log if `/api/health` never answered,
+instead of running the matrix against nothing and reporting criteria failures.
+
+**Base branch:** this PR still targets `integration/all-open-prs`, which the
+#33 merge-order note calls a throwaway reference. The plan is to retarget it
+to `develop` once #32–#37 land; the branch has had all six updated heads
+merged in so its CI runs against the reviewed fixes.
+
 **Verified by:** `pnpm acceptance` against a production build, 14/14; `pnpm spike`
 against testnet, 7/7; `pnpm loadtest` at 10,000 links; `pnpm test:e2e`, 19/19 in a real
 browser; 193 unit tests; all nine verify suites; typecheck, lint, and a cold build with

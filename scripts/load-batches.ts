@@ -12,6 +12,15 @@
  * would spend real testnet sequence numbers for 112 transactions and tells you
  * about Horizon's throughput rather than Kleym's.
  *
+ * Then the part that IS the bottleneck at this size: the maintenance jobs.
+ * `reconcileAll` (every 5 minutes) and `watchEphemerals` (every 15) each do
+ * one serial Horizon read per live link. The ledger reads are stubbed at a
+ * nominal latency, so what is measured is Kleym's side of a pass — the
+ * candidate set, the passes it takes to cover it, the wall-clock per pass
+ * with the stub — and then the arithmetic that matters: whether one pass at a
+ * realistic Horizon latency fits inside its own schedule interval. Review on
+ * #38 asked for exactly this number; the batch path was never the ceiling.
+ *
  * Run: pnpm loadtest
  */
 import { randomUUID } from 'node:crypto'
@@ -24,6 +33,14 @@ const { prisma } = await import('../src/lib/db/client')
 const { env } = await import('../src/lib/config/env')
 const { ensurePlanned } = await import('../src/lib/api/batches')
 const { LINK_ORDER } = await import('../src/lib/api/link-order')
+const { reconcileAll, RECONCILE_PASS_LIMIT } = await import('../src/lib/api/reconcile')
+const { watchEphemerals, WATCH_PASS_LIMIT } = await import('../src/lib/api/stranded')
+const { memoryPassCursor } = await import('../src/lib/queue/pass-cursor')
+
+/** What one Horizon read costs from Railway to horizon.stellar.org, roughly. */
+const HORIZON_LATENCY_MS = Number(process.env.HORIZON_LATENCY_MS ?? 150)
+const RECONCILE_INTERVAL_MS = 5 * 60_000
+const WATCH_INTERVAL_MS = 15 * 60_000
 
 const LINKS = Number(process.env.LOAD_LINKS ?? env.MAX_LINKS_PER_CAMPAIGN)
 
@@ -109,6 +126,88 @@ async function main(): Promise<void> {
   })
   console.log(`one batch's links ${fmt(ms(start))}  (${batchLinks.length} links)`)
 
+  // 6. The maintenance jobs over the same campaign, now with every link live.
+  //    Reads are stubbed (a balance that is still there; no ephemeral account
+  //    on the ledger) so nothing here touches Horizon, and the stub costs ~0.
+  await prisma.campaign.update({ where: { id: campaign.id }, data: { status: 'ACTIVE' } })
+  const ids = await prisma.claimLink.findMany({ where: { campaignId: campaign.id }, select: { id: true } })
+  const BALANCE_CHUNK = 500
+  for (let i = 0; i < ids.length; i += BALANCE_CHUNK) {
+    await Promise.all(
+      ids.slice(i, i + BALANCE_CHUNK).map((row, n) =>
+        prisma.claimLink.update({
+          where: { id: row.id },
+          data: { status: 'ACTIVE', balanceId: `${(i + n).toString(16).padStart(8, '0')}${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}`.slice(0, 72) },
+        }),
+      ),
+    )
+  }
+  const candidates = await prisma.claimLink.count({ where: { campaignId: campaign.id, balanceId: { not: null } } })
+
+  console.log(`\nMaintenance jobs — ${candidates} live links\n${'='.repeat(60)}`)
+  console.log(`(ledger reads stubbed; projections assume ${HORIZON_LATENCY_MS} ms per Horizon read)`)
+
+  const stillThere = async (balanceId: string) => ({ id: balanceId, asset: 'native', amount: '1.0000000', claimants: [] })
+  const jobs = [
+    {
+      name: 'reconcile',
+      limit: RECONCILE_PASS_LIMIT,
+      interval: RECONCILE_INTERVAL_MS,
+      run: (cursor: ReturnType<typeof memoryPassCursor>) =>
+        reconcileAll({ loadBalance: stillThere, readDisposal: async () => null }, { cursor }),
+    },
+    {
+      name: 'ephemeral-watch',
+      limit: WATCH_PASS_LIMIT,
+      interval: WATCH_INTERVAL_MS,
+      run: (cursor: ReturnType<typeof memoryPassCursor>) =>
+        watchEphemerals(
+          {
+            readAccount: async () => null,
+            balanceExists: async () => true,
+            reserve: async () => new (await import('decimal.js')).default('0.5'),
+            askReconcile: async () => undefined,
+          },
+          new Date(),
+          { cursor },
+        ),
+    },
+  ]
+
+  let maintenanceOk = true
+  for (const job of jobs) {
+    const cursor = memoryPassCursor()
+    // The whole table is the candidate set — the load campaign plus whatever
+    // else is live — so the pass count is measured, not assumed.
+    let passes = 0
+    let checked = 0
+    let slowestPass = 0
+    let remaining = -1
+    const walkStart = process.hrtime.bigint()
+    do {
+      const passStart = process.hrtime.bigint()
+      const report = await job.run(cursor)
+      const took = ms(passStart)
+      passes += 1
+      checked += 'linksChecked' in report ? report.linksChecked : report.checked
+      remaining = report.remaining
+      slowestPass = Math.max(slowestPass, took)
+    } while (remaining > 0 && passes < 1_000)
+    const walk = ms(walkStart)
+
+    const projectedPass = job.limit * HORIZON_LATENCY_MS + slowestPass
+    const fits = projectedPass < job.interval
+    const fullCoverage = passes * job.interval
+    if (!fits || checked < candidates) maintenanceOk = false
+
+    console.log(`\n${job.name}`)
+    console.log(`  limit per pass    ${job.limit}`)
+    console.log(`  passes to cover   ${passes}  (${checked} links, ${fmt(walk)} with the stub)`)
+    console.log(`  slowest pass      ${fmt(slowestPass)}  (Kleym's side only)`)
+    console.log(`  projected pass    ${fmt(projectedPass)} at ${HORIZON_LATENCY_MS} ms/read — ${fits ? 'fits' : 'DOES NOT FIT'} in the ${job.interval / 60_000}-minute interval`)
+    console.log(`  full coverage     every ${(fullCoverage / 60_000).toFixed(0)} min at this size`)
+  }
+
   console.log('\n' + '='.repeat(60))
   const expected = Math.ceil(LINKS / env.MAX_OPS_PER_BATCH)
   console.log(`${batches} batches for ${LINKS} links at ${env.MAX_OPS_PER_BATCH}/batch (expected ${expected})`)
@@ -122,7 +221,13 @@ async function main(): Promise<void> {
   await prisma.user.delete({ where: { id: user.id } })
   await prisma.$disconnect()
 
-  if (batches !== expected || seen.size !== LINKS || after !== batches) process.exit(1)
+  console.log(
+    maintenanceOk
+      ? 'Both maintenance passes fit their schedule interval at this size.'
+      : 'A MAINTENANCE PASS DOES NOT FIT ITS INTERVAL, or did not cover every link.',
+  )
+
+  if (batches !== expected || seen.size !== LINKS || after !== batches || !maintenanceOk) process.exit(1)
 }
 
 void main()

@@ -213,6 +213,14 @@ jobs:
             curl -sf http://127.0.0.1:3211/api/health >/dev/null && break
             sleep 1
           done
+          # A server that never came up must read as "the server never came
+          # up", not as a page of criteria failures — this output is what
+          # someone reads when deciding whether to release.
+          curl -sf http://127.0.0.1:3211/api/health >/dev/null || {
+            echo '::error::the server did not answer /api/health within 60s; its log follows'
+            cat /tmp/kleym-server.log
+            exit 1
+          }
           BASE_URL=http://127.0.0.1:3211 SERVER_LOG=/tmp/kleym-server.log pnpm acceptance
 
       - name: Batch path under load

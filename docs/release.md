@@ -82,6 +82,30 @@ skipping and repeating them — proven fixed at full scale.
 **Not measured:** Horizon submission throughput for 112 real transactions. That
 would spend real sequence numbers and measures Horizon rather than Kleym.
 
+### The maintenance jobs, which are the actual ceiling
+
+The batch path was never the bottleneck at this size. `reconcileAll` (every 5
+minutes) and `watchEphemerals` (every 15) each do one serial Horizon read per
+live link, so at 10,000 links the question is whether a pass fits inside its
+own schedule. Both passes are bounded (#33, #35: `RECONCILE_PASS_LIMIT` 1,000,
+`WATCH_PASS_LIMIT` 3,000, continuing from a cursor), and `pnpm loadtest` now
+walks both over the same 10,000 live links with the ledger reads stubbed, then
+projects the pass at a nominal 150 ms per Horizon read (`HORIZON_LATENCY_MS`
+to change it):
+
+| Job | Limit / pass | Passes to cover 10,000 | Projected pass at 150 ms/read | Fits its interval | Full coverage |
+|---|---|---|---|---|---|
+| reconcile | 1,000 | 11 | ≈150 s | yes, of 300 s | every ≈55 min |
+| ephemeral-watch | 3,000 | 4 | ≈450 s | yes, of 900 s | every ≈60 min |
+
+Kleym's own side of a pass is under 700 ms; the Horizon reads are the pass.
+The load test fails if a projected pass does not fit its interval or a walk
+does not cover every link. **What this means for an operator:** at the
+supported maximum, a drift is detected within about an hour rather than five
+minutes, and the report says `remaining` when a pass stopped short. That is
+the honest number, and it is a number rather than a queue silently running
+behind.
+
 ## Known limitations, and where the product states them
 
 `SPEC.md` §12 requires these in the product, not only in a document.
