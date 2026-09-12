@@ -15,6 +15,8 @@ import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
 import { containsSecretSeed } from '@/lib/validation/stellar'
+import { randomUUID } from 'node:crypto'
+import { appendChained } from './audit-chain'
 
 /** The actions SPEC.md §5.4 requires. A union so a typo is a build error. */
 export type AuditAction =
@@ -138,21 +140,27 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
     )
   }
 
+  /*
+   * Chained (#49): the row takes the next seq under the head lock, so a
+   * concurrent writer waits rather than forks. The lock serialises without a
+   * retry loop, which is what keeps the never-throw contract simple — the
+   * only way to lose a row is the database refusing the write outright, and
+   * that is logged at ERROR as the incident it is.
+   */
   try {
-    await prisma.auditLog.create({
-      data: {
-        userId: entry.userId,
-        organizationId: entry.organizationId ?? null,
-        action: entry.action,
-        entityType: entry.entityType ?? null,
-        entityId: entry.entityId ?? null,
-        metadata: Object.keys(clean).length > 0 ? (clean as Prisma.InputJsonValue) : Prisma.JsonNull,
-        ip: entry.ip,
-      },
+    await appendChained({
+      id: randomUUID(),
+      userId: entry.userId,
+      organizationId: entry.organizationId ?? null,
+      action: entry.action,
+      entityType: entry.entityType ?? null,
+      entityId: entry.entityId ?? null,
+      metadata: Object.keys(clean).length > 0 ? (clean as Prisma.InputJsonValue) : Prisma.JsonNull,
+      ip: entry.ip,
     })
   } catch (error) {
     logger.error(
-      { action: entry.action, reason: error instanceof Error ? error.message : 'unknown' },
+      { securityEvent: 'AUDIT_ROW_DROPPED', action: entry.action, reason: error instanceof Error ? error.message : 'unknown' },
       'audit row could not be written',
     )
   }

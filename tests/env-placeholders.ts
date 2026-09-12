@@ -16,6 +16,11 @@
  */
 import { Keypair } from '@stellar/stellar-sdk'
 
+/** Audit rows carry a BigInt `seq` (#49); scripts JSON them in check output. */
+;(BigInt.prototype as unknown as { toJSON: () => string }).toJSON = function () {
+  return this.toString()
+}
+
 export function applyEnvPlaceholders(): void {
   const sponsor = Keypair.random()
 
@@ -25,6 +30,7 @@ export function applyEnvPlaceholders(): void {
     DATABASE_URL: 'postgresql://kleym:kleym@localhost:5432/kleym',
     REDIS_URL: 'redis://localhost:6379',
     SESSION_SECRET: Buffer.alloc(32, 7).toString('base64'),
+    AUDIT_SIGNING_SEED: Buffer.alloc(32, 9).toString('base64'),
     STELLAR_NETWORK: 'testnet',
     HORIZON_URL: 'https://horizon-testnet.stellar.org',
     NETWORK_PASSPHRASE: 'Test SDF Network ; September 2015',

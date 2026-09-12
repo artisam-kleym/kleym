@@ -10,6 +10,7 @@ import { QUEUE, queueConnection } from '@/lib/queue/connection'
 import { reconcileAll, reconcileCampaign, sweepExpired } from '@/lib/api/reconcile'
 import { watchEphemerals } from '@/lib/api/stranded'
 import { sweepDeliveryRetention } from '@/lib/api/privacy'
+import { retainAudit } from '@/lib/api/audit-chain'
 
 interface ReconcileJob {
   campaignId?: string
@@ -101,7 +102,13 @@ export function startEphemeralWatchWorker(): Worker {
 export function startRetentionWorker(): Worker {
   const worker = new Worker(
     QUEUE.deliveryRetention,
-    async () => sweepDeliveryRetention(),
+    async () => {
+      const deliveries = await sweepDeliveryRetention()
+      // Audit retention rides the same daily schedule (#49); its checkpoint
+      // row is the audit of the deletion.
+      const audit = await retainAudit()
+      return { deliveries, audit: { ...audit, fromSeq: audit.fromSeq?.toString() ?? null, toSeq: audit.toSeq?.toString() ?? null } }
+    },
     { connection: queueConnection(), concurrency: 1 },
   )
   worker.on('failed', (job, error) => {
