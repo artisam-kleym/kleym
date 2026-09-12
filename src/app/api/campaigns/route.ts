@@ -10,6 +10,7 @@ import { recordAudit } from '@/lib/api/audit'
 import { clientIp } from '@/lib/auth/client-ip'
 import { guardRequestBody } from '@/lib/security/guard'
 import { requireUser } from '@/lib/api/session-guard'
+import { chooseSponsor } from '@/lib/stellar/sponsors'
 import {
   beginIdempotency,
   releaseIdempotency,
@@ -99,10 +100,14 @@ export async function POST(request: Request) {
   if (!idempotency.reserved) return idempotency.response
 
   try {
+    // Bound to a sponsor for life (#48): the first in the pool with working
+    // float, or the best of them. Reads the ledger once, at creation.
+    const { sponsor } = await chooseSponsor()
     const campaign = await prisma.campaign.create({
       data: {
         userId: user.id,
         organizationId: org.id,
+        sponsorPublicKey: sponsor.publicKey,
         // Dual-control policy snapshot (#45): loosening the organisation's
         // policy later does not reach this campaign.
         approvalThreshold: org.approvalThreshold,

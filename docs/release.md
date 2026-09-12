@@ -128,7 +128,7 @@ A fresh deployment needs only step 1.
 | Limitation | Where the affected person reads it |
 |---|---|
 | Lost CSV means stranded funds until expiry | Wizard export step — the warning panel on the download gate, and again after signing |
-| Sponsor exhaustion halts all claims | `/admin`, beside the balance, with the threshold warning |
+| Sponsor float has to be topped up; a pool fails over for new campaigns only | `/admin`, the sponsor pool table with per-sponsor float and runway |
 | A leaked link is a bearer instrument | The `/claim` ready screen, and the claim email |
 | Partial batch failure needs sender action | Wizard export step, and `/admin/campaigns` status |
 | Organisations are flat: no cross-organisation sharing | `/dashboard`, in the note on who can see campaigns |

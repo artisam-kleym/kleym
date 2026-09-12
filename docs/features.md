@@ -47,6 +47,47 @@ critical). `pnpm verify:backup` run locally: dump, restore, 18 tables with
 matching counts, migration ledger, chain and joins all pass in 1.3 s.
 Typecheck, lint, build.
 
+## 2026-09-12 — Sponsor pool with failover, outbound alerts and runway (#48)
+
+The sponsor account — Kleym's float, and until now an admitted single point
+of failure — is a pool: the primary plus any seeds in
+`SPONSOR_SECRET_KEYS_EXTRA`, every one an environment secret. A new campaign
+is bound to the first sponsor in pool order with spendable XLM at or above
+`SPONSOR_WORKING_THRESHOLD` (the richest if none is), recorded on the
+campaign and kept for life — reserves return to the account that sponsored
+them, so failover is for new campaigns only. Every claim is checked against,
+signed by, and its envelope verified against, that campaign's sponsor;
+campaigns older than the pool read as the primary. Creating a campaign
+never needs the ledger: if no sponsor balance can be read, the campaign binds
+to the primary with a WARN and the claim path gives the honest "temporarily
+unavailable" later if it is dry. A campaign bound to a sponsor that has since
+left the pool is refused the same way, logged for the operator — never
+re-signed by another sponsor, never a stack trace.
+
+Alerts go outward: `ALERT_WEBHOOK_URL` receives a JSON POST on
+`sponsor.low_balance` and `sponsor.failover`, deduplicated per sponsor for an
+hour in Redis, never failing the claim that raised it; PagerDuty and Slack
+relays are documented. `/admin` shows each sponsor's spendable float, live
+campaigns, seven-day claim rate and runway — "at the current claim rate this
+float lasts N days", fees only, since reserves come back. Runbook in
+`docs/sponsor-runbook.md`; `SPEC.md` §12 amended.
+
+**Verified by:** `pnpm verify:sponsors` (in CI) with a two-key pool, stubbed
+balances and a real local HTTP receiver: primary below threshold → the second
+sponsor is chosen and a failover event reaches the receiver; primary
+recovered → chosen again; all below → richest; unreadable → skipped. A
+campaign bound to the second sponsor loads with it, a null-bound one as the
+primary, and an envelope sourced by the primary is refused for a campaign
+bound to the second while the bound sponsor's is accepted. A low-balance
+alert is delivered with the event header and sponsor in the body, the second
+within the hour is deduplicated, a different sponsor is its own alert, an
+unreachable receiver does not throw; no readable sponsor at all still binds
+a new campaign to the primary; a campaign bound to a key outside the pool is
+"temporarily unavailable" on both load and submit. Per-sponsor status flags the low one;
+fee-per-claim and runway arithmetic in `Decimal`. Both pool seeds and the
+webhook URL planted in log calls are redacted. `verify:claims`,
+`verify:stranded`, 213 unit tests, build.
+
 ## 2026-09-12 — The audit log is tamper-evident, append-only and exportable (#49)
 
 Every audit row is now hash-chained to its predecessor (`seq`, `prevHash`,

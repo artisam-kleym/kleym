@@ -890,7 +890,7 @@ Each step ends in something checkable. Do not proceed past a failing step.
 State these in the product, not just in this document.
 
 - **Lost CSV means stranded funds** until expiry. By design; the alternative is custody.
-- **Sponsor exhaustion halts all claims.** Single point of failure in v1. Monitor it.
+- **Sponsor exhaustion halts claims on that sponsor's campaigns.** Sponsorship is a pool (#48): new campaigns are bound to the first sponsor with working float and keep it for life, so one exhausted account cannot stop every campaign, and crossing the alert threshold pages a webhook. It is still float that a person has to top up; `docs/sponsor-runbook.md`.
 - **A leaked link is a bearer instrument.** Anyone holding the URL can claim. Email delivery with OTP mitigates this; direct distribution does not.
 - **Partial batch failure** leaves a campaign in a mixed state requiring sender action.
 - **An abandoned claim strands sponsor reserves.** If TX1 of a claim lands and TX2 never

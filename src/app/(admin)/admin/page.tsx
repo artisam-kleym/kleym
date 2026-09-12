@@ -1,7 +1,6 @@
 import Decimal from 'decimal.js'
 import { env } from '@/lib/config/env'
-import { logger } from '@/lib/config/logger'
-import { sponsorSpendable } from '@/lib/stellar/horizon'
+import { sponsorStatuses } from '@/lib/api/sponsor-status'
 import { strandedSummary } from '@/lib/api/stranded'
 import { Table, TableCell, TableHead, TableRow, StellarAddress, WarningPanel } from '@/components/ui'
 
@@ -17,27 +16,14 @@ export const dynamic = 'force-dynamic'
  *
  * The fuller admin area is #15. This is the part §7.3 requires.
  */
-async function sponsor(): Promise<{ spendable: string } | { error: string }> {
-  try {
-    return { spendable: (await sponsorSpendable(env.SPONSOR_PUBLIC_KEY)).toString() }
-  } catch (error) {
-    /*
-     * An unreadable sponsor balance is shown as unreadable.
-     *
-     * Falling back to zero would render a permanent exhaustion warning out of
-     * a network blip, and falling back to a dash implies a balance of nothing.
-     * Either teaches an admin to distrust this number.
-     */
-    logger.warn(
-      { reason: error instanceof Error ? error.message : 'unknown' },
-      'sponsor balance could not be read for /admin',
-    )
-    return { error: 'Horizon did not answer. This is not a balance of zero — it is unknown.' }
-  }
-}
-
 export default async function AdminPage() {
-  const [stranded, float] = await Promise.all([strandedSummary(), sponsor()])
+  const [stranded, sponsors] = await Promise.all([strandedSummary(), sponsorStatuses()])
+  // The headline card is the primary — row 0 of the pool — read once, not twice.
+  const primary = sponsors[0]
+  const float: { spendable: string } | { error: string } =
+    primary?.spendable !== null && primary?.spendable !== undefined
+      ? { spendable: primary.spendable }
+      : { error: 'Horizon did not answer. This is not a balance of zero — it is unknown.' }
 
   const low =
     'spendable' in float &&
@@ -86,6 +72,32 @@ export default async function AdminPage() {
           </WarningPanel>
         </div>
       )}
+
+      <h2 className="mt-xl text-headline-md text-on-surface">Sponsor pool</h2>
+      <p className="mt-sm max-w-3xl text-body-md text-on-surface-variant">
+        New campaigns are bound to the first sponsor with at least {env.SPONSOR_WORKING_THRESHOLD} XLM
+        spendable, in pool order; a campaign keeps its sponsor for life, because reserves return to the
+        account that sponsored them. Runway is &ldquo;at the current claim rate&rdquo; — fees over the
+        last seven days&rsquo; claims — and says nothing about a burst. Top-up and rotation:
+        <span className="font-mono"> docs/sponsor-runbook.md</span>.
+      </p>
+      <Table className="mt-md">
+        <TableHead columns={['Sponsor', 'Spendable', 'Live campaigns', 'Claims / day (7d)', 'Runway']} />
+        <tbody>
+          {sponsors.map((s) => (
+            <TableRow key={s.publicKey}>
+              <TableCell>
+                <StellarAddress value={s.publicKey} />
+                <span className="ml-sm text-label-sm text-on-surface-variant">{s.index === 0 ? 'primary' : `#${s.index + 1}`}</span>
+              </TableCell>
+              <TableCell className={s.low ? 'text-error' : undefined}>{s.spendable === null ? 'unknown' : `${s.spendable} XLM`}</TableCell>
+              <TableCell>{s.campaigns}</TableCell>
+              <TableCell>{s.claimsPerDay}</TableCell>
+              <TableCell>{s.runwayDays === null ? (s.claimsPerDay === '0' ? 'no claims in 7 days' : '—') : `${s.runwayDays} days`}</TableCell>
+            </TableRow>
+          ))}
+        </tbody>
+      </Table>
 
       <h2 className="mt-xl text-headline-md text-on-surface">Stranded ephemeral accounts</h2>
       <p className="mt-sm max-w-3xl text-body-md text-on-surface-variant">
