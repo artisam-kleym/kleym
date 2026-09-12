@@ -1,9 +1,11 @@
 /**
  * /status — public, unauthenticated, fed by real signals. Issue #53.
  *
- * The same probes /api/ready runs, the queues as BullMQ holds them, the
- * last bounded passes and the sponsor float, computed live and cached for
- * fifteen seconds. Names components, not hosts; states, not error text.
+ * The same probes /api/ready runs, the queues, the last bounded passes and
+ * the sponsor float, computed live and cached for fifteen seconds — shown
+ * as components and STATES only. No counts: queue depths and a low sponsor
+ * are operator signals (lib/observability/status.ts says why) and live on
+ * /admin.
  */
 import { AmbientOrbs, Icon } from '@/components/ui'
 import { statusSnapshot, STATUS_TTL_MS, type ComponentState } from '@/lib/observability/status'
@@ -54,45 +56,8 @@ export default async function StatusPage() {
           ))}
         </ul>
 
-        {status.passes.length > 0 && (
-          <>
-            <h2 className="mt-xl text-headline-sm text-on-surface">Scheduled reconciliation</h2>
-            <ul className="mt-md divide-y divide-outline-variant rounded-xl border border-outline-variant bg-surface-container-lowest">
-              {status.passes.map((p) => (
-                <li key={p.job} className="flex flex-wrap items-center justify-between gap-md px-lg py-md">
-                  <div>
-                    <p className="font-mono text-body-md text-on-surface">{p.job}</p>
-                    <p className="font-mono text-label-sm text-on-surface-variant">
-                      {p.finishedAt ? `last pass ${p.finishedAt.replace('T', ' ').slice(0, 16)} UTC` : 'no pass recorded'}
-                      {p.remaining > 0 && ` · ${p.remaining} left for the next pass`}
-                    </p>
-                  </div>
-                  <State state={p.state} />
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-
-        {status.queues.length > 0 && (
-          <>
-            <h2 className="mt-xl text-headline-sm text-on-surface">Background queues</h2>
-            <ul className="mt-md divide-y divide-outline-variant rounded-xl border border-outline-variant bg-surface-container-lowest">
-              {status.queues.map((q) => (
-                <li key={q.queue} className="flex flex-wrap items-center justify-between gap-md px-lg py-sm font-mono text-label-md">
-                  <span className="text-on-surface">{q.queue}</span>
-                  <span className="text-on-surface-variant">
-                    {q.waiting} waiting · {q.active} active · {q.failed} failed
-                    {q.oldestWaitingSeconds > 0 && ` · oldest ${q.oldestWaitingSeconds}s`}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-
         <p className="mt-xl text-label-md text-on-surface-variant">
-          Service levels and error budgets: docs/slo.md in the repository. Machine-readable: <span className="font-mono">/api/status</span>.
+          Service levels and error budgets: docs/slo.md in the repository. Machine-readable: <span className="font-mono">/api/status</span>. Operators: the numbers behind each state are on the admin reconciliation page.
         </p>
       </main>
     </>

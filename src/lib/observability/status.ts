@@ -8,10 +8,15 @@
  * the snapshot for STATUS_TTL_MS in memory only to bound the load a public
  * page can put on the dependencies it reports.
  *
- * Nothing tenant-shaped leaves here: no campaign, no address, no host, no
- * error text. Which component is degraded, and how much is queued, is what
- * a status page is for; why it is degraded stays in the log (see the note
- * on /api/ready).
+ * Two audiences. The PUBLIC snapshot (`statusSnapshot`) is components and
+ * states — operational / degraded / down — and nothing else: no counts, no
+ * queue depths, no "sponsor below threshold", no "N accounts need an
+ * operator". A sponsor running low is exactly the signal someone draining
+ * the float through claims would want, and a queue depth is aggregate tenant
+ * activity and a live read-out of whether an incident is working. Those
+ * numbers are for /admin (`operatorStatus`) and the metrics, where an
+ * operator reads them. Why a component is degraded stays in the log (see
+ * the note on /api/ready).
  */
 import Decimal from 'decimal.js'
 import { env } from '@/lib/config/env'
@@ -137,12 +142,19 @@ export async function passReadings(now: Date = new Date()): Promise<PassStatus[]
 
 export type ComponentState = 'operational' | 'degraded' | 'down'
 
+/** What the outside sees. Names and states only. */
 export interface StatusSnapshot {
   generatedAt: string
   overall: ComponentState
   components: { name: string; state: ComponentState; note: string }[]
+}
+
+/** What /admin sees: the same components, plus the numbers behind them. */
+export interface OperatorStatus extends StatusSnapshot {
   queues: { queue: string; waiting: number; active: number; failed: number; oldestWaitingSeconds: number }[]
   passes: { job: string; state: ComponentState; remaining: number; finishedAt: string | null }[]
+  sponsors: { index: number; low: boolean; unreadable: boolean; runwayDays: number | null }[]
+  stranded: StrandedReading | null
 }
 
 const COMPONENT_LABEL: Record<Probe['name'], string> = {
@@ -163,7 +175,7 @@ async function settle<T>(work: () => Promise<T>): Promise<T | null> {
 }
 
 /** Scripts stub the sponsor balance reader; everything else is read as it is. */
-export async function computeStatus(now: Date = new Date(), deps: { sponsorRead?: SpendableReader } = {}): Promise<StatusSnapshot> {
+export async function computeOperatorStatus(now: Date = new Date(), deps: { sponsorRead?: SpendableReader } = {}): Promise<OperatorStatus> {
   const [dependencies, queues, passes, sponsors, stranded] = await Promise.all([
     probeDependencies(),
     settle(() => queueReadings(now)),
@@ -172,10 +184,12 @@ export async function computeStatus(now: Date = new Date(), deps: { sponsorRead?
     settle(strandedReading),
   ])
 
+  // Notes are generic by design: they must read the same to an outsider
+  // whether the cause is a low float or a dead worker.
   const components: StatusSnapshot['components'] = dependencies.map((p) => ({
     name: COMPONENT_LABEL[p.name],
     state: p.ok ? 'operational' : 'down',
-    note: p.ok ? `answered in ${p.latencyMs} ms` : 'not answering',
+    note: p.ok ? 'answering' : 'not answering',
   }))
 
   const stalled = (queues ?? []).some((q) => q.oldestWaitingSeconds > QUEUE_STALL_SECONDS)
@@ -189,22 +203,26 @@ export async function computeStatus(now: Date = new Date(), deps: { sponsorRead?
   const noSponsor = sponsors !== null && sponsors.length > 0 && sponsors.every((s) => s.spendable === null)
   components.push({
     name: 'Claim sponsorship',
-    state: sponsors === null || noSponsor ? 'degraded' : lowSponsor ? 'degraded' : 'operational',
-    note: sponsors === null || noSponsor ? 'sponsor float unreadable' : lowSponsor ? 'a sponsor is below its alert threshold' : 'funded',
+    state: sponsors === null || noSponsor || lowSponsor ? 'degraded' : 'operational',
+    note: sponsors === null || noSponsor || lowSponsor ? 'reduced capacity' : 'operational',
   })
 
-  if (stranded && stranded.critical > 0) {
-    components.push({ name: 'Ledger reconciliation', state: 'degraded', note: `${stranded.critical} account(s) need an operator` })
-  }
+  const passStale = (passes ?? []).some((p) => p.stale)
+  const passBehind = (passes ?? []).some((p) => p.remaining > 0)
+  components.push({
+    name: 'Ledger reconciliation',
+    state: passStale || (stranded?.critical ?? 0) > 0 ? 'degraded' : passBehind ? 'degraded' : 'operational',
+    note: passStale ? 'a scheduled pass has not run' : (stranded?.critical ?? 0) > 0 || passBehind ? 'catching up' : 'current',
+  })
 
-  const passStates: StatusSnapshot['passes'] = (passes ?? []).map((p) => ({
+  const passStates: OperatorStatus['passes'] = (passes ?? []).map((p) => ({
     job: p.job,
     state: p.stale ? 'degraded' : p.remaining > 0 ? 'degraded' : 'operational',
     remaining: p.remaining,
     finishedAt: p.finishedAt,
   }))
 
-  const states = [...components.map((c) => c.state), ...passStates.map((p) => p.state)]
+  const states = components.map((c) => c.state)
   const overall: ComponentState = states.includes('down') ? 'down' : states.includes('degraded') ? 'degraded' : 'operational'
 
   return {
@@ -213,17 +231,39 @@ export async function computeStatus(now: Date = new Date(), deps: { sponsorRead?
     components,
     queues: (queues ?? []).map((q) => ({ queue: q.queue, waiting: q.waiting, active: q.active, failed: q.failed, oldestWaitingSeconds: Math.round(q.oldestWaitingSeconds) })),
     passes: passStates,
+    sponsors: (sponsors ?? []).map((s) => ({ index: s.index, low: s.spendable !== null && s.spendable < env.SPONSOR_MIN_BALANCE_ALERT, unreadable: s.spendable === null, runwayDays: s.runwayDays })),
+    stranded,
   }
 }
 
-let cached: { at: number; snapshot: StatusSnapshot } | undefined
+/** The public projection: components and states, nothing counted. */
+export function publicStatus(full: OperatorStatus): StatusSnapshot {
+  return { generatedAt: full.generatedAt, overall: full.overall, components: full.components }
+}
 
-/** The snapshot, at most STATUS_TTL_MS old. */
+/** Public snapshot from a fresh computation — scripts pass a stubbed sponsor reader. */
+export async function computeStatus(now: Date = new Date(), deps: { sponsorRead?: SpendableReader } = {}): Promise<StatusSnapshot> {
+  return publicStatus(await computeOperatorStatus(now, deps))
+}
+
+let cached: { at: number; full: OperatorStatus; public?: StatusSnapshot } | undefined
+
+async function cachedStatus(now: Date): Promise<OperatorStatus> {
+  if (cached && now.getTime() - cached.at < STATUS_TTL_MS) return cached.full
+  const full = await computeOperatorStatus(now)
+  cached = { at: now.getTime(), full }
+  return full
+}
+
+/** The PUBLIC snapshot, at most STATUS_TTL_MS old. */
 export async function statusSnapshot(now: Date = new Date()): Promise<StatusSnapshot> {
-  if (cached && now.getTime() - cached.at < STATUS_TTL_MS) return cached.snapshot
-  const snapshot = await computeStatus(now)
-  cached = { at: now.getTime(), snapshot }
-  return snapshot
+  const full = await cachedStatus(now)
+  return (cached!.public ??= publicStatus(full))
+}
+
+/** The operator's view, same cache. Only ever rendered behind /admin. */
+export function operatorStatus(now: Date = new Date()): Promise<OperatorStatus> {
+  return cachedStatus(now)
 }
 
 export const QUEUE_NAMES = Object.values(QUEUE)

@@ -1,5 +1,6 @@
 import { openFindings, findingsValue } from '@/lib/api/reconcile'
 import { lastPassReports, type PassJob, type PassReport } from '@/lib/queue/pass-report'
+import { operatorStatus } from '@/lib/observability/status'
 import { Table, TableCell, TableHead, TableRow, StellarAddress } from '@/components/ui'
 import { ResyncButton } from './resync-button'
 
@@ -69,8 +70,17 @@ async function loadPasses() {
   return { passes: await lastPassReports(), now: Date.now() }
 }
 
+/** The queue numbers the public /status deliberately does not show (#53). */
+async function loadQueues() {
+  try {
+    return (await operatorStatus()).queues
+  } catch {
+    return null
+  }
+}
+
 export default async function ReconciliationPage() {
-  const [findings, { passes, now }] = await Promise.all([openFindings(), loadPasses()])
+  const [findings, { passes, now }, queues] = await Promise.all([openFindings(), loadPasses(), loadQueues()])
   const critical = findings.filter((finding) => finding.severity === 'error')
   const behind = Object.values(passes).filter((p) => p && p.remaining > 0)
 
@@ -132,6 +142,34 @@ export default async function ReconciliationPage() {
             <PassRow job="delivery-retention" label="Delivery retention (daily)" report={passes['delivery-retention']} now={now} />
           </tbody>
         </Table>
+      </section>
+
+      <section aria-label="Background queues" className="mt-xl">
+        <h2 className="text-headline-sm text-on-surface">Background queues</h2>
+        <p className="mt-xs max-w-2xl text-body-md text-on-surface-variant">
+          Live from the queue store. A job waiting more than two minutes means no worker is
+          draining that queue; the public status page shows this only as &ldquo;degraded&rdquo;.
+        </p>
+        {queues === null ? (
+          <p role="status" className="mt-sm font-mono text-label-sm text-error">Queues unreadable — the queue store is not answering.</p>
+        ) : (
+          <Table className="mt-md">
+            <TableHead columns={['Queue', 'Waiting', 'Active', 'Failed', 'Oldest waiting']} />
+            <tbody>
+              {queues.map((q) => (
+                <TableRow key={q.queue}>
+                  <TableCell className="font-mono">{q.queue}</TableCell>
+                  <TableCell>{q.waiting}</TableCell>
+                  <TableCell>{q.active}</TableCell>
+                  <TableCell className={q.failed > 0 ? 'text-error' : ''}>{q.failed}</TableCell>
+                  <TableCell className={q.oldestWaitingSeconds > 120 ? 'text-error' : 'text-on-surface-variant'}>
+                    {q.oldestWaitingSeconds > 0 ? `${q.oldestWaitingSeconds}s` : '—'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </tbody>
+          </Table>
+        )}
       </section>
 
       <div className="mt-xl">

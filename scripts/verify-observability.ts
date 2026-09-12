@@ -44,7 +44,7 @@ const { startBatchConfirmWorker } = await import('../src/workers/batch-confirm')
 const { observeWorker } = await import('../src/lib/observability/workers')
 const { registerObservables, METRIC } = await import('../src/lib/observability/metrics')
 const { withSpan } = await import('../src/lib/observability/tracing')
-const { computeStatus, statusSnapshot, queueReadings, sponsorReadings, strandedReading, passReadings, dependencyReadings } = await import('../src/lib/observability/status')
+const { computeStatus, computeOperatorStatus, statusSnapshot, operatorStatus, queueReadings, sponsorReadings, strandedReading, passReadings, dependencyReadings } = await import('../src/lib/observability/status')
 const Decimal = (await import('decimal.js')).default
 
 let failures = 0
@@ -269,15 +269,25 @@ async function statusPage(): Promise<void> {
   const status = await computeStatus(new Date(), { sponsorRead: async () => new Decimal(1000) })
   const horizon = status.components.find((c) => c.name.includes('Horizon'))
   check('Horizon is reported down', horizon?.state === 'down', JSON.stringify(status.components))
-  check('the database is reported operational, with a latency and no host', status.components.find((c) => c.name === 'Database')?.state === 'operational' && !JSON.stringify(status).includes('localhost') && !JSON.stringify(status).includes('127.0.0.1'))
+  check('the database is reported operational, with no host', status.components.find((c) => c.name === 'Database')?.state === 'operational' && !JSON.stringify(status).includes('localhost') && !JSON.stringify(status).includes('127.0.0.1'))
   check('overall is down', status.overall === 'down')
   const low = await computeStatus(new Date(), { sponsorRead: async () => new Decimal(1) })
-  check('a sponsor below threshold degrades claim sponsorship', low.components.find((c) => c.name === 'Claim sponsorship')?.state === 'degraded', JSON.stringify(low.components))
+  const sponsorship = low.components.find((c) => c.name === 'Claim sponsorship')
+  check('a sponsor below threshold degrades claim sponsorship', sponsorship?.state === 'degraded', JSON.stringify(low.components))
+  check('but the public note does not say why', !/sponsor|threshold|float|balance/i.test(sponsorship?.note ?? '') && sponsorship?.note === 'reduced capacity', sponsorship?.note)
   check('no tenant data in the snapshot: no campaign ids, no addresses', !/c[a-z0-9]{24}/.test(JSON.stringify(status.components)) && !/G[A-Z2-7]{55}/.test(JSON.stringify(status)))
+  // The public snapshot is names and states. No number of anything.
+  const publicKeys = Object.keys(low).sort().join(',')
+  check('the public snapshot has only generatedAt, overall and components', publicKeys === 'components,generatedAt,overall', publicKeys)
+  check('and no count, depth, latency or remainder anywhere in it', !/\d/.test(JSON.stringify(low.components)) && low.components.every((c) => Object.keys(c).sort().join(',') === 'name,note,state'), JSON.stringify(low.components))
+  const full = await computeOperatorStatus(new Date(), { sponsorRead: async () => new Decimal(1) })
+  check('the operator view carries the numbers: queues, passes with remaining, sponsors, stranded', full.queues.length > 0 && full.passes.some((p) => 'remaining' in p) && full.sponsors.some((s) => s.low) && full.stranded !== null, JSON.stringify({ q: full.queues.length, s: full.sponsors }))
   const first = await statusSnapshot(new Date())
   const second = await statusSnapshot(new Date(Date.now() + 1000))
   const third = await statusSnapshot(new Date(Date.now() + 20_000))
   check('the snapshot is cached within the TTL and recomputed after it', first === second && third !== first)
+  const op = await operatorStatus(new Date(Date.now() + 20_000))
+  check('the operator view shares the cache and the public view is its projection', op.generatedAt === third.generatedAt && !('queues' in third))
 }
 
 /* ── 6. fail closed is visible: Redis gone ─────────────────────────────── */

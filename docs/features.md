@@ -76,7 +76,7 @@ unit-tested (9). `verify:claims`, `verify:batches`, `verify:confirm`,
 typecheck, lint, build. Not exercised: Next.js's own request spans and the
 `traceparent` join through a running `next start` (the browser-side header
 and the server-side extraction are exercised at the library level), and a
-real OTLP backend.
+real OTLP backend. Review: the public `/status` and `/api/status` now carry components and states only — no queue depths, pass remainders, stranded counts or sponsor-specific notes (those moved to `/admin/reconciliation`, which gained a live queues table, and to the metrics); the verify script asserts the public snapshot has only `generatedAt`, `overall`, `components` and no digit; `docs/observability.md` states that a browser-chosen trace id is a correlation hint, not an integrity boundary.
 
 ## 2026-09-12 — Compliance hooks: screening callback, attestation fields, regulator export (#52)
 

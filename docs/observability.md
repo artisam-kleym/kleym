@@ -76,10 +76,30 @@ address, token, claimant, recipient or balance; and the planted-value test in
 same probes `/api/ready` runs, the queues as BullMQ holds them, the last
 bounded-pass reports, the sponsor float and the stranded reserve — cached
 fifteen seconds in memory to bound what a public page can do to the
-dependencies it reports. It names components (Database, Queue and cache,
-Stellar network, Background workers, Claim sponsorship, Ledger reconciliation),
-not hosts, and states, not error text: why something is down stays in the log,
-for the reason on `/api/ready`.
+dependencies it reports.
+
+The public surface is **components and states only** — Database, Queue and
+cache, Stellar network, Background workers, Claim sponsorship, Ledger
+reconciliation, each `operational` / `degraded` / `down` with a generic note.
+No counts. A sponsor running low is exactly the feedback someone draining the
+float through claims would want, and the moment a "your claim failed, try this
+link" phish lands best; a queue depth is aggregate tenant activity and, during
+an incident, a live read-out of whether the incident is working. So the numbers
+— queue depth and oldest waiting job, a pass's remainder, the stranded count,
+which sponsor is low — are on `/admin/reconciliation` and `/admin`, and in the
+metrics, where an operator reads them. Why something is down stays in the log,
+for the reason on `/api/ready`. `verify:observability` asserts the public
+snapshot has only `generatedAt`, `overall` and `components`, and no digit in it.
+
+## The browser chooses the trace id
+
+`lib/claim/trace.ts` starts the claim's trace in the browser and the server
+joins it through `traceparent` — the standard pattern, and the right one for a
+claim, but it means a caller can send any trace id, including one belonging to
+someone else's trace in the backend. The spans carry nothing sensitive (the
+allowlist sees to that), so the worst case is noise in a trace view. A trace id
+is a correlation hint, never an integrity boundary: nothing may authorise,
+deduplicate or audit on it.
 
 ## Verified by
 
