@@ -47,6 +47,41 @@ three checks fail (10,000 rows). Production build renders both routes.
 **Not verified by execution:** the two pages in a browser — the table uses
 the same furniture as `/settings`, believed correct but not opened this pass.
 
+## 2026-09-12 — Campaign list and cross-campaign history (#40)
+
+`/campaigns` and `/history` exist now; until this the sidebar linked to both
+and both were 404s, and once a sender left a campaign the only way back was a
+URL they had kept. `/campaigns` is the full list, newest first, with a
+free-text search on name and a status filter that compose and survive paging.
+`/history` is every claim and reclaim across campaigns, newest first, with
+amount, asset, date, claimant and the transaction hash linked to Stellar
+Expert on the right network, filterable by campaign and date range.
+
+Both are server components with plain GET forms — the URL is the state, so a
+filtered page survives reload and can be pasted to a colleague. Every query
+carries the signed-in user's id in its `where` (`AGENT.md` §5.4): search runs
+inside that scope and cannot enumerate another user's campaigns, and naming
+another user's campaign id in the history filter matches nothing. The claimed
+count per campaign is a `_count`, not a row load, so a 10,000-link campaign
+costs the list one integer. History reads the claim record off the link
+(`claimedAt`, `claimedBy`, `claimTxHash`) — there is no separate table.
+
+Ordering is a total order — `createdAt` then `id`, the same reasoning as
+`LINK_ORDER` — because campaigns sharing a timestamp is the ordinary case.
+
+**Verified by:** 10 unit tests over the where-clauses and query parsers
+(owner always present, filters compose, a `to` date runs through the end of
+its day, bad input refused), and `pnpm verify:campaign-list` against a real
+Postgres: another user's campaign unreachable by list, search or id; search +
+status filter across pages; 90 campaigns with one `createdAt`, walked in nine
+pages before and after relocating 30 tuples — with the `id` tiebreak removed
+that check fails (87 distinct of 90, the #27 shape), with it, the same order
+every time; history rows carrying what the page renders, date range inclusive
+of its last day. Production build renders both routes. **Not verified by
+execution:** the 375px rendering (criterion 5) — the pages use the same
+`Table` / `table-scroll` furniture as `/settings`, believed correct but not
+opened in a browser this pass.
+
 ## 2026-08-22 — Hardening and release readiness (#17)
 
 The SPEC §10 acceptance matrix is now walked by execution rather than asserted.

@@ -85,6 +85,10 @@ jobs:
 
       - name: Verify email delivery and OTP
         run: pnpm verify:email
+
+      - name: Verify campaign list and history ownership, filters and ordering
+        run: pnpm verify:campaign-list
+
       - name: Verify reconciliation and the expiry sweep
         run: pnpm verify:reconcile
 
