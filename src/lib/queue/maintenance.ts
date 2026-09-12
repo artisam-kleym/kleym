@@ -7,6 +7,7 @@
  */
 import { Queue } from 'bullmq'
 import { QUEUE, queueConnection } from './connection'
+import { RECONCILE_EVERY_MINUTES, WATCH_EVERY_MINUTES, everyMinutes } from './schedule'
 
 /**
  * A fixed job id per schedule.
@@ -15,6 +16,9 @@ import { QUEUE, queueConnection } from './connection'
  * cannot leave two repeatable schedules running. Two concurrent reconciles are
  * safe (the job is idempotent) but they double Horizon's load for nothing.
  */
+// The ids are fixed names, NOT derived from the cadence: BullMQ deduplicates
+// on them, so an id that changed with the schedule would leave the old
+// scheduler running beside the new one.
 const RECONCILE_SCHEDULE = 'reconcile-every-5m'
 const EXPIRY_SCHEDULE = 'expiry-sweep-hourly'
 const EPHEMERAL_SCHEDULE = 'ephemeral-watch-every-15m'
@@ -61,9 +65,9 @@ export function ephemeralWatchJobs(): Queue {
 
 /** Installs every schedule. Safe to call on every worker start. */
 export async function scheduleMaintenance(): Promise<void> {
-  await reconcileJobs().upsertJobScheduler(RECONCILE_SCHEDULE, { pattern: '*/5 * * * *' })
+  await reconcileJobs().upsertJobScheduler(RECONCILE_SCHEDULE, { pattern: everyMinutes(RECONCILE_EVERY_MINUTES) })
   await expiryJobs().upsertJobScheduler(EXPIRY_SCHEDULE, { pattern: '17 * * * *' })
-  await ephemeralWatchJobs().upsertJobScheduler(EPHEMERAL_SCHEDULE, { pattern: '*/15 * * * *' })
+  await ephemeralWatchJobs().upsertJobScheduler(EPHEMERAL_SCHEDULE, { pattern: everyMinutes(WATCH_EVERY_MINUTES) })
 }
 
 /**

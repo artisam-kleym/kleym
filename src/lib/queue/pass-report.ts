@@ -51,6 +51,3 @@ export async function lastPassReports(): Promise<Partial<Record<PassJob, PassRep
   }
   return out
 }
-
-export const RECONCILE_INTERVAL_MS = 5 * 60_000
-export const WATCH_INTERVAL_MS = 15 * 60_000

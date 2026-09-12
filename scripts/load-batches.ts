@@ -36,11 +36,10 @@ const { LINK_ORDER } = await import('../src/lib/api/link-order')
 const { reconcileAll, RECONCILE_PASS_LIMIT } = await import('../src/lib/api/reconcile')
 const { watchEphemerals, WATCH_PASS_LIMIT } = await import('../src/lib/api/stranded')
 const { memoryPassCursor } = await import('../src/lib/queue/pass-cursor')
+const { RECONCILE_INTERVAL_MS, WATCH_INTERVAL_MS } = await import('../src/lib/queue/schedule')
 
 /** What one Horizon read costs from Railway to horizon.stellar.org, roughly. */
 const HORIZON_LATENCY_MS = Number(process.env.HORIZON_LATENCY_MS ?? 150)
-const RECONCILE_INTERVAL_MS = 5 * 60_000
-const WATCH_INTERVAL_MS = 15 * 60_000
 
 const LINKS = Number(process.env.LOAD_LINKS ?? env.MAX_LINKS_PER_CAMPAIGN)
 

@@ -23,7 +23,8 @@ import { logger } from '@/lib/config/logger'
 import { baseReserve, horizon, loadClaimableBalance } from '@/lib/stellar/horizon'
 import { requestReconcile } from '@/lib/queue/maintenance'
 import { redisPassCursor, type PassCursor } from '@/lib/queue/pass-cursor'
-import { WATCH_INTERVAL_MS, recordPassReport } from '@/lib/queue/pass-report'
+import { recordPassReport } from '@/lib/queue/pass-report'
+import { WATCH_INTERVAL_MS } from '@/lib/queue/schedule'
 
 /**
  * How long after TX1 an unfinished claim counts as stranded.
