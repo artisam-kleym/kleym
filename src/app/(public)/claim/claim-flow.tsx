@@ -11,11 +11,17 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Keypair, Networks, Transaction, TransactionBuilder } from '@stellar/stellar-sdk'
 import { ClaimPanel } from '@/components/ui'
 import { clearFragment, readFragment } from '@/lib/claim/fragment'
-import { retryTarget, stateFromProblem, type ClaimState } from '@/lib/claim/machine'
+import { isNotReady, retryTarget, stateFromProblem, type ClaimState } from '@/lib/claim/machine'
 import { ClaimScreen, type LinkDetails } from './screens'
 
-/** One ledger is ~5s; §3.3.1 says the boundary is the ledger, not the clock. */
-const LEDGER_WAIT_MS = 7_000
+/**
+ * One ledger is ~5s. §3.3.1 says the boundary is the ledger, not the clock, so
+ * this is only the FIRST wait: if `prepare/claim` then answers not-ready, the
+ * page asks again rather than giving up on a slow ledger.
+ */
+const LEDGER_WAIT_MS = 5_000
+const NOT_READY_RETRY_MS = 2_500
+const NOT_READY_ATTEMPTS = 8
 
 /** Content type, plus the OTP token when one has been earned. */
 function claimHeaders(token: string | null): Record<string, string> {
@@ -49,6 +55,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
   const otpToken = useRef<string | null>(null)
   const [otpError, setOtpError] = useState<string | null>(null)
   const materialised = useRef(false)
+  const recipient = useRef<string | null>(null)
 
   /*
    * Read the fragment, remove it, then resolve the link. SPEC.md §3.6.
@@ -123,10 +130,19 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
   /** Reads problem+json without ever echoing what was sent. */
   const problem = useCallback(async (response: Response) => {
     const body = await response.json().catch(() => null)
-    return { status: response.status, detail: (body?.detail as string) ?? null }
+    return {
+      status: response.status,
+      type: (body?.type as string) ?? null,
+      detail: (body?.detail as string) ?? null,
+    }
   }, [])
 
-  const run = useCallback(async () => {
+  /*
+   * `from` is where the flow starts, and it is `retryTarget`'s answer, not a
+   * separate guess: `ready` runs the whole thing, `preparing` resumes at TX2
+   * with the wallet and ephemeral account already in place.
+   */
+  const run = useCallback(async (from: ClaimState = 'ready') => {
     const secret = seed.current
     const ephemeralPublicKey = ephemeral.current
     if (!secret || !ephemeralPublicKey) return setState('invalid')
@@ -144,13 +160,18 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
     setError(null)
 
     try {
-      /* Wallet first — §3.3 says TX1 fires on COMMITMENT, not on page load. */
-      setState('wallet_connecting')
       const { connectWallet, signBatch } = await import('./wallet')
-      const recipient = await connectWallet(network)
+      let recipientKey = recipient.current
 
-      /* TX1. Skipped when the ephemeral account is already on the ledger. */
-      if (!materialised.current) {
+      if (from !== 'preparing' || !recipientKey) {
+        /* Wallet first — §3.3 says TX1 fires on COMMITMENT, not on page load. */
+        setState('wallet_connecting')
+        recipientKey = await connectWallet(network)
+        recipient.current = recipientKey
+      }
+
+      /* TX1. Skipped on a resume: the ephemeral account is already on the ledger. */
+      if (from !== 'preparing') {
         setState('materialising')
         const prepared = await fetch('/api/claims/prepare/materialise', {
           method: 'POST',
@@ -160,7 +181,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         if (!prepared.ok) {
           const p = await problem(prepared)
           setError(p.detail)
-          return setState(stateFromProblem(p.status, p.detail))
+          return setState(stateFromProblem(p.status, p.type))
         }
         const body = await prepared.json()
 
@@ -177,13 +198,14 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
           if (!submitted.ok) {
             const p = await problem(submitted)
             setError(p.detail)
-            return setState(stateFromProblem(p.status, p.detail))
+            return setState(stateFromProblem(p.status, p.type))
           }
 
           /*
            * §3.3.1: TX2 must land in a LATER LEDGER than TX1, or the merge
            * fails `op_seq_num_too_far`. The boundary is the ledger, roughly
-           * five seconds — this waits a little longer rather than racing it.
+           * five seconds — this waits about one, and the not-ready loop below
+           * covers a ledger that is slower than that.
            */
           setState('awaiting_ledger')
           await new Promise((resolve) => setTimeout(resolve, LEDGER_WAIT_MS))
@@ -193,15 +215,24 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
 
       /* TX2. */
       setState('preparing')
-      const prepared = await fetch('/api/claims/prepare/claim', {
-        method: 'POST',
-        headers: claimHeaders(otpToken.current),
-        body: JSON.stringify({ ephemeralPublicKey, recipientPublicKey: recipient }),
-      })
-      if (!prepared.ok) {
+      let prepared: Response
+      for (let attempt = 1; ; attempt += 1) {
+        prepared = await fetch('/api/claims/prepare/claim', {
+          method: 'POST',
+          headers: claimHeaders(otpToken.current),
+          body: JSON.stringify({ ephemeralPublicKey, recipientPublicKey: recipientKey }),
+        })
+        if (prepared.ok) break
         const p = await problem(prepared)
+        // Stellar being slow is not a failure. Ask again, up to a bound.
+        if (isNotReady(p.status, p.type) && attempt < NOT_READY_ATTEMPTS) {
+          setState('awaiting_ledger')
+          await new Promise((resolve) => setTimeout(resolve, NOT_READY_RETRY_MS))
+          setState('preparing')
+          continue
+        }
         setError(p.detail)
-        return setState(stateFromProblem(p.status, p.detail))
+        return setState(stateFromProblem(p.status, p.type))
       }
       const plan = await prepared.json()
 
@@ -213,7 +244,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       let signedXdr = sign(plan.xdr)
       if (plan.needsRecipientSignature) {
         setState('awaiting_signature')
-        signedXdr = await signBatch(signedXdr, network, recipient)
+        signedXdr = await signBatch(signedXdr, network, recipientKey)
       }
 
       setState('submitting')
@@ -225,13 +256,13 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       if (!submitted.ok) {
         const p = await problem(submitted)
         setError(p.detail)
-        return setState(stateFromProblem(p.status, p.detail))
+        return setState(stateFromProblem(p.status, p.type))
       }
 
       const result = await submitted.json()
       setTxHash(result.hash)
       setClaimedAt(new Date().toISOString())
-      setClaimedBy(recipient)
+      setClaimedBy(recipientKey)
       setState('claimed_success')
     } catch (caught) {
       const { walletErrorMessage } = await import('./wallet')
@@ -246,8 +277,9 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
    * reserves, which §3.3.2 says Kleym cannot recover.
    */
   const onRetry = useCallback(() => {
-    setState(retryTarget(materialised.current))
-    void run()
+    const target = retryTarget(materialised.current)
+    setState(target)
+    void run(target)
   }, [run])
 
   async function verifyOtp(code: string) {
