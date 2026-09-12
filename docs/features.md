@@ -53,6 +53,20 @@ what the identical-response rule closes on `resolve` — so a provider outage wo
 revealed which keys are live emailed links. A failed send now answers identically and
 logs the failure for an operator instead.
 
+### After review
+
+**The gate's wiring is checked, not only the gate.** Every earlier check
+exercised `otpSatisfied` as a function; deleting the `otpGate` call from
+`submit/route.ts` — the route that moves the money — left all of them green.
+`verify:email` now sends three requests against a gated link through the
+`prepare/claim` and `submit` route handlers themselves: no header and a wrong
+header are refused, the right token gets past the gate. The refusal carries
+its own problem `type` (`…/conflict/otp-required`) and the check reads that,
+not the prose — with the gate deleted from `submit`, the route still answers
+409 for an unrelated reason, so a status-only check would have missed it.
+The claim page maps that type back to `otp_required`, so a token lapsing
+mid-flow asks for the code again rather than landing on `failed`.
+
 **Verified by:** `pnpm verify:email`, 10 sections against real Postgres and real Redis.
 The mailer is injected and records what it was asked to send; the Redis assertions scan
 the actual keyspace after the job completes, and the database assertion walks every text
