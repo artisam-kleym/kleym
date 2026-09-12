@@ -83,6 +83,9 @@ jobs:
       - name: Verify claim resolve, limits and ledger authority
         run: pnpm verify:claims
 
+      - name: Verify campaign list and history ownership, filters and ordering
+        run: pnpm verify:campaign-list
+
   e2e:
     name: CSV gate (real browser)
     runs-on: ubuntu-latest
