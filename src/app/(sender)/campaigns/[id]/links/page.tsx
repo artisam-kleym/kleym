@@ -48,7 +48,10 @@ export default async function CampaignLinksPage({
       </p>
       <h1 className="mt-xs text-display-lg text-primary max-md:text-headline-md">Links</h1>
       <p className="mt-md text-body-md text-on-surface-variant">
-        {campaign.linkCount} links · {campaign.amountPerLink.toFixed()} {campaign.assetCode} each.
+        {campaign.linkCount} links ·{' '}
+        {campaign.variableAmounts
+          ? `${campaign.assetCode}, amounts vary by link`
+          : `${campaign.amountPerLink.toFixed()} ${campaign.assetCode} each`}.
       </p>
 
       <FilterBar action={basePath}>
@@ -67,7 +70,7 @@ export default async function CampaignLinksPage({
       ) : (
         <div className="mt-lg">
           <Table>
-            <TableHead columns={['#', 'Label', 'Reference', 'Status', 'Claimant', 'Claimed', 'Transaction']} />
+            <TableHead columns={['#', 'Label', 'Reference', 'Amount', 'Status', 'Claimant', 'Claimed', 'Transaction']} />
             <tbody>
               {links.map((link, i) => (
                 <TableRow key={link.id}>
@@ -77,6 +80,7 @@ export default async function CampaignLinksPage({
                     {link.reference ?? '—'}
                     {link.category && <span className="ml-sm text-label-sm">{link.category}</span>}
                   </TableCell>
+                  <TableCell className="font-mono">{link.amount.toFixed()}</TableCell>
                   <TableCell><StatusChip status={CHIP[link.status] ?? 'pending'} /></TableCell>
                   <TableCell>{link.claimedBy ? <StellarAddress value={link.claimedBy} /> : '—'}</TableCell>
                   <TableCell>{link.claimedAt ? formatDate(link.claimedAt) : '—'}</TableCell>

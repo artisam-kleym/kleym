@@ -59,7 +59,7 @@ async function fixture(email: string, links: { status: LinkStatus; claimedAt?: D
     const hash = randomUUID().replace(/-/g, '') + randomUUID().replace(/-/g, '')
     const link = await prisma.claimLink.create({
       data: {
-        campaignId: c.id, ephemeralPublicKey: key, status: l.status,
+        campaignId: c.id, ephemeralPublicKey: key, amount: '1', status: l.status,
         balanceId: `00000000${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}`.slice(0, 72),
         claimedAt: l.claimedAt ?? null, claimedBy: l.claimedAt ? Keypair.random().publicKey() : null, claimTxHash: l.claimedAt ? hash : null,
         delivery: { create: { email, sentAt: new Date(), openedAt: new Date(), otpHash: '$argon2id$x', otpExpires: new Date(), otpAttempts: 2 } },

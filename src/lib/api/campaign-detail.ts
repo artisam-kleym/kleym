@@ -51,6 +51,7 @@ export async function statusCounts(campaignId: string): Promise<StatusCounts> {
 
 export const LINK_SELECT = {
   id: true, status: true, label: true, reference: true, category: true, claimedBy: true, claimTxHash: true, claimedAt: true,
+  amount: true,
 } satisfies Prisma.ClaimLinkSelect
 
 export function linksWhere(campaignId: string, status?: LinkStatus): Prisma.ClaimLinkWhereInput {
@@ -81,7 +82,7 @@ export async function loadCampaignDetail(id: string, organizationId: string) {
   const campaign = await prisma.campaign.findFirst({
     where: owned(id, organizationId),
     select: {
-      id: true, userId: true, name: true, status: true, assetCode: true, amountPerLink: true,
+      id: true, userId: true, name: true, status: true, assetCode: true, amountPerLink: true, variableAmounts: true,
       linkCount: true, expiresAt: true, senderPublicKey: true, network: true,
       screeningDecision: true, screeningReason: true, screenedAt: true,
       links: { orderBy: LINK_ORDER, take: LINK_PREVIEW, select: LINK_SELECT },
@@ -107,6 +108,6 @@ export async function loadCampaignDetail(id: string, organizationId: string) {
 export function loadCampaignHeader(id: string, organizationId: string) {
   return prisma.campaign.findFirst({
     where: owned(id, organizationId),
-    select: { id: true, name: true, assetCode: true, amountPerLink: true, linkCount: true },
+    select: { id: true, name: true, assetCode: true, amountPerLink: true, linkCount: true, variableAmounts: true },
   })
 }

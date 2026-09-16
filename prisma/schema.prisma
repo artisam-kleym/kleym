@@ -525,7 +525,13 @@ model Campaign {
   senderPublicKey String // G... that funded it
   assetCode       String // "XLM" or e.g. "USDC"
   assetIssuer     String? // null for native
+  /// The DEFAULT amount, and the whole story for a uniform campaign. Each
+  /// link carries its own `ClaimLink.amount` (#73); this is what a link gets
+  /// when the sender did not say otherwise, and what the wizard shows first.
   amountPerLink   Decimal        @db.Decimal(23, 7)
+  /// True once any registered link's amount differs from `amountPerLink`
+  /// (#73). Display reads this; money never does — money reads the link.
+  variableAmounts Boolean        @default(false)
   linkCount       Int
   expiresAt       DateTime
   status          CampaignStatus @default(DRAFT)
@@ -595,6 +601,12 @@ model ClaimLink {
   ephemeralPublicKey String @unique
 
   balanceId String?    @unique // set once the batch confirms
+  /// What THIS link pays (#73). Decimal(23,7), never Float (SPEC.md §4.1).
+  /// Set at registration — from the sender's per-row amount, or the
+  /// campaign's `amountPerLink` when none was given — and what the batch
+  /// builder writes, the verifier checks position by position, and
+  /// reconciliation compares the ledger against.
+  amount    Decimal    @db.Decimal(23, 7)
   status    LinkStatus @default(PENDING)
   label     String? // sender's own note: handle, email, etc.
 
@@ -695,7 +707,7 @@ model ReconciliationFinding {
   id         String   @id @default(cuid())
   linkId     String
   campaignId String
-  kind       String // "claimed_on_chain" | "reclaimed_on_chain" | "critical_still_on_ledger" | "unresolved"
+  kind       String // "claimed_on_chain" | "reclaimed_on_chain" | "critical_still_on_ledger" | "amount_mismatch" | "unresolved"
   severity   FindingSeverity
   detail     String
   /// Set when the finding was acted on, or when a later run found it resolved.

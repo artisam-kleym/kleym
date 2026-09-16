@@ -79,7 +79,9 @@ export default async function CampaignsPage({
                     <span className="ml-sm text-label-sm text-on-surface-variant">{row.network}</span>
                   </TableCell>
                   <TableCell><StatusChip status={chipFor(row.status)} /></TableCell>
-                  <TableCell>{row.amountPerLink} {row.assetCode}</TableCell>
+                  <TableCell>
+                    {row.variableAmounts ? 'varies' : row.amountPerLink} {row.assetCode}
+                  </TableCell>
                   <TableCell>
                     <ProgressCell claimed={row.claimed} total={row.linkCount} expired={row.status === 'EXPIRED'} />
                   </TableCell>

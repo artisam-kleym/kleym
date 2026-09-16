@@ -8,6 +8,7 @@
  */
 import { Account } from '@stellar/stellar-sdk'
 import { z } from 'zod'
+import Decimal from 'decimal.js'
 import { prisma } from '@/lib/db/client'
 import { env } from '@/lib/config/env'
 import { owned } from './session-guard'
@@ -56,6 +57,11 @@ export type BatchOutcome<T> =
 const conflict = (detail: string) => ({ kind: 'conflict' as const, detail })
 
 type CampaignRow = NonNullable<Awaited<ReturnType<typeof loadCampaign>>>
+
+/** Rows as the builder and verifier take them: the Decimal column as a fixed-point string. */
+function withAmounts<T extends { amount: { toString(): string } }>(links: T[]): (Omit<T, 'amount'> & { amount: string })[] {
+  return links.map((link) => ({ ...link, amount: new Decimal(link.amount.toString()).toFixed() }))
+}
 
 async function loadCampaign(campaignId: string, organizationId: string) {
   return prisma.campaign.findFirst({
@@ -171,7 +177,7 @@ export async function prepareBatch(
   const batches = await prisma.batch.findMany({
     where: { campaignId: campaign.id },
     orderBy: { sequence: 'asc' },
-    select: { id: true, sequence: true, status: true, links: { select: { id: true, ephemeralPublicKey: true }, orderBy: LINK_ORDER } },
+    select: { id: true, sequence: true, status: true, links: { select: { id: true, ephemeralPublicKey: true, amount: true }, orderBy: LINK_ORDER } },
   })
   if (batches.length === 0) {
     return conflict('This campaign has no registered links to batch.')
@@ -207,7 +213,9 @@ export async function prepareBatch(
     asset: assetOf(campaign),
     amountPerLink: campaign.amountPerLink.toString(),
     expiresAt: campaign.expiresAt,
-    links: target.links,
+    // Each link's OWN amount (#73). The Decimal column becomes the fixed-point
+    // string the operation carries.
+    links: withAmounts(target.links),
     networkPassphrase: env.NETWORK_PASSPHRASE,
     baseFee: env.BASE_FEE_STROOPS,
     timeoutSeconds: SIGNING_WINDOW_SECONDS,
@@ -274,7 +282,7 @@ export async function submitBatch(
     where: { campaignId: campaign.id, sequence: input.sequence },
     select: {
       id: true, sequence: true, status: true, transactionHash: true,
-      links: { select: { id: true, ephemeralPublicKey: true }, orderBy: LINK_ORDER },
+      links: { select: { id: true, ephemeralPublicKey: true, amount: true }, orderBy: LINK_ORDER },
     },
   })
   if (!batch) return { kind: 'not-found' }
@@ -298,7 +306,8 @@ export async function submitBatch(
     asset: assetOf(campaign),
     amountPerLink: campaign.amountPerLink.toString(),
     expiresAt: campaign.expiresAt,
-    links: batch.links,
+    // The verifier compares every operation against ITS link's row (#73).
+    links: withAmounts(batch.links),
     networkPassphrase: env.NETWORK_PASSPHRASE,
     baseFee: env.BASE_FEE_STROOPS,
   })

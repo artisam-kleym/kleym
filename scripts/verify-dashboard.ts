@@ -54,7 +54,7 @@ async function campaign(organizationId: string, opts: { asset: string; amount: s
   for (let i = 0; i < opts.links.length; i += CHUNK) {
     await prisma.claimLink.createMany({
       data: opts.links.slice(i, i + CHUNK).map((status) => ({
-        campaignId: c.id, ephemeralPublicKey: Keypair.random().publicKey(), status,
+        campaignId: c.id, ephemeralPublicKey: Keypair.random().publicKey(), amount: opts.amount, status,
         balanceId: status === 'PENDING' || status === 'FAILED' ? null : `00000000${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}`.slice(0, 72),
       })),
     })
