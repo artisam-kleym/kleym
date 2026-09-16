@@ -77,14 +77,17 @@ export async function PATCH(request: Request, { params }: Params) {
     if (!campaign) return notFound()
 
     /*
-     * Only a DRAFT may be cancelled here. Past that point the campaign has
-     * on-chain claimable balances, and "cancel" would have to mean reclaim —
-     * a signed transaction, not a status change (#13).
+     * Only a DRAFT may be cancelled here, because only a draft has nothing on
+     * the ledger. Past that point the word is a lie: the balances stay
+     * claimable by their holders until expiry whatever the row says. The
+     * honest action is suspension (#72), and the reclaim is a signed
+     * transaction after expiry, not a status change (#13).
      */
     if (parsed.data.status === 'CANCELLED' && campaign.status !== 'DRAFT') {
       return conflict(
-        `Only a draft can be cancelled. This campaign is ${campaign.status}; ` +
-          'funds already on-chain are recovered by reclaiming after expiry.',
+        `Only a draft can be cancelled. This campaign is ${campaign.status} and its funds are on the ledger; ` +
+          'suspend it to stop Kleym serving the links, and reclaim what is unclaimed after expiry.',
+        'not-a-draft',
       )
     }
 
