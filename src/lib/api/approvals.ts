@@ -30,16 +30,39 @@ export interface Terms {
   amountPerLink: unknown
   linkCount: number
   expiresAt: Date
+  /**
+   * True once any registered link's amount differs from `amountPerLink`
+   * (#73) — the campaign's own flag, set at registration and never cleared.
+   * A uniform campaign's hash — and every approval already recorded against
+   * one — is exactly what it was, whether its links are registered in one
+   * POST or several: partial registration leaves this false and the sum out
+   * of the hash.
+   */
+  variableAmounts?: boolean
+  /** SUM of the registered links' own amounts (#73), fixed-point, or null before any link exists. */
+  totalAmount?: string | null
+}
+
+const uniformTotal = (terms: { amountPerLink: unknown; linkCount: number }) =>
+  new Decimal(String(terms.amountPerLink)).times(terms.linkCount)
+
+/** The per-link total, only for a campaign whose links vary; null for a uniform one. */
+function variableTotal(terms: Terms): string | null {
+  if (!terms.variableAmounts || terms.totalAmount === null || terms.totalAmount === undefined) return null
+  return new Decimal(terms.totalAmount).toFixed()
 }
 
 /** Fixed-point amount and ISO time, so the hash is stable across drivers. */
 export function termsHash(terms: Terms): string {
+  const total = variableTotal(terms)
   const canonical = JSON.stringify({
     assetCode: terms.assetCode,
     assetIssuer: terms.assetIssuer ?? null,
     amountPerLink: new Decimal(String(terms.amountPerLink)).toFixed(),
     linkCount: terms.linkCount,
     expiresAt: new Date(terms.expiresAt).toISOString(),
+    // Only a varied campaign carries the key at all — see Terms.variableAmounts.
+    ...(total ? { totalAmount: total } : {}),
   })
   return createHash('sha256').update(canonical).digest('hex')
 }
@@ -52,6 +75,7 @@ export function changedTerms(approved: Terms, current: Terms): string[] {
   if (!new Decimal(String(approved.amountPerLink)).equals(new Decimal(String(current.amountPerLink)))) out.push('amount per link')
   if (approved.linkCount !== current.linkCount) out.push('link count')
   if (new Date(approved.expiresAt).getTime() !== new Date(current.expiresAt).getTime()) out.push('expiry')
+  if (variableTotal(approved) !== variableTotal(current)) out.push('total amount')
   return out
 }
 
@@ -79,12 +103,21 @@ export function effectivePolicy(campaign: Policy, org: Policy): Policy & { gated
   }
 }
 
-/** Total value in the campaign's own asset. A per-link threshold is evaded by raising the count. */
-export function campaignValue(terms: { amountPerLink: unknown; linkCount: number }): Decimal {
-  return new Decimal(String(terms.amountPerLink)).times(terms.linkCount)
+/**
+ * Total value in the campaign's own asset. A per-link threshold is evaded by
+ * raising the count, and — with per-link amounts (#73) — a multiplied total
+ * is evaded by 9,999 tiny links and one enormous one. So the value is the
+ * SUM of the registered links' amounts, and never less than the uniform
+ * figure: links not yet registered cannot lower what an approver is gating.
+ */
+export function campaignValue(terms: { amountPerLink: unknown; linkCount: number; totalAmount?: string | null }): Decimal {
+  const uniform = uniformTotal(terms)
+  if (terms.totalAmount === null || terms.totalAmount === undefined) return uniform
+  const summed = new Decimal(terms.totalAmount)
+  return summed.greaterThan(uniform) ? summed : uniform
 }
 
-export function approvalRequired(terms: { amountPerLink: unknown; linkCount: number }, policy: Policy): boolean {
+export function approvalRequired(terms: { amountPerLink: unknown; linkCount: number; totalAmount?: string | null }, policy: Policy): boolean {
   if (policy.approvalThreshold === null || policy.approvalThreshold === undefined) return false
   return campaignValue(terms).greaterThanOrEqualTo(new Decimal(String(policy.approvalThreshold)))
 }
@@ -107,7 +140,7 @@ export interface ApprovalStatus {
 
 const CAMPAIGN_SELECT = {
   id: true, userId: true, status: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true,
-  approvalThreshold: true, approvalsRequired: true,
+  variableAmounts: true, approvalThreshold: true, approvalsRequired: true,
   organization: { select: { approvalThreshold: true, approvalsRequired: true } },
   approvals: {
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -115,10 +148,34 @@ const CAMPAIGN_SELECT = {
   },
 } satisfies Prisma.CampaignSelect
 
-type Loaded = NonNullable<Awaited<ReturnType<typeof loadForApproval>>>
+type Row = Prisma.CampaignGetPayload<{ select: typeof CAMPAIGN_SELECT }>
+type Loaded = Row & { totalAmount: string | null }
+
+/**
+ * The registered links' total (#73), one aggregate per campaign — never the
+ * rows. Null when nothing is registered yet, which `campaignValue` reads as
+ * "the uniform figure".
+ */
+async function linkTotals(campaignIds: string[]): Promise<Map<string, string | null>> {
+  if (campaignIds.length === 0) return new Map()
+  const grouped = await prisma.claimLink.groupBy({
+    by: ['campaignId'],
+    where: { campaignId: { in: campaignIds } },
+    _sum: { amount: true },
+  })
+  const totals = new Map<string, string | null>(campaignIds.map((id) => [id, null]))
+  for (const row of grouped) totals.set(row.campaignId, row._sum.amount === null ? null : new Decimal(row._sum.amount.toString()).toFixed())
+  return totals
+}
+
+async function withTotal(campaign: Row | null): Promise<Loaded | null> {
+  if (!campaign) return null
+  const totals = await linkTotals([campaign.id])
+  return { ...campaign, totalAmount: totals.get(campaign.id) ?? null }
+}
 
 async function loadForApproval(campaignId: string, organizationId: string) {
-  return prisma.campaign.findFirst({ where: owned(campaignId, organizationId), select: CAMPAIGN_SELECT })
+  return withTotal(await prisma.campaign.findFirst({ where: owned(campaignId, organizationId), select: CAMPAIGN_SELECT }))
 }
 
 export function statusOf(campaign: Loaded): ApprovalStatus {
@@ -166,7 +223,7 @@ export async function approvalStatus(campaignId: string, organizationId: string)
  * the caller's row is older.
  */
 export async function approvalGate(campaignId: string): Promise<string | null> {
-  const campaign = await prisma.campaign.findUnique({ where: { id: campaignId }, select: CAMPAIGN_SELECT })
+  const campaign = await withTotal(await prisma.campaign.findUnique({ where: { id: campaignId }, select: CAMPAIGN_SELECT }))
   if (!campaign) return null
   const status = statusOf(campaign)
   if (status.satisfied) return null
@@ -202,6 +259,9 @@ async function approvedTermsFor(campaignId: string, hash: string): Promise<Terms
     amountPerLink: String(m.amountPerLink),
     linkCount: m.linkCount,
     expiresAt: new Date(m.expiresAt),
+    // Recorded only for a varied campaign; an older row without it is uniform.
+    variableAmounts: typeof m.totalAmount === 'string',
+    totalAmount: typeof m.totalAmount === 'string' ? m.totalAmount : null,
   }
 }
 
@@ -257,6 +317,7 @@ export async function decide(
       amountPerLink: new Decimal(String(campaign.amountPerLink)).toFixed(),
       linkCount: campaign.linkCount,
       expiresAt: campaign.expiresAt.toISOString(),
+      ...(variableTotal(campaign) ? { totalAmount: variableTotal(campaign) } : {}),
       ...(input.note ? { note: input.note } : {}),
     },
     ip,
@@ -274,7 +335,9 @@ export async function approvalQueue(organizationId: string) {
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     select: { ...CAMPAIGN_SELECT, name: true, createdAt: true, user: { select: { username: true } } },
   })
+  const totals = await linkTotals(campaigns.map((c) => c.id))
   return campaigns
+    .map((row) => ({ ...row, totalAmount: totals.get(row.id) ?? null }))
     .map((c) => ({ id: c.id, name: c.name, createdAt: c.createdAt, creator: c.user.username, creatorId: c.userId,
       value: campaignValue(c).toFixed(), assetCode: c.assetCode, status: statusOf(c) }))
     .filter((c) => c.status.required && !c.status.satisfied)

@@ -94,7 +94,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!idempotency.reserved) return idempotency.response
 
   try {
-    const outcome = await registerLinks(id, org.id, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations)
+    const outcome = await registerLinks(id, org.id, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations, parsed.data.amounts)
 
     if (outcome.kind !== 'ok') {
       await releaseIdempotency(request, context)

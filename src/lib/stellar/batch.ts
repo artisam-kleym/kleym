@@ -20,10 +20,22 @@ import {
 } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
 
-/** A link as the builder needs it: a public key and nothing else. */
+/**
+ * A link as the builder needs it: a public key, and — since #73 — what it
+ * pays. `amount` is optional here so a uniform campaign can still be built
+ * from `amountPerLink` alone; when present it wins, position by position,
+ * in both the builder and the verifier.
+ */
 export interface BatchLink {
   id: string
   ephemeralPublicKey: string
+  /** Fixed-point string. Falls back to the batch's `amountPerLink` when absent. */
+  amount?: string
+}
+
+/** The amount THIS link's operation carries: its own, or the campaign default. */
+export function linkAmount(link: BatchLink, amountPerLink: string): string {
+  return link.amount ?? amountPerLink
 }
 
 /**
@@ -81,6 +93,7 @@ export interface BuildBatchInput {
   senderAccount: Account
   senderPublicKey: string
   asset: Asset
+  /** The default for links that carry no `amount` of their own. */
   amountPerLink: string
   expiresAt: Date
   links: BatchLink[]
@@ -116,7 +129,7 @@ export function buildBatchTransaction(input: BuildBatchInput): {
     builder.addOperation(
       Operation.createClaimableBalance({
         asset: input.asset,
-        amount: input.amountPerLink,
+        amount: linkAmount(link, input.amountPerLink),
         claimants: claimantsFor(link.ephemeralPublicKey, input.senderPublicKey, input.expiresAt),
       }),
     )
@@ -253,9 +266,15 @@ export function verifyBatchTransaction(
     if (!operation.asset.equals(expectedAsset)) {
       return { ok: false, reason: 'wrong-asset' }
     }
-    // String comparison would fail on '1.0' vs '1.0000000'; the amounts are
-    // equal as money, which is the only sense that matters here.
-    if (!new Decimal(operation.amount).equals(new Decimal(expected.amountPerLink))) {
+    /*
+     * Against THIS link's amount (#73), by position — not against a single
+     * campaign figure, and never skipped because amounts may now vary. A
+     * verifier that stopped checking amounts when they became per-link would
+     * remove the one control that stops a compromised browser altering what
+     * gets funded. String comparison would fail on '1.0' vs '1.0000000'; the
+     * amounts are equal as money, which is the only sense that matters here.
+     */
+    if (!new Decimal(operation.amount).equals(new Decimal(linkAmount(expected.links[index]!, expected.amountPerLink)))) {
       return { ok: false, reason: 'wrong-amount' }
     }
     if (!claimantsMatch(operation.claimants, expected.links[index]!.ephemeralPublicKey, expected.senderPublicKey, expiry)) {

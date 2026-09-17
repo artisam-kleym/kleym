@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import { Button, Stepper } from '@/components/ui'
 import { generateEphemeralKeys, publicHalves, type Attestation } from '@/lib/campaign/keygen'
 import { parseLabels } from '@/lib/campaign/csv'
+import { parseReceiveAs, receiveAsErrorMessage, type ReceiveAsEntry } from '@/lib/campaign/receive-as'
 import { affordability, computeCost, type CostBreakdown } from '@/lib/campaign/cost'
 import { triggerDownload } from './download-gate'
 import { canContinuePastExport, useWizard, type WizardConfig } from './use-wizard'
@@ -82,8 +83,24 @@ export function CampaignWizard(config: WizardConfig) {
   const [reservePerLink, setReservePerLink] = useState<string | null>(null)
   const [labels, setLabels] = useState<string[]>([])
   const [attestations, setAttestations] = useState<(Attestation | null)[]>([])
+  /** Per-link amounts (#73) from the pasted CSV; empty means every link pays the default. */
+  const [amounts, setAmounts] = useState<(string | null)[]>([])
   const [labelError, setLabelError] = useState<string | null>(null)
   const [filename, setFilename] = useState<string | null>(null)
+  /**
+   * Receive-as (#74). The raw field is state; its parse is DERIVED from the
+   * raw text AND the campaign asset, so changing the asset after typing the
+   * list re-validates "differs from the campaign asset" here rather than as
+   * a 400 at signing.
+   */
+  const [receiveAsRaw, setReceiveAsRaw] = useState('')
+  const receiveAsParsed = useMemo(
+    () => parseReceiveAs(receiveAsRaw, { assetCode: draft.assetCode, assetIssuer: draft.assetIssuer }),
+    [receiveAsRaw, draft.assetCode, draft.assetIssuer],
+  )
+  const receiveAs = useMemo<ReceiveAsEntry[]>(() => (receiveAsParsed.ok ? receiveAsParsed.assets : []), [receiveAsParsed])
+  const receiveAsError = receiveAsParsed.ok ? null : receiveAsErrorMessage(receiveAsParsed)
+  const onReceiveAs = useCallback((raw: string) => setReceiveAsRaw(raw), [])
 
   const patch = useCallback((next: Partial<typeof draft>) => setDraft((d) => ({ ...d, ...next })), [])
 
@@ -128,6 +145,7 @@ export function CampaignWizard(config: WizardConfig) {
     try {
       return computeCost({
         amountPerLink: draft.amountPerLink,
+        amounts: amounts.length > 0 ? amounts : undefined,
         linkCount: draft.linkCount,
         reservePerLink,
         maxOpsPerBatch: config.maxOpsPerBatch,
@@ -138,7 +156,7 @@ export function CampaignWizard(config: WizardConfig) {
       // the sender is still typing.
       return null
     }
-  }, [reservePerLink, draft.amountPerLink, draft.linkCount, config])
+  }, [reservePerLink, draft.amountPerLink, draft.linkCount, amounts, config])
 
   const affordable = useMemo(() => {
     if (!cost || balances.length === 0) return null
@@ -176,6 +194,7 @@ export function CampaignWizard(config: WizardConfig) {
       if (raw.trim() === '') {
         setLabels([])
         setAttestations([])
+        setAmounts([])
         setLabelError(null)
         return
       }
@@ -183,11 +202,13 @@ export function CampaignWizard(config: WizardConfig) {
       if (parsed.ok) {
         setLabels(parsed.labels)
         setAttestations(parsed.attestations ?? [])
+        setAmounts(parsed.amounts ?? [])
         setLabelError(null)
         return
       }
       setLabels([])
       setAttestations([])
+      setAmounts([])
       setLabelError(labelErrorMessage(parsed, draft.linkCount))
     },
     [draft.linkCount],
@@ -197,13 +218,13 @@ export function CampaignWizard(config: WizardConfig) {
     wizard.setError(null)
     wizard.setPhase('generating')
     try {
-      wizard.replaceKeys(generateEphemeralKeys(draft.linkCount, labels, attestations))
+      wizard.replaceKeys(generateEphemeralKeys(draft.linkCount, labels, attestations, amounts))
       wizard.setPhase('awaiting-download')
     } catch (error) {
       wizard.setPhase('editing')
       wizard.setError(error instanceof Error ? error.message : 'Could not generate keys.')
     }
-  }, [draft.linkCount, labels, attestations, wizard])
+  }, [draft.linkCount, labels, attestations, amounts, wizard])
 
   /* THE GATE. Only this can open it, and only after the file is written. */
   const onDownload = useCallback(() => {
@@ -231,7 +252,7 @@ export function CampaignWizard(config: WizardConfig) {
         return
       }
 
-      const campaignId = await createCampaign(draft, wizard.keys.length, reminderDays)
+      const campaignId = await createCampaign(draft, wizard.keys.length, reminderDays, receiveAs)
       wizard.setCampaignId(campaignId)
       await registerLinks(campaignId, wizard.keys)
 
@@ -258,7 +279,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
     }
-  }, [wizard, draft, cost, stepUp, reminderDays])
+  }, [wizard, draft, cost, stepUp, reminderDays, receiveAs])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -270,7 +291,8 @@ export function CampaignWizard(config: WizardConfig) {
         draft.name.trim().length > 0 &&
         draft.senderPublicKey.length === 56 &&
         accountExists === true &&
-        draft.amountPerLink.trim().length > 0
+        draft.amountPerLink.trim().length > 0 &&
+        receiveAsError === null
       )
     }
     if (wizard.step === 1) {
@@ -283,7 +305,7 @@ export function CampaignWizard(config: WizardConfig) {
       )
     }
     return false
-  }, [wizard.step, draft, accountExists, config.maxLinksPerCampaign, labelError, cost])
+  }, [wizard.step, draft, accountExists, config.maxLinksPerCampaign, labelError, cost, receiveAsError])
 
   return (
     <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
@@ -297,7 +319,7 @@ export function CampaignWizard(config: WizardConfig) {
           </p>
         </div>
       )}
-      <Stepper steps={summarise(STEPS, draft, cost)} current={wizard.step} />
+      <Stepper steps={summarise(STEPS, draft, cost, amounts.some((a) => a !== null))} current={wizard.step} />
 
       <div>
         {wizard.step === 0 && (
@@ -307,6 +329,9 @@ export function CampaignWizard(config: WizardConfig) {
             balances={balances}
             accountExists={accountExists}
             checking={checking}
+            receiveAsRaw={receiveAsRaw}
+            receiveAsError={receiveAsError}
+            onReceiveAs={onReceiveAs}
           />
         )}
         {wizard.step === 1 && (
@@ -314,6 +339,7 @@ export function CampaignWizard(config: WizardConfig) {
             draft={draft}
             onChange={patch}
             labels={labels}
+            amounts={amounts}
             labelError={labelError}
             onLabels={onLabels}
             reminderDays={reminderDays}
@@ -400,6 +426,7 @@ async function createCampaign(
   draft: { name: string; network: string; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; expiresAt: string },
   linkCount: number,
   reminderDaysBefore: number[] = [],
+  receiveAs: ReceiveAsEntry[] = [],
 ): Promise<string> {
   const response = await fetch('/api/campaigns', {
     method: 'POST',
@@ -414,6 +441,8 @@ async function createCampaign(
       linkCount,
       expiresAt: new Date(draft.expiresAt).toISOString(),
       ...(reminderDaysBefore.length > 0 ? { reminderDaysBefore } : {}),
+      // Omitted entirely when empty, so the request is what it always was.
+      ...(receiveAs.length > 0 ? { receiveAs } : {}),
     }),
   })
   if (!response.ok) throw new Error((await problemDetail(response)) ?? 'The campaign could not be created.')
@@ -483,6 +512,8 @@ function labelErrorMessage(
       return `${parsed.found} labels for ${linkCount} links. Raise the link count or remove some.`
     case 'too-long':
       return `Line ${parsed.line}: the ${parsed.column} column is over ${parsed.allowed} characters.`
+    case 'amount':
+      return `Line ${parsed.line}: "${parsed.value}" is not an amount. Use digits with up to seven decimal places, greater than zero — or leave the cell blank for the default.`
     case 'empty':
       return 'No labels found.'
   }
@@ -492,12 +523,13 @@ function summarise(
   steps: { title: string }[],
   draft: { assetCode: string; amountPerLink: string; linkCount: number },
   cost: CostBreakdown | null,
+  amountsVary = false,
 ) {
   return steps.map((step, index) => ({
     ...step,
     summary:
       index === 0 && draft.amountPerLink
-        ? `${draft.amountPerLink} ${draft.assetCode} per link`
+        ? `${draft.amountPerLink} ${draft.assetCode} per link${cost && amountsVary ? ` by default · ${cost.totalAmount} in total` : ''}`
         : index === 1 && cost
           ? `${draft.linkCount} links · ${cost.signatures} signature${cost.signatures === 1 ? '' : 's'}`
           : undefined,

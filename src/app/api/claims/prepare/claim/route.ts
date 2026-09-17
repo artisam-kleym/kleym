@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   const gated = await otpGate(request, parsed.data.ephemeralPublicKey)
   if (gated) return gated
   try {
-    const outcome = await prepareClaim(parsed.data.ephemeralPublicKey, parsed.data.recipientPublicKey)
+    const outcome = await prepareClaim(parsed.data.ephemeralPublicKey, parsed.data.recipientPublicKey, parsed.data.receiveAs)
     if (outcome.kind === 'not-found') return claimNotFound()
     if (outcome.kind === 'conflict') return claimConflict(outcome.detail, outcome.reason)
     if (outcome.kind === 'unavailable') return claimUnavailable(outcome.detail)

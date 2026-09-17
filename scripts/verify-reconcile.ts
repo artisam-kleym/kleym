@@ -71,7 +71,7 @@ async function fixture(
     const key = Keypair.random().publicKey()
     const balanceId = `00000000${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}`.slice(0, 72)
     const row = await prisma.claimLink.create({
-      data: { campaignId: campaign.id, ephemeralPublicKey: key, status, balanceId },
+      data: { campaignId: campaign.id, ephemeralPublicKey: key, amount: '2.5000000', status, balanceId },
       select: { id: true },
     })
     links.push({ id: row.id, balanceId, key })
@@ -281,14 +281,14 @@ async function reportsValueExactly(): Promise<void> {
   console.log('\n7. The report totals value with Decimal, not floating point')
 
   const findings = [
-    { campaign: { amountPerLink: '0.1' } },
-    { campaign: { amountPerLink: '0.2' } },
+    { link: { amount: '0.1' } },
+    { link: { amount: '0.2' } },
   ]
   check('0.1 + 0.2 is 0.3', findingsValue(findings) === '0.3', findingsValue(findings))
   check('and the float answer is not', String(0.1 + 0.2) !== '0.3')
   check(
     'seven decimal places survive',
-    findingsValue([{ campaign: { amountPerLink: '922337203685.4775807' } }]) === '922337203685.4775807',
+    findingsValue([{ link: { amount: '922337203685.4775807' } }]) === '922337203685.4775807',
   )
 }
 
@@ -476,11 +476,37 @@ async function aPassIsBoundedAndResumes(): Promise<void> {
   check('the next pass starts again from the top', visited.size <= limit)
 }
 
+/** #73, acceptance criterion 7: a ledger amount that differs from the link's row is flagged. */
+async function flagsAnAmountMismatch(): Promise<void> {
+  console.log('\n13. A balance whose ledger amount differs from its row is flagged, not corrected')
+
+  const f = await fixture(['ACTIVE'])
+  const report = await reconcileCampaign(f.campaignId, {
+    // Still on the ledger — but holding 2.4, where the row says 2.5.
+    loadBalance: async (balanceId: string) => ({ id: balanceId, asset: 'native', amount: '2.4000000', claimants: [] }),
+    readDisposal: noDisposal,
+  })
+  check('counted as critical', report.critical === 1, JSON.stringify(report))
+
+  const link = await prisma.claimLink.findUniqueOrThrow({ where: { id: f.links[0]!.id }, select: { status: true, amount: true } })
+  check('the row is untouched', link.status === 'ACTIVE' && link.amount.toFixed() === '2.5', `${link.status} ${link.amount}`)
+
+  const mine = (await openFindings()).filter((finding) => finding.link.id === f.links[0]!.id)
+  check('an amount_mismatch finding is open', mine.length === 1 && mine[0]!.kind === 'amount_mismatch', JSON.stringify(mine.map((m) => m.kind)))
+  check('and names both figures', /2\.4000000/.test(mine[0]?.detail ?? '') && /2\.5/.test(mine[0]?.detail ?? ''), mine[0]?.detail)
+
+  // Agreeing again resolves it — a second clean run adds no noise (§10.13).
+  await reconcileCampaign(f.campaignId, { loadBalance: holding([f.links[0]!.balanceId]), readDisposal: noDisposal })
+  const after = (await openFindings()).filter((finding) => finding.link.id === f.links[0]!.id)
+  check('resolved once the ledger and row agree', after.length === 0, JSON.stringify(after.map((m) => m.kind)))
+}
+
 async function main(): Promise<void> {
   try {
     await correctsDriftTowardsTheChain()
     await tellsClaimFromReclaim()
     await refusesToCorrectTheCriticalCase()
+    await flagsAnAmountMismatch()
     await doesNotGuessMidFlight()
     await isIdempotent()
     await sweepsExpiry()

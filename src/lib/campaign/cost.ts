@@ -9,7 +9,10 @@ import Decimal from 'decimal.js'
 import { batchCount } from '@/lib/stellar/batch'
 
 export interface CostInput {
+  /** The default per link — and the whole answer for a uniform campaign. */
   amountPerLink: string
+  /** Per-link amounts (#73), by index; null or missing entries take the default. */
+  amounts?: (string | null)[]
   linkCount: number
   /** From GET /api/stellar/reserve — the LIVE protocol value, never a constant. */
   reservePerLink: string
@@ -33,7 +36,7 @@ export function computeCost(input: CostInput): CostBreakdown {
   const batches = batchCount(input.linkCount, input.maxOpsPerBatch)
 
   return {
-    totalAmount: new Decimal(input.amountPerLink).times(links).toFixed(),
+    totalAmount: totalAmount(input).toFixed(),
     totalReserve: new Decimal(input.reservePerLink).times(links).toFixed(),
     // One operation per link, whatever the batching; fees are per operation.
     totalFee: new Decimal(input.baseFeeStroops).times(links).div(1e7).toFixed(),
@@ -41,6 +44,22 @@ export function computeCost(input: CostInput): CostBreakdown {
     // One wallet prompt per batch — the number the sender actually experiences.
     signatures: batches,
   }
+}
+
+/**
+ * The asset total: a SUM over the links, not a multiplication (#73). Each of
+ * the `linkCount` links pays its own amount when one was given and the
+ * default otherwise; entries past the count are not links and do not count.
+ */
+function totalAmount(input: CostInput): Decimal {
+  const fallback = new Decimal(input.amountPerLink)
+  if (!input.amounts) return fallback.times(input.linkCount)
+  let total = new Decimal(0)
+  for (let index = 0; index < input.linkCount; index += 1) {
+    const own = input.amounts[index]
+    total = total.plus(own ? new Decimal(own) : fallback)
+  }
+  return total
 }
 
 /**

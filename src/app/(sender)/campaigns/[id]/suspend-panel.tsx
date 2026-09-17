@@ -33,6 +33,7 @@ export function SuspendPanel({
   outstanding,
   outstandingAmount,
   suspendedLinks,
+  inFlight,
   canAct,
 }: {
   campaignId: string
@@ -46,6 +47,8 @@ export function SuspendPanel({
   outstandingAmount: string
   /** Links suspended one at a time, still live. */
   suspendedLinks: number
+  /** Claims that landed their first step and not their second (SPEC.md §7.3). */
+  inFlight: number
   canAct: boolean
 }) {
   const router = useRouter()
@@ -107,6 +110,13 @@ export function SuspendPanel({
             </dd>
           </div>
         </dl>
+        {inFlight > 0 && (
+          <p className="mt-md max-w-2xl text-body-md text-on-surface-variant">
+            {inFlight} {inFlight === 1 ? 'claim was' : 'claims were'} in progress when Kleym stopped — their first step landed
+            and Kleym will not build the second. Those balances stay claimable by their holders with their own tooling, and
+            the sponsor reserve each one locked stays locked until they finish or the link is reclaimed (SPEC.md §12).
+          </p>
+        )}
         <p className="mt-md max-w-2xl text-body-md text-on-surface-variant">
           {expired
             ? `The expiry has passed, so whatever is still unclaimed can be returned. ${reclaimDueAt ? 'Your organisation was notified when it came due. ' : ''}Use the reclaim below — it is signed with your wallet.`
@@ -146,6 +156,10 @@ export function SuspendPanel({
               link’s terms give you no earlier moment to take them back. Kleym will stop serving the
               links, and the return of whatever is unclaimed is scheduled for {day(expiresAt)}, when
               you will be asked to sign it.
+              {inFlight > 0 && (
+                <> {inFlight} {inFlight === 1 ? 'claim is' : 'claims are'} mid-way right now; Kleym will not finish them, and the sponsor reserve they hold stays locked until their holders do or the link is reclaimed.</>
+              )}
+              {' '}A holder who claims after this does so directly on the network, without Kleym’s help.
             </WarningPanel>
           </div>
           <div className="mt-md flex flex-wrap gap-sm">

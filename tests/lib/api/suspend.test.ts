@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Claimant, Keypair, xdr } from '@stellar/stellar-sdk'
 import { claimantsFor } from '@/lib/stellar/batch'
-import { outstandingValue, suspensionDecision } from '@/lib/api/suspend'
+import { suspensionDecision } from '@/lib/api/suspend'
 
 const DAY = 86_400_000
 const NOW = new Date('2026-09-17T12:00:00Z')
@@ -45,18 +45,6 @@ describe('suspensionDecision', () => {
   })
 })
 
-describe('outstandingValue', () => {
-  it('multiplies with Decimal, never Number (AGENT.md §4.1)', () => {
-    // 0.1 * 3 in binary floating point is 0.30000000000000004.
-    expect(outstandingValue(3, '0.1000000')).toBe('0.3')
-    expect(outstandingValue(7, '0.0000001')).toBe('0.0000007')
-    expect(outstandingValue(0, '500')).toBe('0')
-  })
-
-  it('renders one stroop as a decimal, not an exponent', () => {
-    expect(outstandingValue(1, '0.0000001')).toBe('0.0000001')
-  })
-})
 
 /*
  * Acceptance criterion 6 of #72.

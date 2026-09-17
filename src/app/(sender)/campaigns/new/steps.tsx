@@ -11,12 +11,19 @@ export function AssetStep({
   balances,
   accountExists,
   checking,
+  receiveAsRaw,
+  receiveAsError,
+  onReceiveAs,
 }: {
   draft: { network: 'testnet' | 'public'; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; name: string }
   onChange: (patch: Partial<typeof draft>) => void
   balances: { assetCode: string; assetIssuer: string | null; balance: string }[]
   accountExists: boolean | null
   checking: boolean
+  /** Receive-as (#74): what the sender typed, and what was wrong with it. */
+  receiveAsRaw: string
+  receiveAsError: string | null
+  onReceiveAs: (raw: string) => void
 }) {
   const native = balances.find((b) => b.assetIssuer === null)
 
@@ -115,6 +122,35 @@ export function AssetStep({
           helper="Up to 7 decimal places."
           required
         />
+
+        <div className="flex flex-col gap-xs">
+          <label
+            htmlFor="receiveAs"
+            className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant"
+          >
+            Let recipients receive as (optional)
+          </label>
+          <textarea
+            id="receiveAs"
+            name="receiveAs"
+            rows={2}
+            value={receiveAsRaw}
+            onChange={(e) => onReceiveAs(e.target.value)}
+            placeholder={'USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN'}
+            spellCheck={false}
+            className="rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface"
+          />
+          <p className="font-mono text-label-sm text-on-surface-variant">
+            One per line: XLM, or CODE:issuer. Each recipient may convert into one of these when they
+            claim, at a live price with a floor — if no market exists at that moment, they receive{' '}
+            {draft.assetCode} as sent. Leave empty to offer no conversion.
+          </p>
+          {receiveAsError && (
+            <p role="alert" className="font-mono text-label-sm text-error">
+              {receiveAsError}
+            </p>
+          )}
+        </div>
       </div>
     </SolidCard>
   )
@@ -125,6 +161,7 @@ export function RecipientsStep({
   draft,
   onChange,
   labels,
+  amounts,
   labelError,
   onLabels,
   reminderDays,
@@ -138,6 +175,8 @@ export function RecipientsStep({
   draft: { linkCount: number; expiresAt: string }
   onChange: (patch: Partial<typeof draft>) => void
   labels: string[]
+  /** Per-link amounts (#73) read from the pasted CSV; null entries take the default. */
+  amounts: (string | null)[]
   labelError: string | null
   onLabels: (raw: string) => void
   /** Reminder points (#78), days before expiry. */
@@ -196,6 +235,8 @@ export function RecipientsStep({
             each link is claimed by whoever opens it, so there is no address to record.
             To attach your own reference data, paste a CSV with a header row naming any of{' '}
             <span className="text-on-surface">label, reference, category, note</span>; other columns are ignored.
+            To pay different amounts, add an <span className="text-on-surface">amount</span> column —
+            a blank cell pays the amount per link above.
           </p>
           {labelError && (
             <p role="alert" className="font-mono text-label-sm text-error">
@@ -204,7 +245,10 @@ export function RecipientsStep({
           )}
           {labels.length > 0 && !labelError && (
             <p role="status" className="font-mono text-label-sm text-on-surface-variant">
-              {labels.length} label{labels.length === 1 ? '' : 's'} accepted.
+              {labels.length} label{labels.length === 1 ? '' : 's'} accepted
+              {amounts.some((a) => a !== null) && (
+                <>, {amounts.filter((a) => a !== null).length} with their own amount</>
+              )}.
             </p>
           )}
         </div>

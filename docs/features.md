@@ -52,6 +52,71 @@ carrying no link / fragment / seed / URL, and the ledger sum for the outstanding
 here; the leak checks in `scripts/verify-email.ts` were not run), the per-recipient limiter
 against Redis, and the pages in a browser. Stacked on #72.
 
+## 2026-09-17 — Different amounts per recipient in one campaign (#73)
+
+A campaign can now pay each recipient a different amount. In the wizard, the pasted CSV
+takes an `amount` column beside `label`, `reference`, `category` and `note`; a blank cell
+pays the campaign's amount per link, a malformed or non-positive one is refused naming its
+row, and the seed and address checks apply to that column too. The cost estimate is the
+sum of what the links pay, not a multiplication. The downloaded secrets file carries the
+amount as its last column so it round-trips. Over the API, `POST …/links` takes `amounts`
+(strings, `null` for the default) and `GET …/links` returns each link's `amount`.
+
+Each `ClaimLink` carries its own `amount` (Decimal(23,7), backfilled from the campaign so
+no existing row is ambiguous), and money reads the link everywhere: the batch builder
+writes it, the batch verifier checks every operation against **that link's** row by
+position — one altered operation in an otherwise valid batch is refused — the claim path
+and delivery email use it, and reconciliation opens an `amount_mismatch` finding when the
+ledger holds something else. Dual control (#45) gates on the SUM of the links' amounts and
+never less than the uniform figure, so 9,999 tiny links and one enormous one cannot slip
+under the threshold; a uniform campaign's terms hash — and every approval already
+recorded — is unchanged, keyed on the campaign's `variableAmounts` flag rather than on the
+running sum, so registering a uniform campaign in several batches never invalidates an
+approval. The dashboard's "total distributed", the claim history, the signed regulator
+export (new `amount` column) and the screening request (`amount` per recipient and a
+`totalAmount`, both under the ALLOW hash) all read the link's own figure, as do the
+outstanding value on a suspended campaign and a per-link suspension. Detail and link tables
+show the per-link amount; the campaign, dashboard and admin lists say "varies" where it does.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 32 new unit tests — the
+planted single-altered-operation batch and a two-links-swap-amounts batch both refused, a
+per-link batch accepted with each operation carrying its own figure, the one-large-link
+approval case, the CSV amount column's accept/refuse table, and the summed cost estimate.
+Existing batch and claim tests run unmodified. `scripts/verify-reconcile.ts` gained the
+amount-mismatch case but was NOT run here (no database in this environment), and the
+backfill migration was authored from the schema diff and not run against a copy of real
+data — both believed correct, unchecked. The wizard was not opened in a browser.
+
+## 2026-09-17 — Receive-as: the recipient chooses which asset they claim (#74)
+
+A sender can list up to five assets a recipient may receive as (wizard step 1, one per
+line; `receiveAs` on `POST /api/campaigns` and the v1 API). On `/claim`, a recipient with
+such a link sees a "Receive as" chooser; picking an asset fetches a live price from
+Kleym's own backend — `POST /api/claims/quote`, which prices the link's asset through
+Horizon's `strictSendPaths` — and shows both the expected figure and the floor the claim
+will be held to. `/claim` still makes zero third-party requests.
+
+The conversion happens inside TX2 or not at all: a `pathPaymentStrictSend` from the
+ephemeral account replaces the plain payment, sending the whole link amount and
+delivering at least `destMin` (the fresh server-side quote less 1%, rounded down, never
+zero) of the chosen asset. The trustline Kleym sponsors is for the **destination** asset.
+When no path exists the claim is refused with `no-path`; when the book moves past the
+floor between quote and ledger the transaction fails (`op_under_dest_min`), Kleym answers
+`quote-missed`, and in both cases the page drops the conversion and offers the asset as
+sent — a claim that fails because a market moved is worse than one that delivers what the
+sender sent. With no conversion, TX2 is byte-identical to before.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 34 new unit tests —
+the builder swaps exactly one operation, sponsors the destination trustline across
+new/existing × native/non-native, needs no trustline when converting into XLM, still
+zeroes the sent asset's ephemeral trustline before the merge, `needsRecipientSignature`
+equals "the recipient sources an operation" across every permutation with conversion on
+and off, and conversion-off XDR is byte-identical; `destMin` rounding and the asset-ref
+and allow-list parsers. **Not verified:** a conversion on testnet (acceptance criterion 1
+needs a funded link and an order book — `pnpm spike` was not extended here), the claim
+page in a browser, and the Playwright zero-third-party check, which was not run in this
+environment (the quote is same-origin by construction).
+
 ## 2026-09-17 — Suspend, not cancel: a funded campaign's links stay claimable until expiry (#72)
 
 A sender can suspend a live campaign, or a single link, and the product tells the truth
@@ -69,7 +134,11 @@ When that date passes, the hourly expiry sweep marks the reclaim due and fires
 moment of suspension). The sender still signs the return with their wallet: Kleym holds no
 key that can move the money, so "scheduled" means announced and ready, not submitted.
 `SPEC.md` §12 records the limitation; true pre-expiry revocation is a product decision the
-issue leaves open.
+issue leaves open. One consequence is stated in the dialog and on the suspended panel: a
+claim that had landed its first transaction when Kleym stopped will not get its second from
+Kleym, so each in-flight claim becomes the §12 "abandoned claim strands sponsor reserves"
+case — the panel shows how many, and the reserve stays locked until the holder finishes with
+their own tooling or the link is reclaimed.
 
 **Verified by:** `typecheck`, `lint`, `test` and `build` clean; 14 new unit tests, including
 one that evaluates the claimant predicates `claimantsFor` writes and asserts the recipient
