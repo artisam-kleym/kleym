@@ -32,6 +32,8 @@ export function parseReceiveAs(input: string, campaign: { assetCode: string; ass
     }
     const [code, issuer, ...rest] = line.split(':')
     if (!code || rest.length > 0 || !CODE.test(code)) return { ok: false, line: at, reason: 'format' }
+    // XLM takes no issuer — the server refuses it too, so refuse here rather than at signing.
+    if (code.toUpperCase() === 'XLM' && issuer) return { ok: false, line: at, reason: 'format' }
     const native = code.toUpperCase() === 'XLM' && !issuer
     if (!native && (!issuer || !StrKey.isValidEd25519PublicKey(issuer))) return { ok: false, line: at, reason: 'issuer' }
     const entry: ReceiveAsEntry = native ? { assetCode: 'XLM' } : { assetCode: code, assetIssuer: issuer }

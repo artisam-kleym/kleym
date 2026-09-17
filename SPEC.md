@@ -670,8 +670,8 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 |---|---|---|
 | GET | `/api/claims/resolve?pk=<G...>` | Link metadata: asset, amount, sender name, status, expiry. Rate-limited 20/min/IP. Returns identical shape for unknown and expired keys to prevent enumeration. |
 | POST | `/api/claims/prepare/materialise` | `{ ephemeralPublicKey }` → TX1 sponsor-signed XDR, or `{ alreadyExists: true }`. Rate-limited 20/min/IP — retried across the ledger boundary. |
-| POST | `/api/claims/quote` | `{ ephemeralPublicKey, receiveAs: { assetCode, assetIssuer } }` → `{ destAmount, destMin }` from Kleym's own Horizon (#74). 404 for anything not claimable; 409 `no-path` when no market exists. Rate-limited 20/min/IP. |
-| POST | `/api/claims/prepare/claim` | `{ ephemeralPublicKey, recipientPublicKey, receiveAs? }` → TX2 sponsor-signed XDR, whether a recipient signature is required, and `conversion` (`destAmount`, `destMin`) when receiving as another asset (#74) |
+| POST | `/api/claims/quote` | `{ ephemeralPublicKey, receiveAs: { assetCode, assetIssuer } }` → `{ destAmount, destMin }` from Kleym's own Horizon (#74). OTP-gated like every claim action; one 404 for anything not claimable; 409 `no-path` when no market exists. Rate-limited 20/min/IP. |
+| POST | `/api/claims/prepare/claim` | `{ ephemeralPublicKey, recipientPublicKey, receiveAs?: { assetCode, assetIssuer, destMin? } }` → TX2 sponsor-signed XDR, whether a recipient signature is required, and `conversion` (`destAmount`, `destMin`) when receiving as another asset (#74). `destMin` is the floor the page showed: the envelope is bound to the higher of it and the fresh bound, and refused `quote-missed` if the fresh quote is below it. |
 | POST | `/api/claims/submit` | `{ ephemeralPublicKey, signedXdr, phase }` → submits, records claim. Rate-limited 10/min/IP. |
 | POST | `/api/claims/otp/request` | Email-delivered links only |
 | POST | `/api/claims/otp/verify` | 6 digits, 5 attempts, 10-minute expiry |

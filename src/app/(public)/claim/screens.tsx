@@ -320,6 +320,11 @@ function ReceiveAsChooser({
   onChoose: (option: ReceiveAsOption | null) => void
 }) {
   const key = (o: ReceiveAsOption | null) => (o ? `${o.assetCode}:${o.assetIssuer ?? ''}` : '')
+  // Two issuers of the same code must not both read as "USDC": name the issuer when codes collide.
+  const label = (o: ReceiveAsOption) => {
+    const collides = link.receiveAs.filter((other) => other.assetCode === o.assetCode).length > 1
+    return collides && o.assetIssuer ? `${o.assetCode} (${o.assetIssuer.slice(0, 4)}…${o.assetIssuer.slice(-4)})` : o.assetCode
+  }
   return (
     <div className="flex flex-col gap-xs rounded-lg border border-outline-variant bg-surface-container-low p-md">
       <label htmlFor="receive-as" className="text-label-md font-semibold text-on-surface">
@@ -335,7 +340,7 @@ function ReceiveAsChooser({
         <option value="">{link.assetCode} — as sent</option>
         {link.receiveAs.map((option) => (
           <option key={key(option)} value={key(option)}>
-            {option.assetCode}
+            {label(option)}
           </option>
         ))}
       </select>

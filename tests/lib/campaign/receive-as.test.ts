@@ -28,6 +28,8 @@ describe('parseReceiveAs', () => {
     expect(parseReceiveAs(`USDC:${ISSUER}\nUSDC:${ISSUER}`, campaign)).toMatchObject({ ok: false, reason: 'duplicate', line: 2 })
     expect(parseReceiveAs('USDC:notakey', campaign)).toMatchObject({ ok: false, reason: 'issuer' })
     expect(parseReceiveAs('USDC', campaign)).toMatchObject({ ok: false, reason: 'issuer' })
+    // XLM takes no issuer: the server refuses it, so the wizard must too.
+    expect(parseReceiveAs(`XLM:${ISSUER}`, { assetCode: 'USDC', assetIssuer: ISSUER })).toMatchObject({ ok: false, reason: 'format' })
     expect(parseReceiveAs(`TOOLONGASSETCODE:${ISSUER}`, campaign)).toMatchObject({ ok: false, reason: 'format' })
     const six = ['A', 'B', 'C', 'D', 'E', 'F'].map((c) => `${c}:${ISSUER}`).join('\n')
     expect(parseReceiveAs(six, campaign)).toMatchObject({ ok: false, reason: 'too-many' })

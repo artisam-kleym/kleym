@@ -35,6 +35,14 @@ export const receiveAsSchema = z
   .object({
     assetCode: z.string().regex(/^[A-Za-z0-9]{1,12}$/),
     assetIssuer: z.string().regex(PUBLIC_KEY).nullable(),
+    /**
+     * The floor the page SHOWED the recipient, from an earlier quote. The
+     * envelope is bound to the higher of this and the fresh bound, and if the
+     * fresh quote cannot meet it the claim is refused (`quote-missed`) rather
+     * than filled below what was promised. Never a price the page invents —
+     * a higher floor only ever makes the claim fail.
+     */
+    destMin: z.string().regex(/^\d+(\.\d{1,7})?$/).optional(),
   })
   .strict()
 
@@ -363,7 +371,7 @@ async function claimContext(
  */
 async function resolveConversion(
   link: LinkForClaim,
-  wanted: { assetCode: string; assetIssuer: string | null } | undefined,
+  wanted: { assetCode: string; assetIssuer: string | null; destMin?: string } | undefined,
   quote: QuoteReader,
 ): Promise<Outcome<{ destAsset: Asset; quote: Quote } | null>> {
   if (!wanted) return { kind: 'ok', value: null }
@@ -380,6 +388,22 @@ async function resolveConversion(
       `There is no market right now to receive this as ${wanted.assetCode}. You can still receive ${link.asset.isNative() ? 'XLM' : link.asset.getCode()}.`,
       'no-path',
     )
+  }
+  /*
+   * The floor the recipient READ is the floor they get. Between the quote on
+   * the ready screen and the envelope there is a wallet connect, TX1 and a
+   * ledger wait; if the book fell past the shown floor in that time, this
+   * refuses rather than binding to a lower fresh figure and filling at it.
+   */
+  if (wanted.destMin) {
+    const shown = new Decimal(wanted.destMin)
+    if (new Decimal(priced.destAmount).lessThan(shown)) {
+      return conflict(
+        `The price moved: ${wanted.assetCode} would now deliver ${priced.destAmount}, below the ${shown.toFixed()} you were shown. Nothing was filled — pick again for a fresh price, or receive ${link.asset.isNative() ? 'XLM' : link.asset.getCode()}.`,
+        'quote-missed',
+      )
+    }
+    if (shown.greaterThan(priced.destMin)) priced.destMin = shown.toFixed(7)
   }
   return { kind: 'ok', value: { destAsset, quote: priced } }
 }
@@ -400,7 +424,10 @@ async function quoteReceiveAsUnobserved(
   quote: QuoteReader = quoteStrictSend,
 ): Promise<Outcome<QuotePrepared>> {
   const loaded = await loadClaimable(ephemeralPublicKey)
-  if (loaded.kind !== 'ok') return loaded
+  // Anything not claimable — unknown, expired, claimed, suspended — is ONE
+  // answer here. A typed conflict would tell a holder of the public key alone
+  // which of those it is, which is what `resolve` refuses to say (§6.4).
+  if (loaded.kind !== 'ok') return { kind: 'not-found' }
   const conversion = await resolveConversion(loaded.value, wanted, quote)
   if (conversion.kind !== 'ok') return conversion
   if (!conversion.value) return conflict('That is the asset this link already pays.')
@@ -461,7 +488,7 @@ export interface ClaimPrepared {
 async function prepareClaimUnobserved(
   ephemeralPublicKey: string,
   recipientPublicKey: string,
-  receiveAs?: { assetCode: string; assetIssuer: string | null },
+  receiveAs?: { assetCode: string; assetIssuer: string | null; destMin?: string },
   quote: QuoteReader = quoteStrictSend,
 ): Promise<Outcome<ClaimPrepared>> {
   if (recipientPublicKey === ephemeralPublicKey) {

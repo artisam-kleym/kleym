@@ -48,6 +48,8 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
    */
   const [receiveAs, setReceiveAs] = useState<ReceiveAsOption | null>(null)
   const [quote, setQuote] = useState<ReceiveAsQuote | null>(null)
+  /** The latest quote request; an older one resolving later is dropped, not shown. */
+  const quoteRequest = useRef(0)
   const [delivered, setDelivered] = useState<{ assetCode: string; destAmount: string; destMin: string } | null>(null)
 
   /*
@@ -155,6 +157,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
   const onReceiveAs = useCallback(
     async (option: ReceiveAsOption | null) => {
       setReceiveAs(option)
+      const request = ++quoteRequest.current
       if (!option) return setQuote(null)
       const ephemeralPublicKey = ephemeral.current
       if (!ephemeralPublicKey) return
@@ -162,17 +165,21 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       try {
         const response = await fetch('/api/claims/quote', {
           method: 'POST',
-          headers: claimHeaders(null),
-          body: JSON.stringify({ ephemeralPublicKey, receiveAs: option }),
+          // The OTP token too: the quote is gated like every other action on the link.
+          headers: claimHeaders(otpToken.current),
+          body: JSON.stringify({ ephemeralPublicKey, receiveAs: { assetCode: option.assetCode, assetIssuer: option.assetIssuer } }),
         })
+        // A later selection has superseded this one: its answer is not ours to show.
+        if (request !== quoteRequest.current) return
         if (!response.ok) {
           const p = await problem(response)
           return setQuote({ status: 'unavailable', detail: p.detail ?? `There is no market for ${option.assetCode} right now.` })
         }
         const body = await response.json()
+        if (request !== quoteRequest.current) return
         setQuote({ status: 'quoted', destAmount: body.destAmount, destMin: body.destMin })
       } catch {
-        setQuote({ status: 'unavailable', detail: 'A price could not be fetched.' })
+        if (request === quoteRequest.current) setQuote({ status: 'unavailable', detail: 'A price could not be fetched.' })
       }
     },
     [problem],
@@ -257,7 +264,10 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       /* TX2. */
       setState('preparing')
       // Only a chosen asset with a price in hand is asked for; anything else is the asset as sent.
-      const conversion = receiveAs && quote?.status === 'quoted' ? receiveAs : null
+      // The floor SHOWN travels with it, so the envelope is never bound below what was read.
+      const conversion = receiveAs && quote?.status === 'quoted'
+        ? { assetCode: receiveAs.assetCode, assetIssuer: receiveAs.assetIssuer, destMin: quote.destMin }
+        : null
       let prepared: Response
       for (let attempt = 1; ; attempt += 1) {
         prepared = await fetch('/api/claims/prepare/claim', {

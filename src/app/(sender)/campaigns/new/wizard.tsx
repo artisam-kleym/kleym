@@ -81,24 +81,20 @@ export function CampaignWizard(config: WizardConfig) {
   const [attestations, setAttestations] = useState<(Attestation | null)[]>([])
   const [labelError, setLabelError] = useState<string | null>(null)
   const [filename, setFilename] = useState<string | null>(null)
-  /** Receive-as (#74): the raw field, its parse, and its error, kept together. */
+  /**
+   * Receive-as (#74). The raw field is state; its parse is DERIVED from the
+   * raw text AND the campaign asset, so changing the asset after typing the
+   * list re-validates "differs from the campaign asset" here rather than as
+   * a 400 at signing.
+   */
   const [receiveAsRaw, setReceiveAsRaw] = useState('')
-  const [receiveAs, setReceiveAs] = useState<ReceiveAsEntry[]>([])
-  const [receiveAsError, setReceiveAsError] = useState<string | null>(null)
-  const onReceiveAs = useCallback(
-    (raw: string) => {
-      setReceiveAsRaw(raw)
-      const parsed = parseReceiveAs(raw, { assetCode: draft.assetCode, assetIssuer: draft.assetIssuer })
-      if (parsed.ok) {
-        setReceiveAs(parsed.assets)
-        setReceiveAsError(null)
-      } else {
-        setReceiveAs([])
-        setReceiveAsError(receiveAsErrorMessage(parsed))
-      }
-    },
-    [draft.assetCode, draft.assetIssuer],
+  const receiveAsParsed = useMemo(
+    () => parseReceiveAs(receiveAsRaw, { assetCode: draft.assetCode, assetIssuer: draft.assetIssuer }),
+    [receiveAsRaw, draft.assetCode, draft.assetIssuer],
   )
+  const receiveAs = useMemo<ReceiveAsEntry[]>(() => (receiveAsParsed.ok ? receiveAsParsed.assets : []), [receiveAsParsed])
+  const receiveAsError = receiveAsParsed.ok ? null : receiveAsErrorMessage(receiveAsParsed)
+  const onReceiveAs = useCallback((raw: string) => setReceiveAsRaw(raw), [])
 
   const patch = useCallback((next: Partial<typeof draft>) => setDraft((d) => ({ ...d, ...next })), [])
 
