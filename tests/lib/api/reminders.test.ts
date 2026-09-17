@@ -32,13 +32,12 @@ describe('duePoints', () => {
   })
 
   it('and once every due point is recorded, nothing is due again until the next point', () => {
-    // PATCH [14, 7, 3, 1] onto a campaign 5 days out: 3, 7 and 14 are all due.
-    const due = duePoints([14, 7, 3, 1], EXPIRES, [], at(5))
+    // PATCH [14, 7, 3, 1] onto a campaign 2.5 days out: 3, 7 and 14 are all due.
+    const due = duePoints([14, 7, 3, 1], EXPIRES, [], at(2.5))
     expect(due).toEqual([3, 7, 14])
     // The pass records all three against the one email it sends — so tomorrow
-    // brings nothing, and the day after brings nothing, until point 1.
-    expect(duePoints([14, 7, 3, 1], EXPIRES, due, at(4))).toEqual([])
-    expect(duePoints([14, 7, 3, 1], EXPIRES, due, at(2))).toEqual([])
+    // brings nothing, until point 1.
+    expect(duePoints([14, 7, 3, 1], EXPIRES, due, at(1.5))).toEqual([])
     expect(duePoints([14, 7, 3, 1], EXPIRES, due, at(0.5))).toEqual([1])
   })
 })
