@@ -24,6 +24,8 @@ This is the central design constraint. Every other decision in this document def
 
 The cost: if the sender loses the CSV, those funds are stranded until expiry and then reclaimed. This is why CSV export is a **hard gate**, not a convenience button.
 
+Since #77 the keys are **derived, not random**: SLIP-0010 ed25519 at `m/44'/148'/<campaign>'/<link>'` from a BIP39 phrase the sender generates and keeps, entirely in the browser. A lost CSV is regenerable from the phrase; the gate is unchanged. The server stores the campaign's path index and a fingerprint of a *public* key — nothing that derives a key. The trade is stated to the sender rather than hidden: one phrase reconstructs every campaign derived from it, so it concentrates risk as it reduces the chance of loss. Kleym holds no copy and no share of the phrase, under any framing — the moment it could reconstruct a spending key it would be a custodian. And because a phrase matches none of the `S…` seed guards, `containsSecretSeed` and the CI guard recognise a checksum-valid BIP39 phrase too.
+
 ### 1.3 Scope
 
 **In scope for v1**

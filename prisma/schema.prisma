@@ -541,6 +541,14 @@ model Campaign {
   expiresAt       DateTime
   status          CampaignStatus @default(DRAFT)
   csvExportedAt   DateTime? // hard gate: null blocks activation
+  /// Regenerable links (#77). The campaign's index in the sender's
+  /// derivation path `m/44'/148'/<index>'/<link>'`, and a fingerprint of a
+  /// PUBLIC key derived from their recovery phrase so the regenerate flow can
+  /// tell "wrong phrase" from "wrong campaign". Neither is secret; neither
+  /// lets anyone derive a key. The phrase itself never reaches Kleym. Null on
+  /// campaigns whose keys were random.
+  derivationIndex Int?
+  keyFingerprint  String?
   /// When the sender suspended Kleym's participation (#72). Not a revocation:
   /// every balance stays on the ledger with the recipient as a valid claimant
   /// until `expiresAt` — the claimant model in batch.ts gives the sender no
