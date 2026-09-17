@@ -14,7 +14,7 @@ import { logger } from '@/lib/config/logger'
 import { clientIp } from '@/lib/auth/client-ip'
 import { rateLimit } from '@/lib/auth/rate-limit'
 import { guardRequestBody } from '@/lib/security/guard'
-import { otpGate } from '@/lib/api/otp-guard'
+import { claimPolicyGate } from '@/lib/api/claim-policy'
 import { quoteReceiveAs, quoteSchema } from '@/lib/api/claims'
 import { zodErrors } from '@/lib/api/campaigns'
 import {
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
   // Gated like every other action on the link: an emailed link's price is for
   // the person who holds the code, not for anyone holding the public key.
-  const gated = await otpGate(request, parsed.data.ephemeralPublicKey)
+  const gated = await claimPolicyGate(request, parsed.data.ephemeralPublicKey)
   if (gated) return gated
 
   try {

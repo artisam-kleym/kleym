@@ -448,7 +448,7 @@ async function theGateIsWiredOnTheMoneyRoutes(): Promise<void> {
   console.log('\n11. No header, wrong header, right header — through the routes')
   const prepareClaim = await import('../src/app/api/claims/prepare/claim/route')
   const submit = await import('../src/app/api/claims/submit/route')
-  const { OTP_HEADER } = await import('../src/lib/api/otp-guard')
+  const { POLICY_TOKEN_HEADER: OTP_HEADER } = await import('../src/lib/api/claim-policy')
   const { CLAIM_CONFLICT_TYPE } = await import('../src/lib/claim/problem-types')
 
   const f = await fixture(1)

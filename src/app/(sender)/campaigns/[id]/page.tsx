@@ -151,6 +151,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           linkCount={campaign.linkCount}
           derivationIndex={campaign.derivationIndex}
           keyFingerprint={campaign.keyFingerprint}
+          withCodes={campaign.claimPolicy === 'CODE'}
           appUrl={env.APP_URL}
         />
       )}

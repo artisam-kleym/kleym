@@ -58,6 +58,53 @@ carrying no link / fragment / seed / URL, and the ledger sum for the outstanding
 here; the leak checks in `scripts/verify-email.ts` were not run), the per-recipient limiter
 against Redis, and the pages in a browser. Stacked on #72.
 
+## 2026-09-17 — Claim policies: bind a link to a channel or a device (#79)
+
+A sender chooses, when creating a campaign, who may claim its links: **anyone with the link**
+(as before), **anyone with the link and a claim code** (a 13-character code per link, written
+into the secrets file, handed over through a second channel), **only the email address it is
+sent to** (Kleym's email delivery and OTP gate — a self-distributed link under this policy
+cannot be claimed), or **only the first device that claims** (the first claimant registers a
+passkey and the link is bound to it). The claim page states the policy before the recipient
+commits to anything, then asks for the credential — code, emailed OTP or passkey — before the
+wallet. None of these identifies a person; recipients stay anonymous.
+
+The OTP gate is generalised into one claim-policy gate, applied on every claim action —
+materialise, claim, submit and the receive-as quote — as #14's review required; an emailed
+link on an open campaign keeps exactly the OTP behaviour it had, and an emailed link on a
+code or passkey campaign needs **both**: the OTP first, then the code or passkey, so a
+forwarded email cannot bind a device or claim without holding the address. Claim codes are
+stored hashed and never logged; guesses are counted atomically in Redis per link **and
+caller**, five then a fifteen-minute lock for that caller — not per link, because the link's
+public key is the balance's claimant on the public ledger and a per-link lock could be held
+shut by anyone reading Horizon, with no reissue to clear it. Registering a passkey needs
+proof of holding the link — the ephemeral keypair's signature over the WebAuthn challenge,
+made in the browser — for the same reason: the public key alone would let a passer-by bind
+their own device to every live link. The passkey routes answer an unclaimable link exactly as
+an unknown one. `resolve` answers `policy: open` on every unavailable link, so the new field
+tells an enumerator nothing; a self-distributed link under the email policy is shown as the
+dead end it is, not an OTP prompt. The policy a claim was held to is recorded on the link
+(`claimedUnder`) and in the audit trail (`link.claim`), and `claimPolicy` is returned on
+every campaign create, list and detail response, lowercase as it is accepted. With
+regenerable links (#77) the claim code is derived beside the key — from a hardened child of
+the link node, which the URL's seed alone cannot reach — so a regenerated secrets file carries
+the same codes, and holding a link still does not give away its code.
+
+**One deliberate deviation from the issue's text:** codes are hashed with SHA-256, not
+argon2id. A registration of 10,000 links cannot afford 10,000 argon2id rounds in one
+request, and unlike a six-digit OTP a 65-bit code is beyond offline attack on a fast hash;
+the attempt count and lock window are the OTP's, scoped per caller as above.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 14 new unit tests — the
+policy decision table for all four policies, code normalisation and hashing, code
+generation and CSV export, and the unavailable answer's fixed serialisation.
+`scripts/verify-claim-policies.ts` drives the three route handlers per policy with no,
+wrong and right credentials, checks the hash at rest, the lockout and its expiry, and
+`resolve`'s byte-identity across unknown / expired / claimed / cancelled under every policy —
+written but **not run** here (no Postgres/Redis). The WebAuthn ceremony and every page were
+not exercised in a browser. Coordinate with #77: the claim code is drawn randomly beside the
+key and is not yet derivable from the recovery phrase.
+
 ## 2026-09-17 — Regenerable links: derive every key from one recovery phrase (#77)
 
 Before generating keys, the wizard now asks the sender for a recovery phrase — a new

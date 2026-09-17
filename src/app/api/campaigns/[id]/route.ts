@@ -10,6 +10,7 @@ import { guardRequestBody } from '@/lib/security/guard'
 import { requireUser, owned } from '@/lib/api/session-guard'
 import { conflict, notFound, serverError, validationProblem } from '@/lib/api/problems'
 import { patchCampaignSchema, serialiseAmount, zodErrors } from '@/lib/api/campaigns'
+import { policyFromRow } from '@/lib/api/claim-policy'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,7 @@ export async function GET(_request: Request, { params }: Params) {
         status: true, csvExportedAt: true, reserveEstimate: true, createdAt: true,
         // Suspension (#72): an API client must be able to see it without having caught the webhook.
         suspendedAt: true, reclaimDueAt: true,
+        claimPolicy: true,
       },
     })
     if (!campaign) return notFound()
@@ -43,6 +45,7 @@ export async function GET(_request: Request, { params }: Params) {
 
     return Response.json({
       ...campaign,
+      claimPolicy: policyFromRow(campaign.claimPolicy),
       amountPerLink: serialiseAmount(campaign.amountPerLink),
       reserveEstimate: campaign.reserveEstimate === null ? null : serialiseAmount(campaign.reserveEstimate),
       counts: Object.fromEntries(byStatus.map((row) => [row.status, row._count._all])),

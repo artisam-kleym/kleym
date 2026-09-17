@@ -24,7 +24,7 @@
  */
 import 'client-only'
 import { Keypair } from '@stellar/stellar-sdk'
-import { deriveKeypairs } from './derive'
+import { deriveLinks } from './derive'
 
 /** The sender's own reference data for one recipient (#52). Never key material. */
 export interface Attestation {
@@ -41,6 +41,30 @@ export interface EphemeralKey {
   attestation: Attestation | null
   /** This link's own amount (#73), fixed-point, or null for the campaign default. */
   amount: string | null
+  /**
+   * CODE policy (#79): the claim code the sender hands the recipient through
+   * a second channel. Generated here beside the key, exported in the CSV, and
+   * sent to the server only as a hash. Null for every other policy.
+   */
+  code: string | null
+}
+
+/** Crockford base32 — the alphabet lib/api/claim-policy.ts checks. 13 characters: 65 bits. */
+const CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
+const CODE_LENGTH = 13
+
+/** A claim code from the platform CSPRNG, rejection-sampled so every character is equally likely. */
+export function generateClaimCode(): string {
+  const out: string[] = []
+  const buf = new Uint8Array(CODE_LENGTH * 2)
+  while (out.length < CODE_LENGTH) {
+    crypto.getRandomValues(buf)
+    for (const byte of buf) {
+      // 32 divides 256, so a plain mask is unbiased.
+      if (out.length < CODE_LENGTH) out.push(CODE_ALPHABET[byte & 31]!)
+    }
+  }
+  return out.join('')
 }
 
 /**
@@ -55,6 +79,7 @@ export function generateEphemeralKeys(
   labels: string[] = [],
   attestations: (Attestation | null)[] = [],
   amounts: (string | null)[] = [],
+  options: { withCodes?: boolean } = {},
 ): EphemeralKey[] {
   if (!Number.isInteger(count) || count < 1) {
     throw new Error(`link count must be a positive integer, got ${count}`)
@@ -68,6 +93,7 @@ export function generateEphemeralKeys(
       label: labels[index] ?? null,
       attestation: attestations[index] ?? null,
       amount: amounts[index] ?? null,
+      code: options.withCodes ? generateClaimCode() : null,
     }
   })
 }
@@ -86,16 +112,19 @@ export function deriveEphemeralKeys(
   labels: string[] = [],
   attestations: (Attestation | null)[] = [],
   amounts: (string | null)[] = [],
+  options: { withCodes?: boolean } = {},
 ): EphemeralKey[] {
   if (!Number.isInteger(count) || count < 1) {
     throw new Error(`link count must be a positive integer, got ${count}`)
   }
-  return deriveKeypairs(phrase, campaignIndex, count).map((keypair, index) => ({
+  return deriveLinks(phrase, campaignIndex, count).map(({ keypair, code }, index) => ({
     publicKey: keypair.publicKey(),
     secret: keypair.secret(),
     label: labels[index] ?? null,
     attestation: attestations[index] ?? null,
     amount: amounts[index] ?? null,
+    // Derived beside the key (#79), so a regenerated CSV carries the code too.
+    code: options.withCodes ? code : null,
   }))
 }
 
@@ -105,14 +134,22 @@ export function publicHalves(keys: EphemeralKey[]): {
   labels: (string | null)[]
   attestations?: (Attestation | null)[]
   amounts?: (string | null)[]
+  codes?: string[]
 } {
   const attestations = keys.map((key) => key.attestation)
   const amounts = keys.map((key) => key.amount)
+  const codes = keys.map((key) => key.code)
   return {
     publicKeys: keys.map((key) => key.publicKey),
     labels: keys.map((key) => key.label),
     // Omitted entirely when nobody set one, so the request is what it always was.
     ...(attestations.some((a) => a !== null) ? { attestations } : {}),
     ...(amounts.some((a) => a !== null) ? { amounts } : {}),
+    /*
+     * The claim codes (#79) DO cross to the server — as the credential the
+     * gate will check, hashed on arrival. They are not key material: a code
+     * cannot spend anything; it only satisfies the policy on one link.
+     */
+    ...(codes.every((c) => c !== null) ? { codes: codes as string[] } : {}),
   }
 }

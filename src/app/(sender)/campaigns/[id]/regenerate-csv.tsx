@@ -34,6 +34,7 @@ export function RegenerateCsv({
   linkCount,
   derivationIndex,
   keyFingerprint,
+  withCodes,
   appUrl,
 }: {
   campaignId: string
@@ -41,6 +42,8 @@ export function RegenerateCsv({
   linkCount: number
   derivationIndex: number
   keyFingerprint: string | null
+  /** CODE policy (#79): the codes are derived beside the keys, so the regenerated file carries them. */
+  withCodes: boolean
   appUrl: string
 }) {
   const [phase, setPhase] = useState<Phase>('closed')
@@ -67,6 +70,7 @@ export function RegenerateCsv({
           row.reference || row.category || row.note ? { reference: row.reference ?? null, category: row.category ?? null, note: row.note ?? null } : null,
         ),
         rows.map((row) => row.amount ?? null),
+        { withCodes },
       ).slice(0, rows.length)
 
       /*

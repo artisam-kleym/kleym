@@ -99,8 +99,28 @@ export function phraseFingerprint(phrase: string): string {
   return Buffer.from(sha256(new TextEncoder().encode(publicKey))).toString('hex').slice(0, 16)
 }
 
-/** The keypairs for links 0..count-1 of one campaign. Deterministic: the same inputs, the same keys. */
-export function deriveKeypairs(phrase: string, campaignIndex: number, count: number): Keypair[] {
+/** Crockford base32 — the alphabet lib/api/claim-policy.ts checks. 13 characters: 65 bits. */
+const CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
+const CODE_LENGTH = 13
+/** The claim code hangs off the link node at this hardened index — a child, never the link key itself. */
+const CODE_CHILD = 1
+
+/** One link's derived material: its keypair, and the claim code (#79) the CODE policy would hand out with it. */
+export interface DerivedLink {
+  keypair: Keypair
+  code: string
+}
+
+/**
+ * The links 0..count-1 of one campaign. Deterministic: the same inputs, the
+ * same keys — and the same codes, so a regenerated CSV (#77) carries them.
+ *
+ * The code is derived from a hardened CHILD of the link node, not from the
+ * link key: the URL holds the link's seed and nothing else, and a child
+ * needs the chain code too, so holding the link does not give away the code
+ * that is supposed to be its second factor. Only the phrase does.
+ */
+export function deriveLinks(phrase: string, campaignIndex: number, count: number): DerivedLink[] {
   if (!Number.isInteger(campaignIndex) || campaignIndex < 0 || campaignIndex > MAX_DERIVATION_INDEX) {
     throw new Error('campaign index must be a 31-bit unsigned integer')
   }
@@ -109,5 +129,18 @@ export function deriveKeypairs(phrase: string, campaignIndex: number, count: num
   // The first three steps are shared; derive them once, not once per link.
   let account = masterNode(seed)
   for (const index of [PURPOSE, STELLAR_COIN_TYPE, campaignIndex]) account = deriveChild(account, index)
-  return Array.from({ length: count }, (_, linkIndex) => Keypair.fromRawEd25519Seed(Buffer.from(deriveChild(account, linkIndex).key)))
+  return Array.from({ length: count }, (_, linkIndex) => {
+    const link = deriveChild(account, linkIndex)
+    return { keypair: Keypair.fromRawEd25519Seed(Buffer.from(link.key)), code: codeFrom(deriveChild(link, CODE_CHILD).key) }
+  })
+}
+
+/** The keypairs alone, for callers that want nothing else. */
+export function deriveKeypairs(phrase: string, campaignIndex: number, count: number): Keypair[] {
+  return deriveLinks(phrase, campaignIndex, count).map((link) => link.keypair)
+}
+
+/** Thirteen Crockford characters from 32 uniform bytes: five bits each, the byte's low bits. 32 divides 256, so no bias. */
+function codeFrom(bytes: Uint8Array): string {
+  return Array.from(bytes.subarray(0, CODE_LENGTH), (byte) => CODE_ALPHABET[byte & 31]!).join('')
 }
