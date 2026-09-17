@@ -16,6 +16,7 @@ export const WEBHOOK_EVENTS = [
   'campaign.reclaimed',
   'campaign.suspended',
   'campaign.reclaim_due',
+  'campaign.expiring_soon',
   'sponsor.low',
 ] as const
 
@@ -29,8 +30,10 @@ export interface WebhookPayloads {
   'campaign.reclaimed': { campaignId: string }
   /** Kleym stopped serving the links (#72). The balances are still claimable until `reclaimScheduledFor`. */
   'campaign.suspended': { campaignId: string; outstanding: number; outstandingAmount: string; assetCode: string; suspendedAt: string; reclaimScheduledFor: string }
-  /** A suspended campaign has expired: the scheduled reclaim is ready for the sender to sign. */
+  /** A campaign has expired with links unclaimed: the scheduled reclaim is ready for the sender to sign (#72, #78). */
   'campaign.reclaim_due': { campaignId: string; outstanding: number; outstandingAmount: string; assetCode: string; expiresAt: string }
+  /** Within a week (or the first reminder point) of expiry with links still unclaimed (#78). Once per campaign. */
+  'campaign.expiring_soon': { campaignId: string; outstanding: number; outstandingAmount: string; assetCode: string; expiresAt: string }
   'sponsor.low': { sponsorPublicKey: string; spendable: string; threshold: string }
 }
 

@@ -57,6 +57,43 @@ export function claimEmail(input: ClaimEmailInput): { subject: string; text: str
   return { subject, text, html }
 }
 
+export interface ReminderEmailInput {
+  senderName: string
+  campaignName: string
+  amount: string
+  assetCode: string
+  expiresAt: Date
+  sentAt: Date
+}
+
+/**
+ * A reminder to claim (#78). NO LINK — Kleym does not have it (SPEC.md §6.5)
+ * — so it says what was sent, when, and to open the original message. The
+ * subject repeats the original's so a search in the inbox finds both.
+ */
+export function reminderEmail(input: ReminderEmailInput): { subject: string; text: string; html: string } {
+  const expires = input.expiresAt.toISOString().slice(0, 10)
+  const sent = input.sentAt.toISOString().slice(0, 10)
+  const original = `${input.senderName} sent you ${input.amount} ${input.assetCode}`
+  const subject = `Reminder: ${original} — unclaimed, expires ${expires}`
+  const text =
+    `On ${sent} you were sent ${input.amount} ${input.assetCode} by ${input.senderName} (${input.campaignName}), and it has not been claimed.
+
+` +
+    `To claim it, open the original message — its subject line is “${original}” — and use the link in it. ` +
+    `For your safety this reminder does not repeat the link.
+
+` +
+    `It expires on ${expires}. After that the funds return to the sender.
+`
+  const html = PAGE(
+    `<p style="margin:0 0 16px">On ${escape(sent)} you were sent <strong>${escape(input.amount)} ${escape(input.assetCode)}</strong> by ${escape(input.senderName)} (${escape(input.campaignName)}), and it has not been claimed.</p>` +
+      `<p style="margin:0 0 16px">To claim it, open the original message — its subject line is “${escape(original)}” — and use the link in it. For your safety this reminder does not repeat the link.</p>` +
+      `<p style="margin:0;color:#666">It expires on ${escape(expires)}. After that the funds return to the sender.</p>`,
+  )
+  return { subject, text, html }
+}
+
 /** The six-digit code. Deliberately terse — it exists to be read and typed. */
 export function otpEmail(code: string): { subject: string; text: string; html: string } {
   return {

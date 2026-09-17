@@ -717,8 +717,9 @@ BullMQ on Redis, consumed by `kleym-worker`.
 | `batch-confirm` | After submit | Poll Horizon until the tx is in a closed ledger; extract balance IDs from the result XDR; mark links `ACTIVE` |
 | `email-deliver` | Sender action | Send one link email; discard the URL immediately |
 | `reconcile` | Cron, every 5 min | §7.2 |
-| `expiry-sweep` | Cron, hourly | Mark past-expiry links `EXPIRED`, campaigns `EXPIRED` |
+| `expiry-sweep` | Cron, hourly | Mark past-expiry links `EXPIRED`, campaigns `EXPIRED`; mark every expired campaign with unclaimed links reclaim-due once and emit `campaign.reclaim_due` (#72, #78) |
 | `ephemeral-watch` | Cron, every 15 min | Detect and report stranded ephemeral accounts — see §7.3 |
+| `reminders` | Cron, hourly | Bounded pass (#78): for email-delivered, unclaimed, unsuspended links whose campaign has reminder points, queue one reminder per due point — **without the claim URL, which Kleym does not hold** — at most one email per address per day; emit `campaign.expiring_soon` once per campaign |
 
 ### 7.2 Reconciliation
 

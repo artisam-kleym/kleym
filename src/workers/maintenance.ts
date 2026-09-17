@@ -10,6 +10,7 @@ import { QUEUE, queueConnection } from '@/lib/queue/connection'
 import { reconcileAll, reconcileCampaign, sweepExpired } from '@/lib/api/reconcile'
 import { watchEphemerals } from '@/lib/api/stranded'
 import { sweepDeliveryRetention } from '@/lib/api/privacy'
+import { sendReminders } from '@/lib/api/reminders'
 import { retainAudit } from '@/lib/api/audit-chain'
 
 interface ReconcileJob {
@@ -95,6 +96,25 @@ export function startEphemeralWatchWorker(): Worker {
     )
   })
 
+  return worker
+}
+
+/** The hourly reminder pass (#78): bounded, one email per due delivery, none with a URL. */
+export function startReminderWorker(): Worker {
+  const worker = new Worker(
+    QUEUE.reminders,
+    async () => {
+      const report = await sendReminders()
+      if (report.reminded > 0 || report.throttled > 0 || report.remaining > 0 || report.expiringSoon > 0) {
+        logger.info(report, 'reminder pass completed')
+      }
+      return report
+    },
+    { connection: queueConnection(), concurrency: 1 },
+  )
+  worker.on('failed', (job, error) => {
+    logger.warn({ attempt: job?.attemptsMade, reason: error.message }, 'reminder pass attempt failed')
+  })
   return worker
 }
 

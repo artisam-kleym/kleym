@@ -40,16 +40,20 @@ export function CampaignWizard(config: WizardConfig) {
   const wizard = useWizard()
   const stepUp = useStepUp()
 
+  const reissue = config.reissue ?? null
   const [draft, setDraft] = useState({
-    name: '',
-    network: 'testnet' as 'testnet' | 'public',
-    senderPublicKey: '',
-    assetCode: 'XLM',
-    assetIssuer: '',
-    amountPerLink: '',
-    linkCount: 10,
+    // A reissue (#78) carries the source campaign's terms; only the expiry is new.
+    name: reissue ? `${reissue.name} (reissue)` : '',
+    network: reissue?.network ?? ('testnet' as 'testnet' | 'public'),
+    senderPublicKey: reissue?.senderPublicKey ?? '',
+    assetCode: reissue?.assetCode ?? 'XLM',
+    assetIssuer: reissue?.assetIssuer ?? '',
+    amountPerLink: reissue?.amountPerLink ?? '',
+    linkCount: reissue ? Math.max(1, reissue.outstanding) : 10,
     expiresAt: defaultExpiry(),
   })
+  /** Reminder points (#78): days before expiry at which emailed, unclaimed recipients hear again. */
+  const [reminderDays, setReminderDays] = useState<number[]>([])
 
   /*
    * One piece of state keyed by the address it describes, rather than three
@@ -227,7 +231,7 @@ export function CampaignWizard(config: WizardConfig) {
         return
       }
 
-      const campaignId = await createCampaign(draft, wizard.keys.length)
+      const campaignId = await createCampaign(draft, wizard.keys.length, reminderDays)
       wizard.setCampaignId(campaignId)
       await registerLinks(campaignId, wizard.keys)
 
@@ -254,7 +258,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
     }
-  }, [wizard, draft, cost, stepUp])
+  }, [wizard, draft, cost, stepUp, reminderDays])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -283,6 +287,16 @@ export function CampaignWizard(config: WizardConfig) {
 
   return (
     <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
+      {reissue && (
+        <div className="mb-lg rounded-lg border border-outline-variant/50 bg-surface-container p-md">
+          <p className="text-label-md font-semibold text-on-surface">Reissuing {reissue.outstanding} unclaimed {reissue.outstanding === 1 ? 'link' : 'links'} of “{reissue.name}”</p>
+          <p className="mt-1 text-body-md text-on-surface-variant">
+            This is a NEW campaign with the same terms and a later expiry: new keys, a new signature from your wallet,
+            new balance ids, and the asset and reserve locked again. The original links stay claimable until{' '}
+            {reissue.expiresAt.slice(0, 10)} and are reclaimed after that; nothing about them changes here.
+          </p>
+        </div>
+      )}
       <Stepper steps={summarise(STEPS, draft, cost)} current={wizard.step} />
 
       <div>
@@ -302,6 +316,8 @@ export function CampaignWizard(config: WizardConfig) {
             labels={labels}
             labelError={labelError}
             onLabels={onLabels}
+            reminderDays={reminderDays}
+            onReminderDays={setReminderDays}
             cost={cost}
             reserveSource={reservePerLink}
             maxLinks={config.maxLinksPerCampaign}
@@ -383,6 +399,7 @@ function idempotencyKey(): string {
 async function createCampaign(
   draft: { name: string; network: string; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; expiresAt: string },
   linkCount: number,
+  reminderDaysBefore: number[] = [],
 ): Promise<string> {
   const response = await fetch('/api/campaigns', {
     method: 'POST',
@@ -396,6 +413,7 @@ async function createCampaign(
       amountPerLink: draft.amountPerLink,
       linkCount,
       expiresAt: new Date(draft.expiresAt).toISOString(),
+      ...(reminderDaysBefore.length > 0 ? { reminderDaysBefore } : {}),
     }),
   })
   if (!response.ok) throw new Error((await problemDetail(response)) ?? 'The campaign could not be created.')

@@ -184,7 +184,9 @@ async function exhaustedRetriesLeaveNothingBehind(): Promise<void> {
   // attempts: 3 with a 30s backoff would take too long to observe, so the job
   // is failed outright by removing its remaining attempts.
   const [job] = await queue.getJobs(['waiting', 'delayed', 'active'])
-  if (job) await job.updateData({ ...job.data })
+  // The queue now carries a union (#78), which BullMQ's Job typing collapses
+  // to `never` on a rewrite; this job is the claim delivery queued above.
+  if (job) await (job as unknown as { updateData(data: unknown): Promise<void> }).updateData({ ...job.data })
   for (let i = 0; i < 60 && attempts === 0; i += 1) {
     await new Promise((resolve) => setTimeout(resolve, 100))
   }

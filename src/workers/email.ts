@@ -9,15 +9,31 @@
 import { Worker } from 'bullmq'
 import { logger } from '@/lib/config/logger'
 import { QUEUE, queueConnection } from '@/lib/queue/connection'
-import type { DeliveryJob } from '@/lib/queue/email'
-import { claimEmail } from '@/lib/email/templates'
+import type { EmailJob } from '@/lib/queue/email'
+import { claimEmail, reminderEmail } from '@/lib/email/templates'
 import { resend, type Mailer } from '@/lib/email/provider'
 import { prisma } from '@/lib/db/client'
 
-export function startEmailWorker(mailer: Mailer = resend): Worker<DeliveryJob> {
-  const worker = new Worker<DeliveryJob>(
+export function startEmailWorker(mailer: Mailer = resend): Worker<EmailJob> {
+  const worker = new Worker<EmailJob>(
     QUEUE.emailDeliver,
     async (job) => {
+      if (job.data.kind === 'reminder') {
+        // No URL anywhere in this branch — the job has no field for one (#78).
+        const reminder = job.data
+        const message = reminderEmail({
+          senderName: reminder.senderName,
+          campaignName: reminder.campaignName,
+          amount: reminder.amount,
+          assetCode: reminder.assetCode,
+          expiresAt: new Date(reminder.expiresAt),
+          sentAt: new Date(reminder.sentAt),
+        })
+        const { id } = await mailer({ to: reminder.email, ...message })
+        logger.info({ deliveryId: reminder.deliveryId, point: reminder.point, providerId: id }, 'reminder email sent')
+        return { providerId: id }
+      }
+
       const { deliveryId, email, claimUrl, senderName, amount, assetCode, expiresAt, otpRequired } =
         job.data
 

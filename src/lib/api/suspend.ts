@@ -205,17 +205,21 @@ export interface ReclaimDueReport {
 }
 
 /**
- * The scheduled half. Runs inside the hourly expiry sweep: every suspended
- * campaign whose `expiresAt` has passed and that has not been announced yet
- * is marked due and its organisation told, once, that the reclaim is ready to
- * sign. Bounded: one update and one webhook per campaign, never per link.
+ * The scheduled half. Runs inside the hourly expiry sweep: every campaign
+ * whose `expiresAt` has passed with links still unclaimed — suspended or not
+ * (#78 made the schedule universal, #72 introduced it) — is marked due once
+ * and its organisation told that the reclaim is ready to sign. Bounded: one
+ * update and one webhook per campaign, never per link; at most 200 campaigns
+ * a pass, the rest next hour.
  */
 export async function announceDueReclaims(now: Date = new Date()): Promise<ReclaimDueReport> {
   const due = await prisma.campaign.findMany({
-    where: { suspendedAt: { not: null }, reclaimDueAt: null, expiresAt: { lte: now } },
+    where: { reclaimDueAt: null, expiresAt: { lte: now }, status: { in: ['ACTIVE', 'PARTIAL', 'CREATING', 'EXPIRED'] } },
     select: { id: true, organizationId: true, amountPerLink: true, assetCode: true, expiresAt: true },
+    take: 200,
   })
 
+  let announced = 0
   for (const campaign of due) {
     const outstanding = await outstandingLinks(campaign.id)
     // Claim the row first so a crash between the update and the webhook
@@ -225,12 +229,15 @@ export async function announceDueReclaims(now: Date = new Date()): Promise<Recla
       data: { reclaimDueAt: now },
     })
     if (marked.count === 0) continue
+    // Nothing outstanding means nothing to reclaim: marked so it is not re-read, but no notice.
+    if (outstanding === 0) continue
+    announced += 1
     await emitWebhook(campaign.organizationId, 'campaign.reclaim_due', {
       campaignId: campaign.id, outstanding, outstandingAmount: outstandingValue(outstanding, campaign.amountPerLink.toString()),
       assetCode: campaign.assetCode, expiresAt: campaign.expiresAt.toISOString(),
     })
   }
 
-  if (due.length > 0) logger.info({ reclaimsDue: due.length }, 'scheduled reclaims are due for signing')
-  return { reclaimsDue: due.length }
+  if (announced > 0) logger.info({ reclaimsDue: announced }, 'scheduled reclaims are due for signing')
+  return { reclaimsDue: announced }
 }

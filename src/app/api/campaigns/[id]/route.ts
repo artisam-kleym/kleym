@@ -96,8 +96,11 @@ export async function PATCH(request: Request, { params }: Params) {
       data: {
         ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
         ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
+        ...(parsed.data.reminderDaysBefore !== undefined
+          ? { reminderDaysBefore: [...new Set(parsed.data.reminderDaysBefore)].sort((a, b) => b - a) }
+          : {}),
       },
-      select: { id: true, name: true, status: true },
+      select: { id: true, name: true, status: true, reminderDaysBefore: true },
     })
 
     /*

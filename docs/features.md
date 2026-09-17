@@ -20,6 +20,38 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-17 — Unclaimed-value management: reminders, outstanding view, scheduled reclaim (#78)
+
+A campaign page now has an "Unclaimed value" panel that reads the **ledger**: how many of
+this campaign's balances the chain still holds and what they add up to, from the ledger's
+own amounts — beside the database's count where the two differ. It says when the reclaim
+is scheduled (expiry), when the sweep marked it due, and lists what has been reclaimed.
+Every expired campaign with unclaimed links is now marked due once and its organisation
+told (`campaign.reclaim_due`), not only suspended ones; a week before expiry a campaign
+with unclaimed links fires `campaign.expiring_soon` once.
+
+Senders can set reminder points — 14, 7, 3 or 1 days before expiry — in the wizard or on a
+live campaign. An hourly, bounded pass (500 deliveries a run, cursor and report like the
+other maintenance jobs) queues one reminder per due point to recipients whose link was
+delivered by email and is still unclaimed and unsuspended, at most one email per address
+per day. **A reminder never contains the claim link**, because Kleym does not have it
+(SPEC.md §6.5): it names the sender, amount and expiry and tells the recipient to open the
+original message, whose subject it quotes. Links the sender distributed themselves cannot be
+reminded, and the panel says so.
+
+Extending an expiry is presented as what it is on the ledger: a **reissue** — new links for
+the unclaimed recipients with a later expiry, a new signature, new balance ids, and the
+asset and reserve locked again while the current links stay claimable until they expire.
+The wizard prefills the terms from `?reissue=<id>`; after expiry the reissue is refused
+with the reason.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 9 new unit tests — which
+reminder points fall due, one message per pass, never a repeat, the reminder template
+carrying no link / fragment / seed / URL, and the ledger sum for the outstanding view.
+**Not verified:** the reminder pass against a real queue and mailbox (no Redis or Postgres
+here; the leak checks in `scripts/verify-email.ts` were not run), the per-recipient limiter
+against Redis, and the pages in a browser. Stacked on #72.
+
 ## 2026-09-17 — Suspend, not cancel: a funded campaign's links stay claimable until expiry (#72)
 
 A sender can suspend a live campaign, or a single link, and the product tells the truth

@@ -5,6 +5,7 @@ import { LINK_PREVIEW, loadCampaignDetail } from '@/lib/api/campaign-detail'
 import { StatusChip, StellarAddress, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
 import { ReclaimPanel } from './reclaim-panel'
 import { SuspendPanel } from './suspend-panel'
+import { OutstandingPanel } from './outstanding-panel'
 import { SuspendLinkButton } from './links/suspend-link-button'
 import { ApprovalPanel } from './approval-panel'
 import { approvalStatus } from '@/lib/api/approvals'
@@ -103,6 +104,10 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         canDecide={roleAtLeast(org.role, 'APPROVER')}
         isCreator={campaign.userId === user.id}
       />
+
+      {['ACTIVE', 'PARTIAL', 'EXPIRED'].includes(campaign.status) && (
+        <OutstandingPanel campaignId={campaign.id} canEdit={canSuspend} />
+      )}
 
       <SuspendPanel
         campaignId={campaign.id}

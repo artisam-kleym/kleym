@@ -28,4 +28,5 @@ export const QUEUE = {
   expirySweep: 'expiry-sweep',
   ephemeralWatch: 'ephemeral-watch',
   deliveryRetention: 'delivery-retention',
+  reminders: 'reminders',
 } as const

@@ -127,6 +127,8 @@ export function RecipientsStep({
   labels,
   labelError,
   onLabels,
+  reminderDays,
+  onReminderDays,
   cost,
   reserveSource,
   maxLinks,
@@ -138,6 +140,9 @@ export function RecipientsStep({
   labels: string[]
   labelError: string | null
   onLabels: (raw: string) => void
+  /** Reminder points (#78), days before expiry. */
+  reminderDays: number[]
+  onReminderDays: (days: number[]) => void
   cost: CostBreakdown | null
   reserveSource: string | null
   maxLinks: number
@@ -203,6 +208,31 @@ export function RecipientsStep({
             </p>
           )}
         </div>
+
+        <fieldset className="flex flex-col gap-xs">
+          <legend className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">
+            Remind by email (optional)
+          </legend>
+          <div className="flex flex-wrap gap-md">
+            {[14, 7, 3, 1].map((days) => (
+              <label key={days} className="flex items-center gap-xs font-mono text-label-md text-on-surface">
+                <input
+                  type="checkbox"
+                  name="reminderDays"
+                  className="h-5 w-5"
+                  checked={reminderDays.includes(days)}
+                  onChange={(e) => onReminderDays(e.target.checked ? [...reminderDays, days] : reminderDays.filter((d) => d !== days))}
+                />
+                {days} {days === 1 ? 'day' : 'days'} before expiry
+              </label>
+            ))}
+          </div>
+          <p className="font-mono text-label-sm text-on-surface-variant">
+            Only recipients you deliver to by email can be reminded, and a reminder never repeats the link — Kleym does
+            not keep it. It names you, the amount and the expiry, and points at the original message. One email per
+            address per day at most.
+          </p>
+        </fieldset>
       </div>
 
       {cost && (

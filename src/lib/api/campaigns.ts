@@ -71,6 +71,11 @@ export const createCampaignSchema = z
     amountPerLink: stellarAmount,
     linkCount: z.number().int().positive().refine(withinLinkLimit, { message: linkLimitMessage() }),
     expiresAt: z.iso.datetime(),
+    /**
+     * Reminders (#78): days before expiry at which email-delivered, unclaimed
+     * recipients are reminded. At most five points; none means no reminders.
+     */
+    reminderDaysBefore: z.array(z.number().int().min(1).max(365)).max(5).optional(),
   })
   .strict()
   .refine((v) => v.assetCode === 'XLM' || v.assetIssuer !== undefined, {
@@ -90,9 +95,11 @@ export const patchCampaignSchema = z
   .object({
     name: seedFreeString.min(1).max(120).optional(),
     status: z.literal('CANCELLED').optional(),
+    /** Reminder points (#78) can be changed on a live campaign; the pass reads the row each run. */
+    reminderDaysBefore: z.array(z.number().int().min(1).max(365)).max(5).optional(),
   })
   .strict()
-  .refine((v) => v.name !== undefined || v.status !== undefined, {
+  .refine((v) => v.name !== undefined || v.status !== undefined || v.reminderDaysBefore !== undefined, {
     message: 'nothing to update',
   })
 
@@ -189,6 +196,7 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
       amountPerLink: input.amountPerLink,
       linkCount: input.linkCount,
       expiresAt: new Date(input.expiresAt),
+      reminderDaysBefore: [...new Set(input.reminderDaysBefore ?? [])].sort((a, b) => b - a),
     },
     select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true },
   })

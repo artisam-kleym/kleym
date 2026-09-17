@@ -13,6 +13,10 @@ export const WATCH_EVERY_MINUTES = 15
 export const RECONCILE_INTERVAL_MS = RECONCILE_EVERY_MINUTES * 60_000
 export const WATCH_INTERVAL_MS = WATCH_EVERY_MINUTES * 60_000
 
+/** Reminders (#78) are checked hourly; a point is due for a day, so an hour's granularity is plenty. */
+export const REMINDER_CRON = '41 * * * *'
+export const REMINDER_INTERVAL_MS = 60 * 60_000
+
 /** The delivery retention sweep (#50) runs once a day, at an off-hour minute. */
 export const RETENTION_CRON = '23 3 * * *'
 export const RETENTION_INTERVAL_MS = 24 * 60 * 60_000
