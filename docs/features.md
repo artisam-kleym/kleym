@@ -20,6 +20,33 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-17 — Claim straight to an exchange account, with the memo enforced (#75)
+
+When the sender allows it (a checkbox in wizard step 1; `allowExchangeDeposit` on the
+API), a recipient can send the funds to an exchange or custodian account instead of
+connecting a wallet: a deposit address — a `G…` key, or a `name*domain` federation address
+that Kleym's server resolves to an address and, usually, the memo — plus a memo of type
+`id`, `text` or `hash`. The memo is required and checked as it is typed and again on the
+server before anything is built: a text memo over 28 bytes is refused with the limit
+named. Before the irreversible step the page states, in a warning panel and a checkbox
+the recipient must tick, that a wrong memo cannot be recovered by anyone.
+
+TX2 for this path is the cheapest shape there is — claim → payment → merge, no recipient
+signature — and carries the memo. The ephemeral account is merged to the **sponsor**, not
+the exchange: `accountMerge` carries no memo, so its remainder at an omnibus account
+would be credited to nobody. Because of that, `claimedBy` is now read from the payment's
+destination rather than the merge's, and the memo is recorded beside it
+(`ClaimLink.claimMemoType` / `claimMemo`). An address that does not exist or does not
+trust the asset is refused in words before the recipient commits.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 18 new unit tests — the
+memo rides on TX2 for all three types, the merge goes to the sponsor while the payment
+goes to the exchange, no recipient signature, the wallet path is unchanged, the exchange
+path composes with receive-as, `recipientOf` records the payment destination for the
+wallet, conversion and exchange shapes with the memo beside it, and the memo checks
+(absent, uint64 bound, 28 BYTES not characters, 64-hex hash). **Not verified:** a deposit
+on testnet, the federation lookup against a real exchange, and the page in a browser.
+
 ## 2026-09-17 — Receive-as: the recipient chooses which asset they claim (#74)
 
 A sender can list up to five assets a recipient may receive as (wizard step 1, one per

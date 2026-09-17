@@ -111,3 +111,10 @@ describe('createCampaignSchema receiveAs', () => {
     expect(createCampaignSchema.safeParse({ ...valid, receiveAs: [{ assetCode: 'USDC', assetIssuer: SEED }] }).success).toBe(false)
   })
 })
+
+describe('createCampaignSchema allowExchangeDeposit', () => {
+  it('is an optional boolean (#75)', () => {
+    expect(createCampaignSchema.safeParse({ ...valid, allowExchangeDeposit: true }).success).toBe(true)
+    expect(createCampaignSchema.safeParse({ ...valid, allowExchangeDeposit: 'yes' }).success).toBe(false)
+  })
+})

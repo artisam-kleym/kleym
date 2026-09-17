@@ -13,7 +13,8 @@ import { ClaimPanel } from '@/components/ui'
 import { clearFragment, readFragment } from '@/lib/claim/fragment'
 import { claimTraceHeaders } from '@/lib/claim/trace'
 import { isConversionRefused, isNotReady, retryTarget, stateFromProblem, type ClaimState } from '@/lib/claim/machine'
-import { ClaimScreen, type LinkDetails, type ReceiveAsOption, type ReceiveAsQuote } from './screens'
+import { ClaimScreen, type Deposit, type LinkDetails, type ReceiveAsOption, type ReceiveAsQuote } from './screens'
+import type { DepositMemo } from '@/lib/stellar/memo'
 
 /**
  * One ledger is ~5s. §3.3.1 says the boundary is the ledger, not the clock, so
@@ -51,6 +52,14 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
   /** The latest quote request; an older one resolving later is dropped, not shown. */
   const quoteRequest = useRef(0)
   const [delivered, setDelivered] = useState<{ assetCode: string; destAmount: string; destMin: string } | null>(null)
+
+  /*
+   * Exchange deposit (#75). Held in a ref like the recipient key: it is the
+   * destination the flow is committed to across a retry, and a retry must
+   * not quietly switch from "deposit with memo" back to "connect a wallet".
+   */
+  const deposit = useRef<Deposit | null>(null)
+  const [depositMade, setDepositMade] = useState<Deposit | null>(null)
 
   /*
    * A ref, not state. The seed must not be part of anything React might
@@ -126,6 +135,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
           expiresAt: body.expiresAt,
           network: body.network,
           receiveAs: Array.isArray(body.receiveAs) ? body.receiveAs : [],
+          exchangeDeposit: body.exchangeDeposit === true,
         })
         /*
          * An emailed link is gated on the code before anything else happens.
@@ -211,7 +221,11 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       const { connectWallet, signBatch } = await import('./wallet')
       let recipientKey = recipient.current
 
-      if (from !== 'preparing' || !recipientKey) {
+      if (deposit.current) {
+        /* Exchange deposit (#75): the destination is typed, not connected. No wallet is involved. */
+        recipientKey = deposit.current.publicKey
+        recipient.current = recipientKey
+      } else if (from !== 'preparing' || !recipientKey) {
         /* Wallet first — §3.3 says TX1 fires on COMMITMENT, not on page load. */
         setState('wallet_connecting')
         recipientKey = await connectWallet(network)
@@ -277,6 +291,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
             ephemeralPublicKey,
             recipientPublicKey: recipientKey,
             ...(conversion ? { receiveAs: conversion } : {}),
+            ...(deposit.current ? { memo: deposit.current.memo } : {}),
           }),
         })
         if (prepared.ok) break
@@ -309,6 +324,9 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
        */
       let signedXdr = sign(plan.xdr)
       if (plan.needsRecipientSignature) {
+        // An exchange account cannot sign; the server refuses that shape before
+        // it gets here, so this is a belt for the braces.
+        if (deposit.current) throw new Error('That address would need to sign, which an exchange account cannot. Check the deposit address with your exchange.')
         setState('awaiting_signature')
         signedXdr = await signBatch(signedXdr, network, recipientKey)
       }
@@ -336,6 +354,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       setClaimedAt(new Date().toISOString())
       setClaimedBy(recipientKey)
       setDelivered(plan.conversion ? { assetCode: plan.conversion.assetCode, destAmount: plan.conversion.destAmount, destMin: plan.conversion.destMin } : null)
+      setDepositMade(deposit.current)
       setState('claimed_success')
     } catch (caught) {
       const { walletErrorMessage } = await import('./wallet')
@@ -354,6 +373,31 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
     setState(target)
     void run(target)
   }, [run])
+
+  /** Exchange deposit (#75): commit to an address and memo, then run the same flow with no wallet. */
+  const onDeposit = useCallback(
+    (chosen: Deposit) => {
+      deposit.current = chosen
+      void run()
+    },
+    [run],
+  )
+
+  const lookupFederation = useCallback(
+    async (address: string): Promise<{ accountId: string; memo: DepositMemo | null }> => {
+      const response = await fetch('/api/claims/federation', {
+        method: 'POST',
+        headers: claimHeaders(null),
+        body: JSON.stringify({ address }),
+      })
+      if (!response.ok) {
+        const p = await problem(response)
+        throw new Error(p.detail ?? 'That address could not be looked up.')
+      }
+      return (await response.json()) as { accountId: string; memo: DepositMemo | null }
+    },
+    [problem],
+  )
 
   async function verifyOtp(code: string) {
     const ephemeralPublicKey = ephemeral.current
@@ -423,6 +467,9 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         quote={quote}
         onReceiveAs={(option) => void onReceiveAs(option)}
         delivered={delivered}
+        onDeposit={onDeposit}
+        lookupFederation={lookupFederation}
+        depositMade={depositMade}
       />
     </ClaimPanel>
   )

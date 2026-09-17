@@ -18,6 +18,7 @@ import { logger } from '@/lib/config/logger'
 import { assetOf, hasTrustline, horizon, accountExists, loadClaimableBalance, sponsorSpendable } from '@/lib/stellar/horizon'
 import { buildClaim, buildMaterialise, deliveredAsset, signAsSponsor, type ClaimContext, type Conversion } from '@/lib/stellar/claim'
 import { QUOTE_MISSED_CODES, assetFields, parseAssetRef, quoteStrictSend, type Quote, type QuoteReader } from '@/lib/stellar/receive-as'
+import { checkMemo, memoOf, type DepositMemo } from '@/lib/stellar/memo'
 import type { ClaimConflictReason } from '@/lib/claim/problem-types'
 import { sponsorFor, sponsorSecret } from '@/lib/stellar/sponsors'
 import { alert } from '@/lib/alerts'
@@ -46,11 +47,21 @@ export const receiveAsSchema = z
   })
   .strict()
 
+/** Exchange deposit (#75): typed and bounded by `checkMemo` before anything is built. */
+export const memoSchema = z
+  .object({
+    type: z.enum(['id', 'text', 'hash']),
+    value: z.string().min(1).max(128),
+  })
+  .strict()
+
 export const claimSchema = z
   .object({
     ephemeralPublicKey: z.string().regex(PUBLIC_KEY, 'must be a Stellar public key (G…)'),
     recipientPublicKey: z.string().regex(PUBLIC_KEY, 'must be a Stellar public key (G…)'),
     receiveAs: receiveAsSchema.optional(),
+    /** Present when claiming to an exchange or custodian account (#75). */
+    memo: memoSchema.optional(),
   })
   .strict()
 
@@ -102,6 +113,8 @@ export interface ResolvedLink {
   otpRequired: boolean
   /** Receive-as (#74): assets the sender lets this recipient convert into. Empty when not offered. */
   receiveAs: { assetCode: string; assetIssuer: string | null }[]
+  /** Exchange deposit (#75): may this recipient claim to an address plus a memo? */
+  exchangeDeposit: boolean
 }
 
 /** Every field null, `unavailable`. Unknown, expired and claimed all land here. */
@@ -118,6 +131,7 @@ export function unavailableLink(): ResolvedLink {
     otpRequired: false,
     // Empty, never null, for the same reason.
     receiveAs: [],
+    exchangeDeposit: false,
   }
 }
 
@@ -144,7 +158,7 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
       campaign: {
         select: {
           name: true, network: true, assetCode: true, assetIssuer: true,
-          amountPerLink: true, expiresAt: true, status: true, receiveAsAssets: true,
+          amountPerLink: true, expiresAt: true, status: true, receiveAsAssets: true, allowExchangeDeposit: true,
           user: { select: { username: true } },
         },
       },
@@ -171,6 +185,7 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
      */
     otpRequired: link.delivery !== null,
     receiveAs: receiveAsAssets(link.campaign.receiveAsAssets).map(assetFields),
+    exchangeDeposit: link.campaign.allowExchangeDeposit,
   }
 }
 
@@ -185,6 +200,8 @@ interface LinkForClaim {
   sponsorPublicKey: string
   /** Assets the sender allows the recipient to receive as (#74). */
   receiveAs: Asset[]
+  /** Whether the sender allows claiming to an exchange address plus memo (#75). */
+  exchangeDeposit: boolean
 }
 
 /**
@@ -216,7 +233,7 @@ export async function loadClaimable(
     select: {
       id: true, status: true, balanceId: true, campaignId: true,
       campaign: {
-        select: { assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true, status: true, sponsorPublicKey: true, receiveAsAssets: true },
+        select: { assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true, status: true, sponsorPublicKey: true, receiveAsAssets: true, allowExchangeDeposit: true },
       },
     },
   })
@@ -293,6 +310,7 @@ export async function loadClaimable(
       expiresAt: link.campaign.expiresAt,
       sponsorPublicKey: sponsor.publicKey,
       receiveAs: receiveAsAssets(link.campaign.receiveAsAssets),
+      exchangeDeposit: link.campaign.allowExchangeDeposit,
     },
   }
 }
@@ -342,6 +360,7 @@ async function claimContext(
   ephemeralPublicKey: string,
   recipientPublicKey: string,
   conversion?: Conversion,
+  memo?: DepositMemo,
 ): Promise<ClaimContext> {
   /*
    * A fresh `Account` rather than the Horizon response object. `AccountResponse`
@@ -360,6 +379,7 @@ async function claimContext(
     networkPassphrase: env.NETWORK_PASSPHRASE,
     baseFee: env.BASE_FEE_STROOPS,
     ...(conversion ? { conversion } : {}),
+    ...(memo ? { memo } : {}),
   }
 }
 
@@ -478,6 +498,8 @@ export interface ClaimPrepared {
   operations: number
   /** Receive-as (#74): what TX2 delivers, when converting. Null: the campaign asset, as ever. */
   conversion: (QuotePrepared & { sendAmount: string }) | null
+  /** Exchange deposit (#75): the memo TX2 carries, when claiming to an exchange. */
+  memo: DepositMemo | null
 }
 
 /**
@@ -488,7 +510,12 @@ export interface ClaimPrepared {
 async function prepareClaimUnobserved(
   ephemeralPublicKey: string,
   recipientPublicKey: string,
+<<<<<<< HEAD
   receiveAs?: { assetCode: string; assetIssuer: string | null; destMin?: string },
+=======
+  receiveAs?: { assetCode: string; assetIssuer: string | null },
+  memoInput?: { type: string; value: string },
+>>>>>>> d681429 (Exchange deposit: claim to an address plus a memo, with the memo enforced)
   quote: QuoteReader = quoteStrictSend,
 ): Promise<Outcome<ClaimPrepared>> {
   if (recipientPublicKey === ephemeralPublicKey) {
@@ -497,6 +524,21 @@ async function prepareClaimUnobserved(
 
   const loaded = await loadClaimable(ephemeralPublicKey)
   if (loaded.kind !== 'ok') return loaded
+
+  /*
+   * Exchange deposit (#75). The memo is checked BEFORE anything is built or
+   * signed — a deposit without one cannot be credited — and only where the
+   * sender allowed the option.
+   */
+  let memo: DepositMemo | undefined
+  if (memoInput) {
+    if (!loaded.value.exchangeDeposit) {
+      return conflict('This link cannot be claimed to an exchange account. Connect a wallet instead.')
+    }
+    const checked = checkMemo(memoInput)
+    if (!checked.ok) return conflict(checked.detail, 'memo')
+    memo = checked.memo
+  }
 
   const sponsor = await guardSponsor(loaded.value.sponsorPublicKey)
   if (sponsor.kind !== 'ok') return sponsor
@@ -524,7 +566,23 @@ async function prepareClaimUnobserved(
     hasTrustline(ephemeralPublicKey, loaded.value.asset),
   ])
 
-  const context = await claimContext(loaded.value, ephemeralPublicKey, recipientPublicKey, converting)
+  /*
+   * An exchange account cannot sign, and cannot be created or given a
+   * trustline by this transaction. If it does not exist or does not accept
+   * the asset, the deposit cannot arrive — refuse now, in words, rather than
+   * after the recipient has committed.
+   */
+  if (memo && (!recipientLive || !recipientTrusts)) {
+    const code = delivered.isNative() ? 'XLM' : delivered.getCode()
+    return conflict(
+      recipientLive
+        ? `That address does not accept ${code}. Check the deposit address for ${code} with your exchange.`
+        : 'That address does not exist on this network. Check the deposit address with your exchange.',
+      'deposit-unready',
+    )
+  }
+
+  const context = await claimContext(loaded.value, ephemeralPublicKey, recipientPublicKey, converting, memo)
   const plan = buildClaim(context, {
     ephemeralExists: true,
     ephemeralTrusts,
@@ -546,6 +604,7 @@ async function prepareClaimUnobserved(
             sendAmount: loaded.value.amount,
           }
         : null,
+      memo: memo ?? null,
     },
   }
 }
@@ -706,6 +765,7 @@ async function submitClaimUnobserved(
    */
   if (phase === 'claim') {
     const recipient = recipientOf(transaction)
+    const memo = memoOf(transaction.memo)
     const claimedAt = new Date()
     const claimed = await prisma.claimLink.update({
       where: { id: link.id },
@@ -714,6 +774,9 @@ async function submitClaimUnobserved(
         claimedAt,
         claimTxHash: result.hash,
         claimedBy: recipient,
+        // Beside the recipient, off the same envelope (#75).
+        claimMemoType: memo?.type ?? null,
+        claimMemo: memo?.value ?? null,
       },
       select: { campaign: { select: { organizationId: true } } },
     })
@@ -778,12 +841,19 @@ function envelopeBinding(
 /**
  * Who received the funds, read from the transaction rather than the request.
  *
- * The merge destination is the recipient by construction — TX2's last operation
- * sends the ephemeral account's remainder there. Taking it from the envelope
- * means the recorded `claimedBy` matches what the ledger did, not what a client
- * claimed alongside it.
+ * The PAYMENT's destination — `payment`, or `pathPaymentStrictSend` when
+ * receiving as another asset (#74). It used to be the merge destination, which
+ * was the recipient by construction; with an exchange deposit (#75) the merge
+ * goes to the sponsor instead, and reading it would record the sponsor as
+ * every exchange recipient. The merge is the fallback only for an envelope
+ * with no payment at all, which Kleym does not build. Taking it from the
+ * envelope means the recorded `claimedBy` matches what the ledger did, not
+ * what a client claimed alongside it.
  */
-function recipientOf(transaction: Transaction): string | null {
+export function recipientOf(transaction: Transaction): string | null {
+  for (const operation of transaction.operations) {
+    if (operation.type === 'payment' || operation.type === 'pathPaymentStrictSend') return operation.destination
+  }
   for (const operation of transaction.operations) {
     if (operation.type === 'accountMerge') return operation.destination
   }

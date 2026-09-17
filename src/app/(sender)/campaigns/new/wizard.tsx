@@ -95,6 +95,7 @@ export function CampaignWizard(config: WizardConfig) {
   const receiveAs = useMemo<ReceiveAsEntry[]>(() => (receiveAsParsed.ok ? receiveAsParsed.assets : []), [receiveAsParsed])
   const receiveAsError = receiveAsParsed.ok ? null : receiveAsErrorMessage(receiveAsParsed)
   const onReceiveAs = useCallback((raw: string) => setReceiveAsRaw(raw), [])
+  const [allowExchangeDeposit, setAllowExchangeDeposit] = useState(false)
 
   const patch = useCallback((next: Partial<typeof draft>) => setDraft((d) => ({ ...d, ...next })), [])
 
@@ -242,7 +243,7 @@ export function CampaignWizard(config: WizardConfig) {
         return
       }
 
-      const campaignId = await createCampaign(draft, wizard.keys.length, receiveAs)
+      const campaignId = await createCampaign(draft, wizard.keys.length, receiveAs, allowExchangeDeposit)
       wizard.setCampaignId(campaignId)
       await registerLinks(campaignId, wizard.keys)
 
@@ -269,7 +270,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
     }
-  }, [wizard, draft, cost, stepUp, receiveAs])
+  }, [wizard, draft, cost, stepUp, receiveAs, allowExchangeDeposit])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -312,6 +313,8 @@ export function CampaignWizard(config: WizardConfig) {
             receiveAsRaw={receiveAsRaw}
             receiveAsError={receiveAsError}
             onReceiveAs={onReceiveAs}
+            allowExchangeDeposit={allowExchangeDeposit}
+            onAllowExchangeDeposit={setAllowExchangeDeposit}
           />
         )}
         {wizard.step === 1 && (
@@ -403,6 +406,7 @@ async function createCampaign(
   draft: { name: string; network: string; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; expiresAt: string },
   linkCount: number,
   receiveAs: ReceiveAsEntry[] = [],
+  allowExchangeDeposit = false,
 ): Promise<string> {
   const response = await fetch('/api/campaigns', {
     method: 'POST',
@@ -418,6 +422,7 @@ async function createCampaign(
       expiresAt: new Date(draft.expiresAt).toISOString(),
       // Omitted entirely when empty, so the request is what it always was.
       ...(receiveAs.length > 0 ? { receiveAs } : {}),
+      ...(allowExchangeDeposit ? { allowExchangeDeposit } : {}),
     }),
   })
   if (!response.ok) throw new Error((await problemDetail(response)) ?? 'The campaign could not be created.')

@@ -15,7 +15,7 @@
 export const CLAIM_PROBLEM_BASE = 'https://kleym.app/problems'
 
 /** A conflict the page can name. Anything else is a generic `failed`. */
-export type ClaimConflictReason = 'expired' | 'already-claimed' | 'not-ready' | 'otp-required' | 'no-path' | 'quote-missed'
+export type ClaimConflictReason = 'expired' | 'already-claimed' | 'not-ready' | 'otp-required' | 'no-path' | 'quote-missed' | 'memo' | 'deposit-unready'
 
 export const CLAIM_CONFLICT_TYPE: Record<ClaimConflictReason, string> = {
   expired: `${CLAIM_PROBLEM_BASE}/conflict/expired`,
@@ -28,6 +28,10 @@ export const CLAIM_CONFLICT_TYPE: Record<ClaimConflictReason, string> = {
   'no-path': `${CLAIM_PROBLEM_BASE}/conflict/no-path`,
   /** Receive-as (#74): the book moved past `destMin` between quote and ledger; refused rather than filled. */
   'quote-missed': `${CLAIM_PROBLEM_BASE}/conflict/quote-missed`,
+  /** Exchange deposit (#75): the memo is missing or malformed. Refused before anything is signed. */
+  memo: `${CLAIM_PROBLEM_BASE}/conflict/memo`,
+  /** Exchange deposit (#75): the address does not exist or does not accept the asset — a deposit there cannot arrive. */
+  'deposit-unready': `${CLAIM_PROBLEM_BASE}/conflict/deposit-unready`,
 }
 
 /** The undiscriminated 409, for conflicts no screen distinguishes. */
