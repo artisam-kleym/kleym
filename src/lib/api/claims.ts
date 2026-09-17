@@ -106,11 +106,12 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
     where: { ephemeralPublicKey },
     select: {
       status: true,
+      suspendedAt: true,
       delivery: { select: { id: true } },
       campaign: {
         select: {
           name: true, network: true, assetCode: true, assetIssuer: true,
-          amountPerLink: true, expiresAt: true, status: true,
+          amountPerLink: true, expiresAt: true, status: true, suspendedAt: true,
           user: { select: { username: true } },
         },
       },
@@ -120,6 +121,10 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
   if (!link || link.status !== 'ACTIVE') return unavailableLink()
   if (link.campaign.expiresAt.getTime() <= Date.now()) return unavailableLink()
   if (link.campaign.status === 'CANCELLED') return unavailableLink()
+  // Suspended (#72): Kleym has stopped participating. The balance is still on
+  // the ledger and its holder can still claim it directly — this is the same
+  // unavailable answer, not a statement that the funds are gone.
+  if (link.suspendedAt || link.campaign.suspendedAt) return unavailableLink()
 
   return {
     status: 'claimable',
@@ -177,9 +182,9 @@ export async function loadClaimable(
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
     select: {
-      id: true, status: true, balanceId: true, campaignId: true,
+      id: true, status: true, balanceId: true, campaignId: true, suspendedAt: true,
       campaign: {
-        select: { assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true, status: true, sponsorPublicKey: true },
+        select: { assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true, status: true, sponsorPublicKey: true, suspendedAt: true },
       },
     },
   })
@@ -188,6 +193,7 @@ export async function loadClaimable(
   // become the oracle that resolve refuses to be.
   if (!link || link.status !== 'ACTIVE' || !link.balanceId) return { kind: 'not-found' }
   if (link.campaign.status === 'CANCELLED') return { kind: 'not-found' }
+  if (link.suspendedAt || link.campaign.suspendedAt) return { kind: 'not-found' }
 
   if (link.campaign.expiresAt.getTime() <= Date.now()) {
     return conflict('This link has expired. The funds return to the sender.', 'expired')
@@ -449,11 +455,22 @@ async function submitClaimUnobserved(
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
     select: {
-      id: true, status: true, campaignId: true, claimTxHash: true, claimedBy: true, balanceId: true,
-      campaign: { select: { sponsorPublicKey: true } },
+      id: true, status: true, campaignId: true, claimTxHash: true, claimedBy: true, balanceId: true, suspendedAt: true,
+      campaign: { select: { sponsorPublicKey: true, suspendedAt: true } },
     },
   })
   if (!link) return { kind: 'not-found' }
+
+  /*
+   * Suspended (#72): Kleym has stopped participating, and that has to hold
+   * HERE too — a sponsor-signed envelope prepared seconds before suspension
+   * is still valid for its signing window, and submitting it would record a
+   * Kleym claim after `suspendedAt`. Same 404 as prepare, for the §6.4 reason;
+   * a recorded replay of an earlier successful submit still answers as such.
+   */
+  if ((link.suspendedAt || link.campaign.suspendedAt) && link.claimTxHash === null) {
+    return { kind: 'not-found' }
+  }
 
   let transaction: Transaction
   try {
