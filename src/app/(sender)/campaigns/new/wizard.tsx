@@ -42,16 +42,20 @@ export function CampaignWizard(config: WizardConfig) {
   const wizard = useWizard()
   const stepUp = useStepUp()
 
+  const reissue = config.reissue ?? null
   const [draft, setDraft] = useState({
-    name: '',
-    network: 'testnet' as 'testnet' | 'public',
-    senderPublicKey: '',
-    assetCode: 'XLM',
-    assetIssuer: '',
-    amountPerLink: '',
-    linkCount: 10,
+    // A reissue (#78) carries the source campaign's terms; only the expiry is new.
+    name: reissue ? `${reissue.name} (reissue)` : '',
+    network: reissue?.network ?? ('testnet' as 'testnet' | 'public'),
+    senderPublicKey: reissue?.senderPublicKey ?? '',
+    assetCode: reissue?.assetCode ?? 'XLM',
+    assetIssuer: reissue?.assetIssuer ?? '',
+    amountPerLink: reissue?.amountPerLink ?? '',
+    linkCount: reissue ? Math.max(1, reissue.outstanding) : 10,
     expiresAt: defaultExpiry(),
   })
+  /** Reminder points (#78): days before expiry at which emailed, unclaimed recipients hear again. */
+  const [reminderDays, setReminderDays] = useState<number[]>([])
 
   /*
    * One piece of state keyed by the address it describes, rather than three
@@ -269,7 +273,7 @@ export function CampaignWizard(config: WizardConfig) {
         return
       }
 
-      const campaignId = await createCampaign(draft, wizard.keys.length, derivation, claimPolicy, receiveAs, allowExchangeDeposit)
+      const campaignId = await createCampaign(draft, wizard.keys.length, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit)
       wizard.setCampaignId(campaignId)
       await registerLinks(campaignId, wizard.keys)
 
@@ -296,7 +300,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
     }
-  }, [wizard, draft, cost, stepUp, derivation, claimPolicy, receiveAs, allowExchangeDeposit])
+  }, [wizard, draft, cost, stepUp, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -326,6 +330,17 @@ export function CampaignWizard(config: WizardConfig) {
 
   return (
     <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
+      {reissue && (
+        // Both columns: as a plain child it would take the sidebar cell and push the stepper over.
+        <div className="mb-lg rounded-lg border border-outline-variant/50 bg-surface-container p-md lg:col-span-2">
+          <p className="text-label-md font-semibold text-on-surface">Reissuing {reissue.outstanding} unclaimed {reissue.outstanding === 1 ? 'link' : 'links'} of “{reissue.name}”</p>
+          <p className="mt-1 text-body-md text-on-surface-variant">
+            This is a NEW campaign with the same terms and a later expiry: new keys, a new signature from your wallet,
+            new balance ids, and the asset and reserve locked again. The original links stay claimable until{' '}
+            {reissue.expiresAt.slice(0, 10)} and are reclaimed after that; nothing about them changes here.
+          </p>
+        </div>
+      )}
       <Stepper steps={summarise(STEPS, draft, cost, amounts.some((a) => a !== null))} current={wizard.step} />
 
       <div>
@@ -353,6 +368,8 @@ export function CampaignWizard(config: WizardConfig) {
             onLabels={onLabels}
             claimPolicy={claimPolicy}
             onClaimPolicy={setClaimPolicy}
+            reminderDays={reminderDays}
+            onReminderDays={setReminderDays}
             cost={cost}
             reserveSource={reservePerLink}
             maxLinks={config.maxLinksPerCampaign}
@@ -438,6 +455,7 @@ async function createCampaign(
   linkCount: number,
   derivation: { index: number; fingerprint: string } | null,
   claimPolicy: 'open' | 'code' | 'email' | 'passkey' = 'open',
+  reminderDaysBefore: number[] = [],
   receiveAs: ReceiveAsEntry[] = [],
   allowExchangeDeposit = false,
 ): Promise<string> {
@@ -456,6 +474,7 @@ async function createCampaign(
       // The path index and a PUBLIC-key fingerprint (#77). Never the phrase.
       ...(derivation ? { derivationIndex: derivation.index, keyFingerprint: derivation.fingerprint } : {}),
       ...(claimPolicy !== 'open' ? { claimPolicy } : {}),
+      ...(reminderDaysBefore.length > 0 ? { reminderDaysBefore } : {}),
       // Omitted entirely when empty, so the request is what it always was.
       ...(receiveAs.length > 0 ? { receiveAs } : {}),
       ...(allowExchangeDeposit ? { allowExchangeDeposit } : {}),

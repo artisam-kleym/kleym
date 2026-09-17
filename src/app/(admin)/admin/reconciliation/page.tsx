@@ -140,6 +140,7 @@ export default async function ReconciliationPage() {
             <PassRow job="reconcile" label="Reconcile (every 5 min)" report={passes.reconcile} now={now} />
             <PassRow job="ephemeral-watch" label="Ephemeral watch (every 15 min)" report={passes['ephemeral-watch']} now={now} />
             <PassRow job="delivery-retention" label="Delivery retention (daily)" report={passes['delivery-retention']} now={now} />
+            <PassRow job="reminders" label="Claim reminders (hourly)" report={passes.reminders} now={now} />
           </tbody>
         </Table>
       </section>

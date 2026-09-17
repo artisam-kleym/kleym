@@ -7,6 +7,7 @@ import { ReclaimPanel } from './reclaim-panel'
 import { RegenerateCsv } from './regenerate-csv'
 import { env } from '@/lib/config/env'
 import { SuspendPanel } from './suspend-panel'
+import { OutstandingPanel } from './outstanding-panel'
 import { SuspendLinkButton } from './links/suspend-link-button'
 import { ApprovalPanel } from './approval-panel'
 import { approvalStatus } from '@/lib/api/approvals'
@@ -132,6 +133,10 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         canDecide={roleAtLeast(org.role, 'APPROVER')}
         isCreator={campaign.userId === user.id}
       />
+
+      {['ACTIVE', 'PARTIAL', 'EXPIRED'].includes(campaign.status) && (
+        <OutstandingPanel campaignId={campaign.id} canEdit={canSuspend} />
+      )}
 
       <SuspendPanel
         campaignId={campaign.id}

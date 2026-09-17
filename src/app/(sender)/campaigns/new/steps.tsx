@@ -188,6 +188,8 @@ export function RecipientsStep({
   amounts,
   labelError,
   onLabels,
+  reminderDays,
+  onReminderDays,
   claimPolicy,
   onClaimPolicy,
   cost,
@@ -203,6 +205,9 @@ export function RecipientsStep({
   amounts: (string | null)[]
   labelError: string | null
   onLabels: (raw: string) => void
+  /** Reminder points (#78), days before expiry. */
+  reminderDays: number[]
+  onReminderDays: (days: number[]) => void
   /** Who may claim (#79). */
   claimPolicy: 'open' | 'code' | 'email' | 'passkey'
   onClaimPolicy: (policy: 'open' | 'code' | 'email' | 'passkey') => void
@@ -306,6 +311,31 @@ export function RecipientsStep({
           ))}
           <p className="font-mono text-label-sm text-on-surface-variant">
             None of these identifies a person. They bind a link to a channel or a device; recipients stay anonymous.
+          </p>
+        </fieldset>
+
+        <fieldset className="flex flex-col gap-xs">
+          <legend className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">
+            Remind by email (optional)
+          </legend>
+          <div className="flex flex-wrap gap-md">
+            {[14, 7, 3, 1].map((days) => (
+              <label key={days} className="flex items-center gap-xs font-mono text-label-md text-on-surface">
+                <input
+                  type="checkbox"
+                  name="reminderDays"
+                  className="h-5 w-5"
+                  checked={reminderDays.includes(days)}
+                  onChange={(e) => onReminderDays(e.target.checked ? [...reminderDays, days] : reminderDays.filter((d) => d !== days))}
+                />
+                {days} {days === 1 ? 'day' : 'days'} before expiry
+              </label>
+            ))}
+          </div>
+          <p className="font-mono text-label-sm text-on-surface-variant">
+            Only recipients you deliver to by email can be reminded, and a reminder never repeats the link — Kleym does
+            not keep it. It names you, the amount and the expiry, and points at the original message. One email per
+            address per day at most.
           </p>
         </fieldset>
       </div>

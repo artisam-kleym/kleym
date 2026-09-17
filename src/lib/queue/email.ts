@@ -23,6 +23,7 @@ import { QUEUE, queueConnection } from './connection'
  * passed to the mail provider and discarded, never persisted, never logged.
  */
 export interface DeliveryJob {
+  kind?: 'claim'
   deliveryId: string
   linkId: string
   email: string
@@ -34,10 +35,33 @@ export interface DeliveryJob {
   otpRequired: boolean
 }
 
-let queue: Queue<DeliveryJob> | undefined
+/**
+ * A reminder (#78) rides the same queue with the same retention, and carries
+ * NO claim URL — Kleym no longer has it. The type makes that structural: there
+ * is no field to put one in.
+ */
+export interface ReminderJob {
+  kind: 'reminder'
+  deliveryId: string
+  linkId: string
+  email: string
+  senderName: string
+  campaignName: string
+  amount: string
+  assetCode: string
+  expiresAt: string
+  /** When the original message went, so the reminder can point at it. */
+  sentAt: string
+  /** Days before expiry this reminder represents. */
+  point: number
+}
 
-export function deliveryJobs(): Queue<DeliveryJob> {
-  return (queue ??= new Queue<DeliveryJob>(QUEUE.emailDeliver, {
+export type EmailJob = DeliveryJob | ReminderJob
+
+let queue: Queue<EmailJob> | undefined
+
+export function deliveryJobs(): Queue<EmailJob> {
+  return (queue ??= new Queue<EmailJob>(QUEUE.emailDeliver, {
     connection: queueConnection(),
     defaultJobOptions: {
       attempts: 3,
@@ -57,5 +81,12 @@ export async function enqueueDelivery(job: DeliveryJob): Promise<void> {
    */
   await deliveryJobs().add(QUEUE.emailDeliver, job, {
     deduplication: { id: `deliver:${job.deliveryId}` },
+  })
+}
+
+/** One reminder per delivery per point, however many passes see it due. */
+export async function enqueueReminder(job: ReminderJob): Promise<void> {
+  await deliveryJobs().add(QUEUE.emailDeliver, job, {
+    deduplication: { id: `remind:${job.deliveryId}:${job.point}` },
   })
 }

@@ -20,6 +20,48 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-17 — Unclaimed-value management: reminders, outstanding view, scheduled reclaim (#78)
+
+A campaign page now has an "Unclaimed value" panel that reads the **ledger**: how many of
+this campaign's balances the chain still holds and what they add up to, from the ledger's
+own amounts — beside the database's count where the two differ. It says when the reclaim
+is scheduled (expiry), when the sweep marked it due, and lists what has been reclaimed.
+Every expired campaign with unclaimed links is now marked due once and its organisation
+told (`campaign.reclaim_due`), not only suspended ones — campaigns that had already expired
+before this deploy are marked as due at their expiry by the migration, so the first sweep
+does not announce every campaign that ever expired; a week before expiry an unsuspended
+campaign with unclaimed links fires `campaign.expiring_soon` once, soonest expiry first.
+
+Senders can set reminder points — 14, 7, 3 or 1 days before expiry — in the wizard or on a
+live campaign. An hourly, bounded pass (500 deliveries a run, cursor and report like the
+other maintenance jobs) queues one reminder per due point to recipients whose link was
+delivered by email and is still unclaimed and unsuspended, at most one email per address
+per day — and when several points fell due at once (a worker outage, points added late),
+the one email stands in for all of them rather than each earning a daily email later. A
+failed enqueue gives the day's floor back so the address is not silently skipped (the points
+are recorded before the enqueue and rolled back if it fails, so a queued reminder can never be
+queued twice), the claim email itself counts against the floor and a point that had already
+passed when it went out is not sent as a "reminder" forty minutes later, a corrected delivery
+address starts its reminders afresh, and an erasure request removes queued reminders along
+with the queued claim email. The reminder names what THAT link
+pays (#73). **A reminder never contains the claim link**, because Kleym does not have it
+(SPEC.md §6.5): it names the sender, amount and expiry and tells the recipient to open the
+original message, whose subject it quotes. Links the sender distributed themselves cannot be
+reminded, and the panel says so.
+
+Extending an expiry is presented as what it is on the ledger: a **reissue** — new links for
+the unclaimed recipients with a later expiry, a new signature, new balance ids, and the
+asset and reserve locked again while the current links stay claimable until they expire.
+The wizard prefills the terms from `?reissue=<id>`; after expiry the reissue is refused
+with the reason.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 9 new unit tests — which
+reminder points fall due, one message per pass, never a repeat, the reminder template
+carrying no link / fragment / seed / URL, and the ledger sum for the outstanding view.
+**Not verified:** the reminder pass against a real queue and mailbox (no Redis or Postgres
+here; the leak checks in `scripts/verify-email.ts` were not run), the per-recipient limiter
+against Redis, and the pages in a browser. Stacked on #72.
+
 ## 2026-09-17 — Claim straight to an exchange account, with the memo enforced (#75)
 
 When the sender allows it (a checkbox in wizard step 1; `allowExchangeDeposit` on the

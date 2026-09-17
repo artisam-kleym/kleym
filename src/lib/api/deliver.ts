@@ -28,6 +28,7 @@ import { env } from '@/lib/config/env'
 import { logger } from '@/lib/config/logger'
 import { owned } from './session-guard'
 import { enqueueDelivery } from '@/lib/queue/email'
+import { noteRecipientMailed } from './reminders'
 
 /**
  * A claim URL, checked against its shape and nothing more permissive.
@@ -171,7 +172,9 @@ export async function queueDeliveries(
     const delivery = await prisma.delivery.upsert({
       where: { linkId: link.id },
       create: { linkId: link.id, email: recipient.email },
-      update: { email: recipient.email, sentAt: null },
+      // A corrected address starts its reminders (#78) afresh: the points
+      // sent to the old one were sent to the wrong person.
+      update: { email: recipient.email, sentAt: null, reminderPoints: [], remindedAt: null },
       select: { id: true },
     })
 
@@ -189,6 +192,8 @@ export async function queueDeliveries(
       // makes the address a second factor worth having (SPEC.md §6.4).
       otpRequired: true,
     })
+    // The claim email is the day's email (#78): no reminder follows it within the floor.
+    await noteRecipientMailed(recipient.email)
     report.queued += 1
   }
 

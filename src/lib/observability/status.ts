@@ -126,7 +126,7 @@ export interface PassStatus extends PassReading {
 
 export async function passReadings(now: Date = new Date()): Promise<PassStatus[]> {
   const reports = await lastPassReports()
-  const jobs: PassJob[] = ['reconcile', 'ephemeral-watch', 'delivery-retention']
+  const jobs: PassJob[] = ['reconcile', 'ephemeral-watch', 'delivery-retention', 'reminders']
   return jobs.map((job) => {
     const r = reports[job]
     return {

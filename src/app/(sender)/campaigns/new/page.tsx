@@ -1,5 +1,6 @@
 import { pageScope } from '@/lib/api/session-guard'
 import { env } from '@/lib/config/env'
+import { loadReissueSource } from '@/lib/api/outstanding'
 import { CampaignWizard } from './wizard'
 
 export const dynamic = 'force-dynamic'
@@ -16,12 +17,19 @@ export const dynamic = 'force-dynamic'
  * into the CSV come from configuration rather than from `window.location`,
  * which a sender on a preview deployment would otherwise bake into every link.
  */
-export default async function NewCampaignPage() {
+export default async function NewCampaignPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { org } = await pageScope()
+  const params = await searchParams
+  const reissueId = typeof params.reissue === 'string' ? params.reissue : null
+  // Reissue (#78): the source campaign's terms, or why not. Decided in the loader, not here.
+  const { reissue, refused } = reissueId ? await loadReissueSource(reissueId, org.id) : { reissue: null, refused: null }
 
   return (
     <>
       <h1 className="text-display-lg text-primary max-md:text-headline-md">New campaign</h1>
+      {refused && (
+        <p role="alert" className="mt-md max-w-2xl text-body-md text-error">{refused}</p>
+      )}
       <p className="mt-md max-w-2xl text-body-md text-on-surface-variant">
         Every link gets its own key, generated in this tab. We never see them — which is
         why the export in step 3 is the only copy that will ever exist.
@@ -33,6 +41,7 @@ export default async function NewCampaignPage() {
         maxLinksPerCampaign={env.MAX_LINKS_PER_CAMPAIGN}
         baseFeeStroops={env.BASE_FEE_STROOPS}
         screening={org.screeningUrl !== null}
+        reissue={reissue}
       />
     </>
   )
