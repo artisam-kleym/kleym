@@ -20,6 +20,36 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-17 — Receive-as: the recipient chooses which asset they claim (#74)
+
+A sender can list up to five assets a recipient may receive as (wizard step 1, one per
+line; `receiveAs` on `POST /api/campaigns` and the v1 API). On `/claim`, a recipient with
+such a link sees a "Receive as" chooser; picking an asset fetches a live price from
+Kleym's own backend — `POST /api/claims/quote`, which prices the link's asset through
+Horizon's `strictSendPaths` — and shows both the expected figure and the floor the claim
+will be held to. `/claim` still makes zero third-party requests.
+
+The conversion happens inside TX2 or not at all: a `pathPaymentStrictSend` from the
+ephemeral account replaces the plain payment, sending the whole link amount and
+delivering at least `destMin` (the fresh server-side quote less 1%, rounded down, never
+zero) of the chosen asset. The trustline Kleym sponsors is for the **destination** asset.
+When no path exists the claim is refused with `no-path`; when the book moves past the
+floor between quote and ledger the transaction fails (`op_under_dest_min`), Kleym answers
+`quote-missed`, and in both cases the page drops the conversion and offers the asset as
+sent — a claim that fails because a market moved is worse than one that delivers what the
+sender sent. With no conversion, TX2 is byte-identical to before.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 34 new unit tests —
+the builder swaps exactly one operation, sponsors the destination trustline across
+new/existing × native/non-native, needs no trustline when converting into XLM, still
+zeroes the sent asset's ephemeral trustline before the merge, `needsRecipientSignature`
+equals "the recipient sources an operation" across every permutation with conversion on
+and off, and conversion-off XDR is byte-identical; `destMin` rounding and the asset-ref
+and allow-list parsers. **Not verified:** a conversion on testnet (acceptance criterion 1
+needs a funded link and an order book — `pnpm spike` was not extended here), the claim
+page in a browser, and the Playwright zero-third-party check, which was not run in this
+environment (the quote is same-origin by construction).
+
 ## 2026-09-12 — Single sign-on (OIDC) and SCIM provisioning with deprovisioning (#46)
 
 An Owner connects their organisation's identity provider under Settings →

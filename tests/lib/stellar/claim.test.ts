@@ -207,6 +207,104 @@ describe('the conditional recipient signature', () => {
   })
 })
 
+/*
+ * Receive-as (#74). The conversion is `pathPaymentStrictSend` in place of the
+ * plain payment, sourced from the ephemeral account, with `destMin` as the
+ * whole risk control. The trustline Kleym sponsors is for the DESTINATION
+ * asset — that is what the recipient ends up holding — and the recipient
+ * signature rule is cross-checked against operation sources, not restated.
+ */
+describe('TX2 with receive-as conversion', () => {
+  const EURC = new Asset('EURC', Keypair.random().publicKey())
+  const conversion = (destAsset: Asset) => ({ destAsset, destMin: '2.4000000', path: [] as Asset[] })
+  const facts = (over: Partial<Parameters<typeof buildClaim>[1]> = {}) => ({
+    ephemeralExists: true,
+    ephemeralTrusts: false,
+    recipientExists: true,
+    recipientTrusts: true,
+    ...over,
+  })
+
+  it('replaces the payment with a strict-send path payment and nothing else moves', () => {
+    const plain = buildClaim(context(Asset.native()), facts())
+    const converted = buildClaim({ ...context(Asset.native()), conversion: conversion(USDC) }, facts())
+    expect(types(plain.xdr)).toEqual(['claimClaimableBalance', 'payment', 'accountMerge'])
+    expect(types(converted.xdr)).toEqual(['claimClaimableBalance', 'pathPaymentStrictSend', 'accountMerge'])
+  })
+
+  it('sends the whole link amount, bounded by destMin, from the ephemeral account to the recipient', () => {
+    const tx = parse(buildClaim({ ...context(Asset.native()), conversion: conversion(USDC) }, facts()).xdr)
+    const op = tx.operations.find((o) => o.type === 'pathPaymentStrictSend') as {
+      sendAsset: Asset; sendAmount: string; destAsset: Asset; destMin: string; destination: string; source?: string
+    }
+    expect(op.sendAsset.isNative()).toBe(true)
+    expect(op.sendAmount).toBe('2.5000000')
+    expect(op.destAsset.equals(USDC)).toBe(true)
+    expect(op.destMin).toBe('2.4000000')
+    expect(op.destination).toBe(recipient.publicKey())
+    expect(op.source).toBe(ephemeral.publicKey())
+  })
+
+  /*
+   * Acceptance criterion 2: the sponsored trustline is for the DESTINATION
+   * asset, across new/existing × native/non-native. Getting this wrong fails
+   * `op_no_trust` after the recipient account has already been created.
+   */
+  it('sponsors a trustline for the destination asset, not the campaign asset', () => {
+    for (const sendAsset of [Asset.native(), USDC]) {
+      for (const recipientExists of [true, false]) {
+        const plan = buildClaim(
+          { ...context(sendAsset), conversion: conversion(EURC) },
+          facts({ recipientExists, recipientTrusts: false }),
+        )
+        const trusts = parse(plan.xdr).operations.filter(
+          (op) => op.type === 'changeTrust' && op.source === recipient.publicKey(),
+        ) as { line: Asset }[]
+        expect(trusts).toHaveLength(1)
+        expect(trusts[0]!.line.equals(EURC)).toBe(true)
+      }
+    }
+  })
+
+  it('needs no recipient trustline when converting INTO the native asset', () => {
+    const plan = buildClaim({ ...context(USDC), conversion: conversion(Asset.native()) }, facts({ recipientTrusts: false }))
+    const recipientTrust = parse(plan.xdr).operations.filter((op) => op.type === 'changeTrust' && op.source === recipient.publicKey())
+    expect(recipientTrust).toHaveLength(0)
+    expect(plan.needsRecipientSignature).toBe(false)
+  })
+
+  it('still zeroes the ephemeral trustline for the SENT asset before the merge', () => {
+    const ops = types(buildClaim({ ...context(USDC), conversion: conversion(Asset.native()) }, facts()).xdr)
+    expect(ops).toEqual(['claimClaimableBalance', 'pathPaymentStrictSend', 'changeTrust', 'accountMerge'])
+    const tx = parse(buildClaim({ ...context(USDC), conversion: conversion(Asset.native()) }, facts()).xdr)
+    const zeroed = tx.operations.find((op) => op.type === 'changeTrust') as { line: Asset; limit: string }
+    expect(zeroed.line.equals(USDC)).toBe(true)
+    expect(new Decimal(zeroed.limit).isZero()).toBe(true)
+  })
+
+  // Acceptance criterion 3, with conversion on and off, in every permutation.
+  it('needsRecipientSignature equals whether the recipient sources an operation', () => {
+    for (const sendAsset of [Asset.native(), USDC]) {
+      for (const conv of [undefined, conversion(USDC), conversion(EURC), conversion(Asset.native())]) {
+        for (const f of [facts(), facts({ recipientExists: false, recipientTrusts: false }), facts({ recipientTrusts: false })]) {
+          const plan = buildClaim({ ...context(sendAsset), conversion: conv }, f)
+          const recipientSources = parse(plan.xdr).operations.some((op) => op.source === recipient.publicKey())
+          expect(plan.needsRecipientSignature).toBe(recipientSources)
+        }
+      }
+    }
+  })
+
+  // Acceptance criterion 6: conversion off is byte-identical to today.
+  it('is byte-identical to the plain claim when conversion is absent', () => {
+    for (const asset of [Asset.native(), USDC]) {
+      for (const f of [facts(), facts({ recipientExists: false, recipientTrusts: false }), facts({ recipientTrusts: false })]) {
+        expect(buildClaim({ ...context(asset), conversion: undefined }, f).xdr).toBe(buildClaim(context(asset), f).xdr)
+      }
+    }
+  })
+})
+
 describe('sponsor signing', () => {
   it('adds exactly one signature, verifiable as the sponsor', () => {
     const { xdr } = buildMaterialise(context(Asset.native()), { ephemeralTrusts: false })

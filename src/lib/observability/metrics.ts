@@ -33,7 +33,7 @@ function labels(attrs: Record<string, unknown>): Attributes {
 
 /* ── counters and histograms: recorded at the point of the event ────────── */
 
-export type ClaimPhase = 'resolve' | 'materialise' | 'claim' | 'submit'
+export type ClaimPhase = 'resolve' | 'quote' | 'materialise' | 'claim' | 'submit'
 
 /** One per claim call, split by phase and outcome — the ledger-boundary wait failing shows as `submit`/`unavailable`. */
 export function recordClaimOutcome(phase: ClaimPhase, outcome: string): void {

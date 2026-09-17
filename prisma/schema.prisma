@@ -527,6 +527,11 @@ model Campaign {
   assetIssuer     String? // null for native
   amountPerLink   Decimal        @db.Decimal(23, 7)
   linkCount       Int
+  /// Receive-as (#74): assets the sender lets a recipient convert into at
+  /// claim time, as "CODE:ISSUER" or "XLM". Empty: the recipient gets the
+  /// campaign asset and TX2 is exactly what it was. The conversion is a
+  /// `pathPaymentStrictSend` inside TX2, quoted and bounded server-side.
+  receiveAsAssets String[]       @default([])
   expiresAt       DateTime
   status          CampaignStatus @default(DRAFT)
   csvExportedAt   DateTime? // hard gate: null blocks activation

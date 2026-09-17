@@ -198,6 +198,17 @@ transaction carrying a signature it does not need with `tx_bad_auth_extra`. For 
 existing recipient that already holds the trustline, TX2 has no recipient-sourced
 operation and the recipient must not sign.
 
+**Receive-as (#74).** When the sender has allowed it (`Campaign.receiveAsAssets`) and the
+recipient chooses another asset, op 14 becomes
+`PathPaymentStrictSend(sendAsset: asset, sendAmount: amount, destAsset, destMin, path)`
+sourced from EPHEMERAL, and the trustline in ops 11–13 is for the **destination** asset —
+what the recipient ends up holding. `destMin` is the quote (Kleym's own Horizon,
+`strictSendPaths`, served through `/api/claims/quote` so `/claim` still makes no
+third-party request) less 1%, rounded down; below it the whole transaction fails, the
+balance stays claimable, and the page offers the asset as sent. With no conversion TX2 is
+byte-identical to the list above. The recipient-signature rule is unchanged: sign exactly
+when the recipient sources an operation.
+
 #### 3.3.1 Why two transactions
 
 Both constraints are protocol rules on `AccountMerge`, confirmed with isolated controls
@@ -639,7 +650,7 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/campaigns` | List, paginated, filterable by status |
-| POST | `/api/campaigns` | Create draft. Body: name, network, asset, amountPerLink, linkCount, expiresAt |
+| POST | `/api/campaigns` | Create draft. Body: name, network, asset, amountPerLink, linkCount, expiresAt, `receiveAs?` (#74: up to five assets a recipient may convert into) |
 | GET | `/api/campaigns/[id]` | Detail with aggregate counts |
 | PATCH | `/api/campaigns/[id]` | Rename, cancel draft |
 | POST | `/api/campaigns/[id]/links` | Register ephemeral **public** keys. Body: `{ publicKeys: string[], labels?: string[] }`. **Rejects any 56-char value beginning `S`.** |
@@ -659,7 +670,8 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 |---|---|---|
 | GET | `/api/claims/resolve?pk=<G...>` | Link metadata: asset, amount, sender name, status, expiry. Rate-limited 20/min/IP. Returns identical shape for unknown and expired keys to prevent enumeration. |
 | POST | `/api/claims/prepare/materialise` | `{ ephemeralPublicKey }` → TX1 sponsor-signed XDR, or `{ alreadyExists: true }`. Rate-limited 20/min/IP — retried across the ledger boundary. |
-| POST | `/api/claims/prepare/claim` | `{ ephemeralPublicKey, recipientPublicKey }` → TX2 sponsor-signed XDR, plus whether a recipient signature is required |
+| POST | `/api/claims/quote` | `{ ephemeralPublicKey, receiveAs: { assetCode, assetIssuer } }` → `{ destAmount, destMin }` from Kleym's own Horizon (#74). 404 for anything not claimable; 409 `no-path` when no market exists. Rate-limited 20/min/IP. |
+| POST | `/api/claims/prepare/claim` | `{ ephemeralPublicKey, recipientPublicKey, receiveAs? }` → TX2 sponsor-signed XDR, whether a recipient signature is required, and `conversion` (`destAmount`, `destMin`) when receiving as another asset (#74) |
 | POST | `/api/claims/submit` | `{ ephemeralPublicKey, signedXdr, phase }` → submits, records claim. Rate-limited 10/min/IP. |
 | POST | `/api/claims/otp/request` | Email-delivered links only |
 | POST | `/api/claims/otp/verify` | 6 digits, 5 attempts, 10-minute expiry |

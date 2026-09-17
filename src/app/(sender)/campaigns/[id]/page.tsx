@@ -52,6 +52,14 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         <StatusChip status={CHIP[campaign.status] ?? 'pending'} />
       </div>
 
+      {campaign.receiveAsAssets.length > 0 && (
+        // Receive-as (#74): what a recipient may convert into at claim time, at a live price with a floor.
+        <p className="mt-sm font-mono text-label-md text-on-surface-variant">
+          Recipients may receive as {campaign.receiveAsAssets.map((ref) => ref.split(':')[0]).join(', ')} — converted
+          inside the claim at a live price, or {campaign.assetCode} as sent when no market exists.
+        </p>
+      )}
+
       <dl className="mt-lg grid grid-cols-2 gap-md md:grid-cols-4">
         {[
           ['Claimed', counts.CLAIMED],
