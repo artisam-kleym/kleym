@@ -455,11 +455,22 @@ async function submitClaimUnobserved(
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
     select: {
-      id: true, status: true, campaignId: true, claimTxHash: true, claimedBy: true, balanceId: true,
-      campaign: { select: { sponsorPublicKey: true } },
+      id: true, status: true, campaignId: true, claimTxHash: true, claimedBy: true, balanceId: true, suspendedAt: true,
+      campaign: { select: { sponsorPublicKey: true, suspendedAt: true } },
     },
   })
   if (!link) return { kind: 'not-found' }
+
+  /*
+   * Suspended (#72): Kleym has stopped participating, and that has to hold
+   * HERE too — a sponsor-signed envelope prepared seconds before suspension
+   * is still valid for its signing window, and submitting it would record a
+   * Kleym claim after `suspendedAt`. Same 404 as prepare, for the §6.4 reason;
+   * a recorded replay of an earlier successful submit still answers as such.
+   */
+  if ((link.suspendedAt || link.campaign.suspendedAt) && link.claimTxHash === null) {
+    return { kind: 'not-found' }
+  }
 
   let transaction: Transaction
   try {

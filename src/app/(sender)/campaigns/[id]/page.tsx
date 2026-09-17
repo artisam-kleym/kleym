@@ -39,7 +39,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
 
   const [loaded, approval] = await Promise.all([loadCampaignDetail(id, org.id), approvalStatus(id, org.id)])
   if (!loaded || !approval) notFound()
-  const { campaign, counts, outstanding, outstandingAmount, suspendedLinks, expired } = loaded
+  const { campaign, counts, outstanding, outstandingAmount, suspendedLinks, inFlight, expired } = loaded
   const canSuspend = roleAtLeast(org.role, 'OPERATOR')
 
   return (
@@ -114,6 +114,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         outstanding={outstanding}
         outstandingAmount={outstandingAmount}
         suspendedLinks={suspendedLinks}
+        inFlight={inFlight}
         canAct={canSuspend && ['ACTIVE', 'PARTIAL', 'CREATING'].includes(campaign.status)}
       />
 

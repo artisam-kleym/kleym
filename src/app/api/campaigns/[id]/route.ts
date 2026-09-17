@@ -28,6 +28,8 @@ export async function GET(_request: Request, { params }: Params) {
         id: true, name: true, network: true, senderPublicKey: true, assetCode: true,
         assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true,
         status: true, csvExportedAt: true, reserveEstimate: true, createdAt: true,
+        // Suspension (#72): an API client must be able to see it without having caught the webhook.
+        suspendedAt: true, reclaimDueAt: true,
       },
     })
     if (!campaign) return notFound()

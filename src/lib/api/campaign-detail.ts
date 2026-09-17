@@ -96,10 +96,17 @@ export async function loadCampaignDetail(id: string, organizationId: string) {
   })
   if (!campaign) return null
 
-  const [counts, suspendedLinks] = await Promise.all([
+  const [counts, suspendedLinks, inFlight] = await Promise.all([
     statusCounts(campaign.id),
     // Per-link suspensions (#72) still live: one integer, not the rows.
     prisma.claimLink.count({ where: { campaignId: campaign.id, suspendedAt: { not: null }, status: 'ACTIVE' } }),
+    /*
+     * Claims that landed TX1 and never TX2 (SPEC.md §7.3): after suspension
+     * Kleym will not build TX2 for them, so each one is the §12 "abandoned
+     * claim strands sponsor reserves" case, deterministically. The operator
+     * should see that number before and after they act.
+     */
+    prisma.strandedAccount.count({ where: { campaignId: campaign.id, link: { status: 'ACTIVE' } } }),
   ])
   const outstanding = counts.ACTIVE + counts.EXPIRED
   return {
@@ -113,6 +120,7 @@ export async function loadCampaignDetail(id: string, organizationId: string) {
      */
     outstandingAmount: outstandingValue(outstanding, campaign.amountPerLink.toString()),
     suspendedLinks,
+    inFlight,
     // Answered once, here, rather than by reading the clock during render.
     expired: campaign.expiresAt.getTime() <= Date.now(),
   }

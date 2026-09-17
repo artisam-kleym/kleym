@@ -126,7 +126,21 @@ export async function suspendCampaign(
     }
   }
 
-  await prisma.campaign.update({ where: { id: campaign.id }, data: { suspendedAt: now } })
+  /*
+   * Claim the row conditionally. Two concurrent POSTs — a double-click, a
+   * retry — both read `suspendedAt: null` above; only one may write, audit
+   * and announce, or the campaign is suspended twice with the later time.
+   * The loser reports the winner's suspension, which is what a second call
+   * is documented to do.
+   */
+  const claimed = await prisma.campaign.updateMany({ where: { id: campaign.id, suspendedAt: null }, data: { suspendedAt: now } })
+  if (claimed.count === 0) {
+    const winner = await prisma.campaign.findUniqueOrThrow({ where: { id: campaign.id }, select: { suspendedAt: true } })
+    return {
+      kind: 'ok',
+      value: { suspendedAt: winner.suspendedAt ?? now, expiresAt: campaign.expiresAt, outstanding, outstandingAmount, assetCode: campaign.assetCode, already: true },
+    }
+  }
   await recordAudit({
     userId: actor.userId, organizationId, action: 'campaign.suspend', entityType: 'campaign', entityId: campaign.id,
     metadata: { previousStatus: campaign.status, outstanding, outstandingAmount, reclaimScheduledFor: campaign.expiresAt.toISOString() },
@@ -189,7 +203,12 @@ export async function suspendLink(
     }
   }
 
-  await prisma.claimLink.update({ where: { id: link.id }, data: { suspendedAt: now } })
+  // Conditional for the same reason as the campaign: one writer, one audit row.
+  const claimed = await prisma.claimLink.updateMany({ where: { id: link.id, suspendedAt: null }, data: { suspendedAt: now } })
+  if (claimed.count === 0) {
+    const winner = await prisma.claimLink.findUniqueOrThrow({ where: { id: link.id }, select: { suspendedAt: true } })
+    return { kind: 'ok', value: { ...base, suspendedAt: winner.suspendedAt ?? now, already: true } }
+  }
   await recordAudit({
     userId: actor.userId, organizationId, action: 'link.suspend', entityType: 'link', entityId: link.id,
     metadata: { campaignId: campaign.id, amount, reclaimScheduledFor: campaign.expiresAt.toISOString() },
@@ -212,7 +231,10 @@ export interface ReclaimDueReport {
  */
 export async function announceDueReclaims(now: Date = new Date()): Promise<ReclaimDueReport> {
   const due = await prisma.campaign.findMany({
-    where: { suspendedAt: { not: null }, reclaimDueAt: null, expiresAt: { lte: now } },
+    // Not a RECLAIMED (or cancelled) campaign: a sender who signs the reclaim
+    // between expiry and the sweep has nothing due, and `campaign.reclaimed`
+    // has already gone out.
+    where: { suspendedAt: { not: null }, reclaimDueAt: null, expiresAt: { lte: now }, status: { in: ['ACTIVE', 'PARTIAL', 'CREATING', 'EXPIRED'] } },
     select: { id: true, organizationId: true, amountPerLink: true, assetCode: true, expiresAt: true },
   })
 

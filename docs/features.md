@@ -37,7 +37,11 @@ When that date passes, the hourly expiry sweep marks the reclaim due and fires
 moment of suspension). The sender still signs the return with their wallet: Kleym holds no
 key that can move the money, so "scheduled" means announced and ready, not submitted.
 `SPEC.md` §12 records the limitation; true pre-expiry revocation is a product decision the
-issue leaves open.
+issue leaves open. One consequence is stated in the dialog and on the suspended panel: a
+claim that had landed its first transaction when Kleym stopped will not get its second from
+Kleym, so each in-flight claim becomes the §12 "abandoned claim strands sponsor reserves"
+case — the panel shows how many, and the reserve stays locked until the holder finishes with
+their own tooling or the link is reclaimed.
 
 **Verified by:** `typecheck`, `lint`, `test` and `build` clean; 14 new unit tests, including
 one that evaluates the claimant predicates `claimantsFor` writes and asserts the recipient
