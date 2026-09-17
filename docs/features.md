@@ -50,6 +50,37 @@ needs a funded link and an order book — `pnpm spike` was not extended here), t
 page in a browser, and the Playwright zero-third-party check, which was not run in this
 environment (the quote is same-origin by construction).
 
+## 2026-09-17 — Suspend, not cancel: a funded campaign's links stay claimable until expiry (#72)
+
+A sender can suspend a live campaign, or a single link, and the product tells the truth
+about what that does: Kleym stops resolving and preparing the links, but every balance is
+still on the Stellar ledger with the recipient as a valid claimant until `expiresAt`. The
+claimant model gives the sender no earlier instant, so nothing Kleym does can stop a link
+holder claiming before then — and the suspend dialog, the campaign header, the link tables
+and the API response all say so. "Cancel" is now reserved for drafts, which have nothing on
+the ledger.
+
+Suspending schedules the reclaim. The suspended panel shows what is still outstanding and
+what it is worth in the campaign's asset, and names the date the return is scheduled for.
+When that date passes, the hourly expiry sweep marks the reclaim due and fires
+`campaign.reclaim_due` to the organisation's webhooks (with `campaign.suspended` at the
+moment of suspension). The sender still signs the return with their wallet: Kleym holds no
+key that can move the money, so "scheduled" means announced and ready, not submitted.
+`SPEC.md` §12 records the limitation; true pre-expiry revocation is a product decision the
+issue leaves open. One consequence is stated in the dialog and on the suspended panel: a
+claim that had landed its first transaction when Kleym stopped will not get its second from
+Kleym, so each in-flight claim becomes the §12 "abandoned claim strands sponsor reserves"
+case — the panel shows how many, and the reserve stays locked until the holder finishes with
+their own tooling or the link is reclaimed.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 14 new unit tests, including
+one that evaluates the claimant predicates `claimantsFor` writes and asserts the recipient
+can and the sender cannot claim at every instant before expiry — the check acceptance
+criterion 6 asks for, so nobody later mistakes suspension for revocation. The migration
+adds three nullable timestamps and was authored from the schema diff; it has NOT been run
+against a copy of real data (no database in this environment) — believed safe, unchecked.
+The pages were not opened in a browser here.
+
 ## 2026-09-12 — Single sign-on (OIDC) and SCIM provisioning with deprovisioning (#46)
 
 An Owner connects their organisation's identity provider under Settings →

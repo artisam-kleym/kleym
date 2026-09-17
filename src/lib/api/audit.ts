@@ -22,6 +22,8 @@ import { appendChained } from './audit-chain'
 export type AuditAction =
   | 'campaign.create'
   | 'campaign.cancel'
+  | 'campaign.suspend'
+  | 'link.suspend'
   | 'campaign.approve'
   | 'campaign.reject'
   | 'campaign.screening'

@@ -14,6 +14,8 @@ export const WEBHOOK_EVENTS = [
   'batch.confirmed',
   'link.claimed',
   'campaign.reclaimed',
+  'campaign.suspended',
+  'campaign.reclaim_due',
   'sponsor.low',
 ] as const
 
@@ -25,6 +27,10 @@ export interface WebhookPayloads {
   'batch.confirmed': { campaignId: string; batchId: string; sequence: number; transactionHash: string; links: number }
   'link.claimed': { campaignId: string; linkId: string; ephemeralPublicKey: string; claimedBy: string; claimTxHash: string; claimedAt: string }
   'campaign.reclaimed': { campaignId: string }
+  /** Kleym stopped serving the links (#72). The balances are still claimable until `reclaimScheduledFor`. */
+  'campaign.suspended': { campaignId: string; outstanding: number; outstandingAmount: string; assetCode: string; suspendedAt: string; reclaimScheduledFor: string }
+  /** A suspended campaign has expired: the scheduled reclaim is ready for the sender to sign. */
+  'campaign.reclaim_due': { campaignId: string; outstanding: number; outstandingAmount: string; assetCode: string; expiresAt: string }
   'sponsor.low': { sponsorPublicKey: string; spendable: string; threshold: string }
 }
 

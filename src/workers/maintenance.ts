@@ -51,7 +51,7 @@ export function startExpiryWorker(): Worker {
     QUEUE.expirySweep,
     async () => {
       const report = await sweepExpired()
-      if (report.linksExpired > 0 || report.campaignsExpired > 0) {
+      if (report.linksExpired > 0 || report.campaignsExpired > 0 || report.reclaimsDue > 0) {
         logger.info(report, 'expiry sweep completed')
       }
       return report

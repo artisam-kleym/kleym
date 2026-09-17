@@ -122,6 +122,8 @@ export interface CampaignListRow {
   linkCount: number
   claimed: number
   status: string
+  /** Set when Kleym has stopped serving the links (#72); the status is unchanged. */
+  suspendedAt: Date | null
   expiresAt: Date
   createdAt: Date
 }
@@ -137,7 +139,7 @@ export async function listCampaigns(organizationId: string, query: CampaignListQ
       take: query.perPage,
       select: {
         id: true, name: true, network: true, assetCode: true, amountPerLink: true,
-        linkCount: true, status: true, expiresAt: true, createdAt: true,
+        linkCount: true, status: true, expiresAt: true, createdAt: true, suspendedAt: true,
         // A count, not the rows. Ten thousand links per campaign is supported.
         _count: { select: { links: { where: { status: 'CLAIMED' } } } },
       },
@@ -153,6 +155,7 @@ export async function listCampaigns(organizationId: string, query: CampaignListQ
     linkCount: c.linkCount,
     claimed: c._count.links,
     status: c.status,
+    suspendedAt: c.suspendedAt,
     expiresAt: c.expiresAt,
     createdAt: c.createdAt,
   }))
