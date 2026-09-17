@@ -122,15 +122,24 @@ test.describe('recovery phrase (#77)', () => {
     await page.getByTestId('download-secrets').click()
     await download
 
+    // Four consecutive words is not a coincidence; one word is — "link",
+    // "page", "next" and "chunk" are all in the wordlist and in ordinary URLs.
+    const runs = Array.from({ length: words.length - 3 }, (_, i) => words.slice(i, i + 4))
+    const holdsRun = (text: string) => {
+      let decoded = text
+      try {
+        decoded = decodeURIComponent(text)
+      } catch {
+        // Not percent-encoded; the raw text is what there is to check.
+      }
+      return runs.some((run) => new RegExp(`\\b${run.join('[^a-z]+')}\\b`).test(decoded.toLowerCase()))
+    }
     for (const request of traffic.requests) {
-      expect(request.url()).not.toContain(words[0]!)
+      expect(holdsRun(request.url()), `phrase in URL ${request.url()}`).toBe(false)
       const body = request.postData()
       if (body) {
         expect(body, `phrase in body to ${request.url()}`).not.toContain(phrase)
-        // Nor any run of it: four consecutive words is not a coincidence.
-        for (let i = 0; i + 4 <= words.length; i += 1) {
-          expect(body).not.toContain(words.slice(i, i + 4).join(' '))
-        }
+        expect(holdsRun(body), `phrase run in body to ${request.url()}`).toBe(false)
       }
     }
 

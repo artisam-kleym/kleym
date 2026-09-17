@@ -479,13 +479,6 @@ jobs:
           fi
           echo "clean"
 
-      # #77. A BIP39 recovery phrase is a seed in a different alphabet and the
-      # grep above cannot see it. The same detector the request guard uses,
-      # over the same paths the seed guards cover; tests/ and scripts/ exempt
-      # for the same reason they are exempt above.
-      - name: No recovery phrase in application code
-        run: pnpm tsx scripts/check-no-mnemonic.ts
-
       # What makes the exemption above safe. A seed generated in the browser is
       # the design; the same call reached from a route handler, a worker, or a
       # server component would put a seed in a response body or a log.
@@ -617,3 +610,11 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Planted key material never survives safeAttributes
         run: pnpm vitest run tests/lib/observability
+
+      # #77. A BIP39 recovery phrase is a seed in a different alphabet and the
+      # greps above cannot see it. The same detector the request guard uses,
+      # over the same paths the seed guards cover; tests/ and scripts/ exempt
+      # for the same reason they are exempt above. Below the install because
+      # it runs under tsx, unlike the shell steps.
+      - name: No recovery phrase in application code
+        run: pnpm tsx scripts/check-no-mnemonic.ts

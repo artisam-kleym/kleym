@@ -37,7 +37,12 @@ The most important change is to the leak guards: a phrase matches none of the `S
 patterns, so `containsSecretSeed` — and with it every request-body scan, audit scrub and
 webhook payload check — now refuses any string containing a checksum-valid BIP39 phrase,
 and CI refuses a committed one. Detection is by checksum, so ordinary English made of
-wordlist words does not raise a false security event.
+wordlist words does not raise a false security event. Because the scan runs on every
+string of every guarded body, including the unauthenticated claim routes, its cost is
+bounded by construction: the checksum is computed from word indices with one SHA-256 per
+window, and one budget of 4,096 phrase-candidate words is shared across a whole body — a
+body of `zoo zoo zoo …` past it is refused as implausible (`400`, not a security event) in
+about a millisecond, and the worst case at the budget is ~30 ms.
 
 **Verified by:** `typecheck`, `lint`, `test` and `build` clean; 36 new unit tests — the
 SLIP-0010 ed25519 test vectors (master, `m/0'`, and the five-level path), determinism and

@@ -43,6 +43,19 @@ export function seedSubmittedProblem(correlationId: string): Response {
   )
 }
 
+/** A body whose strings hold more wordlist-word runs than the phrase scan (#77) will examine. Rejected, not a security event. */
+export function bodyTooLongProblem(): Response {
+  return new Response(
+    JSON.stringify({
+      type: 'https://kleym.app/problems/malformed-body',
+      title: 'Request body too long to scan',
+      status: 400,
+      detail: 'The request body holds more text than the secret scan will examine.',
+    }),
+    { status: 400, headers: { 'content-type': 'application/problem+json' } },
+  )
+}
+
 /** Structurally implausible body. Rejected, but not a security event. */
 export function bodyTooDeepProblem(): Response {
   return new Response(
