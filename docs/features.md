@@ -20,6 +20,36 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-17 — Campaign templates and recurring schedules (#82)
+
+A campaign's terms — asset, amount, expiry as an offset, claim policy, reminders, receive-as,
+exchange deposit — and its recipient list can be saved as a template ("Save as template" on
+the campaign page, or built from scratch through the API). Starting a campaign from a template
+opens the wizard with everything filled in but the keys. A template can carry a schedule —
+daily, weekly on a weekday, monthly on a day up to the 28th, at an hour UTC — and an hourly
+pass prepares each due run: it creates the campaign in **draft** with the terms and the list,
+records the run, fires `template.run_prepared` to the organisation's webhooks and lists it on
+the dashboard as waiting. **A schedule prepares; a person still signs.** Keys are generated in
+the operator's browser and batches signed by their wallet exactly as for any campaign, and the
+CSV hard gate applies unchanged; nothing here can move money on its own. A run above the
+approval threshold is in the approval queue by construction — it is an ordinary draft whose
+terms hash is its own — so an approval of one run says nothing about the next and a template
+is never a way around dual control. Each template lists every campaign it produced with status,
+links claimed and value. Disabling stops future runs and leaves past ones untouched; deleting
+keeps the campaigns. The write API gains `GET /api/v1/templates`, `PUT …/recipients` (a payroll
+system pushes the list; the operator only signs) and `POST …/run`.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 10 new unit tests — the next-run
+arithmetic for each cadence (including that a due instant never reschedules itself and days a
+month can lack are refused), CSV parsing with per-link amounts and Decimal totals, keys refused
+in a list, the terms shape, and that two runs of one template hash differently while a run
+hashes on its own values. The database side — a template from a campaign carrying its terms and
+links, one draft per due instant with the pointer moved once, no links and no batches on the
+draft, the wizard prefill scoped to the organisation, a run above the threshold in the approval
+queue, disable stopping runs and keeping history — is `scripts/verify-templates.ts`, NOT run
+here (no database in this environment). The migration was authored from the schema diff. The
+wizard prefill and the templates pages were not opened in a browser.
+
 ## 2026-09-17 — Unclaimed-value management: reminders, outstanding view, scheduled reclaim (#78)
 
 A campaign page now has an "Unclaimed value" panel that reads the **ledger**: how many of

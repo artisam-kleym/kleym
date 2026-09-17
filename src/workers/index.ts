@@ -15,6 +15,7 @@ import {
   startRetentionWorker,
   startReconcileWorker,
   startReminderWorker,
+  startTemplateWorker,
 } from './maintenance'
 import { scheduleMaintenance } from '@/lib/queue/maintenance'
 import { startTelemetry } from '@/lib/observability/telemetry'
@@ -39,6 +40,7 @@ async function main() {
     startEphemeralWatchWorker(),
     startRetentionWorker(),
     startReminderWorker(),
+    startTemplateWorker(),
   ].map(observeWorker)
 
   /*
@@ -50,7 +52,7 @@ async function main() {
   logger.info(
     {
       service: 'kleym-worker',
-      queues: ['batch-confirm', 'email-deliver', 'webhook-deliver', 'reconcile', 'expiry-sweep', 'ephemeral-watch', 'delivery-retention', 'reminders'],
+      queues: ['batch-confirm', 'email-deliver', 'webhook-deliver', 'reconcile', 'expiry-sweep', 'ephemeral-watch', 'delivery-retention', 'reminders', 'templates'],
     },
     'worker started',
   )

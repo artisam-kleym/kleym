@@ -78,7 +78,8 @@ export const receiveAsAssetSchema = z
 const sameAsset = (a: { assetCode: string; assetIssuer?: string | undefined }, b: { assetCode: string; assetIssuer?: string | undefined }) =>
   a.assetCode === b.assetCode && (a.assetIssuer ?? null) === (b.assetIssuer ?? null)
 
-export const createCampaignSchema = z
+/** The campaign body before its cross-field refinements — what a template (#82) copies. */
+export const campaignBodySchema = z
   .object({
     name: seedFreeString.min(1).max(120),
     network: z.enum(['testnet', 'public']),
@@ -114,8 +115,12 @@ export const createCampaignSchema = z
     receiveAs: z.array(receiveAsAssetSchema).max(5).optional(),
     /** Exchange deposit (#75): may a recipient claim to an address plus a memo? Off unless said. */
     allowExchangeDeposit: z.boolean().optional(),
+    /** Template (#82): this campaign is a manual run of it. Must belong to the caller's organisation. */
+    templateId: z.string().min(1).max(64).optional(),
   })
   .strict()
+
+export const createCampaignSchema = campaignBodySchema
   .refine((v) => !v.receiveAs || v.receiveAs.every((a) => !sameAsset(a, v)), {
     message: 'receive-as assets must differ from the campaign asset',
     path: ['receiveAs'],
@@ -276,9 +281,19 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
     },
     select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true, receiveAsAssets: true, claimPolicy: true, allowExchangeDeposit: true },
   })
+  if (input.templateId) {
+    // Scoped in the query: a template from another organisation is simply not there, and the campaign stands alone.
+    const template = await prisma.campaignTemplate.findFirst({ where: { id: input.templateId, organizationId: creator.organizationId }, select: { id: true } })
+    if (template) {
+      await prisma.$transaction([
+        prisma.campaign.update({ where: { id: campaign.id }, data: { templateId: template.id } }),
+        prisma.templateRun.create({ data: { templateId: template.id, campaignId: campaign.id, kind: 'MANUAL', scheduledFor: campaign.createdAt } }),
+      ])
+    }
+  }
   await recordAudit({
     userId: creator.userId, organizationId: creator.organizationId, action: 'campaign.create', entityType: 'campaign', entityId: campaign.id,
-    metadata: { name: campaign.name, linkCount: campaign.linkCount }, ip,
+    metadata: { name: campaign.name, linkCount: campaign.linkCount, templateId: input.templateId ?? null }, ip,
   })
   await emitWebhook(creator.organizationId, 'campaign.created', {
     campaignId: campaign.id, name: campaign.name, network: campaign.network, assetCode: campaign.assetCode, assetIssuer: campaign.assetIssuer,

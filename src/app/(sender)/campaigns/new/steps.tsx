@@ -185,6 +185,7 @@ export function RecipientsStep({
   draft,
   onChange,
   labels,
+  labelsDefault = '',
   amounts,
   labelError,
   onLabels,
@@ -205,6 +206,8 @@ export function RecipientsStep({
   amounts: (string | null)[]
   labelError: string | null
   onLabels: (raw: string) => void
+  /** A template's recipient list (#82), as the field's initial text. */
+  labelsDefault?: string
   /** Reminder points (#78), days before expiry. */
   reminderDays: number[]
   onReminderDays: (days: number[]) => void
@@ -255,6 +258,7 @@ export function RecipientsStep({
             id="labels"
             name="labels"
             rows={4}
+            defaultValue={labelsDefault}
             onChange={(e) => onLabels(e.target.value)}
             placeholder={'alice\nbob\ncarol'}
             className="rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface"

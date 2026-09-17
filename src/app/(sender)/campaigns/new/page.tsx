@@ -1,6 +1,7 @@
 import { pageScope } from '@/lib/api/session-guard'
 import { env } from '@/lib/config/env'
 import { loadReissueSource } from '@/lib/api/outstanding'
+import { prefillFromDraft, prefillFromTemplate } from '@/lib/api/templates'
 import { CampaignWizard } from './wizard'
 
 export const dynamic = 'force-dynamic'
@@ -23,12 +24,24 @@ export default async function NewCampaignPage({ searchParams }: { searchParams: 
   const reissueId = typeof params.reissue === 'string' ? params.reissue : null
   // Reissue (#78): the source campaign's terms, or why not. Decided in the loader, not here.
   const { reissue, refused } = reissueId ? await loadReissueSource(reissueId, org.id) : { reissue: null, refused: null }
+  // Template (#82): a fresh run of a template, or a prepared DRAFT to finish. Decided in the loader.
+  const templateId = typeof params.template === 'string' ? params.template : null
+  const draftId = typeof params.draft === 'string' ? params.draft : null
+  const template = draftId
+    ? await prefillFromDraft(draftId, org.id, env.MAX_LINKS_PER_CAMPAIGN)
+    : templateId
+      ? await prefillFromTemplate(templateId, org.id, env.MAX_LINKS_PER_CAMPAIGN)
+      : null
+  const templateRefused = (draftId || templateId) && !template ? 'That template run could not be found, or it has already been continued.' : null
 
   return (
     <>
       <h1 className="text-display-lg text-primary max-md:text-headline-md">New campaign</h1>
       {refused && (
         <p role="alert" className="mt-md max-w-2xl text-body-md text-error">{refused}</p>
+      )}
+      {templateRefused && (
+        <p role="alert" className="mt-md max-w-2xl text-body-md text-error">{templateRefused}</p>
       )}
       <p className="mt-md max-w-2xl text-body-md text-on-surface-variant">
         Every link gets its own key, generated in this tab. We never see them — which is
@@ -42,6 +55,7 @@ export default async function NewCampaignPage({ searchParams }: { searchParams: 
         baseFeeStroops={env.BASE_FEE_STROOPS}
         screening={org.screeningUrl !== null}
         reissue={reissue}
+        template={template}
       />
     </>
   )

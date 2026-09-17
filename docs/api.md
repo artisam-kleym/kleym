@@ -30,6 +30,9 @@ separately (`x-ratelimit-write-remaining`). Errors are RFC 9457
 | Method | Path | Body | Returns |
 |---|---|---|---|
 | POST | `/api/v1/campaigns` | `{ name, network, senderPublicKey, assetCode, assetIssuer?, amountPerLink, linkCount, expiresAt, receiveAs?: [{ assetCode, assetIssuer? }], allowExchangeDeposit?: boolean, reminderDaysBefore?: number[], claimPolicy?: "open" \| "code" \| "email" \| "passkey" }` | 201, the campaign |
+| GET | `/api/v1/templates` | — | `{ templates: [{ id, name, enabled, cadence, runHour, nextRunAt, lastRunAt, terms }] }` (#82) |
+| PUT | `/api/v1/templates/{id}/recipients` | `{ recipientsCsv }` or `{ recipients: [{ label, amount?, reference?, category?, note? }] }` — replaces the template's list; labels, never keys | `{ id, recipients }` |
+| POST | `/api/v1/templates/{id}/run` | `{}` | 201 `{ campaignId, linkCount, totalAmount, approvalRequired }` — a DRAFT campaign with the terms and list; an operator generates keys and signs it |
 | POST | `/api/v1/campaigns/{id}/links` | `{ publicKeys: [G…], labels?: [], attestations?: [{reference?, category?, note?} \| null], amounts?: ["12.5" \| null], codes?: [13-char] }` — `codes` required, one per key, when the campaign's `claimPolicy` is `code`; hashed on arrival | 201 `{ registered, total }` |
 | POST | `/api/v1/campaigns/{id}/export` | `{}` | `{ csvExportedAt }` — the caller's **attestation** that the secrets file is saved (see below); refused before any link exists |
 | POST | `/api/v1/campaigns/{id}/batches/prepare` | `{ sequence? }` | `{ sequence, totalBatches, linkCount, xdr, networkPassphrase, reserve, … }` |
