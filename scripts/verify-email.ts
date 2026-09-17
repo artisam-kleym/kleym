@@ -67,7 +67,7 @@ async function fixture(count: number): Promise<Fixture> {
     const seed = keypair.secret()
     const row = await prisma.claimLink.create({
       data: {
-        campaignId: campaign.id, ephemeralPublicKey: keypair.publicKey(), status: 'ACTIVE',
+        campaignId: campaign.id, ephemeralPublicKey: keypair.publicKey(), amount: '500.0000000', status: 'ACTIVE',
         balanceId: `00000000${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}`.slice(0, 72),
       },
       select: { id: true },

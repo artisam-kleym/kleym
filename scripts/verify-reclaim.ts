@@ -80,6 +80,7 @@ async function fixture(
       data: {
         campaignId: campaign.id,
         ephemeralPublicKey: Keypair.random().publicKey(),
+        amount: opts.amount ?? AMOUNT,
         status: 'ACTIVE',
         balanceId,
       },

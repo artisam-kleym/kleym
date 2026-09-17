@@ -24,6 +24,7 @@
  */
 import 'client-only'
 import { Keypair } from '@stellar/stellar-sdk'
+import { deriveKeypairs } from './derive'
 
 /** The sender's own reference data for one recipient (#52). Never key material. */
 export interface Attestation {
@@ -38,6 +39,8 @@ export interface EphemeralKey {
   secret: string
   label: string | null
   attestation: Attestation | null
+  /** This link's own amount (#73), fixed-point, or null for the campaign default. */
+  amount: string | null
 }
 
 /**
@@ -47,7 +50,12 @@ export interface EphemeralKey {
  * Called in a loop rather than batched so a partially generated set is never
  * held: either the whole campaign's keys exist or none do.
  */
-export function generateEphemeralKeys(count: number, labels: string[] = [], attestations: (Attestation | null)[] = []): EphemeralKey[] {
+export function generateEphemeralKeys(
+  count: number,
+  labels: string[] = [],
+  attestations: (Attestation | null)[] = [],
+  amounts: (string | null)[] = [],
+): EphemeralKey[] {
   if (!Number.isInteger(count) || count < 1) {
     throw new Error(`link count must be a positive integer, got ${count}`)
   }
@@ -59,8 +67,36 @@ export function generateEphemeralKeys(count: number, labels: string[] = [], atte
       secret: keypair.secret(),
       label: labels[index] ?? null,
       attestation: attestations[index] ?? null,
+      amount: amounts[index] ?? null,
     }
   })
+}
+
+/**
+ * Generates `count` keypairs DETERMINISTICALLY from a recovery phrase (#77),
+ * at `m/44'/148'/campaignIndex'/link'`. The same phrase and index give the
+ * same keys, so the CSV is regenerable from the phrase alone — the sender
+ * keeps one phrase instead of one file per campaign. Same shape as
+ * `generateEphemeralKeys`; only where the randomness comes from differs.
+ */
+export function deriveEphemeralKeys(
+  phrase: string,
+  campaignIndex: number,
+  count: number,
+  labels: string[] = [],
+  attestations: (Attestation | null)[] = [],
+  amounts: (string | null)[] = [],
+): EphemeralKey[] {
+  if (!Number.isInteger(count) || count < 1) {
+    throw new Error(`link count must be a positive integer, got ${count}`)
+  }
+  return deriveKeypairs(phrase, campaignIndex, count).map((keypair, index) => ({
+    publicKey: keypair.publicKey(),
+    secret: keypair.secret(),
+    label: labels[index] ?? null,
+    attestation: attestations[index] ?? null,
+    amount: amounts[index] ?? null,
+  }))
 }
 
 /** Only the public halves. This is the ONLY shape that may be sent anywhere. */
@@ -68,12 +104,15 @@ export function publicHalves(keys: EphemeralKey[]): {
   publicKeys: string[]
   labels: (string | null)[]
   attestations?: (Attestation | null)[]
+  amounts?: (string | null)[]
 } {
   const attestations = keys.map((key) => key.attestation)
+  const amounts = keys.map((key) => key.amount)
   return {
     publicKeys: keys.map((key) => key.publicKey),
     labels: keys.map((key) => key.label),
     // Omitted entirely when nobody set one, so the request is what it always was.
     ...(attestations.some((a) => a !== null) ? { attestations } : {}),
+    ...(amounts.some((a) => a !== null) ? { amounts } : {}),
   }
 }

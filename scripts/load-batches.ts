@@ -74,6 +74,7 @@ async function main(): Promise<void> {
       data: Array.from({ length: size }, () => ({
         campaignId: campaign.id,
         ephemeralPublicKey: Keypair.random().publicKey(),
+        amount: '1.0000000',
         status: 'PENDING' as const,
       })),
     })

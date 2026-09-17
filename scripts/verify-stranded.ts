@@ -61,7 +61,7 @@ async function fixture(count: number, status: 'ACTIVE' | 'EXPIRED' | 'CLAIMED' =
     const key = Keypair.random().publicKey()
     const balanceId = `00000000${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}`.slice(0, 72)
     const row = await prisma.claimLink.create({
-      data: { campaignId: campaign.id, ephemeralPublicKey: key, status, balanceId },
+      data: { campaignId: campaign.id, ephemeralPublicKey: key, amount: '2.5000000', status, balanceId },
       select: { id: true },
     })
     links.push({ id: row.id, key, balanceId })

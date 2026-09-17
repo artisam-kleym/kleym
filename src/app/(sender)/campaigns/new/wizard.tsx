@@ -7,10 +7,11 @@
  * The only thing that crosses to the server is `publicHalves` — the G…
  * addresses — plus the campaign's own metadata (AGENT.md §1).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, Stepper } from '@/components/ui'
-import { generateEphemeralKeys, publicHalves, type Attestation } from '@/lib/campaign/keygen'
+import { deriveEphemeralKeys, publicHalves, type Attestation } from '@/lib/campaign/keygen'
+import { phraseFingerprint, randomCampaignIndex } from '@/lib/campaign/derive'
 import { parseLabels } from '@/lib/campaign/csv'
 import { parseReceiveAs, receiveAsErrorMessage, type ReceiveAsEntry } from '@/lib/campaign/receive-as'
 import { affordability, computeCost, type CostBreakdown } from '@/lib/campaign/cost'
@@ -79,6 +80,8 @@ export function CampaignWizard(config: WizardConfig) {
   const [reservePerLink, setReservePerLink] = useState<string | null>(null)
   const [labels, setLabels] = useState<string[]>([])
   const [attestations, setAttestations] = useState<(Attestation | null)[]>([])
+  /** Per-link amounts (#73) from the pasted CSV; empty means every link pays the default. */
+  const [amounts, setAmounts] = useState<(string | null)[]>([])
   const [labelError, setLabelError] = useState<string | null>(null)
   const [filename, setFilename] = useState<string | null>(null)
   /**
@@ -96,6 +99,21 @@ export function CampaignWizard(config: WizardConfig) {
   const receiveAsError = receiveAsParsed.ok ? null : receiveAsErrorMessage(receiveAsParsed)
   const onReceiveAs = useCallback((raw: string) => setReceiveAsRaw(raw), [])
   const [allowExchangeDeposit, setAllowExchangeDeposit] = useState(false)
+
+  /*
+   * Recovery phrase (#77). A REF, like the seeds in useWizard: the phrase must
+   * not be part of anything React might serialise, and nothing but keygen
+   * reads it. `phraseConfirmed` is the only thing rendered.
+   */
+  const phrase = useRef<string | null>(null)
+  const [phraseConfirmed, setPhraseConfirmed] = useState(false)
+  const [derivation, setDerivation] = useState<{ index: number; fingerprint: string } | null>(null)
+  const onPhrase = useCallback((value: string) => {
+    phrase.current = value
+    // A fresh 31-bit index per campaign, so two campaigns from one phrase never share a path.
+    setDerivation({ index: randomCampaignIndex(), fingerprint: phraseFingerprint(value) })
+    setPhraseConfirmed(true)
+  }, [])
 
   const patch = useCallback((next: Partial<typeof draft>) => setDraft((d) => ({ ...d, ...next })), [])
 
@@ -140,6 +158,7 @@ export function CampaignWizard(config: WizardConfig) {
     try {
       return computeCost({
         amountPerLink: draft.amountPerLink,
+        amounts: amounts.length > 0 ? amounts : undefined,
         linkCount: draft.linkCount,
         reservePerLink,
         maxOpsPerBatch: config.maxOpsPerBatch,
@@ -150,7 +169,7 @@ export function CampaignWizard(config: WizardConfig) {
       // the sender is still typing.
       return null
     }
-  }, [reservePerLink, draft.amountPerLink, draft.linkCount, config])
+  }, [reservePerLink, draft.amountPerLink, draft.linkCount, amounts, config])
 
   const affordable = useMemo(() => {
     if (!cost || balances.length === 0) return null
@@ -188,6 +207,7 @@ export function CampaignWizard(config: WizardConfig) {
       if (raw.trim() === '') {
         setLabels([])
         setAttestations([])
+        setAmounts([])
         setLabelError(null)
         return
       }
@@ -195,11 +215,13 @@ export function CampaignWizard(config: WizardConfig) {
       if (parsed.ok) {
         setLabels(parsed.labels)
         setAttestations(parsed.attestations ?? [])
+        setAmounts(parsed.amounts ?? [])
         setLabelError(null)
         return
       }
       setLabels([])
       setAttestations([])
+      setAmounts([])
       setLabelError(labelErrorMessage(parsed, draft.linkCount))
     },
     [draft.linkCount],
@@ -209,13 +231,14 @@ export function CampaignWizard(config: WizardConfig) {
     wizard.setError(null)
     wizard.setPhase('generating')
     try {
-      wizard.replaceKeys(generateEphemeralKeys(draft.linkCount, labels, attestations))
+      if (!phrase.current || !derivation) throw new Error('Confirm your recovery phrase first.')
+      wizard.replaceKeys(deriveEphemeralKeys(phrase.current, derivation.index, draft.linkCount, labels, attestations, amounts))
       wizard.setPhase('awaiting-download')
     } catch (error) {
       wizard.setPhase('editing')
       wizard.setError(error instanceof Error ? error.message : 'Could not generate keys.')
     }
-  }, [draft.linkCount, labels, attestations, wizard])
+  }, [draft.linkCount, labels, attestations, amounts, wizard, derivation])
 
   /* THE GATE. Only this can open it, and only after the file is written. */
   const onDownload = useCallback(() => {
@@ -243,7 +266,7 @@ export function CampaignWizard(config: WizardConfig) {
         return
       }
 
-      const campaignId = await createCampaign(draft, wizard.keys.length, receiveAs, allowExchangeDeposit)
+      const campaignId = await createCampaign(draft, wizard.keys.length, derivation, receiveAs, allowExchangeDeposit)
       wizard.setCampaignId(campaignId)
       await registerLinks(campaignId, wizard.keys)
 
@@ -270,7 +293,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
     }
-  }, [wizard, draft, cost, stepUp, receiveAs, allowExchangeDeposit])
+  }, [wizard, draft, cost, stepUp, derivation, receiveAs, allowExchangeDeposit])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -300,7 +323,7 @@ export function CampaignWizard(config: WizardConfig) {
 
   return (
     <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
-      <Stepper steps={summarise(STEPS, draft, cost)} current={wizard.step} />
+      <Stepper steps={summarise(STEPS, draft, cost, amounts.some((a) => a !== null))} current={wizard.step} />
 
       <div>
         {wizard.step === 0 && (
@@ -322,6 +345,7 @@ export function CampaignWizard(config: WizardConfig) {
             draft={draft}
             onChange={patch}
             labels={labels}
+            amounts={amounts}
             labelError={labelError}
             onLabels={onLabels}
             cost={cost}
@@ -348,6 +372,8 @@ export function CampaignWizard(config: WizardConfig) {
             campaignId={wizard.campaignId}
             appUrl={config.appUrl}
             screening={config.screening}
+            phraseConfirmed={phraseConfirmed}
+            onPhrase={onPhrase}
           />
         )}
 
@@ -405,6 +431,7 @@ function idempotencyKey(): string {
 async function createCampaign(
   draft: { name: string; network: string; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; expiresAt: string },
   linkCount: number,
+  derivation: { index: number; fingerprint: string } | null,
   receiveAs: ReceiveAsEntry[] = [],
   allowExchangeDeposit = false,
 ): Promise<string> {
@@ -420,6 +447,8 @@ async function createCampaign(
       amountPerLink: draft.amountPerLink,
       linkCount,
       expiresAt: new Date(draft.expiresAt).toISOString(),
+      // The path index and a PUBLIC-key fingerprint (#77). Never the phrase.
+      ...(derivation ? { derivationIndex: derivation.index, keyFingerprint: derivation.fingerprint } : {}),
       // Omitted entirely when empty, so the request is what it always was.
       ...(receiveAs.length > 0 ? { receiveAs } : {}),
       ...(allowExchangeDeposit ? { allowExchangeDeposit } : {}),
@@ -492,6 +521,8 @@ function labelErrorMessage(
       return `${parsed.found} labels for ${linkCount} links. Raise the link count or remove some.`
     case 'too-long':
       return `Line ${parsed.line}: the ${parsed.column} column is over ${parsed.allowed} characters.`
+    case 'amount':
+      return `Line ${parsed.line}: "${parsed.value}" is not an amount. Use digits with up to seven decimal places, greater than zero — or leave the cell blank for the default.`
     case 'empty':
       return 'No labels found.'
   }
@@ -501,12 +532,13 @@ function summarise(
   steps: { title: string }[],
   draft: { assetCode: string; amountPerLink: string; linkCount: number },
   cost: CostBreakdown | null,
+  amountsVary = false,
 ) {
   return steps.map((step, index) => ({
     ...step,
     summary:
       index === 0 && draft.amountPerLink
-        ? `${draft.amountPerLink} ${draft.assetCode} per link`
+        ? `${draft.amountPerLink} ${draft.assetCode} per link${cost && amountsVary ? ` by default · ${cost.totalAmount} in total` : ''}`
         : index === 1 && cost
           ? `${draft.linkCount} links · ${cost.signatures} signature${cost.signatures === 1 ? '' : 's'}`
           : undefined,

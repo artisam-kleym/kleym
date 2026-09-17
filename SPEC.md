@@ -24,6 +24,8 @@ This is the central design constraint. Every other decision in this document def
 
 The cost: if the sender loses the CSV, those funds are stranded until expiry and then reclaimed. This is why CSV export is a **hard gate**, not a convenience button.
 
+Since #77 the keys are **derived, not random**: SLIP-0010 ed25519 at `m/44'/148'/<campaign>'/<link>'` from a BIP39 phrase the sender generates and keeps, entirely in the browser. A lost CSV is regenerable from the phrase; the gate is unchanged. The server stores the campaign's path index and a fingerprint of a *public* key — nothing that derives a key. The trade is stated to the sender rather than hidden: one phrase reconstructs every campaign derived from it, so it concentrates risk as it reduces the chance of loss. Kleym holds no copy and no share of the phrase, under any framing — the moment it could reconstruct a spending key it would be a custodian. And because a phrase matches none of the `S…` seed guards, `containsSecretSeed` and the CI guard recognise a checksum-valid BIP39 phrase too.
+
 ### 1.3 Scope
 
 **In scope for v1**
@@ -423,7 +425,8 @@ model Campaign {
   senderPublicKey String                        // G... that funded it
   assetCode       String                        // "XLM" or e.g. "USDC"
   assetIssuer     String?                       // null for native
-  amountPerLink   Decimal        @db.Decimal(23, 7)
+  amountPerLink   Decimal        @db.Decimal(23, 7)  // the DEFAULT per link; each ClaimLink carries its own (#73)
+  variableAmounts Boolean        @default(false)     // any link differs from the default — display only
   linkCount       Int
   expiresAt       DateTime
   status          CampaignStatus @default(DRAFT)
@@ -466,6 +469,7 @@ model ClaimLink {
   ephemeralPublicKey String     @unique
 
   balanceId          String?    @unique      // set once the batch confirms
+  amount             Decimal    @db.Decimal(23, 7)  // what THIS link pays (#73); amountPerLink is the default
   status             LinkStatus @default(PENDING)
   label              String?                 // sender's own note: handle, email, etc.
 
@@ -663,7 +667,7 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 | POST | `/api/campaigns` | Create draft. Body: name, network, asset, amountPerLink, linkCount, expiresAt, `receiveAs?` (#74: up to five assets a recipient may convert into), `allowExchangeDeposit?` (#75) |
 | GET | `/api/campaigns/[id]` | Detail with aggregate counts |
 | PATCH | `/api/campaigns/[id]` | Rename, cancel draft |
-| POST | `/api/campaigns/[id]/links` | Register ephemeral **public** keys. Body: `{ publicKeys: string[], labels?: string[] }`. **Rejects any 56-char value beginning `S`.** |
+| POST | `/api/campaigns/[id]/links` | Register ephemeral **public** keys. Body: `{ publicKeys: string[], labels?: string[], amounts?: (string \| null)[] }` — a per-link amount (#73), `null` for `amountPerLink`. **Rejects any 56-char value beginning `S`.** |
 | POST | `/api/campaigns/[id]/batches/prepare` | Returns unsigned XDR for batch `n` |
 | POST | `/api/campaigns/[id]/batches/submit` | Body: `{ sequence, signedXdr }`. Submits, records hash, extracts balance IDs |
 | POST | `/api/campaigns/[id]/export` | Marks `csvExportedAt`. Returns nothing — the CSV is built client-side |
@@ -928,6 +932,7 @@ State these in the product, not just in this document.
 - **Lost CSV means stranded funds** until expiry. By design; the alternative is custody.
 - **Sponsor exhaustion halts claims on that sponsor's campaigns.** Sponsorship is a pool (#48): new campaigns are bound to the first sponsor with working float and keep it for life, so one exhausted account cannot stop every campaign, and crossing the alert threshold pages a webhook. It is still float that a person has to top up; `docs/sponsor-runbook.md`.
 - **A leaked link is a bearer instrument.** Anyone holding the URL can claim. Email delivery with OTP mitigates this; direct distribution does not.
+- **A funded campaign cannot be cancelled, only suspended (#72).** `claimantsFor` gives the recipient the balance before `expiresAt` and the sender from `expiresAt` on — there is no instant at which the sender can take it back early. "Suspend" stops Kleym resolving and preparing the links (campaign-wide or one link at a time) and schedules the reclaim for `expiresAt`, when the sweep marks it due and notifies the organisation; the sender still signs the return, because Kleym holds no key that can move the money. Until then every balance is still on the ledger and claimable by whoever holds the link, and the product says so wherever the action appears. True pre-expiry revocation would mean the sender as an unconditional claimant — a change to what a link promises its holder, and a product decision, not a feature to add quietly.
 - **Partial batch failure** leaves a campaign in a mixed state requiring sender action.
 - **An abandoned claim strands sponsor reserves.** If TX1 of a claim lands and TX2 never
   follows, an ephemeral account holds 1.0–1.5 XLM of sponsored reserve. Kleym cannot

@@ -47,6 +47,75 @@ wallet, conversion and exchange shapes with the memo beside it, and the memo che
 (absent, uint64 bound, 28 BYTES not characters, 64-hex hash). **Not verified:** a deposit
 on testnet, the federation lookup against a real exchange, and the page in a browser.
 
+## 2026-09-17 — Regenerable links: derive every key from one recovery phrase (#77)
+
+Before generating keys, the wizard now asks the sender for a recovery phrase — a new
+twelve-word phrase shown once, or one they already hold — and will not continue until they
+confirm it is stored and that they understand the trade: one phrase reconstructs every
+campaign derived from it, so it concentrates risk as it reduces the chance of loss. Every
+link's key is then derived in the browser (SLIP-0010 ed25519 at
+`m/44'/148'/<campaign>'/<link>'`), and the campaign page gains "Regenerate from recovery
+phrase", which derives the keys again, checks every public key against the campaign's
+links, and writes the same CSV — all client-side. The CSV hard gate is unchanged. The
+server stores only the campaign's path index and a fingerprint of a public key; campaigns
+made before this keep working and simply have no regenerate button.
+
+The most important change is to the leak guards: a phrase matches none of the `S…` seed
+patterns, so `containsSecretSeed` — and with it every request-body scan, audit scrub and
+webhook payload check — now refuses any string containing a checksum-valid BIP39 phrase,
+and CI refuses a committed one. Detection is by checksum, so ordinary English made of
+wordlist words does not raise a false security event. Because the scan runs on every
+string of every guarded body, including the unauthenticated claim routes, its cost is
+bounded by construction: the checksum is computed from word indices with one SHA-256 per
+window, and one budget of 4,096 phrase-candidate words is shared across a whole body — a
+body of `zoo zoo zoo …` past it is refused as implausible (`400`, not a security event) in
+about a millisecond, and the worst case at the budget is ~30 ms.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 36 new unit tests — the
+SLIP-0010 ed25519 test vectors (master, `m/0'`, and the five-level path), determinism and
+byte-identical CSVs, distinct keys per index and per phrase, phrase detection embedded in
+prose / Title Case / across lines / in JSON, non-detection of wordlist-only English, and a
+planted phrase found by the request scanner in a stripped field, a nested field and a
+label; `scripts/check-no-mnemonic.ts` run clean. The Playwright specs (phrase gates
+generation; the phrase appears in no request, storage or server-rendered payload) were
+written but **not run** in this environment — no Postgres/Redis — and no page was opened
+in a browser. Regeneration against a real campaign's rows is believed correct, unchecked.
+
+## 2026-09-17 — Different amounts per recipient in one campaign (#73)
+
+A campaign can now pay each recipient a different amount. In the wizard, the pasted CSV
+takes an `amount` column beside `label`, `reference`, `category` and `note`; a blank cell
+pays the campaign's amount per link, a malformed or non-positive one is refused naming its
+row, and the seed and address checks apply to that column too. The cost estimate is the
+sum of what the links pay, not a multiplication. The downloaded secrets file carries the
+amount as its last column so it round-trips. Over the API, `POST …/links` takes `amounts`
+(strings, `null` for the default) and `GET …/links` returns each link's `amount`.
+
+Each `ClaimLink` carries its own `amount` (Decimal(23,7), backfilled from the campaign so
+no existing row is ambiguous), and money reads the link everywhere: the batch builder
+writes it, the batch verifier checks every operation against **that link's** row by
+position — one altered operation in an otherwise valid batch is refused — the claim path
+and delivery email use it, and reconciliation opens an `amount_mismatch` finding when the
+ledger holds something else. Dual control (#45) gates on the SUM of the links' amounts and
+never less than the uniform figure, so 9,999 tiny links and one enormous one cannot slip
+under the threshold; a uniform campaign's terms hash — and every approval already
+recorded — is unchanged, keyed on the campaign's `variableAmounts` flag rather than on the
+running sum, so registering a uniform campaign in several batches never invalidates an
+approval. The dashboard's "total distributed", the claim history, the signed regulator
+export (new `amount` column) and the screening request (`amount` per recipient and a
+`totalAmount`, both under the ALLOW hash) all read the link's own figure, as do the
+outstanding value on a suspended campaign and a per-link suspension. Detail and link tables
+show the per-link amount; the campaign, dashboard and admin lists say "varies" where it does.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 32 new unit tests — the
+planted single-altered-operation batch and a two-links-swap-amounts batch both refused, a
+per-link batch accepted with each operation carrying its own figure, the one-large-link
+approval case, the CSV amount column's accept/refuse table, and the summed cost estimate.
+Existing batch and claim tests run unmodified. `scripts/verify-reconcile.ts` gained the
+amount-mismatch case but was NOT run here (no database in this environment), and the
+backfill migration was authored from the schema diff and not run against a copy of real
+data — both believed correct, unchecked. The wizard was not opened in a browser.
+
 ## 2026-09-17 — Receive-as: the recipient chooses which asset they claim (#74)
 
 A sender can list up to five assets a recipient may receive as (wizard step 1, one per
@@ -76,6 +145,37 @@ and allow-list parsers. **Not verified:** a conversion on testnet (acceptance cr
 needs a funded link and an order book — `pnpm spike` was not extended here), the claim
 page in a browser, and the Playwright zero-third-party check, which was not run in this
 environment (the quote is same-origin by construction).
+
+## 2026-09-17 — Suspend, not cancel: a funded campaign's links stay claimable until expiry (#72)
+
+A sender can suspend a live campaign, or a single link, and the product tells the truth
+about what that does: Kleym stops resolving and preparing the links, but every balance is
+still on the Stellar ledger with the recipient as a valid claimant until `expiresAt`. The
+claimant model gives the sender no earlier instant, so nothing Kleym does can stop a link
+holder claiming before then — and the suspend dialog, the campaign header, the link tables
+and the API response all say so. "Cancel" is now reserved for drafts, which have nothing on
+the ledger.
+
+Suspending schedules the reclaim. The suspended panel shows what is still outstanding and
+what it is worth in the campaign's asset, and names the date the return is scheduled for.
+When that date passes, the hourly expiry sweep marks the reclaim due and fires
+`campaign.reclaim_due` to the organisation's webhooks (with `campaign.suspended` at the
+moment of suspension). The sender still signs the return with their wallet: Kleym holds no
+key that can move the money, so "scheduled" means announced and ready, not submitted.
+`SPEC.md` §12 records the limitation; true pre-expiry revocation is a product decision the
+issue leaves open. One consequence is stated in the dialog and on the suspended panel: a
+claim that had landed its first transaction when Kleym stopped will not get its second from
+Kleym, so each in-flight claim becomes the §12 "abandoned claim strands sponsor reserves"
+case — the panel shows how many, and the reserve stays locked until the holder finishes with
+their own tooling or the link is reclaimed.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 14 new unit tests, including
+one that evaluates the claimant predicates `claimantsFor` writes and asserts the recipient
+can and the sender cannot claim at every instant before expiry — the check acceptance
+criterion 6 asks for, so nobody later mistakes suspension for revocation. The migration
+adds three nullable timestamps and was authored from the schema diff; it has NOT been run
+against a copy of real data (no database in this environment) — believed safe, unchecked.
+The pages were not opened in a browser here.
 
 ## 2026-09-12 — Single sign-on (OIDC) and SCIM provisioning with deprovisioning (#46)
 

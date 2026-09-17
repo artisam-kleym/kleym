@@ -24,11 +24,14 @@ import { recordPassReport, type PassReportSink } from '@/lib/queue/pass-report'
 import { RECONCILE_INTERVAL_MS } from '@/lib/queue/schedule'
 import { logger } from '@/lib/config/logger'
 import { horizon, loadClaimableBalance } from '@/lib/stellar/horizon'
+import { announceDueReclaims } from './suspend'
 
 export type FindingKind =
   | 'claimed_on_chain'
   | 'reclaimed_on_chain'
   | 'critical_still_on_ledger'
+  /** The ledger's amount differs from the link's row (#73). */
+  | 'amount_mismatch'
   | 'unresolved'
 
 export interface BalanceDisposal {
@@ -160,7 +163,7 @@ export async function reconcileCampaign(
 }
 
 const LINK_SELECT = {
-  id: true, balanceId: true, status: true, claimedBy: true, claimTxHash: true, campaignId: true,
+  id: true, balanceId: true, status: true, claimedBy: true, claimTxHash: true, campaignId: true, amount: true,
 } as const
 
 /** Walks a list of links, isolating each one's failure. Shared by both entry points. */
@@ -208,6 +211,8 @@ interface LinkRow {
   status: string
   claimedBy: string | null
   claimTxHash: string | null
+  /** The row's own amount (#73); compared against the ledger's. */
+  amount: { toString(): string }
 }
 
 /** One link, against the ledger. Extracted so a failure can be isolated. */
@@ -244,7 +249,32 @@ async function reconcileLink(
         return
       }
 
-      // Row and ledger agree that it is unclaimed. Nothing to do.
+      /*
+       * Unclaimed on both sides — but is it the SAME money? A balance whose
+       * ledger amount differs from its row (#73) is a claim that will fail on
+       * TX2 (`op_underfunded` or `op_invalid_limit`, see loadClaimable) and a
+       * sign that what was funded is not what was registered. Not corrected:
+       * the ledger is authoritative about the money, but the row is the
+       * sender's stated intent, and only a person can say which was wrong.
+       */
+      const rowAmount = new Decimal(link.amount.toString())
+      if (!rowAmount.equals(new Decimal(onLedger.amount))) {
+        report.critical += 1
+        logger.error(
+          { linkId: link.id, campaignId, expected: rowAmount.toFixed(), onChain: onLedger.amount },
+          'CRITICAL: ledger amount does not match the link row',
+        )
+        await record(
+          link.id,
+          campaignId,
+          'amount_mismatch',
+          'error',
+          `The ledger holds ${onLedger.amount} for this link but the row says ${rowAmount.toFixed()}. Not corrected automatically — the claim will fail until this is resolved.`,
+        )
+        return
+      }
+
+      // Row and ledger agree that it is unclaimed, and on how much. Nothing to do.
       await resolveFindings(link.id)
       return
     }
@@ -409,6 +439,8 @@ export async function reconcileAll(
 export interface ExpiryReport {
   linksExpired: number
   campaignsExpired: number
+  /** Suspended campaigns (#72) whose scheduled reclaim came due in this pass. */
+  reclaimsDue: number
 }
 
 /**
@@ -424,7 +456,11 @@ export async function sweepExpired(now: Date = new Date()): Promise<ExpiryReport
     where: { expiresAt: { lte: now }, status: { in: ['ACTIVE', 'PARTIAL', 'CREATING'] } },
     select: { id: true },
   })
-  if (expired.length === 0) return { linksExpired: 0, campaignsExpired: 0 }
+  // Runs even when nothing newly expired: a campaign suspended AFTER the
+  // sweep that expired it still has a scheduled reclaim to announce.
+  const { reclaimsDue } = await announceDueReclaims(now)
+
+  if (expired.length === 0) return { linksExpired: 0, campaignsExpired: 0, reclaimsDue }
 
   const ids = expired.map((campaign) => campaign.id)
 
@@ -443,7 +479,7 @@ export async function sweepExpired(now: Date = new Date()): Promise<ExpiryReport
     )
   }
 
-  return { linksExpired: links.count, campaignsExpired: campaigns.count }
+  return { linksExpired: links.count, campaignsExpired: campaigns.count, reclaimsDue }
 }
 
 /** The open drift report `/admin/reconciliation` renders. */
@@ -462,7 +498,7 @@ export async function openFindings() {
     select: {
       id: true, kind: true, severity: true, detail: true,
       firstSeenAt: true, lastSeenAt: true,
-      link: { select: { id: true, ephemeralPublicKey: true, status: true, balanceId: true } },
+      link: { select: { id: true, ephemeralPublicKey: true, status: true, balanceId: true, amount: true } },
       campaign: { select: { id: true, name: true, amountPerLink: true, assetCode: true } },
     },
   })
@@ -470,10 +506,11 @@ export async function openFindings() {
 
 /** Total value sitting behind unresolved findings, for the admin summary. */
 export function findingsValue(
-  findings: { campaign: { amountPerLink: unknown } }[],
+  findings: { link: { amount: unknown } }[],
 ): string {
   // Decimal, not Number. AGENT.md §4.1 — this is money on a page someone acts on.
+  // Each LINK's amount (#73), not the campaign default.
   return findings
-    .reduce((total, finding) => total.plus(new Decimal(String(finding.campaign.amountPerLink))), new Decimal(0))
+    .reduce((total, finding) => total.plus(new Decimal(String(finding.link.amount))), new Decimal(0))
     .toFixed()
 }

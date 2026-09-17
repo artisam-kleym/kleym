@@ -25,7 +25,7 @@ export interface RegulatorQuery {
 export const REGULATOR_COLUMNS = [
   'campaignId', 'campaignName', 'campaignStatus', 'campaignCreatedAt', 'createdBy', 'network', 'assetCode', 'assetIssuer',
   'amountPerLink', 'senderPublicKey', 'sponsorPublicKey', 'expiresAt', 'screeningDecision', 'screenedAt',
-  'linkId', 'label', 'reference', 'category', 'note', 'linkStatus', 'ephemeralPublicKey', 'balanceId',
+  'linkId', 'label', 'reference', 'category', 'note', 'amount', 'linkStatus', 'ephemeralPublicKey', 'balanceId',
   'fundingTxHash', 'claimedBy', 'claimedAt', 'claimTxHash',
 ] as const
 
@@ -46,7 +46,7 @@ export async function regulatorRows(query: RegulatorQuery): Promise<RegulatorRow
       links: {
         orderBy: LINK_ORDER,
         select: {
-          id: true, label: true, reference: true, category: true, note: true, status: true, ephemeralPublicKey: true, balanceId: true,
+          id: true, label: true, reference: true, category: true, note: true, amount: true, status: true, ephemeralPublicKey: true, balanceId: true,
           claimedBy: true, claimedAt: true, claimTxHash: true, batch: { select: { transactionHash: true } },
         },
       },
@@ -60,7 +60,9 @@ export async function regulatorRows(query: RegulatorQuery): Promise<RegulatorRow
         network: c.network, assetCode: c.assetCode, assetIssuer: c.assetIssuer, amountPerLink: new Decimal(c.amountPerLink.toString()).toFixed(),
         senderPublicKey: c.senderPublicKey, sponsorPublicKey: c.sponsorPublicKey ?? null, expiresAt: c.expiresAt.toISOString(),
         screeningDecision: c.screeningDecision ?? null, screenedAt: c.screenedAt?.toISOString() ?? null,
-        linkId: l.id, label: l.label, reference: l.reference, category: l.category, note: l.note, linkStatus: l.status,
+        linkId: l.id, label: l.label, reference: l.reference, category: l.category, note: l.note,
+        // The link's own amount (#73): the monetary fact per row; amountPerLink is the campaign default.
+        amount: new Decimal(l.amount.toString()).toFixed(), linkStatus: l.status,
         ephemeralPublicKey: l.ephemeralPublicKey, balanceId: l.balanceId, fundingTxHash: l.batch?.transactionHash ?? null,
         claimedBy: l.claimedBy, claimedAt: l.claimedAt?.toISOString() ?? null, claimTxHash: l.claimTxHash,
       })

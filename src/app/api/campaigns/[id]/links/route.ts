@@ -17,7 +17,7 @@ import {
 } from '@/lib/api/idempotency'
 import { conflict, notFound, serverError, validationProblem } from '@/lib/api/problems'
 import { registerLinks, isWriteConflict } from '@/lib/api/links'
-import { listQuerySchema, registerLinksSchema, zodErrors } from '@/lib/api/campaigns'
+import { listQuerySchema, registerLinksSchema, serialiseAmount, zodErrors } from '@/lib/api/campaigns'
 import { LINK_ORDER } from '@/lib/api/link-order'
 
 export const runtime = 'nodejs'
@@ -48,11 +48,14 @@ export async function GET(request: Request, { params }: Params) {
         select: {
           id: true, ephemeralPublicKey: true, balanceId: true, status: true,
           label: true, claimedBy: true, claimedAt: true, claimTxHash: true,
+          // Attestation fields and the link's own amount (#73) ride along so a
+          // regenerated CSV (#77) round-trips them.
+          reference: true, category: true, note: true, amount: true,
         },
       }),
     ])
 
-    return Response.json({ links, page, perPage, total })
+    return Response.json({ links: links.map((l) => ({ ...l, amount: serialiseAmount(l.amount) })), page, perPage, total })
   } catch (error) {
     logger.error({ reason: error instanceof Error ? error.message : 'unknown' }, 'link list failed')
     return serverError()
@@ -94,7 +97,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!idempotency.reserved) return idempotency.response
 
   try {
-    const outcome = await registerLinks(id, org.id, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations)
+    const outcome = await registerLinks(id, org.id, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations, parsed.data.amounts)
 
     if (outcome.kind !== 'ok') {
       await releaseIdempotency(request, context)

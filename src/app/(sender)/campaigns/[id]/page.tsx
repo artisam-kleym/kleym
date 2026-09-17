@@ -4,6 +4,10 @@ import { pageScope } from '@/lib/api/session-guard'
 import { LINK_PREVIEW, loadCampaignDetail } from '@/lib/api/campaign-detail'
 import { StatusChip, StellarAddress, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
 import { ReclaimPanel } from './reclaim-panel'
+import { RegenerateCsv } from './regenerate-csv'
+import { env } from '@/lib/config/env'
+import { SuspendPanel } from './suspend-panel'
+import { SuspendLinkButton } from './links/suspend-link-button'
 import { ApprovalPanel } from './approval-panel'
 import { approvalStatus } from '@/lib/api/approvals'
 import { roleAtLeast } from '@/lib/api/session-guard'
@@ -37,7 +41,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
 
   const [loaded, approval] = await Promise.all([loadCampaignDetail(id, org.id), approvalStatus(id, org.id)])
   if (!loaded || !approval) notFound()
-  const { campaign, counts, outstanding, expired } = loaded
+  const { campaign, counts, outstanding, outstandingAmount, suspendedLinks, inFlight, expired } = loaded
+  const canSuspend = roleAtLeast(org.role, 'OPERATOR')
 
   return (
     <>
@@ -45,11 +50,22 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         <div>
           <h1 className="text-display-lg text-primary max-md:text-headline-md">{campaign.name}</h1>
           <p className="mt-sm font-mono text-label-md text-on-surface-variant">
-            {campaign.linkCount} links · {campaign.amountPerLink.toString()} {campaign.assetCode} each ·{' '}
+            {campaign.linkCount} links ·{' '}
+            {campaign.variableAmounts
+              ? `${campaign.assetCode}, amounts vary by link`
+              : `${campaign.amountPerLink.toString()} ${campaign.assetCode} each`}{' '}
+            ·{' '}
             {expired ? 'expired' : 'expires'} {campaign.expiresAt.toISOString().slice(0, 10)}
           </p>
         </div>
-        <StatusChip status={CHIP[campaign.status] ?? 'pending'} />
+        <div className="flex items-center gap-sm">
+          <StatusChip status={CHIP[campaign.status] ?? 'pending'} />
+          {campaign.suspendedAt && (
+            // Beside the chip, not instead of it: the chip's state is the
+            // ledger's truth and suspension changes nothing there (#72).
+            <span className="font-mono text-label-sm text-on-surface-variant">suspended · still claimable</span>
+          )}
+        </div>
       </div>
 
       {campaign.allowExchangeDeposit && (
@@ -117,6 +133,30 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         isCreator={campaign.userId === user.id}
       />
 
+      <SuspendPanel
+        campaignId={campaign.id}
+        assetCode={campaign.assetCode}
+        expiresAt={campaign.expiresAt.toISOString()}
+        expired={expired}
+        suspendedAt={campaign.suspendedAt?.toISOString() ?? null}
+        reclaimDueAt={campaign.reclaimDueAt?.toISOString() ?? null}
+        outstanding={outstanding}
+        outstandingAmount={outstandingAmount}
+        suspendedLinks={suspendedLinks}
+        inFlight={inFlight}
+        canAct={canSuspend && ['ACTIVE', 'PARTIAL', 'CREATING'].includes(campaign.status)}
+      />
+      {campaign.derivationIndex !== null && roleAtLeast(org.role, 'OPERATOR') && (
+        <RegenerateCsv
+          campaignId={campaign.id}
+          campaignName={campaign.name}
+          linkCount={campaign.linkCount}
+          derivationIndex={campaign.derivationIndex}
+          keyFingerprint={campaign.keyFingerprint}
+          appUrl={env.APP_URL}
+        />
+      )}
+
       <ReclaimPanel
         campaignId={campaign.id}
         network={campaign.network === 'public' ? 'public' : 'testnet'}
@@ -144,16 +184,25 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         </Link>
       </div>
       <Table className="mt-md">
-        <TableHead columns={['Label', 'Status', 'Claimant', 'Transaction']} />
+        <TableHead columns={['Label', 'Amount', 'Status', 'Claimant', 'Transaction', '']} />
         <tbody>
           {campaign.links.map((link) => (
             <TableRow key={link.id}>
               <TableCell>{link.label ?? '—'}</TableCell>
+              <TableCell className="font-mono">{link.amount.toFixed()} {campaign.assetCode}</TableCell>
               <TableCell>
                 <StatusChip status={CHIP[link.status] ?? 'pending'} />
+                {link.suspendedAt && (
+                  <span className="ml-sm font-mono text-label-sm text-on-surface-variant">suspended</span>
+                )}
               </TableCell>
               <TableCell>{link.claimedBy ? <StellarAddress value={link.claimedBy} /> : '—'}</TableCell>
               <TableCell>{link.claimTxHash ? <StellarAddress value={link.claimTxHash} /> : '—'}</TableCell>
+              <TableCell>
+                {canSuspend && link.status === 'ACTIVE' && !link.suspendedAt && !campaign.suspendedAt && !expired && (
+                  <SuspendLinkButton campaignId={campaign.id} linkId={link.id} expiresAt={campaign.expiresAt.toISOString()} />
+                )}
+              </TableCell>
             </TableRow>
           ))}
         </tbody>
