@@ -533,9 +533,22 @@ model Campaign {
   /// (#73). Display reads this; money never does — money reads the link.
   variableAmounts Boolean        @default(false)
   linkCount       Int
+  /// Receive-as (#74): assets the sender lets a recipient convert into at
+  /// claim time, as "CODE:ISSUER" or "XLM". Empty: the recipient gets the
+  /// campaign asset and TX2 is exactly what it was. The conversion is a
+  /// `pathPaymentStrictSend` inside TX2, quoted and bounded server-side.
+  receiveAsAssets String[]       @default([])
   expiresAt       DateTime
   status          CampaignStatus @default(DRAFT)
   csvExportedAt   DateTime? // hard gate: null blocks activation
+  /// When the sender suspended Kleym's participation (#72). Not a revocation:
+  /// every balance stays on the ledger with the recipient as a valid claimant
+  /// until `expiresAt` — the claimant model in batch.ts gives the sender no
+  /// earlier instant. Kleym stops serving the links, and the reclaim is
+  /// scheduled for `expiresAt`, when the sweep marks it due for signing.
+  suspendedAt     DateTime?
+  /// When the expiry sweep announced the scheduled reclaim as due.
+  reclaimDueAt    DateTime?
   reserveEstimate Decimal?       @db.Decimal(23, 7)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -609,6 +622,10 @@ model ClaimLink {
   amount    Decimal    @db.Decimal(23, 7)
   status    LinkStatus @default(PENDING)
   label     String? // sender's own note: handle, email, etc.
+  /// Per-link suspension (#72), for the wrong-recipient case. Same meaning
+  /// as Campaign.suspendedAt: Kleym stops serving this link, the balance is
+  /// unchanged and claimable by its holder until the campaign expires.
+  suspendedAt DateTime?
 
   /// Attestation fields (#52): the sender's OWN reference data for this
   /// recipient — a case or payroll reference, a category, a note. Carried

@@ -78,7 +78,14 @@ export default async function CampaignsPage({
                     </Link>
                     <span className="ml-sm text-label-sm text-on-surface-variant">{row.network}</span>
                   </TableCell>
-                  <TableCell><StatusChip status={chipFor(row.status)} /></TableCell>
+                  <TableCell>
+                    <StatusChip status={chipFor(row.status)} />
+                    {row.suspendedAt && (
+                      // Not a status of its own: the links are still claimable
+                      // on the ledger, so the chip keeps telling that truth (#72).
+                      <span className="ml-sm font-mono text-label-sm text-on-surface-variant">suspended</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {row.variableAmounts ? 'varies' : row.amountPerLink} {row.assetCode}
                   </TableCell>

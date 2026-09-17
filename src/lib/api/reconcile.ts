@@ -24,6 +24,7 @@ import { recordPassReport, type PassReportSink } from '@/lib/queue/pass-report'
 import { RECONCILE_INTERVAL_MS } from '@/lib/queue/schedule'
 import { logger } from '@/lib/config/logger'
 import { horizon, loadClaimableBalance } from '@/lib/stellar/horizon'
+import { announceDueReclaims } from './suspend'
 
 export type FindingKind =
   | 'claimed_on_chain'
@@ -438,6 +439,8 @@ export async function reconcileAll(
 export interface ExpiryReport {
   linksExpired: number
   campaignsExpired: number
+  /** Suspended campaigns (#72) whose scheduled reclaim came due in this pass. */
+  reclaimsDue: number
 }
 
 /**
@@ -453,7 +456,11 @@ export async function sweepExpired(now: Date = new Date()): Promise<ExpiryReport
     where: { expiresAt: { lte: now }, status: { in: ['ACTIVE', 'PARTIAL', 'CREATING'] } },
     select: { id: true },
   })
-  if (expired.length === 0) return { linksExpired: 0, campaignsExpired: 0 }
+  // Runs even when nothing newly expired: a campaign suspended AFTER the
+  // sweep that expired it still has a scheduled reclaim to announce.
+  const { reclaimsDue } = await announceDueReclaims(now)
+
+  if (expired.length === 0) return { linksExpired: 0, campaignsExpired: 0, reclaimsDue }
 
   const ids = expired.map((campaign) => campaign.id)
 
@@ -472,7 +479,7 @@ export async function sweepExpired(now: Date = new Date()): Promise<ExpiryReport
     )
   }
 
-  return { linksExpired: links.count, campaignsExpired: campaigns.count }
+  return { linksExpired: links.count, campaignsExpired: campaigns.count, reclaimsDue }
 }
 
 /** The open drift report `/admin/reconciliation` renders. */

@@ -58,6 +58,25 @@ export const stellarAmount = z
     { message: 'must be greater than zero' },
   )
 
+/** One asset a recipient may receive as (#74): `XLM`, or a code with its issuer. */
+export const receiveAsAssetSchema = z
+  .object({
+    assetCode: z.string().regex(/^[A-Za-z0-9]{1,12}$/, 'must be XLM or a 1–12 character asset code'),
+    assetIssuer: stellarPublicKey.optional(),
+  })
+  .strict()
+  .refine((v) => v.assetCode === 'XLM' || v.assetIssuer !== undefined, {
+    message: 'a non-native asset requires an issuer',
+    path: ['assetIssuer'],
+  })
+  .refine((v) => v.assetCode !== 'XLM' || v.assetIssuer === undefined, {
+    message: 'the native asset must not have an issuer',
+    path: ['assetIssuer'],
+  })
+
+const sameAsset = (a: { assetCode: string; assetIssuer?: string | undefined }, b: { assetCode: string; assetIssuer?: string | undefined }) =>
+  a.assetCode === b.assetCode && (a.assetIssuer ?? null) === (b.assetIssuer ?? null)
+
 export const createCampaignSchema = z
   .object({
     name: seedFreeString.min(1).max(120),
@@ -71,8 +90,22 @@ export const createCampaignSchema = z
     amountPerLink: stellarAmount,
     linkCount: z.number().int().positive().refine(withinLinkLimit, { message: linkLimitMessage() }),
     expiresAt: z.iso.datetime(),
+    /**
+     * Receive-as (#74): assets a recipient may convert into at claim time. At
+     * most five, none of them the campaign's own asset, none repeated. Omitted
+     * or empty: conversion is not offered and TX2 is exactly what it was.
+     */
+    receiveAs: z.array(receiveAsAssetSchema).max(5).optional(),
   })
   .strict()
+  .refine((v) => !v.receiveAs || v.receiveAs.every((a) => !sameAsset(a, v)), {
+    message: 'receive-as assets must differ from the campaign asset',
+    path: ['receiveAs'],
+  })
+  .refine((v) => !v.receiveAs || v.receiveAs.every((a, i) => v.receiveAs!.findIndex((b) => sameAsset(a, b)) === i), {
+    message: 'receive-as assets must not repeat',
+    path: ['receiveAs'],
+  })
   .refine((v) => v.assetCode === 'XLM' || v.assetIssuer !== undefined, {
     message: 'a non-native asset requires an issuer',
     path: ['assetIssuer'],
@@ -199,8 +232,10 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
       amountPerLink: input.amountPerLink,
       linkCount: input.linkCount,
       expiresAt: new Date(input.expiresAt),
+      // Stored as refs ("XLM" / "CODE:ISSUER"); read back through parseAssetRef, never trusted raw.
+      receiveAsAssets: (input.receiveAs ?? []).map((a) => (a.assetCode === 'XLM' ? 'XLM' : `${a.assetCode}:${a.assetIssuer}`)),
     },
-    select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true },
+    select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true, receiveAsAssets: true },
   })
   await recordAudit({
     userId: creator.userId, organizationId: creator.organizationId, action: 'campaign.create', entityType: 'campaign', entityId: campaign.id,
