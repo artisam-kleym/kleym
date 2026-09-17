@@ -21,7 +21,7 @@ import type { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
 import { redis } from '@/lib/redis/client'
-import { enqueueReminder } from '@/lib/queue/email'
+import { deliveryJobs, enqueueReminder } from '@/lib/queue/email'
 import { redisPassCursor, type PassCursor } from '@/lib/queue/pass-cursor'
 import { recordPassReport, type PassReportSink } from '@/lib/queue/pass-report'
 import { REMINDER_INTERVAL_MS } from '@/lib/queue/schedule'
@@ -114,6 +114,19 @@ const LIVE: ReminderDeps = {
     await redis.del(recipientKey(email))
   },
   enqueue: enqueueReminder,
+}
+
+/** The reminder job for one delivery and point, if the enqueue landed after all; removed with its dedup key. */
+async function removeQueuedReminder(deliveryId: string, point: number): Promise<void> {
+  const queue = deliveryJobs()
+  const dedupe = `remind:${deliveryId}:${point}`
+  try {
+    const jobId = await queue.getDeduplicationJobId(dedupe)
+    if (jobId) await (await queue.getJob(jobId))?.remove()
+    await queue.removeDeduplicationKey(dedupe)
+  } catch (error) {
+    logger.error({ deliveryId, reason: error instanceof Error ? error.message : 'unknown' }, 'could not remove a possibly-queued reminder after rollback')
+  }
 }
 
 export interface ReminderOptions {
@@ -219,6 +232,15 @@ export async function sendReminders(
         await prisma.delivery
           .update({ where: { id: delivery.id }, data: { reminderPoints: { set: delivery.reminderPoints }, remindedAt: delivery.remindedAt } })
           .catch((rollback: unknown) => logger.error({ deliveryId: delivery.id, reason: rollback instanceof Error ? rollback.message : 'unknown' }, 'could not roll back reminder points'))
+        /*
+         * "Nothing was queued" is what the throw says, not always what
+         * happened: the job can be in Redis and the connection drop before
+         * the acknowledgement arrives. With the points rolled back, that job
+         * would send and — its dedup key gone on completion — the next pass
+         * would queue a second copy. So the job is looked for and removed;
+         * a job that is not there is the common case and costs one GET.
+         */
+        await removeQueuedReminder(delivery.id, point)
       }
       if (reserved) await deps.releaseRecipient(delivery.email).catch(() => undefined)
     }
