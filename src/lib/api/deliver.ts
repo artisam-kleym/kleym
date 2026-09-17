@@ -171,7 +171,9 @@ export async function queueDeliveries(
     const delivery = await prisma.delivery.upsert({
       where: { linkId: link.id },
       create: { linkId: link.id, email: recipient.email },
-      update: { email: recipient.email, sentAt: null },
+      // A corrected address starts its reminders (#78) afresh: the points
+      // sent to the old one were sent to the wrong person.
+      update: { email: recipient.email, sentAt: null, reminderPoints: [], remindedAt: null },
       select: { id: true },
     })
 

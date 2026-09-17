@@ -16,6 +16,7 @@
  * one address, and looking like a spammer is the fastest way to lose delivery.
  */
 import { createHash } from 'node:crypto'
+import Decimal from 'decimal.js'
 import type { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
@@ -25,7 +26,7 @@ import { redisPassCursor, type PassCursor } from '@/lib/queue/pass-cursor'
 import { recordPassReport, type PassReportSink } from '@/lib/queue/pass-report'
 import { REMINDER_INTERVAL_MS } from '@/lib/queue/schedule'
 import { emitWebhook } from '@/lib/webhooks/emit'
-import { outstandingValue } from './suspend'
+import { outstandingLinks } from './suspend'
 
 const DAY_MS = 86_400_000
 
@@ -41,9 +42,10 @@ export const EXPIRING_SOON_DAYS = 7
 /**
  * Which reminder points are due for one delivery, pure. A point `d` is due
  * once `now >= expiresAt - d days`, unless it was already sent — and the pass
- * sends ONE message per delivery per run (the latest due point), so a
- * recipient whose campaign has three points that all fell due while the
- * worker was down gets one email, not three.
+ * sends ONE message per delivery per run (the latest due point) and records
+ * EVERY due point as sent, so a recipient whose campaign has three points
+ * that all fell due while the worker was down gets one email, not three —
+ * and not one a day for three days either.
  */
 export function duePoints(
   reminderDaysBefore: number[],
@@ -73,8 +75,10 @@ export interface ReminderReport {
 }
 
 export interface ReminderDeps {
-  /** True if `email` may be mailed now; records the send when it is. */
+  /** True if `email` may be mailed now; reserves the floor when it is. */
   allowRecipient: (email: string, now: Date) => Promise<boolean>
+  /** Gives the floor back when the enqueue failed, so the address is not silently blocked for a day. */
+  releaseRecipient: (email: string) => Promise<void>
   enqueue: typeof enqueueReminder
 }
 
@@ -88,6 +92,9 @@ const LIVE: ReminderDeps = {
     // SET NX with the floor as TTL: one write, atomic, fails closed on a taken key.
     const set = await redis.set(recipientKey(email), '1', 'PX', PER_RECIPIENT_FLOOR_MS, 'NX')
     return set === 'OK'
+  },
+  releaseRecipient: async (email) => {
+    await redis.del(recipientKey(email))
   },
   enqueue: enqueueReminder,
 }
@@ -131,7 +138,9 @@ export async function sendReminders(
         link: {
           select: {
             id: true,
-            campaign: { select: { id: true, name: true, assetCode: true, amountPerLink: true, expiresAt: true, reminderDaysBefore: true, user: { select: { username: true } } } },
+            // What THIS link pays (#73), like the delivery email.
+            amount: true,
+            campaign: { select: { id: true, name: true, assetCode: true, expiresAt: true, reminderDaysBefore: true, user: { select: { username: true } } } },
           },
         },
       },
@@ -144,14 +153,17 @@ export async function sendReminders(
   for (const delivery of candidates) {
     report.checked += 1
     const campaign = delivery.link.campaign
-    const point = pointToSend(duePoints(campaign.reminderDaysBefore, campaign.expiresAt, delivery.reminderPoints, now))
+    const due = duePoints(campaign.reminderDaysBefore, campaign.expiresAt, delivery.reminderPoints, now)
+    const point = pointToSend(due)
     if (point === null || !delivery.email) continue
 
+    let reserved = false
     try {
       if (!(await deps.allowRecipient(delivery.email, now))) {
         report.throttled += 1
         continue
       }
+      reserved = true
       await deps.enqueue({
         kind: 'reminder',
         deliveryId: delivery.id,
@@ -159,21 +171,26 @@ export async function sendReminders(
         email: delivery.email,
         senderName: campaign.user.username,
         campaignName: campaign.name,
-        amount: campaign.amountPerLink.toString(),
+        amount: new Decimal(delivery.link.amount.toString()).toFixed(),
         assetCode: campaign.assetCode,
         expiresAt: campaign.expiresAt.toISOString(),
         sentAt: delivery.sentAt!.toISOString(),
         point,
       })
       // Recorded on enqueue, not on send: a retrying job must not re-qualify
-      // the row and put a second copy in the queue.
+      // the row and put a second copy in the queue. EVERY due point is
+      // recorded, not only the one sent — the one message stands in for all
+      // of them, or the stale points would each earn a daily email later.
       await prisma.delivery.update({
         where: { id: delivery.id },
-        data: { reminderPoints: { push: point }, remindedAt: now },
+        data: { reminderPoints: { push: due }, remindedAt: now },
       })
       report.reminded += 1
     } catch (error) {
       logger.error({ deliveryId: delivery.id, reason: error instanceof Error ? error.message : 'unknown' }, 'could not queue a reminder; continuing')
+      // The floor was taken but nothing was queued: give it back, or this
+      // address hears nothing for a day and a 1-day point is never sent.
+      if (reserved) await deps.releaseRecipient(delivery.email).catch(() => undefined)
     }
   }
 
@@ -205,31 +222,45 @@ export async function sendReminders(
  * `campaign.expiring_soon`, once per campaign, when it is within
  * EXPIRING_SOON_DAYS (or its first reminder point, if earlier) of expiry and
  * still has unclaimed links. Bounded by campaign count, not link count.
+ *
+ * Not for a suspended campaign: its organisation already has
+ * `campaign.suspended` with the outstanding figures, and "expiring soon"
+ * would imply Kleym is still serving those links.
+ *
+ * Soonest expiry first. Rows outside their window are not marked and so
+ * stay in the candidate set; without the order, 200 far-off campaigns could
+ * fill the page every hour while one inside its window expired unannounced.
  */
 export async function announceExpiringSoon(now: Date = new Date()): Promise<number> {
   const horizonMs = EXPIRING_SOON_DAYS * DAY_MS
   const campaigns = await prisma.campaign.findMany({
     where: {
       expiringSoonAt: null,
+      suspendedAt: null,
       status: { in: ['ACTIVE', 'PARTIAL'] },
       expiresAt: { gt: now, lte: new Date(now.getTime() + 365 * DAY_MS) },
     },
-    select: { id: true, organizationId: true, name: true, assetCode: true, amountPerLink: true, expiresAt: true, reminderDaysBefore: true },
+    select: { id: true, organizationId: true, name: true, assetCode: true, expiresAt: true, reminderDaysBefore: true },
+    orderBy: [{ expiresAt: 'asc' }, { id: 'asc' }],
     take: 200,
   })
   let announced = 0
   for (const campaign of campaigns) {
     const earliestPoint = Math.max(EXPIRING_SOON_DAYS, ...campaign.reminderDaysBefore)
     const window = Math.max(horizonMs, earliestPoint * DAY_MS)
+    // Ordered by expiry: past the first campaign outside its window, the rest
+    // are further out still — but each campaign's window is its own, so keep
+    // looking rather than break.
     if (campaign.expiresAt.getTime() - now.getTime() > window) continue
 
-    const outstanding = await prisma.claimLink.count({ where: { campaignId: campaign.id, status: 'ACTIVE' } })
+    // The SUM of the outstanding links' own amounts (#73), like the suspend panel.
+    const { count: outstanding, amount: outstandingAmount } = await outstandingLinks(campaign.id)
     const marked = await prisma.campaign.updateMany({ where: { id: campaign.id, expiringSoonAt: null }, data: { expiringSoonAt: now } })
     if (marked.count === 0 || outstanding === 0) continue
     await emitWebhook(campaign.organizationId, 'campaign.expiring_soon', {
       campaignId: campaign.id,
       outstanding,
-      outstandingAmount: outstandingValue(outstanding, campaign.amountPerLink.toString()),
+      outstandingAmount,
       assetCode: campaign.assetCode,
       expiresAt: campaign.expiresAt.toISOString(),
     })

@@ -68,7 +68,8 @@ export async function loadOutstanding(
   const [links, rowsUnclaimed, remindable, onLedger] = await Promise.all([
     prisma.claimLink.findMany({ where: { campaignId: campaign.id, balanceId: { not: null } }, select: { balanceId: true } }),
     prisma.claimLink.count({ where: { campaignId: campaign.id, status: { in: ['ACTIVE', 'EXPIRED'] } } }),
-    prisma.delivery.count({ where: { sentAt: { not: null }, email: { not: null }, link: { campaignId: campaign.id, status: 'ACTIVE' } } }),
+    // The same links the reminder pass will mail: a suspended link is not reminded.
+    prisma.delivery.count({ where: { sentAt: { not: null }, email: { not: null }, link: { campaignId: campaign.id, status: 'ACTIVE', suspendedAt: null } } }),
     readBalances(campaign.senderPublicKey),
   ])
   const { count, amount } = outstandingFromLedger(links, onLedger)

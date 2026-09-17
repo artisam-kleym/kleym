@@ -27,14 +27,20 @@ this campaign's balances the chain still holds and what they add up to, from the
 own amounts — beside the database's count where the two differ. It says when the reclaim
 is scheduled (expiry), when the sweep marked it due, and lists what has been reclaimed.
 Every expired campaign with unclaimed links is now marked due once and its organisation
-told (`campaign.reclaim_due`), not only suspended ones; a week before expiry a campaign
-with unclaimed links fires `campaign.expiring_soon` once.
+told (`campaign.reclaim_due`), not only suspended ones — campaigns that had already expired
+before this deploy are marked as due at their expiry by the migration, so the first sweep
+does not announce every campaign that ever expired; a week before expiry an unsuspended
+campaign with unclaimed links fires `campaign.expiring_soon` once, soonest expiry first.
 
 Senders can set reminder points — 14, 7, 3 or 1 days before expiry — in the wizard or on a
 live campaign. An hourly, bounded pass (500 deliveries a run, cursor and report like the
 other maintenance jobs) queues one reminder per due point to recipients whose link was
 delivered by email and is still unclaimed and unsuspended, at most one email per address
-per day. **A reminder never contains the claim link**, because Kleym does not have it
+per day — and when several points fell due at once (a worker outage, points added late),
+the one email stands in for all of them rather than each earning a daily email later. A
+failed enqueue gives the day's floor back so the address is not silently skipped, and a
+corrected delivery address starts its reminders afresh. The reminder names what THAT link
+pays (#73). **A reminder never contains the claim link**, because Kleym does not have it
 (SPEC.md §6.5): it names the sender, amount and expiry and tells the recipient to open the
 original message, whose subject it quotes. Links the sender distributed themselves cannot be
 reminded, and the panel says so.
