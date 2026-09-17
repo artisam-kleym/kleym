@@ -21,6 +21,7 @@ import {
   requireApiCaller,
   requireApiWriter,
 } from '@/lib/api/v1'
+import { policyFromRow } from '@/lib/api/claim-policy'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -46,14 +47,14 @@ export async function GET(request: Request) {
         take: perPage,
         select: {
           id: true, name: true, network: true, assetCode: true, assetIssuer: true,
-          amountPerLink: true, linkCount: true, expiresAt: true, status: true, createdAt: true,
+          amountPerLink: true, linkCount: true, expiresAt: true, status: true, createdAt: true, claimPolicy: true,
         },
       }),
     ])
 
     return jsonWithHeaders(
       {
-        campaigns: campaigns.map((c) => ({ ...c, amountPerLink: amount(c.amountPerLink) })),
+        campaigns: campaigns.map((c) => ({ ...c, claimPolicy: policyFromRow(c.claimPolicy), amountPerLink: amount(c.amountPerLink) })),
         page,
         perPage,
         total,

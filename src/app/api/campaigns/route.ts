@@ -22,6 +22,7 @@ import {
   serialiseAmount,
   zodErrors,
 } from '@/lib/api/campaigns'
+import { policyFromRow } from '@/lib/api/claim-policy'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -50,13 +51,13 @@ export async function GET(request: Request) {
         select: {
           id: true, name: true, network: true, assetCode: true, assetIssuer: true,
           amountPerLink: true, linkCount: true, expiresAt: true, status: true,
-          csvExportedAt: true, createdAt: true,
+          csvExportedAt: true, createdAt: true, claimPolicy: true,
         },
       }),
     ])
 
     return Response.json({
-      campaigns: campaigns.map((c) => ({ ...c, amountPerLink: serialiseAmount(c.amountPerLink) })),
+      campaigns: campaigns.map((c) => ({ ...c, claimPolicy: policyFromRow(c.claimPolicy), amountPerLink: serialiseAmount(c.amountPerLink) })),
       page,
       perPage,
       total,
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
     // Sponsor binding (#48), policy snapshot (#45), audit and the outward
     // event (#51) all live in createCampaign, shared with the v1 write API.
     const created = await createCampaign({ userId: user.id, organizationId: org.id }, parsed.data, clientIp(request))
-    const campaign = { id: created.id, name: created.name, status: created.status, amountPerLink: created.amountPerLink, linkCount: created.linkCount, createdAt: created.createdAt }
+    const campaign = { id: created.id, name: created.name, status: created.status, amountPerLink: created.amountPerLink, linkCount: created.linkCount, createdAt: created.createdAt, claimPolicy: created.claimPolicy }
 
     const payload = { ...campaign, amountPerLink: serialiseAmount(campaign.amountPerLink) }
     await storeIdempotentResult(request, context, { status: 201, body: payload })

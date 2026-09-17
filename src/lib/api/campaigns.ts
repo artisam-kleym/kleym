@@ -27,6 +27,7 @@ import { prisma } from '@/lib/db/client'
 import { recordAudit } from './audit'
 import { chooseSponsor } from '@/lib/stellar/sponsors'
 import { emitWebhook } from '@/lib/webhooks/emit'
+import { isClaimCode, policyFromRow, policyToRow } from './claim-policy'
 
 /**
  * Money crosses the API boundary as a STRING. AGENT.md §4.1.
@@ -90,6 +91,8 @@ export const createCampaignSchema = z
     amountPerLink: stellarAmount,
     linkCount: z.number().int().positive().refine(withinLinkLimit, { message: linkLimitMessage() }),
     expiresAt: z.iso.datetime(),
+    /** Who may claim (#79). Open unless said; applied to every link of the campaign. */
+    claimPolicy: z.enum(['open', 'code', 'email', 'passkey']).optional(),
     /**
      * Regenerable links (#77): the campaign's index in the sender's derivation
      * path and a fingerprint of a PUBLIC key from their phrase. Both or
@@ -174,8 +177,18 @@ export const registerLinksSchema = z
      * campaign, so that request is what it always was.
      */
     amounts: z.array(stellarAmount.nullable()).optional(),
+    /**
+     * CODE policy (#79): the per-link claim code, one per public key. Hashed
+     * on arrival and never stored or logged in the clear; required — every
+     * entry — when the campaign's policy is `code`, refused otherwise.
+     */
+    codes: z.array(z.string().min(1).max(32).refine(isClaimCode, { message: 'must be a 13-character claim code' })).optional(),
   })
   .strict()
+  .refine((v) => v.codes === undefined || v.codes.length === v.publicKeys.length, {
+    message: 'codes must have one entry per public key',
+    path: ['codes'],
+  })
   .refine((v) => v.labels === undefined || v.labels.length === v.publicKeys.length, {
     message: 'labels must have one entry per public key',
     path: ['labels'],
@@ -244,12 +257,13 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
       amountPerLink: input.amountPerLink,
       linkCount: input.linkCount,
       expiresAt: new Date(input.expiresAt),
+      claimPolicy: policyToRow(input.claimPolicy ?? 'open'),
       derivationIndex: input.derivationIndex ?? null,
       keyFingerprint: input.keyFingerprint ?? null,
       // Stored as refs ("XLM" / "CODE:ISSUER"); read back through parseAssetRef, never trusted raw.
       receiveAsAssets: (input.receiveAs ?? []).map((a) => (a.assetCode === 'XLM' ? 'XLM' : `${a.assetCode}:${a.assetIssuer}`)),
     },
-    select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true, receiveAsAssets: true },
+    select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true, receiveAsAssets: true, claimPolicy: true },
   })
   await recordAudit({
     userId: creator.userId, organizationId: creator.organizationId, action: 'campaign.create', entityType: 'campaign', entityId: campaign.id,
@@ -259,7 +273,8 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
     campaignId: campaign.id, name: campaign.name, network: campaign.network, assetCode: campaign.assetCode, assetIssuer: campaign.assetIssuer,
     amountPerLink: serialiseAmount(campaign.amountPerLink), linkCount: campaign.linkCount, expiresAt: campaign.expiresAt.toISOString(),
   })
-  return campaign
+  // The policy as the API accepts it (#79), not the enum's spelling.
+  return { ...campaign, claimPolicy: policyFromRow(campaign.claimPolicy) }
 }
 
 export type ExportMarkOutcome = { kind: 'not-found' } | { kind: 'no-links' } | { kind: 'ok'; csvExportedAt: Date }

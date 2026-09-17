@@ -56,6 +56,19 @@ enum CampaignStatus {
   CANCELLED
 }
 
+/// Who may claim a link (#79). OPEN: whoever holds it (SPEC.md §12's bearer
+/// instrument). CODE: a per-link code the sender distributes through a second
+/// channel. EMAIL: the OTP gate — the link must have been emailed by Kleym.
+/// PASSKEY: the first claimant registers a WebAuthn credential and the link is
+/// bound to that device. None of these identifies a person; they bind a link
+/// to a channel or a device.
+enum ClaimPolicy {
+  OPEN
+  CODE
+  EMAIL
+  PASSKEY
+}
+
 enum LinkStatus {
   PENDING // row exists, batch not yet confirmed
   ACTIVE // claimable balance live on ledger
@@ -533,6 +546,8 @@ model Campaign {
   /// (#73). Display reads this; money never does — money reads the link.
   variableAmounts Boolean        @default(false)
   linkCount       Int
+  /// Claim policy (#79), chosen at creation and applied to every link.
+  claimPolicy     ClaimPolicy    @default(OPEN)
   /// Receive-as (#74): assets the sender lets a recipient convert into at
   /// claim time, as "CODE:ISSUER" or "XLM". Empty: the recipient gets the
   /// campaign asset and TX2 is exactly what it was. The conversion is a
@@ -644,9 +659,18 @@ model ClaimLink {
   category  String?
   note      String?
 
+  /// CODE policy (#79): SHA-256 of the per-link code the sender distributes
+  /// through a second channel. The code itself has 65 bits of entropy and
+  /// exists only in the sender's CSV. Guesses are counted in Redis per link
+  /// AND caller (five, then a fifteen-minute lock), never on this row: a
+  /// per-link counter could be held shut by anyone reading the ledger.
+  codeHash        String?
+
   claimedBy   String? // recipient G...
   claimedAt   DateTime?
   claimTxHash String?
+  /// The policy that was satisfied when this link was claimed (#79).
+  claimedUnder ClaimPolicy?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -654,11 +678,29 @@ model ClaimLink {
   campaign Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   batch    Batch?    @relation(fields: [batchId], references: [id])
   delivery Delivery?
+  passkey  ClaimLinkPasskey?
   findings ReconciliationFinding[]
   stranded StrandedAccount?
 
   @@index([campaignId, status])
   @@index([balanceId])
+}
+
+/// PASSKEY policy (#79): the WebAuthn credential the first claimant registered
+/// for this link. Public key, credential id and counter — the private half is
+/// on the recipient's device, which is the whole point. One per link; a
+/// forwarded link is useless without the device that registered.
+model ClaimLinkPasskey {
+  id           String   @id @default(cuid())
+  linkId       String   @unique
+  credentialId String   @unique
+  publicKey    Bytes
+  counter      BigInt   @default(0)
+  transports   String[]
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime?
+
+  link ClaimLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
 }
 
 /// Where a link was emailed. The address is the only recipient PII Kleym
