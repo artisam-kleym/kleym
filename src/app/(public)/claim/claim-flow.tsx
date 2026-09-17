@@ -56,6 +56,8 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
    */
   const otpToken = useRef<string | null>(null)
   const [otpError, setOtpError] = useState<string | null>(null)
+  const [codeError, setCodeError] = useState<string | null>(null)
+  const [passkeyError, setPasskeyError] = useState<string | null>(null)
   const materialised = useRef(false)
   const recipient = useRef<string | null>(null)
 
@@ -107,19 +109,26 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
           return setState('invalid')
         }
 
+        const policy: LinkDetails['policy'] = ['open', 'code', 'email', 'passkey'].includes(body.policy) ? body.policy : 'open'
         setLink({
           amount: body.amount,
           assetCode: body.assetCode,
           senderName: body.senderName,
           expiresAt: body.expiresAt,
           network: body.network,
+          policy,
+          passkeyBound: body.passkeyBound === true,
         })
         /*
-         * An emailed link is gated on the code before anything else happens.
-         * The recipient holds the URL; the code proves they also hold the
-         * address the sender chose (SPEC.md §6.4).
+         * The policy (#79) is shown on the ready screen, and the credential is
+         * asked for BEFORE the wallet — the same order as the OTP gate (#14):
+         * the recipient holds the URL; the credential proves the link reached
+         * the person, channel or device it was bound to (SPEC.md §6.4).
          */
-        setState(body.otpRequired ? 'otp_required' : 'ready')
+        if (body.otpRequired || policy === 'email') setState('otp_required')
+        else if (policy === 'code') setState('code_required')
+        else if (policy === 'passkey') setState('passkey_required')
+        else setState('ready')
       } catch {
         if (!cancelled) setState('invalid')
       }
@@ -308,6 +317,76 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
     }
   }
 
+  /** CODE policy (#79): the code becomes the same kind of token the OTP earns. */
+  async function verifyCode(code: string) {
+    const ephemeralPublicKey = ephemeral.current
+    if (!ephemeralPublicKey) return
+    setCodeError(null)
+    try {
+      const response = await fetch('/api/claims/code/verify', {
+        method: 'POST',
+        headers: claimHeaders(null),
+        body: JSON.stringify({ ephemeralPublicKey, code }),
+      })
+      if (!response.ok) {
+        const p = await problem(response)
+        setCodeError(p.detail ?? 'That code did not work.')
+        return
+      }
+      const body = await response.json()
+      otpToken.current = body.token
+      setState('ready')
+    } catch {
+      setCodeError('The code could not be checked. Try again.')
+    }
+  }
+
+  /**
+   * PASSKEY policy (#79): register on first claim, assert afterwards. The
+   * WebAuthn library is loaded on demand and is bundled — no third-party
+   * request leaves this page (SPEC.md §3.6).
+   */
+  async function runPasskey() {
+    const ephemeralPublicKey = ephemeral.current
+    if (!ephemeralPublicKey) return
+    setPasskeyError(null)
+    const bound = link?.passkeyBound === true
+    const stage = bound ? 'authenticate' : 'register'
+    try {
+      const { startRegistration, startAuthentication } = await import('@simplewebauthn/browser')
+      const optionsResponse = await fetch(`/api/claims/passkey/${stage}/options`, {
+        method: 'POST',
+        headers: claimHeaders(null),
+        body: JSON.stringify({ ephemeralPublicKey }),
+      })
+      if (!optionsResponse.ok) {
+        const p = await problem(optionsResponse)
+        setPasskeyError(p.detail ?? 'The passkey could not be started.')
+        return
+      }
+      const optionsJSON = await optionsResponse.json()
+      const credential = bound
+        ? await startAuthentication({ optionsJSON })
+        : await startRegistration({ optionsJSON })
+      const verified = await fetch(`/api/claims/passkey/${stage}`, {
+        method: 'POST',
+        headers: claimHeaders(null),
+        body: JSON.stringify({ ephemeralPublicKey, response: credential }),
+      })
+      if (!verified.ok) {
+        const p = await problem(verified)
+        setPasskeyError(p.detail ?? 'The passkey could not be verified.')
+        return
+      }
+      const body = await verified.json()
+      otpToken.current = body.token
+      if (!bound) setLink((current) => (current ? { ...current, passkeyBound: true } : current))
+      setState('ready')
+    } catch (caught) {
+      setPasskeyError(caught instanceof Error && caught.name === 'NotAllowedError' ? 'The passkey prompt was cancelled.' : 'The passkey could not be used on this device.')
+    }
+  }
+
   async function resendOtp() {
     const ephemeralPublicKey = ephemeral.current
     if (!ephemeralPublicKey) return
@@ -346,9 +425,13 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         claimedBy={claimedBy}
         onConnect={() => void run()}
         otpError={otpError}
-      onVerifyOtp={verifyOtp}
-      onResendOtp={resendOtp}
-      onRetry={onRetry}
+        onVerifyOtp={verifyOtp}
+        onResendOtp={resendOtp}
+        onRetry={onRetry}
+        codeError={codeError}
+        onVerifyCode={(code) => void verifyCode(code)}
+        passkeyError={passkeyError}
+        onPasskey={() => void runPasskey()}
       />
     </ClaimPanel>
   )

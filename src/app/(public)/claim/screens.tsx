@@ -20,6 +20,18 @@ export interface LinkDetails {
   senderName: string
   expiresAt: string
   network: string
+  /** Who may claim (#79), told before the recipient commits to anything. */
+  policy: 'open' | 'code' | 'email' | 'passkey'
+  /** PASSKEY policy: whether a device has already been bound to this link. */
+  passkeyBound?: boolean
+}
+
+/** What each policy means for the person reading, in their words. */
+export const POLICY_COPY: Record<LinkDetails['policy'], string> = {
+  open: 'Anyone who has this link can claim it — keep it to yourself.',
+  code: 'This link is bound to a claim code the sender gave you separately. You will be asked for it.',
+  email: 'This link was sent to an email address and can only be claimed with the code sent to that address.',
+  passkey: 'This link is bound to a passkey. The first time, you register one on this device; after that only that device can claim.',
 }
 
 function Centred({ children }: { children: ReactNode }) {
@@ -78,6 +90,10 @@ export function ClaimScreen({
   otpError,
   onVerifyOtp,
   onResendOtp,
+  codeError = null,
+  onVerifyCode,
+  passkeyError = null,
+  onPasskey,
 }: {
   state: ClaimState
   link: LinkDetails | null
@@ -91,6 +107,12 @@ export function ClaimScreen({
   otpError: string | null
   onVerifyOtp: (code: string) => void
   onResendOtp: () => void
+  /** CODE policy (#79). */
+  codeError?: string | null
+  onVerifyCode?: (code: string) => void
+  /** PASSKEY policy (#79). */
+  passkeyError?: string | null
+  onPasskey?: () => void
 }) {
   switch (state) {
     case 'loading':
@@ -117,6 +139,12 @@ export function ClaimScreen({
             </p>
             {link && <Amount amount={link.amount} assetCode={link.assetCode} />}
           </Centred>
+
+          {link && (
+            <p className="text-center text-body-md text-on-surface-variant" data-testid="claim-policy" data-policy={link.policy}>
+              {POLICY_COPY[link.policy]}
+            </p>
+          )}
 
           <Button variant="claim" onClick={onConnect} data-testid="claim-connect" className="w-full">
             Connect wallet to claim
@@ -153,6 +181,12 @@ export function ClaimScreen({
 
     case 'otp_required':
       return <OtpPanel error={otpError} onVerify={onVerifyOtp} onResend={onResendOtp} />
+
+    case 'code_required':
+      return <CodePanel error={codeError} onVerify={onVerifyCode ?? (() => undefined)} />
+
+    case 'passkey_required':
+      return <PasskeyPanel error={passkeyError} bound={link?.passkeyBound === true} onPasskey={onPasskey ?? (() => undefined)} />
 
     case 'wallet_connecting':
       return <Waiting heading="Waiting for your wallet" detail="Choose an account to continue." />
@@ -256,6 +290,68 @@ export function ClaimScreen({
         </Centred>
       )
   }
+}
+
+/**
+ * CODE policy (#79): the thirteen-character claim code the sender handed over
+ * separately. Five attempts then a fifteen-minute lock, server-side.
+ */
+function CodePanel({ error, onVerify }: { error: string | null; onVerify: (code: string) => void }) {
+  const [code, setCode] = useState('')
+  const cleaned = code.toUpperCase().replace(/[-\s]/g, '')
+  const complete = cleaned.length === 13
+
+  return (
+    <form
+      className="flex flex-col items-center gap-md text-center"
+      onSubmit={(event) => {
+        event.preventDefault()
+        if (complete) onVerify(cleaned)
+      }}
+    >
+      <p className="text-headline-sm text-on-surface">Enter your claim code</p>
+      <p className="text-body-md text-on-surface-variant">
+        The sender gave you a thirteen-character code separately from this link. It confirms the link reached the
+        person it was meant for.
+      </p>
+      <label className="sr-only" htmlFor="claim-code">Claim code</label>
+      <input
+        id="claim-code"
+        name="claim-code"
+        value={code}
+        onChange={(event) => setCode(event.target.value.slice(0, 20))}
+        autoComplete="off"
+        spellCheck={false}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? 'claim-code-error' : undefined}
+        data-testid="claim-code"
+        className="w-72 rounded-lg border border-outline-variant bg-surface px-md py-sm text-center font-mono text-headline-sm tracking-[0.2em] text-on-surface"
+      />
+      {error && (
+        <p id="claim-code-error" role="alert" className="text-body-md text-error">{error}</p>
+      )}
+      <Button type="submit" disabled={!complete}>Continue</Button>
+    </form>
+  )
+}
+
+/**
+ * PASSKEY policy (#79): register on first claim, use the same device after.
+ * The browser's WebAuthn prompt does the work; this explains what it is for.
+ */
+function PasskeyPanel({ error, bound, onPasskey }: { error: string | null; bound: boolean; onPasskey: () => void }) {
+  return (
+    <Centred>
+      <p className="text-headline-sm text-on-surface">{bound ? 'Use your passkey' : 'Register a passkey to claim'}</p>
+      <p className="text-body-md text-on-surface-variant">
+        {bound
+          ? 'This link is bound to the passkey registered when it was first opened. Use that device to continue.'
+          : 'This link will be bound to a passkey on this device — a fingerprint, face or PIN. After that, only this device can claim it, so a copy of the link is useless to anyone else.'}
+      </p>
+      {error && <p role="alert" className="text-body-md text-error">{error}</p>}
+      <Button onClick={onPasskey} data-testid="claim-passkey">{bound ? 'Continue with passkey' : 'Register passkey'}</Button>
+    </Centred>
+  )
 }
 
 /**

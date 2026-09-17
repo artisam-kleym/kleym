@@ -27,6 +27,7 @@ import { prisma } from '@/lib/db/client'
 import { recordAudit } from './audit'
 import { chooseSponsor } from '@/lib/stellar/sponsors'
 import { emitWebhook } from '@/lib/webhooks/emit'
+import { isClaimCode, policyToRow } from './claim-policy'
 
 /**
  * Money crosses the API boundary as a STRING. AGENT.md §4.1.
@@ -71,6 +72,8 @@ export const createCampaignSchema = z
     amountPerLink: stellarAmount,
     linkCount: z.number().int().positive().refine(withinLinkLimit, { message: linkLimitMessage() }),
     expiresAt: z.iso.datetime(),
+    /** Who may claim (#79). Open unless said; applied to every link of the campaign. */
+    claimPolicy: z.enum(['open', 'code', 'email', 'passkey']).optional(),
   })
   .strict()
   .refine((v) => v.assetCode === 'XLM' || v.assetIssuer !== undefined, {
@@ -123,8 +126,18 @@ export const registerLinksSchema = z
     labels: z.array(seedFreeString.max(200)).optional(),
     /** Attestation fields (#52), one entry (or null) per public key. */
     attestations: z.array(attestationSchema.nullable()).optional(),
+    /**
+     * CODE policy (#79): the per-link claim code, one per public key. Hashed
+     * on arrival and never stored or logged in the clear; required — every
+     * entry — when the campaign's policy is `code`, refused otherwise.
+     */
+    codes: z.array(z.string().min(1).max(32).refine(isClaimCode, { message: 'must be a 13-character claim code' })).optional(),
   })
   .strict()
+  .refine((v) => v.codes === undefined || v.codes.length === v.publicKeys.length, {
+    message: 'codes must have one entry per public key',
+    path: ['codes'],
+  })
   .refine((v) => v.labels === undefined || v.labels.length === v.publicKeys.length, {
     message: 'labels must have one entry per public key',
     path: ['labels'],
@@ -189,8 +202,9 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
       amountPerLink: input.amountPerLink,
       linkCount: input.linkCount,
       expiresAt: new Date(input.expiresAt),
+      claimPolicy: policyToRow(input.claimPolicy ?? 'open'),
     },
-    select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true },
+    select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true, claimPolicy: true },
   })
   await recordAudit({
     userId: creator.userId, organizationId: creator.organizationId, action: 'campaign.create', entityType: 'campaign', entityId: campaign.id,

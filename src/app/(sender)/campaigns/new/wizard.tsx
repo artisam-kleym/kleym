@@ -80,6 +80,8 @@ export function CampaignWizard(config: WizardConfig) {
   const [attestations, setAttestations] = useState<(Attestation | null)[]>([])
   const [labelError, setLabelError] = useState<string | null>(null)
   const [filename, setFilename] = useState<string | null>(null)
+  /** Who may claim (#79). Open unless the sender says otherwise. */
+  const [claimPolicy, setClaimPolicy] = useState<'open' | 'code' | 'email' | 'passkey'>('open')
 
   const patch = useCallback((next: Partial<typeof draft>) => setDraft((d) => ({ ...d, ...next })), [])
 
@@ -193,13 +195,14 @@ export function CampaignWizard(config: WizardConfig) {
     wizard.setError(null)
     wizard.setPhase('generating')
     try {
-      wizard.replaceKeys(generateEphemeralKeys(draft.linkCount, labels, attestations))
+      // CODE policy: a claim code is drawn beside each key and goes into the CSV (#79).
+      wizard.replaceKeys(generateEphemeralKeys(draft.linkCount, labels, attestations, { withCodes: claimPolicy === 'code' }))
       wizard.setPhase('awaiting-download')
     } catch (error) {
       wizard.setPhase('editing')
       wizard.setError(error instanceof Error ? error.message : 'Could not generate keys.')
     }
-  }, [draft.linkCount, labels, attestations, wizard])
+  }, [draft.linkCount, labels, attestations, wizard, claimPolicy])
 
   /* THE GATE. Only this can open it, and only after the file is written. */
   const onDownload = useCallback(() => {
@@ -227,7 +230,7 @@ export function CampaignWizard(config: WizardConfig) {
         return
       }
 
-      const campaignId = await createCampaign(draft, wizard.keys.length)
+      const campaignId = await createCampaign(draft, wizard.keys.length, claimPolicy)
       wizard.setCampaignId(campaignId)
       await registerLinks(campaignId, wizard.keys)
 
@@ -254,7 +257,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
     }
-  }, [wizard, draft, cost, stepUp])
+  }, [wizard, draft, cost, stepUp, claimPolicy])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -302,6 +305,8 @@ export function CampaignWizard(config: WizardConfig) {
             labels={labels}
             labelError={labelError}
             onLabels={onLabels}
+            claimPolicy={claimPolicy}
+            onClaimPolicy={setClaimPolicy}
             cost={cost}
             reserveSource={reservePerLink}
             maxLinks={config.maxLinksPerCampaign}
@@ -383,6 +388,7 @@ function idempotencyKey(): string {
 async function createCampaign(
   draft: { name: string; network: string; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; expiresAt: string },
   linkCount: number,
+  claimPolicy: 'open' | 'code' | 'email' | 'passkey' = 'open',
 ): Promise<string> {
   const response = await fetch('/api/campaigns', {
     method: 'POST',
@@ -396,6 +402,7 @@ async function createCampaign(
       amountPerLink: draft.amountPerLink,
       linkCount,
       expiresAt: new Date(draft.expiresAt).toISOString(),
+      ...(claimPolicy !== 'open' ? { claimPolicy } : {}),
     }),
   })
   if (!response.ok) throw new Error((await problemDetail(response)) ?? 'The campaign could not be created.')

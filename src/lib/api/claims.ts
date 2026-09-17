@@ -22,6 +22,8 @@ import { sponsorFor, sponsorSecret } from '@/lib/stellar/sponsors'
 import { alert } from '@/lib/alerts'
 import { observedClaim } from '@/lib/observability/claims'
 import { emitWebhook } from '@/lib/webhooks/emit'
+import { policyFromRow, type ClaimPolicy } from './claim-policy'
+import { recordAudit } from './audit'
 
 const PUBLIC_KEY = /^G[A-Z2-7]{55}$/
 
@@ -75,6 +77,15 @@ export interface ResolvedLink {
   network: string | null
   /** True when the link was emailed and a code is required. */
   otpRequired: boolean
+  /**
+   * Who may claim (#79): `open`, `code`, `email` or `passkey`. A single
+   * non-null value on a claimable link — and `open` on EVERY unavailable
+   * answer, whatever the campaign's real policy, so the field cannot tell an
+   * unknown key from a policy-bound one (SPEC.md §6.4).
+   */
+  policy: ClaimPolicy
+  /** PASSKEY policy: a device is already bound, so the page asserts rather than registers. False on every unavailable answer. */
+  passkeyBound: boolean
 }
 
 /** Every field null, `unavailable`. Unknown, expired and claimed all land here. */
@@ -89,6 +100,9 @@ export function unavailableLink(): ResolvedLink {
     network: null,
     // False, never null: an unavailable answer must not vary in SHAPE either.
     otpRequired: false,
+    // `open`, never null and never the real policy, for the same reason.
+    policy: 'open',
+    passkeyBound: false,
   }
 }
 
@@ -107,10 +121,11 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
     select: {
       status: true,
       delivery: { select: { id: true } },
+      passkey: { select: { id: true } },
       campaign: {
         select: {
           name: true, network: true, assetCode: true, assetIssuer: true,
-          amountPerLink: true, expiresAt: true, status: true,
+          amountPerLink: true, expiresAt: true, status: true, claimPolicy: true,
           user: { select: { username: true } },
         },
       },
@@ -136,6 +151,8 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
      * someone already holding a live link, who needs to know a code is coming.
      */
     otpRequired: link.delivery !== null,
+    policy: policyFromRow(link.campaign.claimPolicy),
+    passkeyBound: link.passkey !== null,
   }
 }
 
@@ -450,7 +467,7 @@ async function submitClaimUnobserved(
     where: { ephemeralPublicKey },
     select: {
       id: true, status: true, campaignId: true, claimTxHash: true, claimedBy: true, balanceId: true,
-      campaign: { select: { sponsorPublicKey: true } },
+      campaign: { select: { sponsorPublicKey: true, claimPolicy: true, organizationId: true } },
     },
   })
   if (!link) return { kind: 'not-found' }
@@ -564,10 +581,22 @@ async function submitClaimUnobserved(
         claimedAt,
         claimTxHash: result.hash,
         claimedBy: recipient,
+        // The policy the gate held this claim to (#79), beside the claim itself.
+        claimedUnder: link.campaign.claimPolicy,
       },
       select: { campaign: { select: { organizationId: true } } },
     })
-    logger.info({ linkId: link.id, campaignId: link.campaignId, hash: result.hash }, 'link claimed')
+    logger.info({ linkId: link.id, campaignId: link.campaignId, hash: result.hash, policy: policyFromRow(link.campaign.claimPolicy) }, 'link claimed')
+    // The audit trail names the policy (#79). No user: the recipient is anonymous by design.
+    await recordAudit({
+      userId: null,
+      organizationId: link.campaign.organizationId,
+      action: 'link.claim',
+      entityType: 'link',
+      entityId: link.id,
+      metadata: { campaignId: link.campaignId, policy: policyFromRow(link.campaign.claimPolicy), claimTxHash: result.hash, claimedBy: recipient ?? '' },
+      ip: null,
+    })
     // The ephemeral PUBLIC key and the claimant — what the ledger shows. Never the link (#51).
     await emitWebhook(claimed.campaign.organizationId, 'link.claimed', {
       campaignId: link.campaignId, linkId: link.id, ephemeralPublicKey, claimedBy: recipient ?? '', claimTxHash: result.hash, claimedAt: claimedAt.toISOString(),

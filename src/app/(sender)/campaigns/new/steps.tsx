@@ -127,6 +127,8 @@ export function RecipientsStep({
   labels,
   labelError,
   onLabels,
+  claimPolicy,
+  onClaimPolicy,
   cost,
   reserveSource,
   maxLinks,
@@ -138,6 +140,9 @@ export function RecipientsStep({
   labels: string[]
   labelError: string | null
   onLabels: (raw: string) => void
+  /** Who may claim (#79). */
+  claimPolicy: 'open' | 'code' | 'email' | 'passkey'
+  onClaimPolicy: (policy: 'open' | 'code' | 'email' | 'passkey') => void
   cost: CostBreakdown | null
   reserveSource: string | null
   maxLinks: number
@@ -203,6 +208,38 @@ export function RecipientsStep({
             </p>
           )}
         </div>
+
+        <fieldset className="flex flex-col gap-xs">
+          <legend className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">
+            Who may claim
+          </legend>
+          {(
+            [
+              ['open', 'Anyone with the link', 'The link is the credential. Right for most distributions; a leaked link is claimable by whoever holds it.'],
+              ['code', 'Anyone with the link AND a claim code', 'Each link gets a 13-character code, written into your secrets file. Hand it over through a second channel — chat, a call, a card — and a forwarded link is useless without it. The file then holds link and code together, so guard it accordingly.'],
+              ['email', 'Only the email address you send it to', 'Links must be delivered by Kleym email; the recipient enters the six-digit code sent to that address. A link you distribute yourself under this policy cannot be claimed.'],
+              ['passkey', 'Only the first device that claims', 'The first person to open the link registers a passkey on their device, and only that device can finish the claim. A copy made afterwards is useless.'],
+            ] as const
+          ).map(([value, title, detail]) => (
+            <label key={value} className="flex items-start gap-sm rounded-lg border border-outline-variant/50 bg-surface-container-low p-md">
+              <input
+                type="radio"
+                name="claimPolicy"
+                value={value}
+                checked={claimPolicy === value}
+                onChange={() => onClaimPolicy(value)}
+                className="mt-1 h-5 w-5"
+              />
+              <span className="flex flex-col gap-xs">
+                <span className="text-label-md font-semibold text-on-surface">{title}</span>
+                <span className="font-mono text-label-sm text-on-surface-variant">{detail}</span>
+              </span>
+            </label>
+          ))}
+          <p className="font-mono text-label-sm text-on-surface-variant">
+            None of these identifies a person. They bind a link to a channel or a device; recipients stay anonymous.
+          </p>
+        </fieldset>
       </div>
 
       {cost && (

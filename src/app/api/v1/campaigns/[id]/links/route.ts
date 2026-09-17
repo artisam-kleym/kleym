@@ -79,9 +79,10 @@ export async function POST(request: Request, { params }: Params) {
   if (!parsed.success) return apiValidationProblem(zodErrors(parsed.error))
 
   try {
-    const outcome = await registerLinks(id, auth.caller.organizationId, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations)
+    const outcome = await registerLinks(id, auth.caller.organizationId, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations, parsed.data.codes)
     if (outcome.kind === 'not-found') return apiNotFound()
     if (outcome.kind === 'bad-status') return apiConflict(`Links can only be registered while a campaign is DRAFT or CREATING; this one is ${outcome.status}.`)
+    if (outcome.kind === 'codes') return apiConflict(outcome.detail)
     if (outcome.kind === 'over-limit') return apiConflict(`This campaign declares ${outcome.declared} links; registering ${outcome.adding} more would make ${outcome.wouldTotal}.`)
     return jsonWithHeaders({ registered: outcome.registered, total: outcome.total }, auth.headers, 201)
   } catch (error) {

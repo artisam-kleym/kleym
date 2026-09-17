@@ -7,10 +7,13 @@
  */
 import { prisma } from '@/lib/db/client'
 import { owned } from './session-guard'
+import { hashClaimCode } from './claim-policy'
 
 export type RegisterOutcome =
   | { kind: 'not-found' }
   | { kind: 'bad-status'; status: string }
+  /** CODE policy (#79): the campaign needs a code per link and did not get one — or got codes it does not take. */
+  | { kind: 'codes'; detail: string }
   | { kind: 'over-limit'; declared: number; adding: number; wouldTotal: number }
   | { kind: 'ok'; registered: number; total: number }
 
@@ -33,14 +36,23 @@ export async function registerLinks(
   publicKeys: string[],
   labels?: (string | null)[],
   attestations?: ({ reference?: string | null; category?: string | null; note?: string | null } | null)[],
+  codes?: string[],
 ): Promise<RegisterOutcome> {
   return prisma.$transaction(
     async (tx) => {
       const campaign = await tx.campaign.findFirst({
         where: owned(campaignId, organizationId),
-        select: { id: true, status: true, linkCount: true },
+        select: { id: true, status: true, linkCount: true, claimPolicy: true },
       })
       if (!campaign) return { kind: 'not-found' }
+
+      // The policy decides whether codes are required or refused; never both silently.
+      if (campaign.claimPolicy === 'CODE' && (!codes || codes.length !== publicKeys.length)) {
+        return { kind: 'codes', detail: 'This campaign binds every link to a claim code; register one code per public key.' }
+      }
+      if (campaign.claimPolicy !== 'CODE' && codes) {
+        return { kind: 'codes', detail: `This campaign's claim policy is ${campaign.claimPolicy.toLowerCase()}; it does not take claim codes.` }
+      }
 
       if (campaign.status !== 'DRAFT' && campaign.status !== 'CREATING') {
         return { kind: 'bad-status', status: campaign.status }
@@ -57,6 +69,8 @@ export async function registerLinks(
           campaignId,
           ephemeralPublicKey: publicKey,
           label: labels?.[index] ?? null,
+          // The HASH. The code itself exists only in the sender's CSV (#79).
+          codeHash: codes ? hashClaimCode(codes[index]!) : null,
           reference: attestations?.[index]?.reference || null,
           category: attestations?.[index]?.category || null,
           note: attestations?.[index]?.note || null,

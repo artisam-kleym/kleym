@@ -51,12 +51,15 @@ export function claimUrl(appUrl: string, secret: string): string {
 }
 
 export function buildCsv(rows: CsvRow[]): string {
-  // Attestation columns come LAST so anything reading the first four by position still works.
-  const header = ['label', 'public_key', 'secret', 'claim_url', 'reference', 'category', 'note'].join(',')
+  // Attestation columns come LAST so anything reading the first four by position
+  // still works; `claim_code` (#79) after them, blank unless the policy is code.
+  // With a code column the file is more sensitive still: link AND code together.
+  const header = ['label', 'public_key', 'secret', 'claim_url', 'reference', 'category', 'note', 'claim_code'].join(',')
   const lines = rows.map(({ key, url }) =>
     [
       quote(key.label ?? ''), quote(key.publicKey), quote(key.secret), quote(url),
       quote(key.attestation?.reference ?? ''), quote(key.attestation?.category ?? ''), quote(key.attestation?.note ?? ''),
+      quote(key.code ?? ''),
     ].join(','),
   )
   // Trailing newline: without it, some tools drop the final row.

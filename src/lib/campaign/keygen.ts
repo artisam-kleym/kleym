@@ -38,6 +38,30 @@ export interface EphemeralKey {
   secret: string
   label: string | null
   attestation: Attestation | null
+  /**
+   * CODE policy (#79): the claim code the sender hands the recipient through
+   * a second channel. Generated here beside the key, exported in the CSV, and
+   * sent to the server only as a hash. Null for every other policy.
+   */
+  code: string | null
+}
+
+/** Crockford base32 — the alphabet lib/api/claim-policy.ts checks. 13 characters: 65 bits. */
+const CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
+const CODE_LENGTH = 13
+
+/** A claim code from the platform CSPRNG, rejection-sampled so every character is equally likely. */
+export function generateClaimCode(): string {
+  const out: string[] = []
+  const buf = new Uint8Array(CODE_LENGTH * 2)
+  while (out.length < CODE_LENGTH) {
+    crypto.getRandomValues(buf)
+    for (const byte of buf) {
+      // 32 divides 256, so a plain mask is unbiased.
+      if (out.length < CODE_LENGTH) out.push(CODE_ALPHABET[byte & 31]!)
+    }
+  }
+  return out.join('')
 }
 
 /**
@@ -47,7 +71,12 @@ export interface EphemeralKey {
  * Called in a loop rather than batched so a partially generated set is never
  * held: either the whole campaign's keys exist or none do.
  */
-export function generateEphemeralKeys(count: number, labels: string[] = [], attestations: (Attestation | null)[] = []): EphemeralKey[] {
+export function generateEphemeralKeys(
+  count: number,
+  labels: string[] = [],
+  attestations: (Attestation | null)[] = [],
+  options: { withCodes?: boolean } = {},
+): EphemeralKey[] {
   if (!Number.isInteger(count) || count < 1) {
     throw new Error(`link count must be a positive integer, got ${count}`)
   }
@@ -59,6 +88,7 @@ export function generateEphemeralKeys(count: number, labels: string[] = [], atte
       secret: keypair.secret(),
       label: labels[index] ?? null,
       attestation: attestations[index] ?? null,
+      code: options.withCodes ? generateClaimCode() : null,
     }
   })
 }
@@ -68,12 +98,20 @@ export function publicHalves(keys: EphemeralKey[]): {
   publicKeys: string[]
   labels: (string | null)[]
   attestations?: (Attestation | null)[]
+  codes?: string[]
 } {
   const attestations = keys.map((key) => key.attestation)
+  const codes = keys.map((key) => key.code)
   return {
     publicKeys: keys.map((key) => key.publicKey),
     labels: keys.map((key) => key.label),
     // Omitted entirely when nobody set one, so the request is what it always was.
     ...(attestations.some((a) => a !== null) ? { attestations } : {}),
+    /*
+     * The claim codes (#79) DO cross to the server — as the credential the
+     * gate will check, hashed on arrival. They are not key material: a code
+     * cannot spend anything; it only satisfies the policy on one link.
+     */
+    ...(codes.every((c) => c !== null) ? { codes: codes as string[] } : {}),
   }
 }

@@ -21,6 +21,8 @@ export type ClaimState =
   | 'invalid'
   | 'ready'
   | 'otp_required'
+  | 'code_required'
+  | 'passkey_required'
   | 'wallet_connecting'
   | 'preparing'
   | 'materialising'
@@ -38,6 +40,8 @@ export const CLAIM_STATES: readonly ClaimState[] = [
   'invalid',
   'ready',
   'otp_required',
+  'code_required',
+  'passkey_required',
   'wallet_connecting',
   'preparing',
   'materialising',
@@ -97,6 +101,9 @@ export function stateFromProblem(status: number, type: string | null): ClaimStat
     // The token lapsed mid-flow (30-minute TTL): ask for the code again
     // rather than landing an emailed recipient on `failed`.
     if (type === CLAIM_CONFLICT_TYPE['otp-required']) return 'otp_required'
+    // The claim-policy gates (#79), same shape: a lapsed token asks again.
+    if (type === CLAIM_CONFLICT_TYPE['code-required']) return 'code_required'
+    if (type === CLAIM_CONFLICT_TYPE['passkey-required']) return 'passkey_required'
   }
   return 'failed'
 }

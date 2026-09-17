@@ -663,6 +663,8 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 | POST | `/api/claims/submit` | `{ ephemeralPublicKey, signedXdr, phase }` → submits, records claim. Rate-limited 10/min/IP. |
 | POST | `/api/claims/otp/request` | Email-delivered links only |
 | POST | `/api/claims/otp/verify` | 6 digits, 5 attempts, 10-minute expiry |
+| POST | `/api/claims/code/verify` | `{ ephemeralPublicKey, code }` — the CODE policy's 13-character claim code (#79); 5 attempts then a 15-minute lock; returns the token the claim actions require |
+| POST | `/api/claims/passkey/register/options`, `…/register`, `…/authenticate/options`, `…/authenticate` | The PASSKEY policy's WebAuthn ceremony (#79), keyed by the link; registration binds the first device, authentication asserts it; both return the token |
 
 Both `prepare` endpoints must re-verify against the ledger — not the database — that the balance still exists and the predicate is satisfiable. A stale `ACTIVE` row is not authorisation to build a claim. See §3.3.3 for why `prepare` is split rather than carrying a `phase` field.
 
@@ -905,6 +907,7 @@ State these in the product, not just in this document.
 - **Lost CSV means stranded funds** until expiry. By design; the alternative is custody.
 - **Sponsor exhaustion halts claims on that sponsor's campaigns.** Sponsorship is a pool (#48): new campaigns are bound to the first sponsor with working float and keep it for life, so one exhausted account cannot stop every campaign, and crossing the alert threshold pages a webhook. It is still float that a person has to top up; `docs/sponsor-runbook.md`.
 - **A leaked link is a bearer instrument.** Anyone holding the URL can claim. Email delivery with OTP mitigates this; direct distribution does not.
+- **Claim policies (#79) bind a link to a channel or a device, never to a person.** A sender may require a per-link claim code (distributed separately), Kleym email delivery (the OTP gate), or a passkey registered by the first claimant. The gate runs on every claim action. `resolve` reports `policy: open` on every unavailable answer, so the field is not an oracle. Recipients stay anonymous; none of this is identity verification.
 - **Partial batch failure** leaves a campaign in a mixed state requiring sender action.
 - **An abandoned claim strands sponsor reserves.** If TX1 of a claim lands and TX2 never
   follows, an ephemeral account holds 1.0–1.5 XLM of sponsored reserve. Kleym cannot

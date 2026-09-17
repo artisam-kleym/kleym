@@ -20,6 +20,40 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-17 — Claim policies: bind a link to a channel or a device (#79)
+
+A sender chooses, when creating a campaign, who may claim its links: **anyone with the link**
+(as before), **anyone with the link and a claim code** (a 13-character code per link, written
+into the secrets file, handed over through a second channel), **only the email address it is
+sent to** (Kleym's email delivery and OTP gate — a self-distributed link under this policy
+cannot be claimed), or **only the first device that claims** (the first claimant registers a
+passkey and the link is bound to it). The claim page states the policy before the recipient
+commits to anything, then asks for the credential — code, emailed OTP or passkey — before the
+wallet. None of these identifies a person; recipients stay anonymous.
+
+The OTP gate is generalised into one claim-policy gate, applied on all three claim actions —
+materialise, claim and submit — as #14's review required; an emailed link on an open
+campaign keeps exactly the OTP behaviour it had. Claim codes are stored hashed and never
+logged; guesses are counted before comparison, five then a fifteen-minute lock. `resolve`
+answers `policy: open` on every unavailable link, so the new field tells an enumerator
+nothing. The policy a claim was held to is recorded on the link (`claimedUnder`) and in the
+audit trail (`link.claim`).
+
+**One deliberate deviation from the issue's text:** codes are hashed with SHA-256, not
+argon2id. A registration of 10,000 links cannot afford 10,000 argon2id rounds in one
+request, and unlike a six-digit OTP a 65-bit code is beyond offline attack on a fast hash;
+the attempt counter and lockout are the OTP's verbatim.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 14 new unit tests — the
+policy decision table for all four policies, code normalisation and hashing, code
+generation and CSV export, and the unavailable answer's fixed serialisation.
+`scripts/verify-claim-policies.ts` drives the three route handlers per policy with no,
+wrong and right credentials, checks the hash at rest, the lockout and its expiry, and
+`resolve`'s byte-identity across unknown / expired / claimed / cancelled under every policy —
+written but **not run** here (no Postgres/Redis). The WebAuthn ceremony and every page were
+not exercised in a browser. Coordinate with #77: the claim code is drawn randomly beside the
+key and is not yet derivable from the recovery phrase.
+
 ## 2026-09-12 — Single sign-on (OIDC) and SCIM provisioning with deprovisioning (#46)
 
 An Owner connects their organisation's identity provider under Settings →

@@ -36,6 +36,26 @@ describe('keygen', () => {
 
   // AGENT.md §1. This is the shape that goes to the server, and it must not be
   // possible to widen it by accident.
+  // #79: a claim code beside each key when the policy asks for one, in the CSV and in the request.
+  it('generates a 13-character claim code per key only when asked', () => {
+    const plain = generateEphemeralKeys(3)
+    expect(plain.every((k) => k.code === null)).toBe(true)
+    expect(publicHalves(plain).codes).toBeUndefined()
+
+    const coded = generateEphemeralKeys(50, [], [], { withCodes: true })
+    for (const key of coded) expect(key.code).toMatch(/^[0-9ABCDEFGHJKMNPQRSTVWXYZ]{13}$/)
+    expect(new Set(coded.map((k) => k.code)).size).toBe(50)
+    expect(publicHalves(coded).codes).toEqual(coded.map((k) => k.code))
+    // The code is not a seed: the seed guard must not fire on it.
+    expect(coded.some((k) => /^S[A-Z2-7]{55}$/.test(k.code!))).toBe(false)
+  })
+
+  it('writes the claim code as the last CSV column', () => {
+    const keys = generateEphemeralKeys(1, ['a'], [], { withCodes: true })
+    const row = buildCsv(keys.map((key) => ({ key, url: 'https://kleym.app/claim#x' }))).trimEnd().split('\n')[1]!
+    expect(row.endsWith(`"${keys[0]!.code}"`)).toBe(true)
+  })
+
   it('publicHalves carries no secret', () => {
     const keys = generateEphemeralKeys(5)
     const halves = publicHalves(keys)
@@ -73,7 +93,7 @@ describe('CSV', () => {
 
   it('has a header and one row per link', () => {
     const lines = buildCsv(rows()).trimEnd().split('\n')
-    expect(lines[0]).toBe('label,public_key,secret,claim_url,reference,category,note')
+    expect(lines[0]).toBe('label,public_key,secret,claim_url,reference,category,note,claim_code')
     expect(lines).toHaveLength(3)
   })
 
