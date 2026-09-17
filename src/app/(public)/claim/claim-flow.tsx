@@ -12,7 +12,7 @@ import { Keypair, Networks, Transaction, TransactionBuilder } from '@stellar/ste
 import { ClaimPanel } from '@/components/ui'
 import { clearFragment, readFragment } from '@/lib/claim/fragment'
 import { claimTraceHeaders } from '@/lib/claim/trace'
-import { isConversionRefused, isNotReady, retryTarget, stateFromProblem, type ClaimState } from '@/lib/claim/machine'
+import { isConversionRefused, isDepositRefused, isNotReady, retryTarget, stateFromProblem, type ClaimState } from '@/lib/claim/machine'
 import { ClaimScreen, type Deposit, type LinkDetails, type ReceiveAsOption, type ReceiveAsQuote } from './screens'
 import type { DepositMemo } from '@/lib/stellar/memo'
 
@@ -59,6 +59,8 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
    * not quietly switch from "deposit with memo" back to "connect a wallet".
    */
   const deposit = useRef<Deposit | null>(null)
+  /** The last deposit address tried, so a later wallet path never inherits it as the recipient. */
+  const lastDeposit = useRef<string | null>(null)
   const [depositMade, setDepositMade] = useState<Deposit | null>(null)
 
   /*
@@ -225,7 +227,9 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         /* Exchange deposit (#75): the destination is typed, not connected. No wallet is involved. */
         recipientKey = deposit.current.publicKey
         recipient.current = recipientKey
-      } else if (from !== 'preparing' || !recipientKey) {
+      } else if (from !== 'preparing' || !recipientKey || recipientKey === lastDeposit.current) {
+        /* Wallet first — §3.3 says TX1 fires on COMMITMENT, not on page load. A key left
+           over from an abandoned deposit is never reused as a wallet. */
         /* Wallet first — §3.3 says TX1 fires on COMMITMENT, not on page load. */
         setState('wallet_connecting')
         recipientKey = await connectWallet(network)
@@ -312,6 +316,17 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
           setReceiveAs(null)
           setQuote(null)
         }
+        /*
+         * The deposit address or memo was refused (#75). Drop it and go back
+         * to `ready` so the recipient can fix it or connect a wallet — a
+         * "Try again" with the same address is a dead end, and TX1 has
+         * already landed, so resuming at TX2 from `ready` is what happens next.
+         */
+        if (isDepositRefused(p.status, p.type)) {
+          deposit.current = null
+          setError(p.detail)
+          return setState('ready')
+        }
         setError(p.detail)
         return setState(stateFromProblem(p.status, p.type))
       }
@@ -378,10 +393,21 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
   const onDeposit = useCallback(
     (chosen: Deposit) => {
       deposit.current = chosen
+      lastDeposit.current = chosen.publicKey
       void run()
     },
     [run],
   )
+
+  /**
+   * "Connect wallet" is explicitly the WALLET path. A deposit chosen earlier —
+   * then bounced to `ready` by a lapsed OTP, or refused — must not hijack it
+   * and send the funds to that address without a wallet ever connecting.
+   */
+  const onConnect = useCallback(() => {
+    deposit.current = null
+    void run()
+  }, [run])
 
   const lookupFederation = useCallback(
     async (address: string): Promise<{ accountId: string; memo: DepositMemo | null }> => {
@@ -458,7 +484,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         network={network}
         claimedAt={claimedAt}
         claimedBy={claimedBy}
-        onConnect={() => void run()}
+        onConnect={onConnect}
         otpError={otpError}
         onVerifyOtp={verifyOtp}
         onResendOtp={resendOtp}

@@ -510,12 +510,8 @@ export interface ClaimPrepared {
 async function prepareClaimUnobserved(
   ephemeralPublicKey: string,
   recipientPublicKey: string,
-<<<<<<< HEAD
   receiveAs?: { assetCode: string; assetIssuer: string | null; destMin?: string },
-=======
-  receiveAs?: { assetCode: string; assetIssuer: string | null },
   memoInput?: { type: string; value: string },
->>>>>>> d681429 (Exchange deposit: claim to an address plus a memo, with the memo enforced)
   quote: QuoteReader = quoteStrictSend,
 ): Promise<Outcome<ClaimPrepared>> {
   if (recipientPublicKey === ephemeralPublicKey) {

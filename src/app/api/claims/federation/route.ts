@@ -8,12 +8,12 @@
  * confirms before anything is built. Nothing about the link is involved, so
  * this is not an enumeration surface; it is rate-limited like resolve.
  */
-import { Federation } from '@stellar/stellar-sdk'
+import { Federation, StellarToml, StrKey } from '@stellar/stellar-sdk'
 import { logger } from '@/lib/config/logger'
 import { clientIp } from '@/lib/auth/client-ip'
 import { rateLimit } from '@/lib/auth/rate-limit'
 import { guardRequestBody } from '@/lib/security/guard'
-import { memoTypeFromFederation } from '@/lib/stellar/memo'
+import { checkMemo, memoTypeFromFederation } from '@/lib/stellar/memo'
 import { zodErrors } from '@/lib/api/campaigns'
 import { z } from 'zod'
 import {
@@ -30,6 +30,31 @@ export const dynamic = 'force-dynamic'
 const FEDERATION_ADDRESS = /^[^*\s]{1,64}\*[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i
 
 const schema = z.object({ address: z.string().regex(FEDERATION_ADDRESS, 'must be a federation address (name*domain.com)') }).strict()
+
+/**
+ * The lookup is a server-side fetch to a host the caller names — first the
+ * domain's stellar.toml, then whatever FEDERATION_SERVER it declares. That is
+ * a request primitive into anything Kleym's server can reach, so both hosts
+ * are held to "a public name": no IP literals, no loopback, link-local,
+ * private or reserved ranges, no localhost / .local / .internal / .localhost,
+ * no ports. A DNS name that later resolves to a private address (rebinding)
+ * is not caught here; this is the surface the route can see.
+ */
+export function isPublicHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/\.$/, '')
+  if (host === '' || host.includes(':') || /^\[|\]$/.test(host)) return false
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+    const [a, b] = host.split('.').map(Number) as [number, number, number, number]
+    if (a === 10 || a === 127 || a === 0 || a >= 224) return false
+    if (a === 172 && b! >= 16 && b! <= 31) return false
+    if (a === 192 && b === 168) return false
+    if (a === 169 && b === 254) return false
+    if (a === 100 && b! >= 64 && b! <= 127) return false
+    return true
+  }
+  if (host === 'localhost' || /\.(local|internal|localhost|home|lan|corp|intranet)$/.test(host)) return false
+  return /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/.test(host)
+}
 
 export async function POST(request: Request) {
   const ip = clientIp(request)
@@ -49,15 +74,45 @@ export async function POST(request: Request) {
   const parsed = schema.safeParse(body)
   if (!parsed.success) return claimValidationProblem(zodErrors(parsed.error))
 
+  const domain = parsed.data.address.split('*')[1]!
+  if (!isPublicHost(domain)) {
+    return claimConflict('That address could not be looked up. Check it with your exchange, or enter the deposit address and memo directly.')
+  }
+
   try {
     // HTTPS only, bounded: an exchange's federation server that is slow or
-    // down should say so within a few seconds, not hang the page.
-    const record = await Federation.Server.resolve(parsed.data.address, { allowHttp: false, timeout: 5_000 })
+    // down should say so within a few seconds, not hang the page. Two steps
+    // rather than `resolve`, so the FEDERATION_SERVER host the toml names is
+    // checked before anything is fetched from it.
+    const toml = await StellarToml.Resolver.resolve(domain, { allowHttp: false, timeout: 5_000 })
+    const federationUrl = typeof toml.FEDERATION_SERVER === 'string' ? toml.FEDERATION_SERVER : ''
+    let federationHost = ''
+    try {
+      const url = new URL(federationUrl)
+      federationHost = url.protocol === 'https:' ? url.hostname : ''
+    } catch {
+      federationHost = ''
+    }
+    if (!federationHost || !isPublicHost(federationHost)) {
+      logger.warn({ domain }, 'federation server missing, not https, or not a public host; refused')
+      return claimConflict('That address could not be looked up. Check it with your exchange, or enter the deposit address and memo directly.')
+    }
+    const server = new Federation.Server(federationUrl, domain, { allowHttp: false, timeout: 5_000 })
+    const record = await server.resolveAddress(parsed.data.address)
+
+    // Defence in depth: what comes back is untrusted too. A key that is not a
+    // Stellar public key — or is a SEED — never reaches the page.
+    if (typeof record.account_id !== 'string' || !StrKey.isValidEd25519PublicKey(record.account_id)) {
+      logger.warn({ domain }, 'federation record carried an invalid account id; refused')
+      return claimConflict('That address could not be looked up. Check it with your exchange, or enter the deposit address and memo directly.')
+    }
     const memoType = memoTypeFromFederation(record.memo_type)
+    const memo = memoType && record.memo !== undefined ? checkMemo({ type: memoType, value: String(record.memo) }) : null
     return Response.json(
       {
         accountId: record.account_id,
-        memo: memoType && record.memo !== undefined ? { type: memoType, value: String(record.memo) } : null,
+        // A memo the exchange returned is checked as a typed memo would be; a malformed one is dropped, not relayed.
+        memo: memo && memo.ok ? memo.memo : null,
       },
       { headers: { 'cache-control': 'no-store' } },
     )

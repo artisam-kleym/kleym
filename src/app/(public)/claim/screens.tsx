@@ -160,6 +160,13 @@ export function ClaimScreen({
             {link && <Amount amount={link.amount} assetCode={link.assetCode} />}
           </Centred>
 
+          {error && (
+            // A refused deposit address or memo lands back here with the reason (#75).
+            <p role="alert" className="text-center text-body-md text-error" data-testid="ready-error">
+              Your funds are untouched. {error}
+            </p>
+          )}
+
           {link && link.receiveAs.length > 0 && onReceiveAs && (
             <ReceiveAsChooser link={link} chosen={receiveAs ?? null} quote={quote ?? null} onChoose={onReceiveAs} />
           )}
@@ -176,7 +183,7 @@ export function ClaimScreen({
           </Button>
 
           {link?.exchangeDeposit && onDeposit && (
-            <DepositForm link={link} onDeposit={onDeposit} lookupFederation={lookupFederation} />
+            <DepositForm link={link} onDeposit={onDeposit} lookupFederation={lookupFederation} quoteLoading={quote?.status === 'loading'} />
           )}
 
           {/*
@@ -342,10 +349,13 @@ function DepositForm({
   link,
   onDeposit,
   lookupFederation,
+  quoteLoading = false,
 }: {
   link: LinkDetails
   onDeposit: (deposit: Deposit) => void
   lookupFederation?: (address: string) => Promise<{ accountId: string; memo: DepositMemo | null }>
+  /** A receive-as price still being fetched: committing now would send the asset as sent. */
+  quoteLoading?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [address, setAddress] = useState('')
@@ -485,7 +495,9 @@ function DepositForm({
       <Button
         variant="claim"
         className="w-full"
-        disabled={!ready}
+        // Not while a price is loading, for the same reason as the wallet button:
+        // the flow commits to the conversion shown, and none is shown yet.
+        disabled={!ready || quoteLoading}
         onClick={() => memoCheck.ok && onDeposit({ publicKey, memo: memoCheck.memo })}
         data-testid="deposit-claim"
       >
