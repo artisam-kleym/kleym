@@ -69,6 +69,13 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
+      {campaign.allowExchangeDeposit && (
+        // Exchange deposit (#75): recipients may claim to an address plus a memo; the memo is recorded beside the claimant.
+        <p className="mt-sm font-mono text-label-md text-on-surface-variant">
+          Recipients may claim to an exchange account — a deposit address plus a memo, checked before signing.
+        </p>
+      )}
+
       {campaign.receiveAsAssets.length > 0 && (
         // Receive-as (#74): what a recipient may convert into at claim time, at a live price with a floor.
         <p className="mt-sm font-mono text-label-md text-on-surface-variant">

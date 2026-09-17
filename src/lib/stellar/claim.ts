@@ -24,6 +24,7 @@ import {
   TransactionBuilder,
   type Account,
 } from '@stellar/stellar-sdk'
+import { toMemo, type DepositMemo } from './memo'
 
 /** How long the recipient has to sign before the envelope expires. */
 const SIGNING_WINDOW_SECONDS = 180
@@ -55,6 +56,16 @@ export interface ClaimContext {
    * never supplies a price. Absent, TX2 is byte-for-byte what it always was.
    */
   conversion?: Conversion
+  /**
+   * Deposit memo (#75): the recipient is an exchange or custodian account.
+   * The memo rides on TX2, and the ephemeral account is merged to the
+   * SPONSOR rather than the recipient — `accountMerge` carries no memo, so
+   * its remainder arriving at an omnibus account would be credited to nobody.
+   * The sponsored reserve returns to the sponsor on merge whatever the
+   * destination, and the account's own balance is ~0 (created with
+   * `startingBalance: '0'`), so nothing is lost by pointing it home.
+   */
+  memo?: DepositMemo
 }
 
 export interface Conversion {
@@ -249,10 +260,13 @@ export function buildClaim(context: ClaimContext, facts: LedgerFacts): ClaimPlan
 
   builder.addOperation(
     Operation.accountMerge({
-      destination: context.recipientPublicKey,
+      // To the sponsor when depositing with a memo (#75) — see ClaimContext.memo.
+      destination: context.memo ? context.sponsorPublicKey : context.recipientPublicKey,
       source: context.ephemeralPublicKey,
     }),
   )
+
+  if (context.memo) builder.addMemo(toMemo(context.memo))
 
   const transaction = builder.setTimeout(SIGNING_WINDOW_SECONDS).build()
 

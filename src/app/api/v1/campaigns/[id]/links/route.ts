@@ -58,6 +58,8 @@ export async function GET(request: Request, { params }: Params) {
         select: {
           id: true, ephemeralPublicKey: true, balanceId: true, status: true,
           label: true, claimedBy: true, claimedAt: true, claimTxHash: true, amount: true,
+          // The deposit memo TX2 carried (#75), beside the claimant.
+          claimMemoType: true, claimMemo: true,
         },
       }),
     ])

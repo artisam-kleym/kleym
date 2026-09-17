@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   const gated = await claimPolicyGate(request, parsed.data.ephemeralPublicKey)
   if (gated) return gated
   try {
-    const outcome = await prepareClaim(parsed.data.ephemeralPublicKey, parsed.data.recipientPublicKey, parsed.data.receiveAs)
+    const outcome = await prepareClaim(parsed.data.ephemeralPublicKey, parsed.data.recipientPublicKey, parsed.data.receiveAs, parsed.data.memo)
     if (outcome.kind === 'not-found') return claimNotFound()
     if (outcome.kind === 'conflict') return claimConflict(outcome.detail, outcome.reason)
     if (outcome.kind === 'unavailable') return claimUnavailable(outcome.detail)

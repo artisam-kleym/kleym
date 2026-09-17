@@ -310,6 +310,63 @@ describe('TX2 with receive-as conversion', () => {
   })
 })
 
+/*
+ * Deposit memos (#75). The memo rides on TX2 so the exchange can credit the
+ * depositor; the merge goes to the SPONSOR, because `accountMerge` carries
+ * no memo and its remainder at an omnibus account would be credited to
+ * nobody. The exchange path is the cheapest shape there is: an exchange
+ * account exists and trusts the asset, so it is claim → payment → merge.
+ */
+describe('TX2 to an exchange with a memo', () => {
+  const facts = { ephemeralExists: true, ephemeralTrusts: false, recipientExists: true, recipientTrusts: true }
+  const memo = { type: 'id' as const, value: '4242' }
+
+  it('carries the memo on the transaction the payment is in', () => {
+    const tx = parse(buildClaim({ ...context(USDC), memo }, facts).xdr)
+    expect(tx.memo.type).toBe('id')
+    expect(String(tx.memo.value)).toBe('4242')
+    expect(types(tx.toXDR())).toEqual(['claimClaimableBalance', 'payment', 'changeTrust', 'accountMerge'])
+  })
+
+  it('pays the exchange address and merges to the SPONSOR, not the exchange', () => {
+    const tx = parse(buildClaim({ ...context(Asset.native()), memo }, facts).xdr)
+    const payment = tx.operations.find((op) => op.type === 'payment') as { destination: string }
+    const merge = tx.operations.find((op) => op.type === 'accountMerge') as { destination: string; source?: string }
+    expect(payment.destination).toBe(recipient.publicKey())
+    expect(merge.destination).toBe(sponsor.publicKey())
+    expect(merge.source).toBe(ephemeral.publicKey())
+  })
+
+  it('needs no recipient signature — an exchange cannot sign', () => {
+    expect(buildClaim({ ...context(USDC), memo }, facts).needsRecipientSignature).toBe(false)
+    const sources = parse(buildClaim({ ...context(USDC), memo }, facts).xdr).operations.map((op) => op.source)
+    expect(sources).not.toContain(recipient.publicKey())
+  })
+
+  it('carries a text and a hash memo too', () => {
+    expect(parse(buildClaim({ ...context(USDC), memo: { type: 'text', value: 'dep-7' } }, facts).xdr).memo.type).toBe('text')
+    expect(parse(buildClaim({ ...context(USDC), memo: { type: 'hash', value: 'ef'.repeat(32) } }, facts).xdr).memo.type).toBe('hash')
+  })
+
+  it('has no memo and merges to the recipient when none is given — the wallet path is unchanged', () => {
+    const tx = parse(buildClaim(context(USDC), facts).xdr)
+    expect(tx.memo.type).toBe('none')
+    const merge = tx.operations.find((op) => op.type === 'accountMerge') as { destination: string }
+    expect(merge.destination).toBe(recipient.publicKey())
+  })
+
+  it('composes with receive-as: the path payment pays the exchange, the merge goes home', () => {
+    const conversion = { destAsset: USDC, destMin: '2.4000000', path: [] as Asset[] }
+    const tx = parse(buildClaim({ ...context(Asset.native()), memo, conversion }, facts).xdr)
+    expect(types(tx.toXDR())).toEqual(['claimClaimableBalance', 'pathPaymentStrictSend', 'accountMerge'])
+    const pay = tx.operations.find((op) => op.type === 'pathPaymentStrictSend') as { destination: string }
+    const merge = tx.operations.find((op) => op.type === 'accountMerge') as { destination: string }
+    expect(pay.destination).toBe(recipient.publicKey())
+    expect(merge.destination).toBe(sponsor.publicKey())
+    expect(String(tx.memo.value)).toBe('4242')
+  })
+})
+
 describe('sponsor signing', () => {
   it('adds exactly one signature, verifiable as the sponsor', () => {
     const { xdr } = buildMaterialise(context(Asset.native()), { ephemeralTrusts: false })

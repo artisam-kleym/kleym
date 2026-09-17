@@ -47,7 +47,7 @@ export async function GET(request: Request, { params }: Params) {
         take: perPage,
         select: {
           id: true, ephemeralPublicKey: true, balanceId: true, status: true,
-          label: true, claimedBy: true, claimedAt: true, claimTxHash: true,
+          label: true, claimedBy: true, claimedAt: true, claimTxHash: true, claimMemoType: true, claimMemo: true,
           // Attestation fields and the link's own amount (#73) ride along so a
           // regenerated CSV (#77) round-trips them.
           reference: true, category: true, note: true, amount: true,

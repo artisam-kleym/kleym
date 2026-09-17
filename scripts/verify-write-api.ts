@@ -277,7 +277,7 @@ async function signedDeliveries(ctx: { campaignId: string; orgId: string }): Pro
   const batch2 = await prisma.batch.findFirstOrThrow({ where: { campaignId: ctx.campaignId, sequence: 2 }, select: { id: true, links: { select: { id: true } } } })
   await confirmBatch(batch2.id, ctx.campaignId, batch2.links.map((l) => ({ linkId: l.id, balanceId: `00000000${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}` })))
   const link = await prisma.claimLink.findFirstOrThrow({ where: { campaignId: ctx.campaignId }, select: { id: true, ephemeralPublicKey: true } })
-  await emitWebhook(ctx.orgId, 'link.claimed', { campaignId: ctx.campaignId, linkId: link.id, ephemeralPublicKey: link.ephemeralPublicKey, claimedBy: Keypair.random().publicKey(), claimTxHash: 'ab'.repeat(32), claimedAt: new Date().toISOString() })
+  await emitWebhook(ctx.orgId, 'link.claimed', { campaignId: ctx.campaignId, linkId: link.id, ephemeralPublicKey: link.ephemeralPublicKey, claimedBy: Keypair.random().publicKey(), claimTxHash: 'ab'.repeat(32), claimedAt: new Date().toISOString(), claimMemoType: null, claimMemo: null })
 
   const deadline = Date.now() + 15_000
   while (Date.now() < deadline && receiver.hits.length < 5) await sleep(100)

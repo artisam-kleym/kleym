@@ -15,8 +15,7 @@
 export const CLAIM_PROBLEM_BASE = 'https://kleym.app/problems'
 
 /** A conflict the page can name. Anything else is a generic `failed`. */
-export type ClaimConflictReason = 'expired' | 'already-claimed' | 'not-ready' | 'otp-required' | 'no-path' | 'quote-missed' | 'code-required' | 'passkey-required' | 'email-only'
-
+export type ClaimConflictReason = 'expired' | 'already-claimed' | 'not-ready' | 'otp-required' | 'no-path' | 'quote-missed' | 'code-required' | 'passkey-required' | 'email-only' | 'memo' | 'deposit-unready'
 export const CLAIM_CONFLICT_TYPE: Record<ClaimConflictReason, string> = {
   expired: `${CLAIM_PROBLEM_BASE}/conflict/expired`,
   'already-claimed': `${CLAIM_PROBLEM_BASE}/conflict/already-claimed`,
@@ -34,6 +33,10 @@ export const CLAIM_CONFLICT_TYPE: Record<ClaimConflictReason, string> = {
   'passkey-required': `${CLAIM_PROBLEM_BASE}/conflict/passkey-required`,
   /** EMAIL policy (#79) on a link Kleym never emailed: nothing the holder can do here. */
   'email-only': `${CLAIM_PROBLEM_BASE}/conflict/email-only`,
+  /** Exchange deposit (#75): the memo is missing or malformed. Refused before anything is signed. */
+  memo: `${CLAIM_PROBLEM_BASE}/conflict/memo`,
+  /** Exchange deposit (#75): the address does not exist or does not accept the asset — a deposit there cannot arrive. */
+  'deposit-unready': `${CLAIM_PROBLEM_BASE}/conflict/deposit-unready`,
 }
 
 /** The undiscriminated 409, for conflicts no screen distinguishes. */

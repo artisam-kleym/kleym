@@ -12,8 +12,9 @@ import { Keypair, Networks, Transaction, TransactionBuilder } from '@stellar/ste
 import { ClaimPanel } from '@/components/ui'
 import { clearFragment, readFragment } from '@/lib/claim/fragment'
 import { claimTraceHeaders } from '@/lib/claim/trace'
-import { isConversionRefused, isNotReady, retryTarget, stateFromProblem, type ClaimState } from '@/lib/claim/machine'
-import { ClaimScreen, type LinkDetails, type ReceiveAsOption, type ReceiveAsQuote } from './screens'
+import { isConversionRefused, isDepositRefused, isNotReady, retryTarget, stateFromProblem, type ClaimState } from '@/lib/claim/machine'
+import { ClaimScreen, type Deposit, type DepositDraft, type LinkDetails, type ReceiveAsOption, type ReceiveAsQuote } from './screens'
+import type { DepositMemo } from '@/lib/stellar/memo'
 
 /**
  * One ledger is ~5s. §3.3.1 says the boundary is the ledger, not the clock, so
@@ -58,6 +59,22 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
   /** The latest quote request; an older one resolving later is dropped, not shown. */
   const quoteRequest = useRef(0)
   const [delivered, setDelivered] = useState<{ assetCode: string; destAmount: string; destMin: string } | null>(null)
+
+  /*
+   * Exchange deposit (#75). Held in a ref like the recipient key: it is the
+   * destination the flow is committed to across a retry, and a retry must
+   * not quietly switch from "deposit with memo" back to "connect a wallet".
+   */
+  const deposit = useRef<Deposit | null>(null)
+  /** The last deposit address tried, so a later wallet path never inherits it as the recipient. */
+  const lastDeposit = useRef<string | null>(null)
+  const [depositMade, setDepositMade] = useState<Deposit | null>(null)
+  /** The deposit form as typed (a ref: it changes on every keystroke) and, after a refusal, what the form re-opens with. */
+  const depositDraft = useRef<DepositDraft | null>(null)
+  const [depositRestore, setDepositRestore] = useState<DepositDraft | null>(null)
+  const onDepositDraft = useCallback((draft: DepositDraft) => {
+    depositDraft.current = draft
+  }, [])
 
   /*
    * A ref, not state. The seed must not be part of anything React might
@@ -138,6 +155,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
           policy,
           passkeyBound: body.passkeyBound === true,
           receiveAs: Array.isArray(body.receiveAs) ? body.receiveAs : [],
+          exchangeDeposit: body.exchangeDeposit === true,
         })
         /*
          * The policy (#79) is shown on the ready screen, and the credential is
@@ -228,7 +246,13 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       const { connectWallet, signBatch } = await import('./wallet')
       let recipientKey = recipient.current
 
-      if (from !== 'preparing' || !recipientKey) {
+      if (deposit.current) {
+        /* Exchange deposit (#75): the destination is typed, not connected. No wallet is involved. */
+        recipientKey = deposit.current.publicKey
+        recipient.current = recipientKey
+      } else if (from !== 'preparing' || !recipientKey || recipientKey === lastDeposit.current) {
+        /* Wallet first — §3.3 says TX1 fires on COMMITMENT, not on page load. A key left
+           over from an abandoned deposit is never reused as a wallet. */
         /* Wallet first — §3.3 says TX1 fires on COMMITMENT, not on page load. */
         setState('wallet_connecting')
         recipientKey = await connectWallet(network)
@@ -294,6 +318,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
             ephemeralPublicKey,
             recipientPublicKey: recipientKey,
             ...(conversion ? { receiveAs: conversion } : {}),
+            ...(deposit.current ? { memo: deposit.current.memo } : {}),
           }),
         })
         if (prepared.ok) break
@@ -314,6 +339,20 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
           setReceiveAs(null)
           setQuote(null)
         }
+        /*
+         * The deposit address or memo was refused (#75). Drop it and go back
+         * to `ready` so the recipient can fix it or connect a wallet — a
+         * "Try again" with the same address is a dead end, and TX1 has
+         * already landed, so resuming at TX2 from `ready` is what happens next.
+         */
+        if (isDepositRefused(p.status, p.type)) {
+          deposit.current = null
+          // Back to `ready` with the form open and filled as it was: the
+          // recipient corrects one field, not the whole panel from scratch.
+          setDepositRestore(depositDraft.current)
+          setError(p.detail)
+          return setState('ready')
+        }
         setError(p.detail)
         return setState(stateFromProblem(p.status, p.type))
       }
@@ -326,6 +365,9 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
        */
       let signedXdr = sign(plan.xdr)
       if (plan.needsRecipientSignature) {
+        // An exchange account cannot sign; the server refuses that shape before
+        // it gets here, so this is a belt for the braces.
+        if (deposit.current) throw new Error('That address would need to sign, which an exchange account cannot. Check the deposit address with your exchange.')
         setState('awaiting_signature')
         signedXdr = await signBatch(signedXdr, network, recipientKey)
       }
@@ -353,6 +395,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       setClaimedAt(new Date().toISOString())
       setClaimedBy(recipientKey)
       setDelivered(plan.conversion ? { assetCode: plan.conversion.assetCode, destAmount: plan.conversion.destAmount, destMin: plan.conversion.destMin } : null)
+      setDepositMade(deposit.current)
       setState('claimed_success')
     } catch (caught) {
       const { walletErrorMessage } = await import('./wallet')
@@ -371,6 +414,42 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
     setState(target)
     void run(target)
   }, [run])
+
+  /** Exchange deposit (#75): commit to an address and memo, then run the same flow with no wallet. */
+  const onDeposit = useCallback(
+    (chosen: Deposit) => {
+      deposit.current = chosen
+      lastDeposit.current = chosen.publicKey
+      void run()
+    },
+    [run],
+  )
+
+  /**
+   * "Connect wallet" is explicitly the WALLET path. A deposit chosen earlier —
+   * then bounced to `ready` by a lapsed OTP, or refused — must not hijack it
+   * and send the funds to that address without a wallet ever connecting.
+   */
+  const onConnect = useCallback(() => {
+    deposit.current = null
+    void run()
+  }, [run])
+
+  const lookupFederation = useCallback(
+    async (address: string): Promise<{ accountId: string; memo: DepositMemo | null }> => {
+      const response = await fetch('/api/claims/federation', {
+        method: 'POST',
+        headers: claimHeaders(null),
+        body: JSON.stringify({ address }),
+      })
+      if (!response.ok) {
+        const p = await problem(response)
+        throw new Error(p.detail ?? 'That address could not be looked up.')
+      }
+      return (await response.json()) as { accountId: string; memo: DepositMemo | null }
+    },
+    [problem],
+  )
 
   async function verifyOtp(code: string) {
     const ephemeralPublicKey = ephemeral.current
@@ -514,7 +593,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         network={network}
         claimedAt={claimedAt}
         claimedBy={claimedBy}
-        onConnect={() => void run()}
+        onConnect={onConnect}
         otpError={otpError}
         onVerifyOtp={verifyOtp}
         onResendOtp={resendOtp}
@@ -527,6 +606,11 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         quote={quote}
         onReceiveAs={(option) => void onReceiveAs(option)}
         delivered={delivered}
+        onDeposit={onDeposit}
+        depositDraft={depositRestore}
+        onDepositDraft={onDepositDraft}
+        lookupFederation={lookupFederation}
+        depositMade={depositMade}
       />
     </ClaimPanel>
   )

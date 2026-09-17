@@ -112,6 +112,8 @@ export const createCampaignSchema = z
      * or empty: conversion is not offered and TX2 is exactly what it was.
      */
     receiveAs: z.array(receiveAsAssetSchema).max(5).optional(),
+    /** Exchange deposit (#75): may a recipient claim to an address plus a memo? Off unless said. */
+    allowExchangeDeposit: z.boolean().optional(),
   })
   .strict()
   .refine((v) => !v.receiveAs || v.receiveAs.every((a) => !sameAsset(a, v)), {
@@ -270,8 +272,9 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
       keyFingerprint: input.keyFingerprint ?? null,
       // Stored as refs ("XLM" / "CODE:ISSUER"); read back through parseAssetRef, never trusted raw.
       receiveAsAssets: (input.receiveAs ?? []).map((a) => (a.assetCode === 'XLM' ? 'XLM' : `${a.assetCode}:${a.assetIssuer}`)),
+      allowExchangeDeposit: input.allowExchangeDeposit ?? false,
     },
-    select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true, receiveAsAssets: true, claimPolicy: true },
+    select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true, receiveAsAssets: true, claimPolicy: true, allowExchangeDeposit: true },
   })
   await recordAudit({
     userId: creator.userId, organizationId: creator.organizationId, action: 'campaign.create', entityType: 'campaign', entityId: campaign.id,
