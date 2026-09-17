@@ -557,6 +557,10 @@ model Campaign {
   /// a memo instead of connecting a wallet. Off by default — the sender
   /// decides whether that option is offered at all.
   allowExchangeDeposit Boolean   @default(false)
+  /// Signed receipts (#81): email each recipient their receipt when they
+  /// claim. Only email-delivered links have an address; the receipt carries
+  /// nothing from the link — the claimant address and the transaction.
+  emailReceipts   Boolean        @default(false)
   expiresAt       DateTime
   status          CampaignStatus @default(DRAFT)
   csvExportedAt   DateTime? // hard gate: null blocks activation
@@ -695,6 +699,7 @@ model ClaimLink {
   batch    Batch?    @relation(fields: [batchId], references: [id])
   delivery Delivery?
   passkey  ClaimLinkPasskey?
+  receipt  ClaimReceipt?
   findings ReconciliationFinding[]
   stranded StrandedAccount?
 
@@ -869,4 +874,30 @@ model IdempotencyKey {
 
   @@id([userId, key])
   @@index([createdAt])
+}
+
+/// A signed receipt for one settled claim (#81): evidence that a specific
+/// address received a specific amount at a specific ledger time, issued the
+/// moment the claim lands and never regenerated — its inputs are frozen then,
+/// so renaming a campaign later cannot change what was attested.
+///
+/// `canonical` is the EXACT byte string that was signed; `signature` verifies
+/// against it with `publicKey` alone, no Kleym involved. Nothing here is
+/// derived from the link: no URL, no fragment, no seed (AGENT.md §4.5).
+model ClaimReceipt {
+  id             String   @id @default(cuid())
+  linkId         String   @unique
+  campaignId     String
+  organizationId String
+  version        Int
+  canonical      String
+  signature      String
+  publicKey      String
+  claimedAt      DateTime
+  createdAt      DateTime @default(now())
+
+  link ClaimLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, claimedAt])
+  @@index([campaignId, claimedAt])
 }

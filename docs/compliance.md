@@ -173,6 +173,33 @@ pnpm audit:verify-export kleym-regulator-<org>-<date>.json "<x-kleym-signature>"
 (`docs/audit-log.md` §"Signed export" covers the key and how to distribute it.) Each
 export writes an audit row `org.regulator_export` with the window and the row count.
 
+## 4. Claim receipts
+
+Every settled claim has a signed receipt (#81), issued the moment the claim lands and
+never regenerated: the recipient address (read off the submitted envelope), the amount
+this link paid, the ledger time, the transaction hash, the memo where one applied (#75),
+the delivery channel and the claim policy that applied (#79), the campaign's terms and the
+sender's label and attestation fields. Nothing derived from the link — no URL, no fragment,
+no seed.
+
+- `GET /api/campaigns/{id}/links/{linkId}/receipt` — one receipt; the body is its exact
+  signed bytes, the signature and key in the headers above.
+- `GET /api/campaigns/{id}/receipts?format=json|csv` — every receipt of one campaign.
+- `GET /api/org/receipts?from=&to=&format=` — every receipt of the organisation in a
+  claim-date range (Operator and up; audited as `org.receipts_export`).
+
+A bundle is signed as a whole and each receipt inside carries its own signature over its
+own canonical bytes (the CSV's last column), so one can be lifted out and verified alone:
+
+```
+pnpm receipts:verify kleym-receipts-<campaign>-<date>.json                       # every receipt inside
+pnpm receipts:verify kleym-receipt-rcpt_….json "<x-kleym-signature>" "<x-kleym-signing-key>"
+```
+
+`link.claimed` carries `receiptId`. With "Email each recipient a signed receipt" on, an
+email-delivered recipient is mailed their receipt — the bytes, the signature and the public
+key in the message — when they claim; it carries no link.
+
 ## Verification
 
 `pnpm verify:compliance` (CI) stands up a local receiver and proves: the request shape

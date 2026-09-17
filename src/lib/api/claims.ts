@@ -26,6 +26,8 @@ import { observedClaim } from '@/lib/observability/claims'
 import { emitWebhook } from '@/lib/webhooks/emit'
 import { policyFromRow, type ClaimPolicy } from './claim-policy'
 import { recordAudit } from './audit'
+import { issueReceipt } from './receipts'
+import { enqueueReceipt } from '@/lib/queue/email'
 
 const PUBLIC_KEY = /^G[A-Z2-7]{55}$/
 
@@ -813,9 +815,31 @@ async function submitClaimUnobserved(
         // The policy the gate held this claim to (#79), beside the claim itself.
         claimedUnder: link.campaign.claimPolicy,
       },
-      select: { campaign: { select: { organizationId: true } } },
+      select: {
+        campaign: { select: { organizationId: true, emailReceipts: true, user: { select: { username: true } } } },
+        delivery: { select: { id: true, email: true } },
+      },
     })
     logger.info({ linkId: link.id, campaignId: link.campaignId, hash: result.hash, policy: policyFromRow(link.campaign.claimPolicy) }, 'link claimed')
+    /*
+     * The signed receipt (#81), issued now — while the inputs are exactly what
+     * the ledger just did — and never regenerated. A failure here must not
+     * fail the claim, which has already happened: it is logged and the
+     * receipt is issued on the next fetch instead.
+     */
+    const receipt = await issueReceipt(link.id).catch((error: unknown) => {
+      logger.error({ linkId: link.id, reason: error instanceof Error ? error.message : 'unknown' }, 'receipt could not be issued at claim time')
+      return null
+    })
+    if (receipt && claimed.campaign.emailReceipts && claimed.delivery?.email && recipient) {
+      // The recipient's copy, only where an address exists. Nothing from the link in it.
+      await enqueueReceipt({
+        kind: 'receipt', deliveryId: claimed.delivery.id, linkId: link.id, email: claimed.delivery.email,
+        senderName: claimed.campaign.user.username, amount: receipt.contents.claim.amount, assetCode: receipt.contents.claim.assetCode,
+        recipient, claimedAt: claimedAt.toISOString(), transactionHash: result.hash,
+        receiptId: receipt.receiptId, canonical: receipt.canonical, signature: receipt.signature, publicKey: receipt.publicKey,
+      }).catch((error: unknown) => logger.error({ linkId: link.id, reason: error instanceof Error ? error.message : 'unknown' }, 'receipt email could not be queued'))
+    }
     // The audit trail names the policy (#79). No user: the recipient is anonymous by design.
     await recordAudit({
       userId: null,
@@ -830,6 +854,7 @@ async function submitClaimUnobserved(
     await emitWebhook(claimed.campaign.organizationId, 'link.claimed', {
       campaignId: link.campaignId, linkId: link.id, ephemeralPublicKey, claimedBy: recipient ?? '', claimTxHash: result.hash, claimedAt: claimedAt.toISOString(),
       claimMemoType: memo?.type ?? null, claimMemo: memo?.value ?? null,
+      receiptId: receipt?.receiptId ?? null,
     })
   }
 

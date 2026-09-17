@@ -114,6 +114,8 @@ export const createCampaignSchema = z
     receiveAs: z.array(receiveAsAssetSchema).max(5).optional(),
     /** Exchange deposit (#75): may a recipient claim to an address plus a memo? Off unless said. */
     allowExchangeDeposit: z.boolean().optional(),
+    /** Signed receipts (#81): email each recipient their receipt on claim. Only email-delivered links have an address. */
+    emailReceipts: z.boolean().optional(),
   })
   .strict()
   .refine((v) => !v.receiveAs || v.receiveAs.every((a) => !sameAsset(a, v)), {
@@ -273,6 +275,7 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
       // Stored as refs ("XLM" / "CODE:ISSUER"); read back through parseAssetRef, never trusted raw.
       receiveAsAssets: (input.receiveAs ?? []).map((a) => (a.assetCode === 'XLM' ? 'XLM' : `${a.assetCode}:${a.assetIssuer}`)),
       allowExchangeDeposit: input.allowExchangeDeposit ?? false,
+      emailReceipts: input.emailReceipts ?? false,
     },
     select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true, receiveAsAssets: true, claimPolicy: true, allowExchangeDeposit: true },
   })

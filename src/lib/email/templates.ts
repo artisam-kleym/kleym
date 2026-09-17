@@ -94,6 +94,46 @@ export function reminderEmail(input: ReminderEmailInput): { subject: string; tex
   return { subject, text, html }
 }
 
+export interface ReceiptEmailInput {
+  senderName: string
+  amount: string
+  assetCode: string
+  recipient: string
+  claimedAt: Date
+  transactionHash: string
+  receiptId: string
+  /** The receipt's exact signed bytes, its signature and the key — so the message IS the evidence. */
+  canonical: string
+  signature: string
+  publicKey: string
+}
+
+/**
+ * The recipient's copy of their signed receipt (#81). NO LINK, nothing from
+ * the fragment: the claimant address and the transaction hash are what the
+ * ledger shows anyone, and the receipt bytes are attached in the body so it
+ * verifies with the public key alone, with no call back to Kleym.
+ */
+export function receiptEmail(input: ReceiptEmailInput): { subject: string; text: string; html: string } {
+  const when = input.claimedAt.toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
+  const subject = `Receipt: ${input.amount} ${input.assetCode} from ${input.senderName}`
+  const text =
+    `This is your receipt for ${input.amount} ${input.assetCode} received from ${input.senderName}.\n\n` +
+    `Paid to: ${input.recipient}\nAt: ${when}\nTransaction: ${input.transactionHash}\nReceipt: ${input.receiptId}\n\n` +
+    `The receipt below is signed by Kleym. Anyone can verify it with the public key alone; altering a single character makes the signature fail.\n\n` +
+    `--- receipt ---\n${input.canonical}\n--- signature (ed25519 over the receipt bytes, base64) ---\n${input.signature}\n--- public key (SPKI DER, base64) ---\n${input.publicKey}\n`
+  const mono = 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;word-break:break-all'
+  const html = PAGE(
+    `<p style="margin:0 0 16px">This is your receipt for <strong>${escape(input.amount)} ${escape(input.assetCode)}</strong> received from ${escape(input.senderName)}.</p>` +
+      `<p style="margin:0 0 16px;${mono}">Paid to: ${escape(input.recipient)}<br>At: ${escape(when)}<br>Transaction: ${escape(input.transactionHash)}<br>Receipt: ${escape(input.receiptId)}</p>` +
+      `<p style="margin:0 0 16px;color:#666">The receipt below is signed by Kleym. Anyone can verify it with the public key alone; altering a single character makes the signature fail.</p>` +
+      `<p style="margin:0 0 8px;${mono}">${escape(input.canonical)}</p>` +
+      `<p style="margin:0 0 8px;${mono}">signature: ${escape(input.signature)}</p>` +
+      `<p style="margin:0;${mono}">public key: ${escape(input.publicKey)}</p>`,
+  )
+  return { subject, text, html }
+}
+
 /** The six-digit code. Deliberately terse — it exists to be read and typed. */
 export function otpEmail(code: string): { subject: string; text: string; html: string } {
   return {
