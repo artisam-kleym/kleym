@@ -25,6 +25,7 @@ import { RECONCILE_INTERVAL_MS } from '@/lib/queue/schedule'
 import { logger } from '@/lib/config/logger'
 import { horizon, loadClaimableBalance } from '@/lib/stellar/horizon'
 import { announceDueReclaims } from './suspend'
+import { recordClaimValuation } from './valuations'
 
 export type FindingKind =
   | 'claimed_on_chain'
@@ -328,6 +329,11 @@ async function reconcileLink(
       },
     })
     report.corrected += 1
+    // The corrected movement reaches the journal too (#80): valued at its time, fee unknown so no fee line.
+    // Best-effort like the submit paths; the hourly pass creates the row if this fails.
+    await recordClaimValuation(link.id, null).catch((error: unknown) =>
+      logger.error({ linkId: link.id, reason: error instanceof Error ? error.message : 'unknown' }, 'valuation could not be recorded for a reconciled link'),
+    )
 
     /*
      * Close anything else open for this link BEFORE recording the outcome.

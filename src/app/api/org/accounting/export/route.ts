@@ -5,29 +5,22 @@
  * by the session's organisation, never by a parameter; Operator and up.
  * Byte-identical for the same range on every run — nothing is priced here.
  */
-import { z } from 'zod'
 import { clientIp } from '@/lib/auth/client-ip'
 import { requireUser } from '@/lib/api/session-guard'
 import { recordAudit } from '@/lib/api/audit'
 import { serverError, validationProblem } from '@/lib/api/problems'
 import { zodErrors } from '@/lib/api/campaigns'
 import { logger } from '@/lib/config/logger'
-import { buildAccountingExport, journalLines, valuationRows } from '@/lib/api/valuations'
+import { accountingQuerySchema, buildAccountingExport, journalLines, valuationRows } from '@/lib/api/valuations'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const querySchema = z.object({
-  from: z.coerce.date().optional(),
-  to: z.coerce.date().optional(),
-  campaignId: z.string().min(1).max(64).optional(),
-  format: z.enum(['csv', 'json']).default('csv'),
-})
-
 export async function GET(request: Request) {
   const { user, org, response } = await requireUser('OPERATOR')
   if (!user) return response
-  const parsed = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams))
+  // A bare `to=YYYY-MM-DD` means the whole of that day (accountingQuerySchema), not its first instant.
+  const parsed = accountingQuerySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams))
   if (!parsed.success) return validationProblem(zodErrors(parsed.error))
   const { from, to, campaignId, format } = parsed.data
   try {

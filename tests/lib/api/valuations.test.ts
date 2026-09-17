@@ -17,7 +17,7 @@ const AT = new Date('2026-09-14T10:15:00.000Z')
 const row = (over: Partial<ValuationRow> = {}): ValuationRow => ({
   id: 'v1', kind: 'CLAIM', valuedAt: AT, assetCode: 'USDC', assetIssuer: ISSUER,
   amount: new Decimal('250') as never, feeXlm: new Decimal('0.00001') as never, currency: 'USD',
-  rate: new Decimal('1') as never, xlmRate: new Decimal('0.1234567') as never, rateSource: 'identity', rateWindow: null,
+  rate: new Decimal('1') as never, xlmRate: new Decimal('0.1234567') as never, rateSource: 'identity', rateWindow: null, xlmRateSource: 'stellar-dex', xlmRateWindow: '1h',
   transactionHash: 'ab'.repeat(32), campaignId: 'c1', campaignName: 'March contractors', linkId: 'l1', reclaimBatchId: null,
   link: { label: 'alice', reference: 'INV-7', claimedBy: Keypair.random().publicKey() }, reclaimBatch: null,
   ...over,
@@ -31,7 +31,8 @@ describe('journalLines', () => {
       kind: 'claim', date: AT.toISOString(), debitAccount: ACCOUNTS.expense, creditAccount: ACCOUNTS.asset('USDC'),
       assetAmount: '250', rate: '1', fiatAmount: '250.00', rateSource: 'identity', currency: 'USD',
     })
-    expect(lines[1]).toMatchObject({ kind: 'fee', debitAccount: ACCOUNTS.fees, creditAccount: ACCOUNTS.asset('XLM'), assetAmount: '0.00001', rate: '0.1234567', fiatAmount: '0.00' })
+    // The fee line names the XLM lookup's own source and window, not the asset's identity rate.
+    expect(lines[1]).toMatchObject({ kind: 'fee', debitAccount: ACCOUNTS.fees, creditAccount: ACCOUNTS.asset('XLM'), assetAmount: '0.00001', rate: '0.1234567', fiatAmount: '0.00', rateSource: 'stellar-dex', rateWindow: '1h' })
   })
 
   it('exports a reclaim as a reversal — the accounts swapped — valued at the reclaim time', () => {
@@ -42,7 +43,7 @@ describe('journalLines', () => {
   })
 
   it('keeps an unpriced line, names the source as unavailable, and leaves the fiat column empty', () => {
-    const lines = journalLines([row({ rate: null, xlmRate: null, rateSource: 'unavailable', rateWindow: null })])
+    const lines = journalLines([row({ rate: null, xlmRate: null, rateSource: 'unavailable', rateWindow: null, xlmRateSource: null, xlmRateWindow: null })])
     expect(lines[0]).toMatchObject({ rate: null, fiatAmount: null, rateSource: 'unavailable' })
     expect(lines[1]).toMatchObject({ kind: 'fee', fiatAmount: null, rateSource: 'unavailable' })
   })
@@ -109,5 +110,122 @@ describe('rate anchors', () => {
     expect(anchors.has('BAD')).toBe(false)
     expect(anchors.has('GBP')).toBe(false)
     expect(supportedCurrencies()).toContain('USD')
+  })
+})
+
+/*
+ * The pass and the writers against a stand-in client: what they SELECT and
+ * what they WRITE is the contract, and a database is not needed to pin it.
+ */
+import { vi } from 'vitest'
+import { PRICE_TIMEOUT_MS, accountingQuerySchema, rangeBound, recordClaimValuation, revalueUnpriced, type ValuationDb } from '@/lib/api/valuations'
+import type { RateSource } from '@/lib/stellar/rates'
+
+const rates = (table: Record<string, string | null>, delayMs = 0): RateSource => ({
+  rateAt: async (asset) => {
+    if (delayMs) await new Promise((r) => setTimeout(r, delayMs))
+    const rate = table[asset.isNative() ? 'XLM' : asset.getCode()] ?? null
+    return { rate, source: rate === null ? 'unavailable' : 'test', window: rate === null ? null : '1h' }
+  },
+})
+
+const campaign = { id: 'c1', assetCode: 'USDC', assetIssuer: ISSUER, organization: { id: 'o1', reportingCurrency: 'USD' } }
+const claimedLink = { id: 'l1', amount: new Decimal('250'), status: 'CLAIMED', claimedAt: AT, claimTxHash: 'ab'.repeat(32), campaign }
+
+function stub(over: Partial<{ links: unknown[]; batches: unknown[]; reclaimedLinks: unknown[]; rows: unknown[] }> = {}) {
+  const writes: Record<string, unknown[]> = { upsert: [], update: [], updateMany: [] }
+  const db = {
+    claimLink: {
+      findUnique: vi.fn(async (args: { where: { id: string } }) => ({ ...claimedLink, id: args.where.id })),
+      findMany: vi.fn(async (args: { where: { status: string } }) => (args.where.status === 'CLAIMED' ? (over.links ?? []) : (over.reclaimedLinks ?? []))),
+    },
+    reclaimBatch: { findUnique: vi.fn(async () => null), findMany: vi.fn(async () => over.batches ?? []) },
+    valuation: {
+      findMany: vi.fn(async () => over.rows ?? []),
+      upsert: vi.fn(async (args: unknown) => { writes.upsert!.push(args) }),
+      update: vi.fn(async (args: unknown) => { writes.update!.push(args) }),
+      updateMany: vi.fn(async (args: unknown) => { writes.updateMany!.push(args); return { count: 1 } }),
+    },
+  } as unknown as ValuationDb
+  return { db, writes }
+}
+
+describe('revalueUnpriced', () => {
+  it('creates the row a failed claim-time write left missing (CLAIMED link, no valuation)', async () => {
+    const { db, writes } = stub({ links: [{ id: 'l1' }] })
+    const report = await revalueUnpriced(rates({ USDC: '1', XLM: '0.1' }), 50, db)
+    expect(report.created).toBe(1)
+    expect(writes.upsert).toHaveLength(1)
+    expect((writes.upsert![0] as { where: unknown }).where).toEqual({ linkId: 'l1' })
+    expect((db.claimLink.findMany as ReturnType<typeof vi.fn>).mock.calls[0]![0]).toMatchObject({ where: { status: 'CLAIMED', claimTxHash: { not: null }, valuation: null }, take: 50 })
+  })
+
+  it('skips a RECLAIMED link whose hash is a batch reclaim (valued by the batch), and values one that is not', async () => {
+    const hash = 'cd'.repeat(32)
+    const { db, writes } = stub({ reclaimedLinks: [
+      { id: 'lb', claimTxHash: hash, campaign: { reclaims: [{ transactionHash: hash }] } },
+      { id: 'lr', claimTxHash: 'ef'.repeat(32), campaign: { reclaims: [{ transactionHash: hash }] } },
+    ] })
+    const report = await revalueUnpriced(rates({ USDC: '1', XLM: '0.1' }), 50, db)
+    expect(report.created).toBe(1)
+    expect((writes.upsert![0] as { where: unknown }).where).toEqual({ linkId: 'lr' })
+  })
+
+  it('orders unpriced rows by attempts then time, bumps attempts on a miss, and fills only the missing half', async () => {
+    const rows = [
+      { id: 'v-asset', assetCode: 'RARE', assetIssuer: ISSUER, currency: 'USD', valuedAt: AT, rate: null, xlmRate: new Decimal('0.1'), feeXlm: new Decimal('0.00001') },
+      { id: 'v-fee', assetCode: 'USDC', assetIssuer: ISSUER, currency: 'USD', valuedAt: AT, rate: new Decimal('1'), xlmRate: null, feeXlm: new Decimal('0.00001') },
+    ]
+    const { db, writes } = stub({ rows })
+    const report = await revalueUnpriced(rates({ USDC: '1', XLM: '0.25' }), 50, db)
+    const select = (db.valuation.findMany as ReturnType<typeof vi.fn>).mock.calls[0]![0] as { where: unknown; orderBy: unknown }
+    expect(select.where).toEqual({ OR: [{ rate: null }, { xlmRate: null, feeXlm: { gt: 0 } }] })
+    expect(select.orderBy).toEqual([{ attempts: 'asc' }, { valuedAt: 'asc' }, { id: 'asc' }])
+    // RARE never prices: attempts bumped, nothing else written for it.
+    expect(writes.update).toEqual([{ where: { id: 'v-asset' }, data: { attempts: { increment: 1 } } }])
+    // USDC's fee half fills, and only that half.
+    expect(writes.updateMany).toHaveLength(1)
+    expect(writes.updateMany![0]).toEqual({
+      where: { id: 'v-fee', xlmRate: null },
+      data: { xlmRate: '0.25', xlmRateSource: 'test', xlmRateWindow: '1h' },
+    })
+    expect(report.priced).toBe(1)
+  })
+})
+
+describe('recordClaimValuation', () => {
+  it('writes the row even when the price does not come back in time — unpriced, for the pass', async () => {
+    vi.useFakeTimers()
+    try {
+      const { db, writes } = stub()
+      const pending = recordClaimValuation('l1', '100', rates({ USDC: '1', XLM: '0.1' }, PRICE_TIMEOUT_MS * 10), db)
+      await vi.advanceTimersByTimeAsync(PRICE_TIMEOUT_MS + 1)
+      await pending
+      expect(writes.upsert).toHaveLength(1)
+      const create = (writes.upsert![0] as { create: Record<string, unknown> }).create
+      expect(create).toMatchObject({ kind: 'CLAIM', rate: null, rateSource: 'unavailable', xlmRate: null, feeXlm: '0.00001', amount: '250' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("records a reconciled RECLAIMED link as a reversal, with the XLM rate's own source", async () => {
+    const { db, writes } = stub()
+    ;(db.claimLink.findUnique as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ...claimedLink, status: 'RECLAIMED' })
+    await recordClaimValuation('l1', null, rates({ USDC: '1', XLM: '0.1' }), db)
+    const create = (writes.upsert![0] as { create: Record<string, unknown> }).create
+    expect(create).toMatchObject({ kind: 'RECLAIM', rate: '1', rateSource: 'test', xlmRate: '0.1', xlmRateSource: 'test', xlmRateWindow: '1h', feeXlm: '0' })
+  })
+})
+
+describe('accounting range', () => {
+  it('reads a bare date as the whole day: from at its first instant, to at its last', () => {
+    expect(rangeBound('2026-09-30', 'to')!.toISOString()).toBe('2026-09-30T23:59:59.999Z')
+    expect(rangeBound('2026-09-01', 'from')!.toISOString()).toBe('2026-09-01T00:00:00.000Z')
+    expect(rangeBound('2026-09-30T12:00:00Z', 'to')!.toISOString()).toBe('2026-09-30T12:00:00.000Z')
+    expect(rangeBound('nonsense', 'to')).toBeNull()
+    const parsed = accountingQuerySchema.safeParse({ from: '2026-09-01', to: '2026-09-30' })
+    expect(parsed.success && parsed.data.to?.toISOString()).toBe('2026-09-30T23:59:59.999Z')
+    expect(accountingQuerySchema.safeParse({ to: 'nonsense' }).success).toBe(false)
   })
 })

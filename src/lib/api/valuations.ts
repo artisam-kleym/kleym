@@ -22,6 +22,7 @@
  */
 import { Asset } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
+import { z } from 'zod'
 import type { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
@@ -41,43 +42,66 @@ interface Priced {
   xlmRate: string | null
   rateSource: string
   rateWindow: string | null
+  xlmRateSource: string | null
+  xlmRateWindow: string | null
 }
 
-/** Both rates a line needs: the asset's, and XLM's for the fee line. Never throws. */
-async function price(asset: Asset, currency: string, at: Date, rates: RateSource): Promise<Priced> {
-  const [own, xlm] = await Promise.all([
-    rates.rateAt(asset, currency, at).catch(() => ({ rate: null, source: RATE_SOURCE_UNAVAILABLE, window: null })),
-    asset.isNative()
-      ? Promise.resolve(null)
-      : rates.rateAt(Asset.native(), currency, at).catch(() => ({ rate: null, source: RATE_SOURCE_UNAVAILABLE, window: null })),
-  ])
-  return { rate: own.rate, xlmRate: asset.isNative() ? own.rate : (xlm?.rate ?? null), rateSource: own.source, rateWindow: own.window }
-}
+const UNAVAILABLE = { rate: null, source: RATE_SOURCE_UNAVAILABLE, window: null }
+
+/** How long the submit path waits for a price before recording the row unpriced for the pass to fill. */
+export const PRICE_TIMEOUT_MS = 3_000
 
 /**
- * Records what a settled claim was worth at its ledger time. Idempotent on
- * the link; a failure here never fails the claim, which has already
- * happened — the pass fills the row in later.
+ * Both rates a line needs: the asset's, and XLM's for the fee line — each
+ * its own lookup with its own source and window. Never throws, and never
+ * waits past `timeoutMs`: a Horizon that is slow answers "unpriced", which
+ * the pass retries; a claim that has already landed is not held for it.
  */
-export async function recordClaimValuation(linkId: string, feeCharged: string | number | null | undefined, rates: RateSource = dexRates): Promise<void> {
-  const link = await prisma.claimLink.findUnique({
+async function price(asset: Asset, currency: string, at: Date, rates: RateSource, timeoutMs = PRICE_TIMEOUT_MS): Promise<Priced> {
+  const within = <T,>(work: Promise<T>, fallback: T) =>
+    Promise.race([work.catch(() => fallback), new Promise<T>((resolve) => setTimeout(() => resolve(fallback), timeoutMs).unref?.())])
+  const [own, xlm] = await Promise.all([
+    within(rates.rateAt(asset, currency, at), UNAVAILABLE),
+    asset.isNative() ? Promise.resolve(null) : within(rates.rateAt(Asset.native(), currency, at), UNAVAILABLE),
+  ])
+  const fee = asset.isNative() ? own : xlm
+  return {
+    rate: own.rate, rateSource: own.source, rateWindow: own.window,
+    xlmRate: fee?.rate ?? null, xlmRateSource: fee ? fee.source : null, xlmRateWindow: fee?.window ?? null,
+  }
+}
+
+/** The subset of the client the valuation writers touch, so a test can stand one in. */
+export type ValuationDb = Pick<typeof prisma, 'claimLink' | 'reclaimBatch' | 'valuation'>
+
+/**
+ * Records what a settled link was worth at its ledger time — a claim, or a
+ * reclaim the ledger reported for one link (reconcile's correction, which
+ * has no ReclaimBatch). Idempotent on the link; a failure here never fails
+ * the movement, which has already happened — the pass creates the row later.
+ * The row is written even when no price came back, so "unpriced" is a row
+ * the pass can find, not an absence.
+ */
+export async function recordClaimValuation(linkId: string, feeCharged: string | number | null | undefined, rates: RateSource = dexRates, db: ValuationDb = prisma): Promise<void> {
+  const link = await db.claimLink.findUnique({
     where: { id: linkId },
     select: {
       id: true, amount: true, status: true, claimedAt: true, claimTxHash: true,
       campaign: { select: { id: true, assetCode: true, assetIssuer: true, organization: { select: { id: true, reportingCurrency: true } } } },
     },
   })
-  if (!link || link.status !== 'CLAIMED' || !link.claimedAt || !link.claimTxHash) return
+  if (!link || (link.status !== 'CLAIMED' && link.status !== 'RECLAIMED') || !link.claimedAt || !link.claimTxHash) return
   const asset = link.campaign.assetIssuer ? new Asset(link.campaign.assetCode, link.campaign.assetIssuer) : Asset.native()
   const currency = link.campaign.organization.reportingCurrency
   const priced = await price(asset, currency, link.claimedAt, rates)
-  await prisma.valuation.upsert({
+  await db.valuation.upsert({
     where: { linkId: link.id },
     create: {
-      organizationId: link.campaign.organization.id, campaignId: link.campaign.id, linkId: link.id, kind: 'CLAIM',
+      organizationId: link.campaign.organization.id, campaignId: link.campaign.id, linkId: link.id, kind: link.status === 'CLAIMED' ? 'CLAIM' : 'RECLAIM',
       valuedAt: link.claimedAt, assetCode: link.campaign.assetCode, assetIssuer: link.campaign.assetIssuer,
       amount: new Decimal(link.amount.toString()).toFixed(), feeXlm: feeToXlm(feeCharged).toFixed(), currency,
-      rate: priced.rate, xlmRate: priced.xlmRate, rateSource: priced.rateSource, rateWindow: priced.rateWindow, transactionHash: link.claimTxHash,
+      rate: priced.rate, xlmRate: priced.xlmRate, rateSource: priced.rateSource, rateWindow: priced.rateWindow,
+      xlmRateSource: priced.xlmRateSource, xlmRateWindow: priced.xlmRateWindow, transactionHash: link.claimTxHash,
     },
     // A second settle of the same claim (a replayed submit) changes nothing already valued.
     update: {},
@@ -85,8 +109,8 @@ export async function recordClaimValuation(linkId: string, feeCharged: string | 
 }
 
 /** The reclaim's reversal, valued at the reclaim's own time. Idempotent on the batch. */
-export async function recordReclaimValuation(reclaimBatchId: string, feeCharged: string | number | null | undefined, rates: RateSource = dexRates): Promise<void> {
-  const reclaim = await prisma.reclaimBatch.findUnique({
+export async function recordReclaimValuation(reclaimBatchId: string, feeCharged: string | number | null | undefined, rates: RateSource = dexRates, db: ValuationDb = prisma): Promise<void> {
+  const reclaim = await db.reclaimBatch.findUnique({
     where: { id: reclaimBatchId },
     select: {
       id: true, amount: true, submittedAt: true, transactionHash: true,
@@ -97,13 +121,14 @@ export async function recordReclaimValuation(reclaimBatchId: string, feeCharged:
   const asset = reclaim.campaign.assetIssuer ? new Asset(reclaim.campaign.assetCode, reclaim.campaign.assetIssuer) : Asset.native()
   const currency = reclaim.campaign.organization.reportingCurrency
   const priced = await price(asset, currency, reclaim.submittedAt, rates)
-  await prisma.valuation.upsert({
+  await db.valuation.upsert({
     where: { reclaimBatchId: reclaim.id },
     create: {
       organizationId: reclaim.campaign.organization.id, campaignId: reclaim.campaign.id, reclaimBatchId: reclaim.id, kind: 'RECLAIM',
       valuedAt: reclaim.submittedAt, assetCode: reclaim.campaign.assetCode, assetIssuer: reclaim.campaign.assetIssuer,
       amount: new Decimal(reclaim.amount.toString()).toFixed(), feeXlm: feeToXlm(feeCharged).toFixed(), currency,
-      rate: priced.rate, xlmRate: priced.xlmRate, rateSource: priced.rateSource, rateWindow: priced.rateWindow, transactionHash: reclaim.transactionHash,
+      rate: priced.rate, xlmRate: priced.xlmRate, rateSource: priced.rateSource, rateWindow: priced.rateWindow,
+      xlmRateSource: priced.xlmRateSource, xlmRateWindow: priced.xlmRateWindow, transactionHash: reclaim.transactionHash,
     },
     update: {},
   })
@@ -111,35 +136,126 @@ export async function recordReclaimValuation(reclaimBatchId: string, feeCharged:
 
 export const REVALUE_PASS_LIMIT = 200
 
+export interface RevalueReport {
+  /** Settled movements with no row at all — the claim-time write failed — given one. */
+  created: number
+  checked: number
+  priced: number
+}
+
 /**
- * The hourly pass: rows still unpriced are tried again against the SAME
- * instant. A row, once priced, is never touched — that is what makes two
- * exports identical. Bounded like every other maintenance pass (#43).
+ * The hourly pass, in two halves, each bounded like every other maintenance
+ * pass (#43):
+ *
+ * 1. Movements with NO row: a CLAIMED link (claim hash set) without a
+ *    valuation, a ReclaimBatch without one, and a RECLAIMED link whose hash
+ *    is not a batch's (reconcile's correction). The claim-time write is
+ *    best-effort, so the pass is what makes "every settled movement has a
+ *    line" true.
+ * 2. Rows still unpriced — the asset rate, or the fee's XLM rate where a fee
+ *    was paid — tried again against the SAME instant. Each failed try bumps
+ *    `attempts`, and the pass orders on it, so a row no window will ever
+ *    price cannot hold every slot against newer rows. Only the missing half
+ *    is filled; a rate once set is never touched, which is what makes two
+ *    exports identical.
  */
-export async function revalueUnpriced(rates: RateSource = dexRates, limit = REVALUE_PASS_LIMIT): Promise<{ checked: number; priced: number }> {
-  const rows = await prisma.valuation.findMany({
-    where: { rate: null },
-    orderBy: [{ valuedAt: 'asc' }, { id: 'asc' }],
+export async function revalueUnpriced(rates: RateSource = dexRates, limit = REVALUE_PASS_LIMIT, db: ValuationDb = prisma): Promise<RevalueReport> {
+  const report: RevalueReport = { created: 0, checked: 0, priced: 0 }
+
+  const claims = await db.claimLink.findMany({
+    where: { status: 'CLAIMED', claimTxHash: { not: null }, valuation: null },
+    orderBy: [{ claimedAt: 'asc' }, { id: 'asc' }],
     take: limit,
-    select: { id: true, assetCode: true, assetIssuer: true, currency: true, valuedAt: true },
+    select: { id: true },
   })
-  let priced = 0
+  for (const link of claims) {
+    await recordClaimValuation(link.id, null, rates, db)
+    report.created += 1
+  }
+  const batches = await db.reclaimBatch.findMany({
+    where: { valuation: null },
+    orderBy: [{ submittedAt: 'asc' }, { id: 'asc' }],
+    take: limit,
+    select: { id: true },
+  })
+  for (const batch of batches) {
+    await recordReclaimValuation(batch.id, null, rates, db)
+    report.created += 1
+  }
+  // A reclaim the ledger reported for one link, with no batch behind it: reconcile's correction.
+  const corrected = await db.claimLink.findMany({
+    where: { status: 'RECLAIMED', claimTxHash: { not: null }, valuation: null },
+    orderBy: [{ claimedAt: 'asc' }, { id: 'asc' }],
+    take: limit,
+    select: { id: true, claimTxHash: true, campaign: { select: { reclaims: { select: { transactionHash: true } } } } },
+  })
+  for (const link of corrected) {
+    // A batch reclaim's links carry the batch's hash and are valued by the batch row, not per link.
+    if (link.campaign.reclaims.some((r) => r.transactionHash === link.claimTxHash)) continue
+    await recordClaimValuation(link.id, null, rates, db)
+    report.created += 1
+  }
+
+  const rows = await db.valuation.findMany({
+    where: { OR: [{ rate: null }, { xlmRate: null, feeXlm: { gt: 0 } }] },
+    orderBy: [{ attempts: 'asc' }, { valuedAt: 'asc' }, { id: 'asc' }],
+    take: limit,
+    select: { id: true, assetCode: true, assetIssuer: true, currency: true, valuedAt: true, rate: true, xlmRate: true, feeXlm: true },
+  })
+  report.checked = rows.length
   for (const row of rows) {
     const asset = row.assetIssuer ? new Asset(row.assetCode, row.assetIssuer) : Asset.native()
     const result = await price(asset, row.currency, row.valuedAt, rates)
-    if (result.rate === null) continue
-    // Conditional on still being unpriced: a concurrent fill wins and this one is a no-op.
-    const updated = await prisma.valuation.updateMany({
-      where: { id: row.id, rate: null },
-      data: { rate: result.rate, xlmRate: result.xlmRate, rateSource: result.rateSource, rateWindow: result.rateWindow },
+    const fillRate = row.rate === null && result.rate !== null
+    const fillXlm = row.xlmRate === null && new Decimal(row.feeXlm.toString()).greaterThan(0) && result.xlmRate !== null
+    if (!fillRate && !fillXlm) {
+      await db.valuation.update({ where: { id: row.id }, data: { attempts: { increment: 1 } } })
+      continue
+    }
+    // Only the half that was missing, and only if it is still missing: a concurrent fill wins.
+    const updated = await db.valuation.updateMany({
+      where: { id: row.id, ...(fillRate ? { rate: null } : {}), ...(fillXlm && !fillRate ? { xlmRate: null } : {}) },
+      data: {
+        ...(fillRate ? { rate: result.rate, rateSource: result.rateSource, rateWindow: result.rateWindow } : {}),
+        ...(fillXlm ? { xlmRate: result.xlmRate, xlmRateSource: result.xlmRateSource, xlmRateWindow: result.xlmRateWindow } : {}),
+      },
     })
-    priced += updated.count
+    report.priced += updated.count
   }
-  if (priced > 0) logger.info({ checked: rows.length, priced }, 'unpriced valuations filled')
-  return { checked: rows.length, priced }
+  if (report.created > 0 || report.priced > 0) logger.info(report, 'valuation pass: rows created and priced')
+  return report
 }
 
 /* ── The export ─────────────────────────────────────────────────────────── */
+
+/**
+ * A range bound. A bare date (`2026-09-30`) means that whole day: `from`
+ * is its first instant, `to` its LAST — otherwise `to=2026-09-30` would
+ * coerce to midnight and drop the day it names. An instant is taken as is.
+ */
+export function rangeBound(raw: string, edge: 'from' | 'to'): Date | null {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const date = new Date(`${raw}T${edge === 'to' ? '23:59:59.999' : '00:00:00.000'}Z`)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+  const date = new Date(raw)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const bound = (edge: 'from' | 'to') =>
+  z.string().optional().transform((raw, ctx) => {
+    if (raw === undefined) return undefined
+    const date = rangeBound(raw, edge)
+    if (!date) ctx.addIssue({ code: 'custom', message: 'a date (YYYY-MM-DD) or an ISO instant' })
+    return date ?? undefined
+  })
+
+export const accountingQuerySchema = z.object({
+  from: bound('from'),
+  to: bound('to'),
+  campaignId: z.string().min(1).max(64).optional(),
+  format: z.enum(['csv', 'json']).default('csv'),
+})
 
 export interface AccountingQuery {
   organizationId: string
@@ -150,7 +266,7 @@ export interface AccountingQuery {
 
 const VALUATION_SELECT = {
   id: true, kind: true, valuedAt: true, assetCode: true, assetIssuer: true, amount: true, feeXlm: true, currency: true,
-  rate: true, xlmRate: true, rateSource: true, rateWindow: true, transactionHash: true, campaignId: true, linkId: true, reclaimBatchId: true,
+  rate: true, xlmRate: true, rateSource: true, rateWindow: true, xlmRateSource: true, xlmRateWindow: true, transactionHash: true, campaignId: true, linkId: true, reclaimBatchId: true,
   link: { select: { label: true, reference: true, claimedBy: true } },
   reclaimBatch: { select: { balanceCount: true } },
 } satisfies Prisma.ValuationSelect
@@ -233,8 +349,10 @@ export function journalLines(rows: ValuationRow[]): JournalLine[] {
         lineId: `${entryId}:fee`, kind: 'fee',
         debitAccount: ACCOUNTS.fees, creditAccount: ACCOUNTS.asset('XLM'),
         assetCode: 'XLM', assetAmount: fee.toFixed(), rate: fixed(r.xlmRate),
-        rateSource: r.xlmRate === null ? RATE_SOURCE_UNAVAILABLE : r.rateSource, rateWindow: r.xlmRate === null ? null : r.rateWindow,
+        // The XLM rate is its own lookup, with its own source and window (never the asset's).
+        rateSource: r.xlmRateSource ?? RATE_SOURCE_UNAVAILABLE, rateWindow: r.xlmRateWindow,
         fiatAmount: fiatOf(fee, r.xlmRate),
+        // TX2's fee only: TX1 (materialise) is submitted separately and its result is not kept on the link.
         description: `Network fee for ${claim ? 'claim' : 'reclaim'} ${r.transactionHash}`,
       })
     }

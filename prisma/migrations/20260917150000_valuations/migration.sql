@@ -20,9 +20,12 @@ CREATE TABLE "Valuation" (
     "currency" TEXT NOT NULL,
     "rate" DECIMAL(23,7),
     "xlmRate" DECIMAL(23,7),
+    "xlmRateSource" TEXT,
+    "xlmRateWindow" TEXT,
     "rateSource" TEXT NOT NULL,
     "rateWindow" TEXT,
     "transactionHash" TEXT NOT NULL,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -43,6 +46,9 @@ CREATE INDEX "Valuation_campaignId_valuedAt_idx" ON "Valuation"("campaignId", "v
 
 -- CreateIndex
 CREATE INDEX "Valuation_rate_valuedAt_idx" ON "Valuation"("rate", "valuedAt");
+
+-- CreateIndex
+CREATE INDEX "Valuation_attempts_valuedAt_idx" ON "Valuation"("attempts", "valuedAt");
 
 -- AddForeignKey
 ALTER TABLE "Valuation" ADD CONSTRAINT "Valuation_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;

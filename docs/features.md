@@ -37,7 +37,11 @@ own trade history for the asset against the anchor standing for the currency (`R
 USDC for USD by default): the close of the claim's hour, or of its day when the hour did not
 trade. A pair no window priced is exported with `rateSource: unavailable` and an empty fiat
 column rather than dropped, and an hourly pass retries it against the same instant until it
-fills; once filled, a row is never touched again. Decimal throughout, `.toFixed()` on output:
+fills — least-tried rows first, the asset rate and the fee's XLM rate each on its own source —
+and creates the row for any settled movement whose claim-time write failed, including a link
+reconciliation corrected from the ledger; once filled, a rate is never touched again. The
+claim-time lookup is bounded to three seconds so a slow Horizon never holds a claim that has
+landed. The fee line is TX2's; `to=YYYY-MM-DD` includes that whole day. Decimal throughout, `.toFixed()` on output:
 no amount renders as an exponent at either extreme the system permits.
 
 **Verified by:** `typecheck`, `lint`, `test` and `build` clean; 9 new unit tests — claim

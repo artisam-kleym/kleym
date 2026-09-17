@@ -906,11 +906,17 @@ model Valuation {
   currency       String
   /// Units of `currency` per one unit of the asset, or null when unpriced.
   rate           Decimal?      @db.Decimal(23, 7)
-  /// Units of `currency` per one XLM at the same instant, for the fee line.
+  /// Units of `currency` per one XLM at the same instant, for the fee line —
+  /// its own lookup, so its own source and window.
   xlmRate        Decimal?      @db.Decimal(23, 7)
+  xlmRateSource  String?
+  xlmRateWindow  String?
   rateSource     String
   /// The window the rate came from, so a line names where its number is from.
   rateWindow     String?
+  /// Failed pricing attempts by the hourly pass. Ordered on, so a row no
+  /// window will ever price cannot hold the pass's slots against newer rows.
+  attempts       Int           @default(0)
   transactionHash String
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -922,6 +928,7 @@ model Valuation {
   @@index([organizationId, valuedAt])
   @@index([campaignId, valuedAt])
   @@index([rate, valuedAt])
+  @@index([attempts, valuedAt])
 }
 
 enum ValuationKind {
