@@ -7,10 +7,11 @@
  * The only thing that crosses to the server is `publicHalves` — the G…
  * addresses — plus the campaign's own metadata (AGENT.md §1).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, Stepper } from '@/components/ui'
-import { generateEphemeralKeys, publicHalves, type Attestation } from '@/lib/campaign/keygen'
+import { deriveEphemeralKeys, publicHalves, type Attestation } from '@/lib/campaign/keygen'
+import { phraseFingerprint, randomCampaignIndex } from '@/lib/campaign/derive'
 import { parseLabels } from '@/lib/campaign/csv'
 import { parseReceiveAs, receiveAsErrorMessage, type ReceiveAsEntry } from '@/lib/campaign/receive-as'
 import { affordability, computeCost, type CostBreakdown } from '@/lib/campaign/cost'
@@ -99,6 +100,21 @@ export function CampaignWizard(config: WizardConfig) {
   const receiveAs = useMemo<ReceiveAsEntry[]>(() => (receiveAsParsed.ok ? receiveAsParsed.assets : []), [receiveAsParsed])
   const receiveAsError = receiveAsParsed.ok ? null : receiveAsErrorMessage(receiveAsParsed)
   const onReceiveAs = useCallback((raw: string) => setReceiveAsRaw(raw), [])
+
+  /*
+   * Recovery phrase (#77). A REF, like the seeds in useWizard: the phrase must
+   * not be part of anything React might serialise, and nothing but keygen
+   * reads it. `phraseConfirmed` is the only thing rendered.
+   */
+  const phrase = useRef<string | null>(null)
+  const [phraseConfirmed, setPhraseConfirmed] = useState(false)
+  const [derivation, setDerivation] = useState<{ index: number; fingerprint: string } | null>(null)
+  const onPhrase = useCallback((value: string) => {
+    phrase.current = value
+    // A fresh 31-bit index per campaign, so two campaigns from one phrase never share a path.
+    setDerivation({ index: randomCampaignIndex(), fingerprint: phraseFingerprint(value) })
+    setPhraseConfirmed(true)
+  }, [])
 
   const patch = useCallback((next: Partial<typeof draft>) => setDraft((d) => ({ ...d, ...next })), [])
 
@@ -216,14 +232,15 @@ export function CampaignWizard(config: WizardConfig) {
     wizard.setError(null)
     wizard.setPhase('generating')
     try {
-      // CODE policy: a claim code is drawn beside each key and goes into the CSV (#79).
-      wizard.replaceKeys(generateEphemeralKeys(draft.linkCount, labels, attestations, amounts, { withCodes: claimPolicy === 'code' }))
+      if (!phrase.current || !derivation) throw new Error('Confirm your recovery phrase first.')
+      // CODE policy: a claim code is derived beside each key — from the phrase too, so a regenerated CSV carries it (#79).
+      wizard.replaceKeys(deriveEphemeralKeys(phrase.current, derivation.index, draft.linkCount, labels, attestations, amounts, { withCodes: claimPolicy === 'code' }))
       wizard.setPhase('awaiting-download')
     } catch (error) {
       wizard.setPhase('editing')
       wizard.setError(error instanceof Error ? error.message : 'Could not generate keys.')
     }
-  }, [draft.linkCount, labels, attestations, amounts, wizard, claimPolicy])
+  }, [draft.linkCount, labels, attestations, amounts, wizard, derivation, claimPolicy])
 
   /* THE GATE. Only this can open it, and only after the file is written. */
   const onDownload = useCallback(() => {
@@ -251,7 +268,7 @@ export function CampaignWizard(config: WizardConfig) {
         return
       }
 
-      const campaignId = await createCampaign(draft, wizard.keys.length, claimPolicy, receiveAs)
+      const campaignId = await createCampaign(draft, wizard.keys.length, derivation, claimPolicy, receiveAs)
       wizard.setCampaignId(campaignId)
       await registerLinks(campaignId, wizard.keys)
 
@@ -278,7 +295,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
     }
-  }, [wizard, draft, cost, stepUp, claimPolicy, receiveAs])
+  }, [wizard, draft, cost, stepUp, derivation, claimPolicy, receiveAs])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -357,6 +374,8 @@ export function CampaignWizard(config: WizardConfig) {
             campaignId={wizard.campaignId}
             appUrl={config.appUrl}
             screening={config.screening}
+            phraseConfirmed={phraseConfirmed}
+            onPhrase={onPhrase}
           />
         )}
 
@@ -414,6 +433,7 @@ function idempotencyKey(): string {
 async function createCampaign(
   draft: { name: string; network: string; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; expiresAt: string },
   linkCount: number,
+  derivation: { index: number; fingerprint: string } | null,
   claimPolicy: 'open' | 'code' | 'email' | 'passkey' = 'open',
   receiveAs: ReceiveAsEntry[] = [],
 ): Promise<string> {
@@ -429,6 +449,8 @@ async function createCampaign(
       amountPerLink: draft.amountPerLink,
       linkCount,
       expiresAt: new Date(draft.expiresAt).toISOString(),
+      // The path index and a PUBLIC-key fingerprint (#77). Never the phrase.
+      ...(derivation ? { derivationIndex: derivation.index, keyFingerprint: derivation.fingerprint } : {}),
       ...(claimPolicy !== 'open' ? { claimPolicy } : {}),
       // Omitted entirely when empty, so the request is what it always was.
       ...(receiveAs.length > 0 ? { receiveAs } : {}),

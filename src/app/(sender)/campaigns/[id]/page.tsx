@@ -4,6 +4,8 @@ import { pageScope } from '@/lib/api/session-guard'
 import { LINK_PREVIEW, loadCampaignDetail } from '@/lib/api/campaign-detail'
 import { StatusChip, StellarAddress, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
 import { ReclaimPanel } from './reclaim-panel'
+import { RegenerateCsv } from './regenerate-csv'
+import { env } from '@/lib/config/env'
 import { SuspendPanel } from './suspend-panel'
 import { SuspendLinkButton } from './links/suspend-link-button'
 import { ApprovalPanel } from './approval-panel'
@@ -137,6 +139,17 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         inFlight={inFlight}
         canAct={canSuspend && ['ACTIVE', 'PARTIAL', 'CREATING'].includes(campaign.status)}
       />
+      {campaign.derivationIndex !== null && roleAtLeast(org.role, 'OPERATOR') && (
+        <RegenerateCsv
+          campaignId={campaign.id}
+          campaignName={campaign.name}
+          linkCount={campaign.linkCount}
+          derivationIndex={campaign.derivationIndex}
+          keyFingerprint={campaign.keyFingerprint}
+          withCodes={campaign.claimPolicy === 'CODE'}
+          appUrl={env.APP_URL}
+        />
+      )}
 
       <ReclaimPanel
         campaignId={campaign.id}

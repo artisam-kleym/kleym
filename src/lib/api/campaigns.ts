@@ -94,6 +94,14 @@ export const createCampaignSchema = z
     /** Who may claim (#79). Open unless said; applied to every link of the campaign. */
     claimPolicy: z.enum(['open', 'code', 'email', 'passkey']).optional(),
     /**
+     * Regenerable links (#77): the campaign's index in the sender's derivation
+     * path and a fingerprint of a PUBLIC key from their phrase. Both or
+     * neither. Neither is secret, and the phrase itself would be refused by
+     * the seed guard before this schema ever saw it.
+     */
+    derivationIndex: z.number().int().min(0).max(2 ** 31 - 1).optional(),
+    keyFingerprint: z.string().regex(/^[0-9a-f]{16}$/, 'must be 16 hex characters').optional(),
+    /*
      * Receive-as (#74): assets a recipient may convert into at claim time. At
      * most five, none of them the campaign's own asset, none repeated. Omitted
      * or empty: conversion is not offered and TX2 is exactly what it was.
@@ -108,6 +116,10 @@ export const createCampaignSchema = z
   .refine((v) => !v.receiveAs || v.receiveAs.every((a, i) => v.receiveAs!.findIndex((b) => sameAsset(a, b)) === i), {
     message: 'receive-as assets must not repeat',
     path: ['receiveAs'],
+  })
+  .refine((v) => (v.derivationIndex === undefined) === (v.keyFingerprint === undefined), {
+    message: 'derivationIndex and keyFingerprint come together',
+    path: ['derivationIndex'],
   })
   .refine((v) => v.assetCode === 'XLM' || v.assetIssuer !== undefined, {
     message: 'a non-native asset requires an issuer',
@@ -246,6 +258,8 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
       linkCount: input.linkCount,
       expiresAt: new Date(input.expiresAt),
       claimPolicy: policyToRow(input.claimPolicy ?? 'open'),
+      derivationIndex: input.derivationIndex ?? null,
+      keyFingerprint: input.keyFingerprint ?? null,
       // Stored as refs ("XLM" / "CODE:ISSUER"); read back through parseAssetRef, never trusted raw.
       receiveAsAssets: (input.receiveAs ?? []).map((a) => (a.assetCode === 'XLM' ? 'XLM' : `${a.assetCode}:${a.assetIssuer}`)),
     },

@@ -8,6 +8,7 @@
  */
 import { StrKey } from '@stellar/stellar-sdk'
 import { z } from 'zod'
+import { scanBudget, scanForMnemonic, type ScanBudget } from './mnemonic'
 
 /** Thrown shape for a rejected seed, surfaced as 400 SEED_SUBMITTED. */
 export const SEED_SUBMITTED = 'SEED_SUBMITTED' as const
@@ -18,12 +19,33 @@ export const SEED_SUBMITTED = 'SEED_SUBMITTED' as const
  * newline is still a seed reaching the server.
  */
 export function containsSecretSeed(value: unknown): boolean {
-  if (typeof value !== 'string') return false
+  /*
+   * Fail closed: a value so long the phrase scan gave up is refused like a
+   * seed. The callers here hold internal values — audit metadata, webhook
+   * payloads, span attributes — where "not logged" is the safe side, and
+   * request bodies go through `scanForSecretSeed`, which tells the two apart.
+   */
+  return secretSeedScan(value, scanBudget()) !== 'clean'
+}
+
+type StringScan = 'clean' | 'seed' | 'over-budget'
+
+function secretSeedScan(value: unknown, budget: ScanBudget): StringScan {
+  if (typeof value !== 'string') return 'clean'
   const candidates = value.match(/S[A-Z2-7]{55}/g)
-  if (!candidates) return false
-  // StrKey confirms the checksum, so a random 56-char string is not a false
-  // positive — but the regex prescreen is what catches embedded occurrences.
-  return candidates.some((candidate) => StrKey.isValidEd25519SecretSeed(candidate))
+  if (candidates) {
+    // StrKey confirms the checksum, so a random 56-char string is not a false
+    // positive — but the regex prescreen is what catches embedded occurrences.
+    if (candidates.some((candidate) => StrKey.isValidEd25519SecretSeed(candidate))) return 'seed'
+  }
+  /*
+   * A BIP39 recovery phrase (#77) is a seed in a different alphabet — and
+   * one that reconstructs every campaign derived from it. Everything that
+   * refuses a StrKey seed refuses a phrase too, through this one function:
+   * request bodies, audit metadata, webhook payloads, the environment scan.
+   */
+  const phrase = scanForMnemonic(value, budget)
+  return phrase === 'phrase' ? 'seed' : phrase
 }
 
 /**
@@ -40,6 +62,8 @@ export type ScanResult =
   | { outcome: 'clean' }
   | { outcome: 'seed'; path: string[] }
   | { outcome: 'too-deep' }
+  /** The phrase scan's word budget ran out (#77): implausible, like over-nesting, and not a security event either. */
+  | { outcome: 'too-long' }
 
 /**
  * Scans a parsed body for an embedded seed.
@@ -49,13 +73,16 @@ export type ScanResult =
  * body — poisoning the one log that is supposed to mean something, and giving
  * anyone a way to spam it. Both are rejected; only one is a security event.
  */
-export function scanForSecretSeed(input: unknown, path: string[] = [], depth = 0): ScanResult {
+export function scanForSecretSeed(input: unknown, path: string[] = [], depth = 0, budget: ScanBudget = scanBudget()): ScanResult {
   if (depth > MAX_SCAN_DEPTH) return { outcome: 'too-deep' }
-  if (containsSecretSeed(input)) return { outcome: 'seed', path }
+  // One budget for the whole body: the phrase scan's cost is capped per request, not per string.
+  const scanned = secretSeedScan(input, budget)
+  if (scanned === 'seed') return { outcome: 'seed', path }
+  if (scanned === 'over-budget') return { outcome: 'too-long' }
 
   if (Array.isArray(input)) {
     for (const [index, item] of input.entries()) {
-      const hit = scanForSecretSeed(item, [...path, String(index)], depth + 1)
+      const hit = scanForSecretSeed(item, [...path, String(index)], depth + 1, budget)
       if (hit.outcome !== 'clean') return hit
     }
     return { outcome: 'clean' }
@@ -63,7 +90,7 @@ export function scanForSecretSeed(input: unknown, path: string[] = [], depth = 0
 
   if (input && typeof input === 'object') {
     for (const [key, value] of Object.entries(input)) {
-      const hit = scanForSecretSeed(value, [...path, key], depth + 1)
+      const hit = scanForSecretSeed(value, [...path, key], depth + 1, budget)
       if (hit.outcome !== 'clean') return hit
     }
   }
