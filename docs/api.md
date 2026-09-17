@@ -30,13 +30,17 @@ separately (`x-ratelimit-write-remaining`). Errors are RFC 9457
 | Method | Path | Body | Returns |
 |---|---|---|---|
 | POST | `/api/v1/campaigns` | `{ name, network, senderPublicKey, assetCode, assetIssuer?, amountPerLink, linkCount, expiresAt, receiveAs?: [{ assetCode, assetIssuer? }] }` | 201, the campaign |
-| POST | `/api/v1/campaigns/{id}/links` | `{ publicKeys: [G…], labels?: [], attestations?: [{reference?, category?, note?} \| null] }` | 201 `{ registered, total }` |
+| POST | `/api/v1/campaigns/{id}/links` | `{ publicKeys: [G…], labels?: [], attestations?: [{reference?, category?, note?} \| null], amounts?: ["12.5" \| null] }` | 201 `{ registered, total }` |
 | POST | `/api/v1/campaigns/{id}/export` | `{}` | `{ csvExportedAt }` — the caller's **attestation** that the secrets file is saved (see below); refused before any link exists |
 | POST | `/api/v1/campaigns/{id}/batches/prepare` | `{ sequence? }` | `{ sequence, totalBatches, linkCount, xdr, networkPassphrase, reserve, … }` |
 | POST | `/api/v1/campaigns/{id}/batches/submit` | `{ sequence, signedXdr }` | `{ sequence, status, transactionHash, replay }` |
 
-`amountPerLink` is a decimal string. The flow is create → register public keys
-→ write the CSV → mark export → for each batch: prepare, sign locally, submit.
+`amountPerLink` is a decimal string, and the DEFAULT: `amounts` (#73), one
+entry per public key, gives a link its own amount — a string with up to seven
+decimal places, greater than zero — and `null` takes the default. Omit it for a
+uniform campaign. `GET …/links` returns each link's `amount` as a string. The
+flow is create → register public keys → write the CSV → mark export → for each
+batch: prepare, sign locally, submit.
 
 **The export gate is an attestation over the API.** In the browser the gate is
 a real download; here, `POST …/export {}` is the caller *saying* the secrets

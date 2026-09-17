@@ -133,7 +133,7 @@ async function historyCarriesTheRecord(): Promise<void> {
   const mk = (status: 'CLAIMED' | 'RECLAIMED' | 'ACTIVE', at: Date | null, hash: string | null) =>
     prisma.claimLink.create({
       data: {
-        campaignId: c!.id, ephemeralPublicKey: Keypair.random().publicKey(), status,
+        campaignId: c!.id, ephemeralPublicKey: Keypair.random().publicKey(), amount: '1.0000000', status,
         claimedAt: at, claimedBy: at ? recipient : null, claimTxHash: hash,
       },
     })

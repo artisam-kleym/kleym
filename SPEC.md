@@ -413,7 +413,8 @@ model Campaign {
   senderPublicKey String                        // G... that funded it
   assetCode       String                        // "XLM" or e.g. "USDC"
   assetIssuer     String?                       // null for native
-  amountPerLink   Decimal        @db.Decimal(23, 7)
+  amountPerLink   Decimal        @db.Decimal(23, 7)  // the DEFAULT per link; each ClaimLink carries its own (#73)
+  variableAmounts Boolean        @default(false)     // any link differs from the default — display only
   linkCount       Int
   expiresAt       DateTime
   status          CampaignStatus @default(DRAFT)
@@ -456,6 +457,7 @@ model ClaimLink {
   ephemeralPublicKey String     @unique
 
   balanceId          String?    @unique      // set once the batch confirms
+  amount             Decimal    @db.Decimal(23, 7)  // what THIS link pays (#73); amountPerLink is the default
   status             LinkStatus @default(PENDING)
   label              String?                 // sender's own note: handle, email, etc.
 
@@ -653,7 +655,7 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 | POST | `/api/campaigns` | Create draft. Body: name, network, asset, amountPerLink, linkCount, expiresAt, `receiveAs?` (#74: up to five assets a recipient may convert into) |
 | GET | `/api/campaigns/[id]` | Detail with aggregate counts |
 | PATCH | `/api/campaigns/[id]` | Rename, cancel draft |
-| POST | `/api/campaigns/[id]/links` | Register ephemeral **public** keys. Body: `{ publicKeys: string[], labels?: string[] }`. **Rejects any 56-char value beginning `S`.** |
+| POST | `/api/campaigns/[id]/links` | Register ephemeral **public** keys. Body: `{ publicKeys: string[], labels?: string[], amounts?: (string \| null)[] }` — a per-link amount (#73), `null` for `amountPerLink`. **Rejects any 56-char value beginning `S`.** |
 | POST | `/api/campaigns/[id]/batches/prepare` | Returns unsigned XDR for batch `n` |
 | POST | `/api/campaigns/[id]/batches/submit` | Body: `{ sequence, signedXdr }`. Submits, records hash, extracts balance IDs |
 | POST | `/api/campaigns/[id]/export` | Marks `csvExportedAt`. Returns nothing — the CSV is built client-side |

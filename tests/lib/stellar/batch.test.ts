@@ -276,6 +276,52 @@ describe('verifyBatchTransaction', () => {
     })
   })
 
+  /*
+   * Per-link amounts (#73). The verifier compares each operation against THAT
+   * link's row, so a batch where every link pays something different is
+   * accepted as prepared — and one altered operation in an otherwise valid
+   * batch is refused. The planted case is acceptance criterion 2.
+   */
+  describe('with per-link amounts', () => {
+    const varied = batch.map((link, i) => ({ ...link, amount: `${i + 1}.2500000` }))
+    const variedExpected = { ...expected, links: varied }
+
+    it('accepts a batch whose links each carry their own amount', () => {
+      expect(verifyBatchTransaction(signed({ links: varied }), variedExpected)).toMatchObject({ ok: true })
+    })
+
+    it('writes each link its own amount, in position', () => {
+      const tx = TransactionBuilder.fromXDR(signed({ links: varied }), PASSPHRASE) as Transaction
+      const amounts = tx.operations.map((op) => (op as { amount: string }).amount)
+      expect(amounts.map((a) => new Decimal(a).toFixed())).toEqual(['1.25', '2.25', '3.25'])
+    })
+
+    it('rejects a batch with ONE altered operation among valid ones', () => {
+      const planted = varied.map((link, i) => (i === 1 ? { ...link, amount: '99.0000000' } : link))
+      expect(verifyBatchTransaction(signed({ links: planted }), variedExpected)).toMatchObject({
+        ok: false,
+        reason: 'wrong-amount',
+      })
+    })
+
+    it('rejects the campaign default where the row says otherwise', () => {
+      // Every op carries amountPerLink; the rows say something else. The
+      // uniform figure is not a fallback the verifier accepts on a varied row.
+      expect(verifyBatchTransaction(signed({ links: batch }), variedExpected)).toMatchObject({
+        ok: false,
+        reason: 'wrong-amount',
+      })
+    })
+
+    it('rejects two links swapping amounts, since the totals would still match', () => {
+      const swapped = [{ ...varied[0]!, amount: varied[1]!.amount }, { ...varied[1]!, amount: varied[0]!.amount }, varied[2]!]
+      expect(verifyBatchTransaction(signed({ links: swapped }), variedExpected)).toMatchObject({
+        ok: false,
+        reason: 'wrong-amount',
+      })
+    })
+  })
+
   // The one that costs money: same shape, but the balances become claimable by
   // someone the campaign never registered.
   it('rejects substituted claimant destinations', () => {

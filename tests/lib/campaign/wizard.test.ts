@@ -36,6 +36,13 @@ describe('keygen', () => {
 
   // AGENT.md §1. This is the shape that goes to the server, and it must not be
   // possible to widen it by accident.
+  it('aligns amounts by index (#73) and publicHalves carries them only when set', () => {
+    const keys = generateEphemeralKeys(3, [], [], ['1.5', null])
+    expect(keys.map((k) => k.amount)).toEqual(['1.5', null, null])
+    expect(publicHalves(keys).amounts).toEqual(['1.5', null, null])
+    expect(publicHalves(generateEphemeralKeys(2)).amounts).toBeUndefined()
+  })
+
   it('publicHalves carries no secret', () => {
     const keys = generateEphemeralKeys(5)
     const halves = publicHalves(keys)
@@ -73,7 +80,7 @@ describe('CSV', () => {
 
   it('has a header and one row per link', () => {
     const lines = buildCsv(rows()).trimEnd().split('\n')
-    expect(lines[0]).toBe('label,public_key,secret,claim_url,reference,category,note')
+    expect(lines[0]).toBe('label,public_key,secret,claim_url,reference,category,note,amount')
     expect(lines).toHaveLength(3)
   })
 
@@ -171,6 +178,48 @@ describe('label parsing', () => {
     expect(parseLabels('a\nb\nc', 2)).toMatchObject({ ok: false, reason: 'too-many', found: 3, allowed: 2 })
   })
 
+  /*
+   * Per-link amounts (#73). Read only when the header NAMES the column, like
+   * attestations; a blank cell means "the campaign default"; and a malformed
+   * or non-positive amount names its row rather than silently becoming the
+   * default — that would pay someone the wrong figure without a word.
+   */
+  describe('amount column', () => {
+    it('reads amounts only when the header names them, blank meaning the default', () => {
+      expect(parseLabels('label,amount\nalice,12.5\nbob,\ncarol,0.0000001', 10)).toEqual({
+        ok: true,
+        labels: ['alice', 'bob', 'carol'],
+        amounts: ['12.5', null, '0.0000001'],
+      })
+      // A second column with no header is not an amount; nothing is guessed.
+      expect(parseLabels('alice,12.5\nbob,3', 10)).toEqual({ ok: true, labels: ['alice', 'bob'] })
+    })
+
+    it.each([
+      ['a negative amount', '-1'],
+      ['zero', '0'],
+      ['eight decimal places', '0.00000001'],
+      ['exponent notation', '1e3'],
+      ['a word', 'twelve'],
+      ['a thousands separator', '1,000'],
+    ])('refuses %s, naming the row', (_label, value) => {
+      expect(parseLabels(`label,amount\nalice,1\nbob,"${value}"`, 10)).toMatchObject({ ok: false, reason: 'amount', line: 3 })
+    })
+
+    it('still refuses key material in the amount column', () => {
+      expect(parseLabels(`label,amount\nalice,${Keypair.random().secret()}`, 10)).toMatchObject({ ok: false, reason: 'seed', line: 2 })
+    })
+
+    it('carries amounts beside attestation columns', () => {
+      expect(parseLabels('label,reference,amount\nalice,REF-1,7', 10)).toEqual({
+        ok: true,
+        labels: ['alice'],
+        attestations: [{ reference: 'REF-1', category: null, note: null }],
+        amounts: ['7'],
+      })
+    })
+  })
+
   it('refuses an empty list', () => {
     expect(parseLabels('   \n\n', 10)).toEqual({ ok: false, reason: 'empty' })
   })
@@ -210,6 +259,20 @@ describe('cost', () => {
     const cost = computeCost({ ...base, amountPerLink: '922337203685.4775807', linkCount: 1 })
     expect(cost.totalAmount).toBe('922337203685.4775807')
     expect(new Decimal(cost.totalAmount).equals('922337203685.4775807')).toBe(true)
+  })
+
+  // #73, acceptance criterion 5: the estimate is the SUM of per-link amounts.
+  it('sums per-link amounts, with blanks taking the default', () => {
+    const cost = computeCost({ ...base, amountPerLink: '1', linkCount: 4, amounts: ['0.1', null, '0.2', '10'] })
+    expect(cost.totalAmount).toBe('11.3')
+    // Reserve and fee are per operation and do not care what it carries.
+    expect(cost.totalReserve).toBe('6')
+    expect(cost.totalFee).toBe('0.0004')
+  })
+
+  it('pads a short amount list with the default and ignores a long one past the count', () => {
+    expect(computeCost({ ...base, amountPerLink: '1', linkCount: 3, amounts: ['5'] }).totalAmount).toBe('7')
+    expect(computeCost({ ...base, amountPerLink: '1', linkCount: 2, amounts: ['5', '5', '5'] }).totalAmount).toBe('10')
   })
 })
 

@@ -86,7 +86,9 @@ export default async function CampaignsPage({
                       <span className="ml-sm font-mono text-label-sm text-on-surface-variant">suspended</span>
                     )}
                   </TableCell>
-                  <TableCell>{row.amountPerLink} {row.assetCode}</TableCell>
+                  <TableCell>
+                    {row.variableAmounts ? 'varies' : row.amountPerLink} {row.assetCode}
+                  </TableCell>
                   <TableCell>
                     <ProgressCell claimed={row.claimed} total={row.linkCount} expired={row.status === 'EXPIRED'} />
                   </TableCell>

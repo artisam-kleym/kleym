@@ -156,11 +156,21 @@ export const registerLinksSchema = z
     labels: z.array(seedFreeString.max(200)).optional(),
     /** Attestation fields (#52), one entry (or null) per public key. */
     attestations: z.array(attestationSchema.nullable()).optional(),
+    /**
+     * Per-link amounts (#73), one entry per public key, as STRINGS. `null`
+     * means "the campaign's amountPerLink". Omitted entirely for a uniform
+     * campaign, so that request is what it always was.
+     */
+    amounts: z.array(stellarAmount.nullable()).optional(),
   })
   .strict()
   .refine((v) => v.labels === undefined || v.labels.length === v.publicKeys.length, {
     message: 'labels must have one entry per public key',
     path: ['labels'],
+  })
+  .refine((v) => v.amounts === undefined || v.amounts.length === v.publicKeys.length, {
+    message: 'amounts must have one entry per public key',
+    path: ['amounts'],
   })
   .refine((v) => v.attestations === undefined || v.attestations.length === v.publicKeys.length, {
     message: 'attestations must have one entry per public key',

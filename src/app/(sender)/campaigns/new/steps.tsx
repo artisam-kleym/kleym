@@ -161,6 +161,7 @@ export function RecipientsStep({
   draft,
   onChange,
   labels,
+  amounts,
   labelError,
   onLabels,
   cost,
@@ -172,6 +173,8 @@ export function RecipientsStep({
   draft: { linkCount: number; expiresAt: string }
   onChange: (patch: Partial<typeof draft>) => void
   labels: string[]
+  /** Per-link amounts (#73) read from the pasted CSV; null entries take the default. */
+  amounts: (string | null)[]
   labelError: string | null
   onLabels: (raw: string) => void
   cost: CostBreakdown | null
@@ -227,6 +230,8 @@ export function RecipientsStep({
             each link is claimed by whoever opens it, so there is no address to record.
             To attach your own reference data, paste a CSV with a header row naming any of{' '}
             <span className="text-on-surface">label, reference, category, note</span>; other columns are ignored.
+            To pay different amounts, add an <span className="text-on-surface">amount</span> column —
+            a blank cell pays the amount per link above.
           </p>
           {labelError && (
             <p role="alert" className="font-mono text-label-sm text-error">
@@ -235,7 +240,10 @@ export function RecipientsStep({
           )}
           {labels.length > 0 && !labelError && (
             <p role="status" className="font-mono text-label-sm text-on-surface-variant">
-              {labels.length} label{labels.length === 1 ? '' : 's'} accepted.
+              {labels.length} label{labels.length === 1 ? '' : 's'} accepted
+              {amounts.some((a) => a !== null) && (
+                <>, {amounts.filter((a) => a !== null).length} with their own amount</>
+              )}.
             </p>
           )}
         </div>

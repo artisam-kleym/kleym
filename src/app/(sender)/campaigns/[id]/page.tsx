@@ -48,7 +48,11 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         <div>
           <h1 className="text-display-lg text-primary max-md:text-headline-md">{campaign.name}</h1>
           <p className="mt-sm font-mono text-label-md text-on-surface-variant">
-            {campaign.linkCount} links · {campaign.amountPerLink.toString()} {campaign.assetCode} each ·{' '}
+            {campaign.linkCount} links ·{' '}
+            {campaign.variableAmounts
+              ? `${campaign.assetCode}, amounts vary by link`
+              : `${campaign.amountPerLink.toString()} ${campaign.assetCode} each`}{' '}
+            ·{' '}
             {expired ? 'expired' : 'expires'} {campaign.expiresAt.toISOString().slice(0, 10)}
           </p>
         </div>
@@ -161,11 +165,12 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         </Link>
       </div>
       <Table className="mt-md">
-        <TableHead columns={['Label', 'Status', 'Claimant', 'Transaction', '']} />
+        <TableHead columns={['Label', 'Amount', 'Status', 'Claimant', 'Transaction', '']} />
         <tbody>
           {campaign.links.map((link) => (
             <TableRow key={link.id}>
               <TableCell>{link.label ?? '—'}</TableCell>
+              <TableCell className="font-mono">{link.amount.toFixed()} {campaign.assetCode}</TableCell>
               <TableCell>
                 <StatusChip status={CHIP[link.status] ?? 'pending'} />
                 {link.suspendedAt && (

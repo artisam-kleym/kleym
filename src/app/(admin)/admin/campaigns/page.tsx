@@ -32,7 +32,7 @@ export default async function AdminCampaignsPage() {
               <TableCell>
                 {campaign.name}
                 <span className="ml-sm font-mono text-label-sm text-on-surface-variant">
-                  {campaign.amountPerLink} {campaign.assetCode}
+                  {campaign.variableAmounts ? 'varies' : campaign.amountPerLink} {campaign.assetCode}
                 </span>
               </TableCell>
               <TableCell className="font-mono text-label-sm">{campaign.owner}</TableCell>
