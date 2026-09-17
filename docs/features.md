@@ -36,8 +36,21 @@ signature — and carries the memo. The ephemeral account is merged to the **spo
 the exchange: `accountMerge` carries no memo, so its remainder at an omnibus account
 would be credited to nobody. Because of that, `claimedBy` is now read from the payment's
 destination rather than the merge's, and the memo is recorded beside it
-(`ClaimLink.claimMemoType` / `claimMemo`). An address that does not exist or does not
-trust the asset is refused in words before the recipient commits.
+(`ClaimLink.claimMemoType` / `claimMemo`) and shown wherever the claimant is: the links
+table, both links APIs, the signed regulator export and the `link.claimed` webhook — a
+sender disputing an exchange credit can see what TX2 carried. An address that does not
+exist or does not trust the asset is refused in words before the recipient commits, and
+the form comes back open and filled in as it was, so one field is corrected rather than
+the whole panel retyped.
+
+The federation lookup is a server-side fetch to a host the caller names, so it is held to
+a public host in every spelling — `127.1`, `0177.0.0.1` and `0x7f.0.0.1` are checked on
+what the URL parser makes of them, not on their text — over HTTPS only, with no redirects
+followed on either the stellar.toml or the federation query (native fetch, not the SDK
+resolvers, for that reason). A returned `hash` memo is decoded from SEP-0002's base64 to
+the hex TX2 carries; an `id` memo returned as a JSON number past 2^53 is refused rather
+than relayed rounded. A lookup's answer is bound to the address it was asked for: editing
+the field while a lookup is in flight can no longer pay the previous name's account.
 
 **Verified by:** `typecheck`, `lint`, `test` and `build` clean; 18 new unit tests — the
 memo rides on TX2 for all three types, the merge goes to the sponsor while the payment

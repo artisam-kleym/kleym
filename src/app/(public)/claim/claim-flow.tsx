@@ -13,7 +13,7 @@ import { ClaimPanel } from '@/components/ui'
 import { clearFragment, readFragment } from '@/lib/claim/fragment'
 import { claimTraceHeaders } from '@/lib/claim/trace'
 import { isConversionRefused, isDepositRefused, isNotReady, retryTarget, stateFromProblem, type ClaimState } from '@/lib/claim/machine'
-import { ClaimScreen, type Deposit, type LinkDetails, type ReceiveAsOption, type ReceiveAsQuote } from './screens'
+import { ClaimScreen, type Deposit, type DepositDraft, type LinkDetails, type ReceiveAsOption, type ReceiveAsQuote } from './screens'
 import type { DepositMemo } from '@/lib/stellar/memo'
 
 /**
@@ -69,6 +69,12 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
   /** The last deposit address tried, so a later wallet path never inherits it as the recipient. */
   const lastDeposit = useRef<string | null>(null)
   const [depositMade, setDepositMade] = useState<Deposit | null>(null)
+  /** The deposit form as typed (a ref: it changes on every keystroke) and, after a refusal, what the form re-opens with. */
+  const depositDraft = useRef<DepositDraft | null>(null)
+  const [depositRestore, setDepositRestore] = useState<DepositDraft | null>(null)
+  const onDepositDraft = useCallback((draft: DepositDraft) => {
+    depositDraft.current = draft
+  }, [])
 
   /*
    * A ref, not state. The seed must not be part of anything React might
@@ -341,6 +347,9 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
          */
         if (isDepositRefused(p.status, p.type)) {
           deposit.current = null
+          // Back to `ready` with the form open and filled as it was: the
+          // recipient corrects one field, not the whole panel from scratch.
+          setDepositRestore(depositDraft.current)
           setError(p.detail)
           return setState('ready')
         }
@@ -598,6 +607,8 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         onReceiveAs={(option) => void onReceiveAs(option)}
         delivered={delivered}
         onDeposit={onDeposit}
+        depositDraft={depositRestore}
+        onDepositDraft={onDepositDraft}
         lookupFederation={lookupFederation}
         depositMade={depositMade}
       />

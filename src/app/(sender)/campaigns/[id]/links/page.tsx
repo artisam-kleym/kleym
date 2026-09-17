@@ -97,7 +97,15 @@ export default async function CampaignLinksPage({
                       <span className="ml-sm font-mono text-label-sm text-on-surface-variant">suspended</span>
                     )}
                   </TableCell>
-                  <TableCell>{link.claimedBy ? <StellarAddress value={link.claimedBy} /> : '—'}</TableCell>
+                  <TableCell>
+                    {link.claimedBy ? <StellarAddress value={link.claimedBy} /> : '—'}
+                    {link.claimMemo && (
+                      // The deposit memo TX2 carried (#75): the exchange credited the claimant from this.
+                      <span className="ml-sm font-mono text-label-sm text-on-surface-variant" title={`memo ${link.claimMemoType}`}>
+                        memo {link.claimMemo}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>{link.claimedAt ? formatDate(link.claimedAt) : '—'}</TableCell>
                   <TableCell>{link.claimTxHash ? <StellarAddress value={link.claimTxHash} /> : '—'}</TableCell>
                   <TableCell>

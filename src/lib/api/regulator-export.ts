@@ -26,7 +26,7 @@ export const REGULATOR_COLUMNS = [
   'campaignId', 'campaignName', 'campaignStatus', 'campaignCreatedAt', 'createdBy', 'network', 'assetCode', 'assetIssuer',
   'amountPerLink', 'senderPublicKey', 'sponsorPublicKey', 'expiresAt', 'screeningDecision', 'screenedAt',
   'linkId', 'label', 'reference', 'category', 'note', 'amount', 'linkStatus', 'ephemeralPublicKey', 'balanceId',
-  'fundingTxHash', 'claimedBy', 'claimedAt', 'claimTxHash',
+  'fundingTxHash', 'claimedBy', 'claimedAt', 'claimTxHash', 'claimMemoType', 'claimMemo',
 ] as const
 
 export type RegulatorRow = Record<(typeof REGULATOR_COLUMNS)[number], string | null>
@@ -47,7 +47,7 @@ export async function regulatorRows(query: RegulatorQuery): Promise<RegulatorRow
         orderBy: LINK_ORDER,
         select: {
           id: true, label: true, reference: true, category: true, note: true, amount: true, status: true, ephemeralPublicKey: true, balanceId: true,
-          claimedBy: true, claimedAt: true, claimTxHash: true, batch: { select: { transactionHash: true } },
+          claimedBy: true, claimedAt: true, claimTxHash: true, claimMemoType: true, claimMemo: true, batch: { select: { transactionHash: true } },
         },
       },
     },
@@ -65,6 +65,8 @@ export async function regulatorRows(query: RegulatorQuery): Promise<RegulatorRow
         amount: new Decimal(l.amount.toString()).toFixed(), linkStatus: l.status,
         ephemeralPublicKey: l.ephemeralPublicKey, balanceId: l.balanceId, fundingTxHash: l.batch?.transactionHash ?? null,
         claimedBy: l.claimedBy, claimedAt: l.claimedAt?.toISOString() ?? null, claimTxHash: l.claimTxHash,
+        // The deposit memo TX2 carried (#75): what an exchange credited the claimant from.
+        claimMemoType: l.claimMemoType, claimMemo: l.claimMemo,
       })
     }
   }

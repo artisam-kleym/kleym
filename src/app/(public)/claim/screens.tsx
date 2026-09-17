@@ -10,7 +10,7 @@
  * "Claimed", not "Success!". Errors name the fix and say the funds are safe,
  * because the first thing a person fears is that they just lost the money.
  */
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { StrKey } from '@stellar/stellar-sdk'
 import { Button, Icon, StellarAddress } from '@/components/ui'
 import type { ClaimState } from '@/lib/claim/machine'
@@ -36,6 +36,13 @@ export interface LinkDetails {
 export interface Deposit {
   publicKey: string
   memo: DepositMemo
+}
+
+/** What the recipient has typed into the deposit form, kept across a refusal so it comes back pre-filled (#75). */
+export interface DepositDraft {
+  address: string
+  memoType: MemoType
+  memoValue: string
 }
 
 /** What each policy means for the person reading, in their words. */
@@ -122,6 +129,8 @@ export function ClaimScreen({
   onReceiveAs,
   delivered = null,
   onDeposit,
+  depositDraft = null,
+  onDepositDraft,
   lookupFederation,
   depositMade = null,
 }: {
@@ -151,6 +160,9 @@ export function ClaimScreen({
   delivered?: { assetCode: string; destAmount: string; destMin: string } | null
   /** Exchange deposit (#75): claim to this address with this memo instead of a wallet. */
   onDeposit?: (deposit: Deposit) => void
+  /** The form as last typed; present after a refusal, so the panel re-opens filled in. */
+  depositDraft?: DepositDraft | null
+  onDepositDraft?: (draft: DepositDraft) => void
   /** Resolves `name*domain` through Kleym's server. */
   lookupFederation?: (address: string) => Promise<{ accountId: string; memo: DepositMemo | null }>
   /** The deposit that was made, for the success screen. */
@@ -223,7 +235,14 @@ export function ClaimScreen({
           </Button>
 
           {link?.exchangeDeposit && onDeposit && (
-            <DepositForm link={link} onDeposit={onDeposit} lookupFederation={lookupFederation} quoteLoading={quote?.status === 'loading'} />
+            <DepositForm
+              link={link}
+              onDeposit={onDeposit}
+              draft={depositDraft}
+              onDraft={onDepositDraft}
+              lookupFederation={lookupFederation}
+              quoteLoading={quote?.status === 'loading'}
+            />
           )}
 
           {/*
@@ -394,41 +413,70 @@ export function ClaimScreen({
 function DepositForm({
   link,
   onDeposit,
+  draft = null,
+  onDraft,
   lookupFederation,
   quoteLoading = false,
 }: {
   link: LinkDetails
   onDeposit: (deposit: Deposit) => void
+  /** Re-opened and pre-filled from this after a refusal, so nothing typed is lost. */
+  draft?: DepositDraft | null
+  onDraft?: (draft: DepositDraft) => void
   lookupFederation?: (address: string) => Promise<{ accountId: string; memo: DepositMemo | null }>
   /** A receive-as price still being fetched: committing now would send the asset as sent. */
   quoteLoading?: boolean
 }) {
-  const [open, setOpen] = useState(false)
-  const [address, setAddress] = useState('')
-  const [memoType, setMemoType] = useState<MemoType>('id')
-  const [memoValue, setMemoValue] = useState('')
-  const [lookup, setLookup] = useState<{ status: 'idle' } | { status: 'busy' } | { status: 'error'; detail: string } | { status: 'done'; accountId: string }>({ status: 'idle' })
+  const [open, setOpen] = useState(draft !== null)
+  const [address, setAddress] = useState(draft?.address ?? '')
+  const [memoType, setMemoType] = useState<MemoType>(draft?.memoType ?? 'id')
+  const [memoValue, setMemoValue] = useState(draft?.memoValue ?? '')
+  /*
+   * A lookup result belongs to the address it was asked for. The address it
+   * answers is kept with it, so a result that lands after the field was
+   * edited is never attached to a different name — the form would show
+   * `bob*ex.com` while paying alice's account with alice's memo, irreversibly.
+   */
+  const [lookup, setLookup] = useState<
+    { status: 'idle' } | { status: 'busy'; address: string } | { status: 'error'; address: string; detail: string } | { status: 'done'; address: string; accountId: string }
+  >({ status: 'idle' })
   const [confirmed, setConfirmed] = useState(false)
 
   const trimmed = address.trim()
   const isFederation = trimmed.includes('*')
-  const publicKey = lookup.status === 'done' && isFederation ? lookup.accountId : trimmed
+  const resolved = lookup.status === 'done' && lookup.address === trimmed ? lookup.accountId : null
+  const publicKey = isFederation ? (resolved ?? '') : trimmed
   const addressOk = StrKey.isValidEd25519PublicKey(publicKey)
   const memoCheck = checkMemo({ type: memoType, value: memoValue })
   const ready = addressOk && memoCheck.ok && confirmed
 
+  // Reported as typed, so a refusal can bring the form back exactly as it was.
+  useEffect(() => {
+    onDraft?.({ address, memoType, memoValue })
+  }, [address, memoType, memoValue, onDraft])
+
   async function resolveFederation() {
     if (!lookupFederation) return
-    setLookup({ status: 'busy' })
+    const asked = trimmed
+    setLookup({ status: 'busy', address: asked })
     try {
-      const result = await lookupFederation(trimmed)
-      setLookup({ status: 'done', accountId: result.accountId })
+      const result = await lookupFederation(asked)
+      setLookup({ status: 'done', address: asked, accountId: result.accountId })
+      // The memo the exchange named goes with ITS address only: applied through
+      // the address state so it is the CURRENT text that is compared, not a
+      // value captured before the await.
       if (result.memo) {
-        setMemoType(result.memo.type)
-        setMemoValue(result.memo.value)
+        const memo = result.memo
+        setAddress((current) => {
+          if (current.trim() === asked) {
+            setMemoType(memo.type)
+            setMemoValue(memo.value)
+          }
+          return current
+        })
       }
     } catch (caught) {
-      setLookup({ status: 'error', detail: caught instanceof Error ? caught.message : 'That address could not be looked up.' })
+      setLookup({ status: 'error', address: asked, detail: caught instanceof Error ? caught.message : 'That address could not be looked up.' })
     }
   }
 
@@ -457,10 +505,7 @@ function DepositForm({
         <span className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">Deposit address</span>
         <input
           value={address}
-          onChange={(e) => {
-            setAddress(e.target.value)
-            setLookup({ status: 'idle' })
-          }}
+          onChange={(e) => setAddress(e.target.value)}
           placeholder="G… or name*exchange.com"
           spellCheck={false}
           autoComplete="off"
@@ -473,10 +518,10 @@ function DepositForm({
           <Button variant="secondary" onClick={() => void resolveFederation()} disabled={lookup.status === 'busy'}>
             {lookup.status === 'busy' ? 'Looking up…' : 'Look up address'}
           </Button>
-          {lookup.status === 'done' && (
-            <span className="font-mono text-label-sm text-on-surface-variant">→ {lookup.accountId.slice(0, 8)}…{lookup.accountId.slice(-4)}</span>
+          {resolved && (
+            <span className="font-mono text-label-sm text-on-surface-variant">→ {resolved.slice(0, 8)}…{resolved.slice(-4)}</span>
           )}
-          {lookup.status === 'error' && <span role="alert" className="text-label-sm text-error">{lookup.detail}</span>}
+          {lookup.status === 'error' && lookup.address === trimmed && <span role="alert" className="text-label-sm text-error">{lookup.detail}</span>}
         </div>
       )}
       {trimmed.length > 0 && !isFederation && !addressOk && (

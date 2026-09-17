@@ -829,6 +829,7 @@ async function submitClaimUnobserved(
     // The ephemeral PUBLIC key and the claimant — what the ledger shows. Never the link (#51).
     await emitWebhook(claimed.campaign.organizationId, 'link.claimed', {
       campaignId: link.campaignId, linkId: link.id, ephemeralPublicKey, claimedBy: recipient ?? '', claimTxHash: result.hash, claimedAt: claimedAt.toISOString(),
+      claimMemoType: memo?.type ?? null, claimMemo: memo?.value ?? null,
     })
   }
 

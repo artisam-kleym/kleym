@@ -103,7 +103,8 @@ x-kleym-signature: v1=<hex HMAC-SHA256 of "<timestamp>.<raw body>">
 
 ```json
 { "id": "whd_…", "event": "link.claimed", "createdAt": "…", "organizationId": "…",
-  "data": { "campaignId": "…", "linkId": "…", "ephemeralPublicKey": "G…", "claimedBy": "G…", "claimTxHash": "…", "claimedAt": "…" } }
+  "data": { "campaignId": "…", "linkId": "…", "ephemeralPublicKey": "G…", "claimedBy": "G…", "claimTxHash": "…", "claimedAt": "…",
+            "claimMemoType": "id" | "text" | "hash" | null, "claimMemo": "…" | null } }
 ```
 
 **Payloads carry no claim URL, no fragment, no seed and no address.** A body is
