@@ -33,7 +33,7 @@ import { canonicalJson, signBytes, signingPublicKey, verifyBytes } from './audit
 import { policyFromRow, type ClaimPolicy } from './claim-policy'
 
 export const RECEIPT_FORMAT = 'kleym-claim-receipt'
-export const RECEIPT_VERSION = 1
+export const RECEIPT_VERSION = 2
 
 /** What a receipt attests. Field order is fixed by `canonicalJson`; the version names the shape. */
 export interface ReceiptContents {
@@ -42,13 +42,24 @@ export interface ReceiptContents {
   receiptId: string
   organization: { id: string; name: string }
   campaign: { id: string; name: string; network: string; assetCode: string; assetIssuer: string | null }
-  link: { id: string; label: string | null; reference: string | null; category: string | null; note: string | null }
+  /**
+   * The link by id only. Its label, reference, category and note are the
+   * SENDER's reference data, never read on the claim path and never in a
+   * recipient's copy; the sender-facing CSV bundle carries them as unsigned
+   * columns beside the receipt.
+   */
+  link: { id: string }
   claim: {
     /** The address the payment went to, read off the envelope. */
     recipient: string
-    /** Fixed-point, what THIS link paid (#73). */
+    /**
+     * What was DELIVERED, fixed-point: for a receive-as claim (#74) the
+     * destination asset and the amount the ledger paid out, not the link's
+     * figure in the campaign asset. For a plain payment they are the same.
+     */
     amount: string
     assetCode: string
+    assetIssuer: string | null
     /** The ledger time Kleym recorded the claim at, ISO 8601. */
     claimedAt: string
     transactionHash: string
@@ -75,8 +86,17 @@ export interface ReceiptInput {
   receiptId: string
   organization: { id: string; name: string }
   campaign: { id: string; name: string; network: string; assetCode: string; assetIssuer: string | null; claimPolicy: ClaimPolicy }
-  link: { id: string; label: string | null; reference: string | null; category: string | null; note: string | null; amount: Decimal | string }
+  link: { id: string }
+  /** What the recipient received: `deliveredAsset` as `XLM` or `CODE:ISSUER`, and the delivered amount. */
+  delivered: { asset: string; amount: Decimal | string }
   claim: { recipient: string; claimedAt: Date; transactionHash: string; memoType: string | null; memo: string | null; emailed: boolean }
+}
+
+/** `XLM` or `CODE:ISSUER` → the receipt's code and issuer. */
+function assetFieldsOf(ref: string): { assetCode: string; assetIssuer: string | null } {
+  if (ref === 'XLM') return { assetCode: 'XLM', assetIssuer: null }
+  const [code, issuer] = ref.split(':') as [string, string | undefined]
+  return { assetCode: code, assetIssuer: issuer ?? null }
 }
 
 /** Builds and signs a receipt. Pure given its input: the same input gives the same bytes and the same signature check. */
@@ -90,12 +110,12 @@ export function buildReceipt(input: ReceiptInput): SignedReceipt {
       id: input.campaign.id, name: input.campaign.name, network: input.campaign.network,
       assetCode: input.campaign.assetCode, assetIssuer: input.campaign.assetIssuer,
     },
-    link: { id: input.link.id, label: input.link.label, reference: input.link.reference, category: input.link.category, note: input.link.note },
+    link: { id: input.link.id },
     claim: {
       recipient: input.claim.recipient,
       // Decimal → fixed-point (AGENT.md §4.1): never an exponent on a receipt.
-      amount: new Decimal(input.link.amount.toString()).toFixed(),
-      assetCode: input.campaign.assetCode,
+      amount: new Decimal(input.delivered.amount.toString()).toFixed(),
+      ...assetFieldsOf(input.delivered.asset),
       claimedAt: input.claim.claimedAt.toISOString(),
       transactionHash: input.claim.transactionHash,
       memoType: input.claim.memoType,
@@ -129,7 +149,7 @@ export async function issueReceipt(linkId: string): Promise<SignedReceipt | null
   const link = await prisma.claimLink.findUnique({
     where: { id: linkId },
     select: {
-      id: true, label: true, reference: true, category: true, note: true, amount: true,
+      id: true, amount: true, deliveredAsset: true, deliveredAmount: true,
       status: true, claimedBy: true, claimedAt: true, claimTxHash: true, claimMemoType: true, claimMemo: true,
       delivery: { select: { id: true } },
       campaign: {
@@ -145,12 +165,27 @@ export async function issueReceipt(linkId: string): Promise<SignedReceipt | null
     return null
   }
 
+  /*
+   * What was delivered: recorded at submit for every claim from here on. A
+   * claim settled before that column existed, or one whose result was not
+   * on hand, is attested as a plain payment of the link's amount in the
+   * campaign asset — which is what a plain payment delivered. A receive-as
+   * claim without a recorded delivered amount is NOT guessed: no receipt.
+   */
+  const campaignAssetRef = link.campaign.assetIssuer ? `${link.campaign.assetCode}:${link.campaign.assetIssuer}` : 'XLM'
+  const deliveredAsset = link.deliveredAsset ?? campaignAssetRef
+  const deliveredAmount = link.deliveredAmount !== null ? link.deliveredAmount.toString() : deliveredAsset === campaignAssetRef ? link.amount.toString() : null
+  if (deliveredAmount === null) {
+    logger.warn({ linkId }, 'receive-as claim has no recorded delivered amount; no receipt issued')
+    return null
+  }
   const receiptId = `rcpt_${link.id}`
   const receipt = buildReceipt({
     receiptId,
     organization: link.campaign.organization,
     campaign: { ...link.campaign, claimPolicy: policyFromRow(link.campaign.claimPolicy) },
-    link,
+    link: { id: link.id },
+    delivered: { asset: deliveredAsset, amount: deliveredAmount },
     claim: {
       recipient: link.claimedBy, claimedAt: link.claimedAt, transactionHash: link.claimTxHash,
       memoType: link.claimMemoType, memo: link.claimMemo, emailed: link.delivery !== null,
@@ -195,8 +230,24 @@ export interface ReceiptsQuery {
   to?: Date
 }
 
-/** Every receipt in scope, one per settled claim and no others, in claim order. */
-export async function receiptsFor(query: ReceiptsQuery): Promise<SignedReceipt[]> {
+/**
+ * Every receipt in scope, one per settled claim and no others, in claim
+ * order. A settled claim with no receipt yet — settled before this shipped,
+ * or whose claim-time issue failed — is issued here first, so the bundle
+ * holds every CLAIMED link the page counts. Bounded by the scope: a campaign
+ * is at most MAX_LINKS_PER_CAMPAIGN links, and each issue is one row.
+ */
+export async function receiptsFor(query: ReceiptsQuery): Promise<BundledReceipt[]> {
+  const missing = await prisma.claimLink.findMany({
+    where: {
+      status: 'CLAIMED', claimedBy: { not: null }, receipt: null,
+      campaign: { organizationId: query.organizationId, ...(query.campaignId ? { id: query.campaignId } : {}) },
+      ...(query.from || query.to ? { claimedAt: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) } } : {}),
+    },
+    select: { id: true },
+  })
+  for (const link of missing) await issueReceipt(link.id)
+
   const rows = await prisma.claimReceipt.findMany({
     where: {
       organizationId: query.organizationId,
@@ -204,15 +255,24 @@ export async function receiptsFor(query: ReceiptsQuery): Promise<SignedReceipt[]
       ...(query.from || query.to ? { claimedAt: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) } } : {}),
     },
     orderBy: [{ claimedAt: 'asc' }, { id: 'asc' }],
-    select: { id: true, canonical: true, signature: true, publicKey: true },
+    select: { id: true, canonical: true, signature: true, publicKey: true, link: { select: { label: true, reference: true, category: true, note: true } } },
   })
-  return rows.map(fromRow)
+  return rows.map((row) => ({ ...fromRow(row), sender: row.link }))
 }
 
+/** A receipt beside the sender's own reference data for it — unsigned, sender-facing only. */
+export type BundledReceipt = SignedReceipt & { sender: { label: string | null; reference: string | null; category: string | null; note: string | null } }
+
+/**
+ * The CSV's columns. `label`, `reference`, `category` and `note` are the
+ * sender's reference data, NOT part of the signed receipt: they sit beside
+ * it for the sender's own reconciliation and are absent from the canonical
+ * and from the recipient's copy.
+ */
 export const RECEIPT_COLUMNS = [
-  'receiptId', 'organizationId', 'organizationName', 'campaignId', 'campaignName', 'network', 'assetCode', 'assetIssuer',
+  'receiptId', 'organizationId', 'organizationName', 'campaignId', 'campaignName', 'network',
   'linkId', 'label', 'reference', 'category', 'note',
-  'recipient', 'amount', 'claimedAt', 'transactionHash', 'memoType', 'memo', 'deliveryChannel', 'claimPolicy',
+  'recipient', 'assetCode', 'assetIssuer', 'amount', 'claimedAt', 'transactionHash', 'memoType', 'memo', 'deliveryChannel', 'claimPolicy',
   'signature', 'publicKey', 'canonical',
 ] as const
 
@@ -228,7 +288,7 @@ function csvCell(value: string | null): string {
  * canonical string as its last column for the same reason.
  */
 export function buildReceiptBundle(
-  receipts: SignedReceipt[],
+  receipts: BundledReceipt[],
   query: ReceiptsQuery & { organizationName: string },
   format: 'csv' | 'json',
   generatedAt: Date = new Date(),
@@ -251,9 +311,9 @@ export function buildReceiptBundle(
       const c = r.contents
       const row: Record<(typeof RECEIPT_COLUMNS)[number], string | null> = {
         receiptId: r.receiptId, organizationId: c.organization.id, organizationName: c.organization.name,
-        campaignId: c.campaign.id, campaignName: c.campaign.name, network: c.campaign.network, assetCode: c.campaign.assetCode, assetIssuer: c.campaign.assetIssuer,
-        linkId: c.link.id, label: c.link.label, reference: c.link.reference, category: c.link.category, note: c.link.note,
-        recipient: c.claim.recipient, amount: c.claim.amount, claimedAt: c.claim.claimedAt, transactionHash: c.claim.transactionHash,
+        campaignId: c.campaign.id, campaignName: c.campaign.name, network: c.campaign.network,
+        linkId: c.link.id, label: r.sender.label, reference: r.sender.reference, category: r.sender.category, note: r.sender.note,
+        recipient: c.claim.recipient, assetCode: c.claim.assetCode, assetIssuer: c.claim.assetIssuer, amount: c.claim.amount, claimedAt: c.claim.claimedAt, transactionHash: c.claim.transactionHash,
         memoType: c.claim.memoType, memo: c.claim.memo, deliveryChannel: c.claim.deliveryChannel, claimPolicy: c.claim.claimPolicy,
         signature: r.signature, publicKey: r.publicKey, canonical: r.canonical,
       }

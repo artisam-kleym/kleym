@@ -689,6 +689,13 @@ model ClaimLink {
   /// back off the envelope beside `claimedBy`, never from the request.
   claimMemoType String?
   claimMemo     String?
+  /// What the recipient actually received (#81, #74): for a receive-as claim
+  /// TX2 is a pathPaymentStrictSend and this is the destination asset and the
+  /// amount the ledger delivered; for a plain payment it equals the campaign
+  /// asset and this link's amount. Read off the envelope and the result at
+  /// submit, beside `claimedBy`; what a receipt attests.
+  deliveredAsset  String?
+  deliveredAmount Decimal? @db.Decimal(23, 7)
   /// The policy that was satisfied when this link was claimed (#79).
   claimedUnder ClaimPolicy?
 

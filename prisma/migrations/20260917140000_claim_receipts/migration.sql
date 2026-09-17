@@ -1,6 +1,10 @@
 -- AlterTable
 ALTER TABLE "Campaign" ADD COLUMN     "emailReceipts" BOOLEAN NOT NULL DEFAULT false;
 
+-- AlterTable
+ALTER TABLE "ClaimLink" ADD COLUMN     "deliveredAsset" TEXT,
+ADD COLUMN     "deliveredAmount" DECIMAL(23,7);
+
 -- CreateTable
 CREATE TABLE "ClaimReceipt" (
     "id" TEXT NOT NULL,

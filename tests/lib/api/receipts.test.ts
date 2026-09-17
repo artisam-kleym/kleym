@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { Keypair } from '@stellar/stellar-sdk'
+import { Account, Asset, Keypair, Networks, Transaction, TransactionBuilder, xdr } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
-import { RECEIPT_COLUMNS, buildReceipt, buildReceiptBundle, verifyReceipt, type ReceiptInput } from '@/lib/api/receipts'
+import { RECEIPT_COLUMNS, buildReceipt, buildReceiptBundle, verifyReceipt, type BundledReceipt, type ReceiptInput } from '@/lib/api/receipts'
+import { deliveredOf } from '@/lib/api/claims'
+import { buildClaim } from '@/lib/stellar/claim'
 import { receiptEmail } from '@/lib/email/templates'
 import { verifyBytes } from '@/lib/api/audit-chain'
 import { containsSecretSeed } from '@/lib/validation/stellar'
@@ -20,7 +22,8 @@ const input = (over: Partial<ReceiptInput['claim']> = {}): ReceiptInput => ({
   receiptId: 'rcpt_l1',
   organization: { id: 'o1', name: 'Acme Treasury' },
   campaign: { id: 'c1', name: 'Q3 bonus', network: 'testnet', assetCode: 'USDC', assetIssuer: ISSUER, claimPolicy: 'email' },
-  link: { id: 'l1', label: 'alice', reference: 'PAY-1', category: 'payroll', note: null, amount: new Decimal('0.0000001') },
+  link: { id: 'l1' },
+  delivered: { asset: `USDC:${ISSUER}`, amount: new Decimal('0.0000001') },
   claim: { recipient: RECIPIENT, claimedAt: new Date('2026-09-17T12:00:00.000Z'), transactionHash: 'ab'.repeat(32), memoType: 'id', memo: '12345', emailed: true, ...over },
 })
 
@@ -55,6 +58,54 @@ describe('buildReceipt', () => {
     expect(verifyReceipt(r.canonical, r.signature.replace(/^./, (c) => (c === 'A' ? 'B' : 'A')), r.publicKey)).toBe(false)
   })
 
+  it('carries the link by id only — never the sender\'s label, reference, category or note, in the receipt or the recipient\'s email', () => {
+    const r = buildReceipt(input())
+    const mail = receiptEmail({
+      senderName: 'Acme', amount: '0.0000001', assetCode: 'USDC', recipient: RECIPIENT, claimedAt: new Date(), transactionHash: 'ab'.repeat(32),
+      receiptId: r.receiptId, canonical: r.canonical, signature: r.signature, publicKey: r.publicKey,
+    })
+    expect(r.contents.link).toEqual({ id: 'l1' })
+    for (const body of [r.canonical, mail.text, mail.html]) {
+      for (const field of ['label', 'reference', 'category', 'note']) expect(body).not.toMatch(new RegExp(`"${field}"`))
+      expect(body).not.toContain('PAY-1')
+      expect(body).not.toContain('payroll')
+    }
+  })
+
+  it('attests what was DELIVERED: for a receive-as claim the destination asset and the ledger\'s amount, read off the envelope and result', () => {
+    const sponsor = Keypair.random()
+    const context = {
+      sponsorAccount: new Account(sponsor.publicKey(), '100'), sponsorPublicKey: sponsor.publicKey(), ephemeralPublicKey: Keypair.random().publicKey(),
+      recipientPublicKey: RECIPIENT, asset: Asset.native(), amount: '2.5000000', balanceId: `00000000${'a'.repeat(64)}`, networkPassphrase: Networks.TESTNET, baseFee: '1000',
+    }
+    const facts = { ephemeralExists: true, ephemeralTrusts: false, recipientExists: true, recipientTrusts: true }
+    const plain = TransactionBuilder.fromXDR(buildClaim(context, facts).xdr, Networks.TESTNET) as Transaction
+    expect(deliveredOf(plain, undefined)).toEqual({ asset: 'XLM', amount: '2.5' })
+
+    const usdc = new Asset('USDC', ISSUER)
+    const converted = TransactionBuilder.fromXDR(buildClaim({ ...context, conversion: { destAsset: usdc, destMin: '2.4000000', path: [] } }, facts).xdr, Networks.TESTNET) as Transaction
+    // Without the result, the destination asset is known but the amount is NOT guessed from the floor.
+    expect(deliveredOf(converted, undefined)).toEqual({ asset: `USDC:${ISSUER}`, amount: null })
+    // With the result: the amount the ledger delivered (2.4713 USDC here, more than destMin).
+    const opIndex = converted.operations.findIndex((o) => o.type === 'pathPaymentStrictSend')
+    const success = new xdr.PathPaymentStrictSendResultSuccess({
+      offers: [],
+      last: new xdr.SimplePaymentResult({ destination: Keypair.fromPublicKey(RECIPIENT).xdrAccountId(), asset: usdc.toXDRObject(), amount: xdr.Int64.fromString('24713000') }),
+    })
+    const results = converted.operations.map((o, i) =>
+      i === opIndex
+        ? xdr.OperationResult.opInner(xdr.OperationResultTr.pathPaymentStrictSend(xdr.PathPaymentStrictSendResult.pathPaymentStrictSendSuccess(success)))
+        : o.type === 'claimClaimableBalance'
+          ? xdr.OperationResult.opInner(xdr.OperationResultTr.claimClaimableBalance(xdr.ClaimClaimableBalanceResult.claimClaimableBalanceSuccess()))
+          : xdr.OperationResult.opInner(xdr.OperationResultTr.accountMerge(xdr.AccountMergeResult.accountMergeSuccess(xdr.Int64.fromString('0')))),
+    )
+    const result = new xdr.TransactionResult({ feeCharged: xdr.Int64.fromString('300'), result: xdr.TransactionResultResult.txSuccess(results), ext: xdr.TransactionResultExt.fromXDR(Buffer.from([0, 0, 0, 0])) })
+    expect(deliveredOf(converted, result.toXDR('base64'))).toEqual({ asset: `USDC:${ISSUER}`, amount: '2.4713' })
+
+    const receipt = buildReceipt({ ...input(), delivered: { asset: `USDC:${ISSUER}`, amount: '2.4713' } })
+    expect(receipt.contents.claim).toMatchObject({ assetCode: 'USDC', assetIssuer: ISSUER, amount: '2.4713' })
+  })
+
   it('records the memo where one applied, the channel and the policy', () => {
     const c = buildReceipt(input()).contents.claim
     expect(c).toMatchObject({ memoType: 'id', memo: '12345', deliveryChannel: 'email', claimPolicy: 'email' })
@@ -87,7 +138,11 @@ describe('buildReceipt', () => {
 })
 
 describe('buildReceiptBundle', () => {
-  const receipts = [buildReceipt(input()), buildReceipt({ ...input(), receiptId: 'rcpt_l2', link: { ...input().link, id: 'l2', amount: '250' } })]
+  const sender = { label: 'alice', reference: 'PAY-1', category: 'payroll', note: null }
+  const receipts: BundledReceipt[] = [
+    { ...buildReceipt(input()), sender },
+    { ...buildReceipt({ ...input(), receiptId: 'rcpt_l2', link: { id: 'l2' }, delivered: { asset: `USDC:${ISSUER}`, amount: '250' } }), sender: { ...sender, label: 'bob' } },
+  ]
   const query = { organizationId: 'o1', organizationName: 'Acme Treasury', campaignId: 'c1' }
 
   it('signs the bundle as a whole while every receipt inside still verifies alone', () => {
@@ -97,6 +152,13 @@ describe('buildReceiptBundle', () => {
     expect(doc.format).toBe('kleym-claim-receipts')
     expect(doc.count).toBe(2)
     for (const r of doc.receipts) expect(verifyReceipt(r.canonical, r.signature, r.publicKey)).toBe(true)
+  })
+
+  it('carries the sender\'s reference data as unsigned columns beside each receipt, outside the canonical', () => {
+    const out = buildReceiptBundle(receipts, query, 'csv', new Date('2026-09-17T13:00:00Z'))
+    const lines = out.body.toString('utf8').trimEnd().split('\n')
+    expect(lines[1]).toContain(',alice,PAY-1,payroll,')
+    expect(receipts[0]!.canonical).not.toContain('PAY-1')
   })
 
   it('writes one CSV row per receipt with the canonical bytes as the last column, and no exponent', () => {

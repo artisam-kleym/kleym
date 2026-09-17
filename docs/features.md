@@ -23,12 +23,19 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 ## 2026-09-17 — Signed delivery receipts, per claim (#81)
 
 Every settled claim now produces a signed receipt: who received what, when, in which
-transaction — the recipient address read off the submitted envelope, the amount this link
-paid, the ledger time, the transaction hash, the exchange memo where one applied, the delivery
-channel and the claim policy that applied, and the campaign's terms. It is generated the
+transaction — the recipient address read off the submitted envelope, **what was delivered**
+(for a receive-as claim the destination asset and the amount the ledger paid out, read off the
+envelope and the result, not the link's figure in the campaign asset), the ledger time, the
+transaction hash, the exchange memo where one applied, the delivery channel and the claim
+policy that applied, and the campaign's terms. The link is named by id only: the sender's
+label, reference, category and note are their own reference data and are never in a receipt
+or in a recipient's copy — the sender-facing CSV bundle carries them as unsigned columns beside
+each receipt. It is generated the
 moment the claim lands and never regenerated, so renaming a campaign later changes nothing a
 receipt already says. A sender downloads one from the links table, all of a campaign's from
-the campaign page, or a claim-date range for the whole organisation; `link.claimed` carries the
+the campaign page (Operator and up, audited), or a claim-date range for the whole organisation; a
+settled claim the claim-time issue missed is issued when a bundle is built, so a bundle holds
+every claimed link the page counts; `link.claimed` carries the
 receipt id. A sender can also have each email-delivered recipient mailed their receipt on
 claim — the receipt's bytes, signature and public key in the message, and never the link.
 

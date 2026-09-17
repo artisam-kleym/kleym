@@ -36,16 +36,16 @@ async function fixture() {
     },
     select: { id: true },
   })
-  const link = async (claimed: boolean) =>
+  const link = async (claimed: boolean, over: { claimedBy?: string | null } = {}) =>
     prisma.claimLink.create({
       data: {
         campaignId: campaign.id, ephemeralPublicKey: Keypair.random().publicKey(), amount: '1.0000000',
         status: claimed ? 'CLAIMED' : 'ACTIVE',
-        ...(claimed ? { claimedBy: Keypair.random().publicKey(), claimedAt: new Date(), claimTxHash: randomUUID().replace(/-/g, '').repeat(2), claimMemoType: 'id', claimMemo: '42' } : {}),
+        ...(claimed ? { claimedBy: over.claimedBy === undefined ? Keypair.random().publicKey() : over.claimedBy, claimedAt: new Date(), claimTxHash: randomUUID().replace(/-/g, '').repeat(2), claimMemoType: 'id', claimMemo: '42' } : {}),
       },
       select: { id: true },
     })
-  return { organizationId, campaignId: campaign.id, claimedA: await link(true), claimedB: await link(true), active: await link(false) }
+  return { organizationId, campaignId: campaign.id, claimedA: await link(true), claimedB: await link(true), active: await link(false), unpaid: await link(true, { claimedBy: null }) }
 }
 
 async function main(): Promise<void> {
@@ -65,10 +65,12 @@ async function main(): Promise<void> {
   check('the owning organisation can fetch it', (await receiptFor(f.organizationId, f.campaignId, f.claimedA.id)) !== null)
   check('another organisation cannot', (await receiptFor(other.organizationId, f.campaignId, f.claimedA.id)) === null)
 
-  console.log('\n3. The campaign bundle: one per settled claim and no others')
-  await issueReceipt(f.claimedB.id)
+  console.log('\n3. The campaign bundle: one per settled claim and no others — issuing what claim time missed')
+  // claimedB was never issued: the bundle issues it first (F4), so every CLAIMED link the page counts is there.
   const receipts = await receiptsFor({ organizationId: f.organizationId, campaignId: f.campaignId })
-  check('two settled claims, two receipts', receipts.length === 2, `${receipts.length}`)
+  check('two settled claims, two receipts — the one claim time missed was issued by the bundle', receipts.length === 2, `${receipts.length}`)
+  check('a CLAIMED link with no payee gets no receipt and does not break the bundle', receipts.every((r) => r.contents.link.id !== f.unpaid.id))
+  check('the sender\'s label rides beside the receipt, unsigned', receipts.every((r) => 'sender' in r && !r.canonical.includes('"label"')))
   check('the active link is not among them', receipts.every((r) => r.contents.link.id !== f.active.id))
   const bundle = buildReceiptBundle(receipts, { organizationId: f.organizationId, organizationName: 'x', campaignId: f.campaignId }, 'json')
   check('the bundle verifies as a whole', verifyBytes(bundle.body, bundle.signature, bundle.publicKey))

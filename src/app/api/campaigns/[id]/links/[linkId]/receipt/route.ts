@@ -30,7 +30,8 @@ export async function GET(_request: Request, { params }: Params) {
       // Issued at claim time as a rule; issued here only if that write failed
       // then — the inputs are the same frozen row either way.
       const settled = await prisma.claimLink.findFirst({
-        where: { id: linkId, campaignId: id, status: 'CLAIMED', campaign: owned(id, org.id) },
+        // `claimedBy` set as well as CLAIMED: a claim the envelope named no payee for can never have a receipt, so the answer is terminal.
+        where: { id: linkId, campaignId: id, status: 'CLAIMED', claimedBy: { not: null }, campaign: owned(id, org.id) },
         select: { id: true },
       })
       if (settled) receipt = await issueReceipt(settled.id)

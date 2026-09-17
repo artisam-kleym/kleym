@@ -17,9 +17,11 @@ if (!file) {
 }
 const bytes = readFileSync(file)
 
-function check(data: Buffer, sig: string, key: string): boolean {
+function check(data: Buffer | string, sig: unknown, key: unknown): boolean {
   try {
-    return verify(null, data, createPublicKey({ key: Buffer.from(key, 'base64'), format: 'der', type: 'spki' }), Buffer.from(sig, 'base64'))
+    if (typeof sig !== 'string' || typeof key !== 'string') return false
+    const bytes = typeof data === 'string' ? Buffer.from(data) : data
+    return verify(null, bytes, createPublicKey({ key: Buffer.from(key, 'base64'), format: 'der', type: 'spki' }), Buffer.from(sig, 'base64'))
   } catch {
     return false
   }
@@ -41,7 +43,8 @@ try {
 if (doc?.format === 'kleym-claim-receipts' && Array.isArray(doc.receipts)) {
   let bad = 0
   for (const r of doc.receipts) {
-    if (!check(Buffer.from(r.canonical), r.signature, r.publicKey)) {
+    // A malformed entry is INVALID, not a crash: `check` refuses anything that is not a string.
+    if (typeof r?.canonical !== 'string' || !check(r.canonical, r.signature, r.publicKey)) {
       bad += 1
       console.log(`receipt ${r.receiptId}: INVALID`)
     }
@@ -49,7 +52,11 @@ if (doc?.format === 'kleym-claim-receipts' && Array.isArray(doc.receipts)) {
   console.log(`receipts: ${doc.receipts.length - bad} of ${doc.receipts.length} VALID`)
   ok &&= bad === 0
 } else if (doc?.format === 'kleym-claim-receipt') {
-  if (!signature || !publicKey) console.log('a single receipt needs the signature and public key from the response headers')
+  if (!signature || !publicKey) {
+    // Nothing was verified: say so and fail, rather than exit 0 on a hint.
+    console.log('a single receipt needs the signature and public key from the response headers; nothing verified')
+    ok = false
+  }
 } else if (!signature) {
   console.log('not a receipts bundle; pass the signature and public key to verify the file itself')
   ok = false
