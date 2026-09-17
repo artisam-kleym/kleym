@@ -22,6 +22,16 @@ describe('duePoints', () => {
     expect(duePoints([7, 1], EXPIRES, [7], at(0.5))).toEqual([1])
   })
 
+  it('skips points that had already passed when the claim email went out — that would be a repeat, not a reminder', () => {
+    // Emailed 5 days before expiry with [14, 7, 3, 1]: 14 and 7 were already behind; 3 and 1 still ahead.
+    const sentAt = at(5)
+    expect(duePoints([14, 7, 3, 1], EXPIRES, [], at(4.9), sentAt)).toEqual([])
+    expect(duePoints([14, 7, 3, 1], EXPIRES, [], at(2.5), sentAt)).toEqual([3])
+    expect(duePoints([14, 7, 3, 1], EXPIRES, [], at(0.5), sentAt)).toEqual([1, 3])
+    // Without a send time (older rows), the schedule alone decides.
+    expect(duePoints([14, 7, 3, 1], EXPIRES, [], at(4.9))).toEqual([7, 14])
+  })
+
   it('ignores nonsense points', () => {
     expect(duePoints([0, -1, 2.5, 3], EXPIRES, [], at(1))).toEqual([3])
   })

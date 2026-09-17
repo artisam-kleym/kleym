@@ -52,11 +52,17 @@ export function duePoints(
   expiresAt: Date,
   alreadySent: number[],
   now: Date,
+  /** When the claim email itself went out: a point that had already passed by then is not a reminder, it is a repeat. */
+  sentAt: Date | null = null,
 ): number[] {
   const sent = new Set(alreadySent)
   return reminderDaysBefore
     .filter((days) => Number.isInteger(days) && days > 0 && !sent.has(days))
     .filter((days) => now.getTime() >= expiresAt.getTime() - days * DAY_MS)
+    // A 14-day point on a campaign that was 5 days out when the email went
+    // out would fall "due" on the next pass — forty minutes after the claim
+    // email. That is not a reminder. Only points still ahead at send count.
+    .filter((days) => sentAt === null || expiresAt.getTime() - days * DAY_MS > sentAt.getTime())
     .sort((a, b) => a - b)
 }
 
@@ -85,6 +91,17 @@ export interface ReminderDeps {
 /** Hashed, never the address: the limiter key is a Redis key someone can list. */
 function recipientKey(email: string): string {
   return `reminder:recipient:${createHash('sha256').update(email.trim().toLowerCase()).digest('hex')}`
+}
+
+/**
+ * The claim email counts against the same floor (deliver.ts calls this):
+ * "one email per address per day" includes the first one. Overwrites rather
+ * than reserves — the claim email is never throttled, only what follows it.
+ */
+export async function noteRecipientMailed(email: string): Promise<void> {
+  await redis.set(recipientKey(email), '1', 'PX', PER_RECIPIENT_FLOOR_MS).catch((error: unknown) => {
+    logger.warn({ reason: error instanceof Error ? error.message : 'unknown' }, 'could not note the claim email against the reminder floor')
+  })
 }
 
 const LIVE: ReminderDeps = {
@@ -134,7 +151,7 @@ export async function sendReminders(
       orderBy: { id: 'asc' },
       take: limit,
       select: {
-        id: true, email: true, sentAt: true, reminderPoints: true,
+        id: true, email: true, sentAt: true, reminderPoints: true, remindedAt: true,
         link: {
           select: {
             id: true,
@@ -153,17 +170,32 @@ export async function sendReminders(
   for (const delivery of candidates) {
     report.checked += 1
     const campaign = delivery.link.campaign
-    const due = duePoints(campaign.reminderDaysBefore, campaign.expiresAt, delivery.reminderPoints, now)
+    const due = duePoints(campaign.reminderDaysBefore, campaign.expiresAt, delivery.reminderPoints, now, delivery.sentAt)
     const point = pointToSend(due)
     if (point === null || !delivery.email) continue
 
     let reserved = false
+    let recorded = false
     try {
       if (!(await deps.allowRecipient(delivery.email, now))) {
         report.throttled += 1
         continue
       }
       reserved = true
+      /*
+       * Recorded BEFORE the enqueue, not after: if the record failed after a
+       * successful enqueue, the queued reminder would still send, its dedup
+       * key would go with it on completion, and the next pass would queue a
+       * second copy. This way the only thing left to undo is the record.
+       * EVERY due point is recorded, not only the one sent — the one message
+       * stands in for all of them, or the stale points would each earn a
+       * daily email later.
+       */
+      await prisma.delivery.update({
+        where: { id: delivery.id },
+        data: { reminderPoints: { push: due }, remindedAt: now },
+      })
+      recorded = true
       await deps.enqueue({
         kind: 'reminder',
         deliveryId: delivery.id,
@@ -177,19 +209,17 @@ export async function sendReminders(
         sentAt: delivery.sentAt!.toISOString(),
         point,
       })
-      // Recorded on enqueue, not on send: a retrying job must not re-qualify
-      // the row and put a second copy in the queue. EVERY due point is
-      // recorded, not only the one sent — the one message stands in for all
-      // of them, or the stale points would each earn a daily email later.
-      await prisma.delivery.update({
-        where: { id: delivery.id },
-        data: { reminderPoints: { push: due }, remindedAt: now },
-      })
       report.reminded += 1
     } catch (error) {
       logger.error({ deliveryId: delivery.id, reason: error instanceof Error ? error.message : 'unknown' }, 'could not queue a reminder; continuing')
-      // The floor was taken but nothing was queued: give it back, or this
-      // address hears nothing for a day and a 1-day point is never sent.
+      // Nothing was queued: put the row back as it was so the points are due
+      // again next pass, and give the floor back, or this address hears
+      // nothing for a day and a 1-day point is never sent.
+      if (recorded) {
+        await prisma.delivery
+          .update({ where: { id: delivery.id }, data: { reminderPoints: { set: delivery.reminderPoints }, remindedAt: delivery.remindedAt } })
+          .catch((rollback: unknown) => logger.error({ deliveryId: delivery.id, reason: rollback instanceof Error ? rollback.message : 'unknown' }, 'could not roll back reminder points'))
+      }
       if (reserved) await deps.releaseRecipient(delivery.email).catch(() => undefined)
     }
   }

@@ -330,7 +330,8 @@ export function CampaignWizard(config: WizardConfig) {
   return (
     <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
       {reissue && (
-        <div className="mb-lg rounded-lg border border-outline-variant/50 bg-surface-container p-md">
+        // Both columns: as a plain child it would take the sidebar cell and push the stepper over.
+        <div className="mb-lg rounded-lg border border-outline-variant/50 bg-surface-container p-md lg:col-span-2">
           <p className="text-label-md font-semibold text-on-surface">Reissuing {reissue.outstanding} unclaimed {reissue.outstanding === 1 ? 'link' : 'links'} of “{reissue.name}”</p>
           <p className="mt-1 text-body-md text-on-surface-variant">
             This is a NEW campaign with the same terms and a later expiry: new keys, a new signature from your wallet,

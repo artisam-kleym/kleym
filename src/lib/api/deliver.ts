@@ -28,6 +28,7 @@ import { env } from '@/lib/config/env'
 import { logger } from '@/lib/config/logger'
 import { owned } from './session-guard'
 import { enqueueDelivery } from '@/lib/queue/email'
+import { noteRecipientMailed } from './reminders'
 
 /**
  * A claim URL, checked against its shape and nothing more permissive.
@@ -191,6 +192,8 @@ export async function queueDeliveries(
       // makes the address a second factor worth having (SPEC.md §6.4).
       otpRequired: true,
     })
+    // The claim email is the day's email (#78): no reminder follows it within the floor.
+    await noteRecipientMailed(recipient.email)
     report.queued += 1
   }
 

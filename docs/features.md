@@ -38,8 +38,12 @@ other maintenance jobs) queues one reminder per due point to recipients whose li
 delivered by email and is still unclaimed and unsuspended, at most one email per address
 per day — and when several points fell due at once (a worker outage, points added late),
 the one email stands in for all of them rather than each earning a daily email later. A
-failed enqueue gives the day's floor back so the address is not silently skipped, and a
-corrected delivery address starts its reminders afresh. The reminder names what THAT link
+failed enqueue gives the day's floor back so the address is not silently skipped (the points
+are recorded before the enqueue and rolled back if it fails, so a queued reminder can never be
+queued twice), the claim email itself counts against the floor and a point that had already
+passed when it went out is not sent as a "reminder" forty minutes later, a corrected delivery
+address starts its reminders afresh, and an erasure request removes queued reminders along
+with the queued claim email. The reminder names what THAT link
 pays (#73). **A reminder never contains the claim link**, because Kleym does not have it
 (SPEC.md §6.5): it names the sender, amount and expiry and tells the recipient to open the
 original message, whose subject it quotes. Links the sender distributed themselves cannot be

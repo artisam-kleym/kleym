@@ -6,7 +6,7 @@
  * removed BEFORE the merge, and the recipient must not sign when they are not
  * an operation source. Both were observed on testnet, not reasoned about.
  */
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Account, Asset, Keypair, Networks, Transaction, TransactionBuilder } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
 import { buildClaim, buildMaterialise, signAsSponsor, type ClaimContext } from '@/lib/stellar/claim'
@@ -296,6 +296,11 @@ describe('TX2 with receive-as conversion', () => {
   })
 
   // Acceptance criterion 6: conversion off is byte-identical to today.
+  // The clock is pinned: two builds straddling a second boundary get different
+  // `maxTime` from the signing window and differ by a byte that means nothing.
+  beforeEach(() => vi.useFakeTimers({ now: new Date('2026-09-17T00:00:00.000Z') }))
+  afterEach(() => vi.useRealTimers())
+
   it('is byte-identical to the plain claim when conversion is absent', () => {
     for (const asset of [Asset.native(), USDC]) {
       for (const f of [facts(), facts({ recipientExists: false, recipientTrusts: false }), facts({ recipientTrusts: false })]) {

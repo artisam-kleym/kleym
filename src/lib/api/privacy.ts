@@ -149,7 +149,8 @@ export async function eraseByEmail(actorId: string, email: string, ip: string | 
   const address = email.trim().toLowerCase()
   const targets = await prisma.delivery.findMany({
     where: { email: { equals: address, mode: 'insensitive' } },
-    select: { id: true },
+    // The points recorded on enqueue (#78) name every reminder job that may still be queued.
+    select: { id: true, reminderPoints: true },
   })
   if (targets.length === 0) {
     await recordAudit({ userId: actorId, action: 'privacy.erasure', entityType: 'delivery', metadata: { redacted: 0 }, ip })
@@ -161,13 +162,18 @@ export async function eraseByEmail(actorId: string, email: string, ip: string | 
   // id (lib/queue/email.ts), which is how one is found again here.
   const queue = deliveryJobs()
   for (const target of targets) {
-    const dedupe = `deliver:${target.id}`
-    const jobId = await queue.getDeduplicationJobId(dedupe).catch(() => null)
-    if (jobId) {
-      const job = await queue.getJob(jobId)
-      await job?.remove().catch(() => undefined)
+    // The claim email, and every reminder (#78) queued or retrying for it: a
+    // reminder's payload carries the address too, and one sitting in retry
+    // would otherwise mail it after the erasure completed.
+    const dedupes = [`deliver:${target.id}`, ...target.reminderPoints.map((point) => `remind:${target.id}:${point}`)]
+    for (const dedupe of dedupes) {
+      const jobId = await queue.getDeduplicationJobId(dedupe).catch(() => null)
+      if (jobId) {
+        const job = await queue.getJob(jobId)
+        await job?.remove().catch(() => undefined)
+      }
+      await queue.removeDeduplicationKey(dedupe).catch(() => undefined)
     }
-    await queue.removeDeduplicationKey(dedupe).catch(() => undefined)
   }
 
   const { count } = await prisma.delivery.updateMany({
