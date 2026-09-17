@@ -49,6 +49,67 @@ generation; the phrase appears in no request, storage or server-rendered payload
 written but **not run** in this environment — no Postgres/Redis — and no page was opened
 in a browser. Regeneration against a real campaign's rows is believed correct, unchecked.
 
+## 2026-09-17 — Receive-as: the recipient chooses which asset they claim (#74)
+
+A sender can list up to five assets a recipient may receive as (wizard step 1, one per
+line; `receiveAs` on `POST /api/campaigns` and the v1 API). On `/claim`, a recipient with
+such a link sees a "Receive as" chooser; picking an asset fetches a live price from
+Kleym's own backend — `POST /api/claims/quote`, which prices the link's asset through
+Horizon's `strictSendPaths` — and shows both the expected figure and the floor the claim
+will be held to. `/claim` still makes zero third-party requests.
+
+The conversion happens inside TX2 or not at all: a `pathPaymentStrictSend` from the
+ephemeral account replaces the plain payment, sending the whole link amount and
+delivering at least `destMin` (the fresh server-side quote less 1%, rounded down, never
+zero) of the chosen asset. The trustline Kleym sponsors is for the **destination** asset.
+When no path exists the claim is refused with `no-path`; when the book moves past the
+floor between quote and ledger the transaction fails (`op_under_dest_min`), Kleym answers
+`quote-missed`, and in both cases the page drops the conversion and offers the asset as
+sent — a claim that fails because a market moved is worse than one that delivers what the
+sender sent. With no conversion, TX2 is byte-identical to before.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 34 new unit tests —
+the builder swaps exactly one operation, sponsors the destination trustline across
+new/existing × native/non-native, needs no trustline when converting into XLM, still
+zeroes the sent asset's ephemeral trustline before the merge, `needsRecipientSignature`
+equals "the recipient sources an operation" across every permutation with conversion on
+and off, and conversion-off XDR is byte-identical; `destMin` rounding and the asset-ref
+and allow-list parsers. **Not verified:** a conversion on testnet (acceptance criterion 1
+needs a funded link and an order book — `pnpm spike` was not extended here), the claim
+page in a browser, and the Playwright zero-third-party check, which was not run in this
+environment (the quote is same-origin by construction).
+
+## 2026-09-17 — Suspend, not cancel: a funded campaign's links stay claimable until expiry (#72)
+
+A sender can suspend a live campaign, or a single link, and the product tells the truth
+about what that does: Kleym stops resolving and preparing the links, but every balance is
+still on the Stellar ledger with the recipient as a valid claimant until `expiresAt`. The
+claimant model gives the sender no earlier instant, so nothing Kleym does can stop a link
+holder claiming before then — and the suspend dialog, the campaign header, the link tables
+and the API response all say so. "Cancel" is now reserved for drafts, which have nothing on
+the ledger.
+
+Suspending schedules the reclaim. The suspended panel shows what is still outstanding and
+what it is worth in the campaign's asset, and names the date the return is scheduled for.
+When that date passes, the hourly expiry sweep marks the reclaim due and fires
+`campaign.reclaim_due` to the organisation's webhooks (with `campaign.suspended` at the
+moment of suspension). The sender still signs the return with their wallet: Kleym holds no
+key that can move the money, so "scheduled" means announced and ready, not submitted.
+`SPEC.md` §12 records the limitation; true pre-expiry revocation is a product decision the
+issue leaves open. One consequence is stated in the dialog and on the suspended panel: a
+claim that had landed its first transaction when Kleym stopped will not get its second from
+Kleym, so each in-flight claim becomes the §12 "abandoned claim strands sponsor reserves"
+case — the panel shows how many, and the reserve stays locked until the holder finishes with
+their own tooling or the link is reclaimed.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 14 new unit tests, including
+one that evaluates the claimant predicates `claimantsFor` writes and asserts the recipient
+can and the sender cannot claim at every instant before expiry — the check acceptance
+criterion 6 asks for, so nobody later mistakes suspension for revocation. The migration
+adds three nullable timestamps and was authored from the schema diff; it has NOT been run
+against a copy of real data (no database in this environment) — believed safe, unchecked.
+The pages were not opened in a browser here.
+
 ## 2026-09-12 — Single sign-on (OIDC) and SCIM provisioning with deprovisioning (#46)
 
 An Owner connects their organisation's identity provider under Settings →

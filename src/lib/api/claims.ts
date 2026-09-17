@@ -16,7 +16,8 @@ import { prisma } from '@/lib/db/client'
 import { env } from '@/lib/config/env'
 import { logger } from '@/lib/config/logger'
 import { assetOf, hasTrustline, horizon, accountExists, loadClaimableBalance, sponsorSpendable } from '@/lib/stellar/horizon'
-import { buildClaim, buildMaterialise, signAsSponsor, type ClaimContext } from '@/lib/stellar/claim'
+import { buildClaim, buildMaterialise, deliveredAsset, signAsSponsor, type ClaimContext, type Conversion } from '@/lib/stellar/claim'
+import { QUOTE_MISSED_CODES, assetFields, parseAssetRef, quoteStrictSend, type Quote, type QuoteReader } from '@/lib/stellar/receive-as'
 import type { ClaimConflictReason } from '@/lib/claim/problem-types'
 import { sponsorFor, sponsorSecret } from '@/lib/stellar/sponsors'
 import { alert } from '@/lib/alerts'
@@ -29,10 +30,34 @@ export const materialiseSchema = z
   .object({ ephemeralPublicKey: z.string().regex(PUBLIC_KEY, 'must be a Stellar public key (G…)') })
   .strict()
 
+/** Receive-as (#74): the asset the recipient chose, by code and issuer — never a price. */
+export const receiveAsSchema = z
+  .object({
+    assetCode: z.string().regex(/^[A-Za-z0-9]{1,12}$/),
+    assetIssuer: z.string().regex(PUBLIC_KEY).nullable(),
+    /**
+     * The floor the page SHOWED the recipient, from an earlier quote. The
+     * envelope is bound to the higher of this and the fresh bound, and if the
+     * fresh quote cannot meet it the claim is refused (`quote-missed`) rather
+     * than filled below what was promised. Never a price the page invents —
+     * a higher floor only ever makes the claim fail.
+     */
+    destMin: z.string().regex(/^\d+(\.\d{1,7})?$/).optional(),
+  })
+  .strict()
+
 export const claimSchema = z
   .object({
     ephemeralPublicKey: z.string().regex(PUBLIC_KEY, 'must be a Stellar public key (G…)'),
     recipientPublicKey: z.string().regex(PUBLIC_KEY, 'must be a Stellar public key (G…)'),
+    receiveAs: receiveAsSchema.optional(),
+  })
+  .strict()
+
+export const quoteSchema = z
+  .object({
+    ephemeralPublicKey: z.string().regex(PUBLIC_KEY, 'must be a Stellar public key (G…)'),
+    receiveAs: receiveAsSchema,
   })
   .strict()
 
@@ -75,6 +100,8 @@ export interface ResolvedLink {
   network: string | null
   /** True when the link was emailed and a code is required. */
   otpRequired: boolean
+  /** Receive-as (#74): assets the sender lets this recipient convert into. Empty when not offered. */
+  receiveAs: { assetCode: string; assetIssuer: string | null }[]
 }
 
 /** Every field null, `unavailable`. Unknown, expired and claimed all land here. */
@@ -89,7 +116,14 @@ export function unavailableLink(): ResolvedLink {
     network: null,
     // False, never null: an unavailable answer must not vary in SHAPE either.
     otpRequired: false,
+    // Empty, never null, for the same reason.
+    receiveAs: [],
   }
+}
+
+/** The campaign's allow-list as assets, dropping anything a stored ref cannot parse. */
+function receiveAsAssets(refs: string[]): Asset[] {
+  return refs.map(parseAssetRef).filter((asset): asset is Asset => asset !== null)
 }
 
 /**
@@ -106,11 +140,12 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
     where: { ephemeralPublicKey },
     select: {
       status: true,
+      suspendedAt: true,
       delivery: { select: { id: true } },
       campaign: {
         select: {
           name: true, network: true, assetCode: true, assetIssuer: true,
-          amountPerLink: true, expiresAt: true, status: true,
+          amountPerLink: true, expiresAt: true, status: true, suspendedAt: true, receiveAsAssets: true,
           user: { select: { username: true } },
         },
       },
@@ -120,6 +155,10 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
   if (!link || link.status !== 'ACTIVE') return unavailableLink()
   if (link.campaign.expiresAt.getTime() <= Date.now()) return unavailableLink()
   if (link.campaign.status === 'CANCELLED') return unavailableLink()
+  // Suspended (#72): Kleym has stopped participating. The balance is still on
+  // the ledger and its holder can still claim it directly — this is the same
+  // unavailable answer, not a statement that the funds are gone.
+  if (link.suspendedAt || link.campaign.suspendedAt) return unavailableLink()
 
   return {
     status: 'claimable',
@@ -136,6 +175,7 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
      * someone already holding a live link, who needs to know a code is coming.
      */
     otpRequired: link.delivery !== null,
+    receiveAs: receiveAsAssets(link.campaign.receiveAsAssets).map(assetFields),
   }
 }
 
@@ -148,6 +188,8 @@ interface LinkForClaim {
   expiresAt: Date
   /** The sponsor this campaign is bound to (#48). */
   sponsorPublicKey: string
+  /** Assets the sender allows the recipient to receive as (#74). */
+  receiveAs: Asset[]
 }
 
 /**
@@ -177,9 +219,9 @@ export async function loadClaimable(
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
     select: {
-      id: true, status: true, balanceId: true, campaignId: true,
+      id: true, status: true, balanceId: true, campaignId: true, suspendedAt: true,
       campaign: {
-        select: { assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true, status: true, sponsorPublicKey: true },
+        select: { assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true, status: true, sponsorPublicKey: true, suspendedAt: true, receiveAsAssets: true },
       },
     },
   })
@@ -188,6 +230,7 @@ export async function loadClaimable(
   // become the oracle that resolve refuses to be.
   if (!link || link.status !== 'ACTIVE' || !link.balanceId) return { kind: 'not-found' }
   if (link.campaign.status === 'CANCELLED') return { kind: 'not-found' }
+  if (link.suspendedAt || link.campaign.suspendedAt) return { kind: 'not-found' }
 
   if (link.campaign.expiresAt.getTime() <= Date.now()) {
     return conflict('This link has expired. The funds return to the sender.', 'expired')
@@ -255,6 +298,7 @@ export async function loadClaimable(
       amount: new Decimal(onChain.amount).toFixed(7),
       expiresAt: link.campaign.expiresAt,
       sponsorPublicKey: sponsor.publicKey,
+      receiveAs: receiveAsAssets(link.campaign.receiveAsAssets),
     },
   }
 }
@@ -303,6 +347,7 @@ async function claimContext(
   link: LinkForClaim,
   ephemeralPublicKey: string,
   recipientPublicKey: string,
+  conversion?: Conversion,
 ): Promise<ClaimContext> {
   /*
    * A fresh `Account` rather than the Horizon response object. `AccountResponse`
@@ -320,6 +365,81 @@ async function claimContext(
     balanceId: link.balanceId,
     networkPassphrase: env.NETWORK_PASSPHRASE,
     baseFee: env.BASE_FEE_STROOPS,
+    ...(conversion ? { conversion } : {}),
+  }
+}
+
+/**
+ * Receive-as (#74): the destination the recipient asked for, checked against
+ * the SENDER's allow-list, and a fresh quote for it. Null destination means
+ * "the campaign asset" and no quote. Thin books are the ordinary failure —
+ * `no-path` is a conflict the page turns into "here is the original asset".
+ */
+async function resolveConversion(
+  link: LinkForClaim,
+  wanted: { assetCode: string; assetIssuer: string | null; destMin?: string } | undefined,
+  quote: QuoteReader,
+): Promise<Outcome<{ destAsset: Asset; quote: Quote } | null>> {
+  if (!wanted) return { kind: 'ok', value: null }
+  const destAsset = parseAssetRef(wanted.assetCode === 'XLM' ? 'XLM' : `${wanted.assetCode}:${wanted.assetIssuer ?? ''}`)
+  if (!destAsset) return conflict('That is not an asset this link can be received as.')
+  // The campaign asset itself is "no conversion", whatever the page sent.
+  if (destAsset.equals(link.asset)) return { kind: 'ok', value: null }
+  if (!link.receiveAs.some((allowed) => allowed.equals(destAsset))) {
+    return conflict('That is not an asset this link can be received as.')
+  }
+  const priced = await quote(link.asset, link.amount, destAsset)
+  if (!priced) {
+    return conflict(
+      `There is no market right now to receive this as ${wanted.assetCode}. You can still receive ${link.asset.isNative() ? 'XLM' : link.asset.getCode()}.`,
+      'no-path',
+    )
+  }
+  /*
+   * The floor the recipient READ is the floor they get. Between the quote on
+   * the ready screen and the envelope there is a wallet connect, TX1 and a
+   * ledger wait; if the book fell past the shown floor in that time, this
+   * refuses rather than binding to a lower fresh figure and filling at it.
+   */
+  if (wanted.destMin) {
+    const shown = new Decimal(wanted.destMin)
+    if (new Decimal(priced.destAmount).lessThan(shown)) {
+      return conflict(
+        `The price moved: ${wanted.assetCode} would now deliver ${priced.destAmount}, below the ${shown.toFixed()} you were shown. Nothing was filled — pick again for a fresh price, or receive ${link.asset.isNative() ? 'XLM' : link.asset.getCode()}.`,
+        'quote-missed',
+      )
+    }
+    if (shown.greaterThan(priced.destMin)) priced.destMin = shown.toFixed(7)
+  }
+  return { kind: 'ok', value: { destAsset, quote: priced } }
+}
+
+export interface QuotePrepared {
+  assetCode: string
+  assetIssuer: string | null
+  /** What the best path delivers now. */
+  destAmount: string
+  /** The bound TX2 will carry. Below it the claim refuses rather than fills. */
+  destMin: string
+}
+
+/** A live quote for the page to show before the recipient commits. Same refusals as prepare. */
+async function quoteReceiveAsUnobserved(
+  ephemeralPublicKey: string,
+  wanted: { assetCode: string; assetIssuer: string | null },
+  quote: QuoteReader = quoteStrictSend,
+): Promise<Outcome<QuotePrepared>> {
+  const loaded = await loadClaimable(ephemeralPublicKey)
+  // Anything not claimable — unknown, expired, claimed, suspended — is ONE
+  // answer here. A typed conflict would tell a holder of the public key alone
+  // which of those it is, which is what `resolve` refuses to say (§6.4).
+  if (loaded.kind !== 'ok') return { kind: 'not-found' }
+  const conversion = await resolveConversion(loaded.value, wanted, quote)
+  if (conversion.kind !== 'ok') return conversion
+  if (!conversion.value) return conflict('That is the asset this link already pays.')
+  return {
+    kind: 'ok',
+    value: { ...assetFields(conversion.value.destAsset), destAmount: conversion.value.quote.destAmount, destMin: conversion.value.quote.destMin },
   }
 }
 
@@ -362,6 +482,8 @@ export interface ClaimPrepared {
   xdr: string
   needsRecipientSignature: boolean
   operations: number
+  /** Receive-as (#74): what TX2 delivers, when converting. Null: the campaign asset, as ever. */
+  conversion: (QuotePrepared & { sendAmount: string }) | null
 }
 
 /**
@@ -372,6 +494,8 @@ export interface ClaimPrepared {
 async function prepareClaimUnobserved(
   ephemeralPublicKey: string,
   recipientPublicKey: string,
+  receiveAs?: { assetCode: string; assetIssuer: string | null; destMin?: string },
+  quote: QuoteReader = quoteStrictSend,
 ): Promise<Outcome<ClaimPrepared>> {
   if (recipientPublicKey === ephemeralPublicKey) {
     return conflict('The destination cannot be the link’s own key.')
@@ -387,13 +511,26 @@ async function prepareClaimUnobserved(
     return conflict('Preparation is not finished yet. Complete the first step and wait one ledger.', 'not-ready')
   }
 
+  /*
+   * Quoted HERE, fresh, at the moment the envelope is built — not carried
+   * over from what the page displayed. The envelope's own 180 s window is the
+   * quote's lifetime: past it the network refuses the transaction outright.
+   */
+  const conversion = await resolveConversion(loaded.value, receiveAs, quote)
+  if (conversion.kind !== 'ok') return conversion
+  const converting = conversion.value
+    ? { destAsset: conversion.value.destAsset, destMin: conversion.value.quote.destMin, path: conversion.value.quote.path }
+    : undefined
+
+  // The trustline that matters is for what the recipient RECEIVES (#74).
+  const delivered = deliveredAsset({ asset: loaded.value.asset, conversion: converting })
   const [recipientLive, recipientTrusts, ephemeralTrusts] = await Promise.all([
     accountExists(recipientPublicKey),
-    hasTrustline(recipientPublicKey, loaded.value.asset),
+    hasTrustline(recipientPublicKey, delivered),
     hasTrustline(ephemeralPublicKey, loaded.value.asset),
   ])
 
-  const context = await claimContext(loaded.value, ephemeralPublicKey, recipientPublicKey)
+  const context = await claimContext(loaded.value, ephemeralPublicKey, recipientPublicKey, converting)
   const plan = buildClaim(context, {
     ephemeralExists: true,
     ephemeralTrusts,
@@ -407,6 +544,14 @@ async function prepareClaimUnobserved(
       xdr: signAsSponsor(plan.xdr, env.NETWORK_PASSPHRASE, sponsorSecret(loaded.value.sponsorPublicKey)),
       needsRecipientSignature: plan.needsRecipientSignature,
       operations: plan.operations,
+      conversion: conversion.value
+        ? {
+            ...assetFields(conversion.value.destAsset),
+            destAmount: conversion.value.quote.destAmount,
+            destMin: conversion.value.quote.destMin,
+            sendAmount: loaded.value.amount,
+          }
+        : null,
     },
   }
 }
@@ -449,11 +594,22 @@ async function submitClaimUnobserved(
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
     select: {
-      id: true, status: true, campaignId: true, claimTxHash: true, claimedBy: true, balanceId: true,
-      campaign: { select: { sponsorPublicKey: true } },
+      id: true, status: true, campaignId: true, claimTxHash: true, claimedBy: true, balanceId: true, suspendedAt: true,
+      campaign: { select: { sponsorPublicKey: true, suspendedAt: true } },
     },
   })
   if (!link) return { kind: 'not-found' }
+
+  /*
+   * Suspended (#72): Kleym has stopped participating, and that has to hold
+   * HERE too — a sponsor-signed envelope prepared seconds before suspension
+   * is still valid for its signing window, and submitting it would record a
+   * Kleym claim after `suspendedAt`. Same 404 as prepare, for the §6.4 reason;
+   * a recorded replay of an earlier successful submit still answers as such.
+   */
+  if ((link.suspendedAt || link.campaign.suspendedAt) && link.claimTxHash === null) {
+    return { kind: 'not-found' }
+  }
 
   let transaction: Transaction
   try {
@@ -540,6 +696,17 @@ async function submitClaimUnobserved(
       return { kind: 'ok', value: { hash: link.claimTxHash, phase, replay: true } }
     }
 
+    /*
+     * Receive-as (#74): the book moved past `destMin` between quote and
+     * ledger. The whole transaction failed, so the balance is still
+     * claimable — this is the bound doing its job, not an error to hide.
+     * The page offers the original asset.
+     */
+    if (phase === 'claim' && QUOTE_MISSED_CODES.has(code)) {
+      logger.warn({ linkId: link.id, code }, 'receive-as quote could not be met; claim refused rather than filled')
+      return conflict('The price moved before the claim landed, so it was not filled. Your funds are safe — you can receive the original asset instead.', 'quote-missed')
+    }
+
     logger.error({ linkId: link.id, phase, code }, 'claim submission rejected')
     return conflict(`Stellar rejected the transaction: ${code}.`)
   }
@@ -618,7 +785,7 @@ function envelopeBinding(
    */
   const spendsElsewhere = transaction.operations.some(
     (op) =>
-      (op.type === 'accountMerge' || op.type === 'payment') &&
+      (op.type === 'accountMerge' || op.type === 'payment' || op.type === 'pathPaymentStrictSend') &&
       op.source !== undefined &&
       op.source !== ephemeralPublicKey,
   )
@@ -657,4 +824,5 @@ export function horizonResultCode(error: unknown): string {
 export const resolveLink = observedClaim('resolve', resolveLinkUnobserved)
 export const prepareMaterialise = observedClaim('materialise', prepareMaterialiseUnobserved)
 export const prepareClaim = observedClaim('claim', prepareClaimUnobserved)
+export const quoteReceiveAs = observedClaim('quote', quoteReceiveAsUnobserved)
 export const submitClaim = observedClaim('submit', submitClaimUnobserved)
