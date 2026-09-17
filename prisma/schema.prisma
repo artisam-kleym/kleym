@@ -653,11 +653,10 @@ model ClaimLink {
 
   /// CODE policy (#79): SHA-256 of the per-link code the sender distributes
   /// through a second channel. The code itself has 65 bits of entropy and
-  /// exists only in the sender's CSV; guesses are counted before comparison,
-  /// five then a fifteen-minute lock — the OTP's semantics.
+  /// exists only in the sender's CSV. Guesses are counted in Redis per link
+  /// AND caller (five, then a fifteen-minute lock), never on this row: a
+  /// per-link counter could be held shut by anyone reading the ledger.
   codeHash        String?
-  codeAttempts    Int       @default(0)
-  codeLockedUntil DateTime?
 
   claimedBy   String? // recipient G...
   claimedAt   DateTime?

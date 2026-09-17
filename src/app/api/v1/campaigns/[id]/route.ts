@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
 import { owned } from '@/lib/api/session-guard'
 import { amount, apiNotFound, apiServerError, jsonWithHeaders, requireApiCaller } from '@/lib/api/v1'
+import { policyFromRow } from '@/lib/api/claim-policy'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -23,7 +24,7 @@ export async function GET(request: Request, { params }: Params) {
       select: {
         id: true, name: true, network: true, assetCode: true, assetIssuer: true,
         amountPerLink: true, linkCount: true, expiresAt: true, status: true,
-        reserveEstimate: true, csvExportedAt: true, createdAt: true,
+        reserveEstimate: true, csvExportedAt: true, createdAt: true, claimPolicy: true,
       },
     })
     if (!campaign) return apiNotFound()
@@ -39,6 +40,7 @@ export async function GET(request: Request, { params }: Params) {
     return jsonWithHeaders(
       {
         ...campaign,
+        claimPolicy: policyFromRow(campaign.claimPolicy),
         amountPerLink: amount(campaign.amountPerLink),
         reserveEstimate: campaign.reserveEstimate === null ? null : amount(campaign.reserveEstimate),
         stats: {

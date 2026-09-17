@@ -31,18 +31,28 @@ passkey and the link is bound to it). The claim page states the policy before th
 commits to anything, then asks for the credential — code, emailed OTP or passkey — before the
 wallet. None of these identifies a person; recipients stay anonymous.
 
-The OTP gate is generalised into one claim-policy gate, applied on all three claim actions —
-materialise, claim and submit — as #14's review required; an emailed link on an open
-campaign keeps exactly the OTP behaviour it had. Claim codes are stored hashed and never
-logged; guesses are counted before comparison, five then a fifteen-minute lock. `resolve`
-answers `policy: open` on every unavailable link, so the new field tells an enumerator
-nothing. The policy a claim was held to is recorded on the link (`claimedUnder`) and in the
-audit trail (`link.claim`).
+The OTP gate is generalised into one claim-policy gate, applied on every claim action —
+materialise, claim, submit and the receive-as quote — as #14's review required; an emailed
+link on an open campaign keeps exactly the OTP behaviour it had, and an emailed link on a
+code or passkey campaign needs **both**: the OTP first, then the code or passkey, so a
+forwarded email cannot bind a device or claim without holding the address. Claim codes are
+stored hashed and never logged; guesses are counted atomically in Redis per link **and
+caller**, five then a fifteen-minute lock for that caller — not per link, because the link's
+public key is the balance's claimant on the public ledger and a per-link lock could be held
+shut by anyone reading Horizon, with no reissue to clear it. Registering a passkey needs
+proof of holding the link — the ephemeral keypair's signature over the WebAuthn challenge,
+made in the browser — for the same reason: the public key alone would let a passer-by bind
+their own device to every live link. The passkey routes answer an unclaimable link exactly as
+an unknown one. `resolve` answers `policy: open` on every unavailable link, so the new field
+tells an enumerator nothing; a self-distributed link under the email policy is shown as the
+dead end it is, not an OTP prompt. The policy a claim was held to is recorded on the link
+(`claimedUnder`) and in the audit trail (`link.claim`), and `claimPolicy` is returned on
+every campaign create, list and detail response, lowercase as it is accepted.
 
 **One deliberate deviation from the issue's text:** codes are hashed with SHA-256, not
 argon2id. A registration of 10,000 links cannot afford 10,000 argon2id rounds in one
 request, and unlike a six-digit OTP a 65-bit code is beyond offline attack on a fast hash;
-the attempt counter and lockout are the OTP's verbatim.
+the attempt count and lock window are the OTP's, scoped per caller as above.
 
 **Verified by:** `typecheck`, `lint`, `test` and `build` clean; 14 new unit tests — the
 policy decision table for all four policies, code normalisation and hashing, code

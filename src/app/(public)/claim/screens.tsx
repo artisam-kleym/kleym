@@ -153,6 +153,18 @@ export function ClaimScreen({
         </Centred>
       )
 
+    case 'email_only':
+      return (
+        <Centred>
+          <Icon name="warning" size={32} className="text-on-surface-variant" />
+          <p className="text-headline-sm text-on-surface">This link can only be claimed by email</p>
+          <p className="text-body-md text-on-surface-variant" data-testid="email-only">
+            The sender bound it to an email address, but it was not sent from Kleym. Ask the sender to send it
+            to you by email; the message will carry the code that unlocks it.
+          </p>
+        </Centred>
+      )
+
     case 'ready':
       return (
         <div className="flex flex-col gap-lg">

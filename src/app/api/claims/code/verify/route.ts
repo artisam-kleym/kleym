@@ -2,15 +2,15 @@
  * POST /api/claims/code/verify — the CODE policy's credential (#79).
  *
  * Thirteen Crockford-base32 characters from the sender's CSV, distributed
- * through a second channel. Five attempts, then a fifteen-minute lock — the
- * OTP's semantics — and the same per-IP and per-link rate limits as the OTP
- * verify. Returns the token the claim actions require.
+ * through a second channel. Five attempts per caller, then a fifteen-minute
+ * lock for that caller — and the OTP's per-IP rate limit. Returns the token
+ * the claim actions require.
  */
 import { z } from 'zod'
 import { logger } from '@/lib/config/logger'
 import { clientIp } from '@/lib/auth/client-ip'
 import { rateLimit } from '@/lib/auth/rate-limit'
-import { isClaimCode, verifyClaimCode } from '@/lib/api/claim-policy'
+import { emailedFirst, isClaimCode, verifyClaimCode } from '@/lib/api/claim-policy'
 import { OTP_VERIFY_LIMIT, claimConflict, claimRateLimited, claimServerError, claimValidationProblem } from '@/lib/api/claim-problems'
 
 export const runtime = 'nodejs'
@@ -40,11 +40,15 @@ export async function POST(request: Request) {
     return claimValidationProblem([{ path: 'code', message: 'must be the 13-character claim code' }])
   }
 
-  const byLink = await rateLimit(`code:verify:link:${parsed.data.ephemeralPublicKey}`, OTP_VERIFY_LIMIT.limit, OTP_VERIFY_LIMIT.windowSeconds)
-  if (!byLink.allowed) return claimRateLimited(byLink.retryAfterSeconds)
+  // No per-link limiter: the key is public on the ledger, so one would be a
+  // lock anyone could hold. Attempts are counted per link AND caller inside.
 
   try {
-    const result = await verifyClaimCode(parsed.data.ephemeralPublicKey, parsed.data.code)
+    // An emailed link's OTP comes first (#14): the code alone must not unlock a forwarded email.
+    const first = await emailedFirst(parsed.data.ephemeralPublicKey, request)
+    if (first) return claimConflict(first.detail, first.reason)
+
+    const result = await verifyClaimCode(parsed.data.ephemeralPublicKey, parsed.data.code, ip)
     if (!result.ok) {
       const detail = {
         wrong: `That code is not right. ${result.attemptsLeft} ${result.attemptsLeft === 1 ? 'attempt' : 'attempts'} left.`,

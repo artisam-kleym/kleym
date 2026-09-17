@@ -26,6 +26,13 @@ const NOT_READY_ATTEMPTS = 8
 
 /** Content type, plus the OTP token when one has been earned. */
 /** Content type, the OTP token when one is held, and the trace header (#53). */
+/** Base64 without Buffer: the browser has neither, and the SDK's sign() returns bytes. */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
+}
+
 function claimHeaders(token: string | null): Record<string, string> {
   return token
     ? { 'content-type': 'application/json', 'x-kleym-otp': token, ...claimTraceHeaders() }
@@ -138,7 +145,8 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
          * the recipient holds the URL; the credential proves the link reached
          * the person, channel or device it was bound to (SPEC.md §6.4).
          */
-        if (body.otpRequired || policy === 'email') setState('otp_required')
+        if (policy === 'email' && !body.otpRequired) setState('email_only')
+        else if (body.otpRequired) setState('otp_required')
         else if (policy === 'code') setState('code_required')
         else if (policy === 'passkey') setState('passkey_required')
         else setState('ready')
@@ -395,7 +403,8 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
     try {
       const response = await fetch('/api/claims/code/verify', {
         method: 'POST',
-        headers: claimHeaders(null),
+        // The OTP token rides along: on an emailed link the code is the SECOND factor.
+        headers: claimHeaders(otpToken.current),
         body: JSON.stringify({ ephemeralPublicKey, code }),
       })
       if (!response.ok) {
@@ -438,10 +447,22 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       const credential = bound
         ? await startAuthentication({ optionsJSON })
         : await startRegistration({ optionsJSON })
+      /*
+       * Registration carries proof that THIS page holds the link: the
+       * ephemeral keypair's signature over the challenge. The public key is
+       * on the ledger for anyone to read; the seed is only here. Without this
+       * a passer-by could bind their own device to every live link.
+       */
+      const secret = seed.current
+      const proof = !bound && secret
+        // The SDK types `sign` as taking a Buffer; at runtime it signs any byte array (tweetnacl).
+        ? bytesToBase64(Keypair.fromSecret(secret).sign(new TextEncoder().encode(optionsJSON.challenge as string) as unknown as Buffer))
+        : undefined
       const verified = await fetch(`/api/claims/passkey/${stage}`, {
         method: 'POST',
-        headers: claimHeaders(null),
-        body: JSON.stringify({ ephemeralPublicKey, response: credential }),
+        // The OTP token rides along: on an emailed link the passkey is the SECOND factor.
+        headers: claimHeaders(otpToken.current),
+        body: JSON.stringify({ ephemeralPublicKey, response: credential, ...(proof ? { proof } : {}) }),
       })
       if (!verified.ok) {
         const p = await problem(verified)

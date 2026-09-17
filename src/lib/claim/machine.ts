@@ -23,6 +23,8 @@ export type ClaimState =
   | 'otp_required'
   | 'code_required'
   | 'passkey_required'
+  /** EMAIL policy (#79) on a link Kleym never emailed: a dead end, said plainly. */
+  | 'email_only'
   | 'wallet_connecting'
   | 'preparing'
   | 'materialising'
@@ -42,6 +44,7 @@ export const CLAIM_STATES: readonly ClaimState[] = [
   'otp_required',
   'code_required',
   'passkey_required',
+  'email_only',
   'wallet_connecting',
   'preparing',
   'materialising',
@@ -57,6 +60,7 @@ export const CLAIM_STATES: readonly ClaimState[] = [
 /** States from which nothing further happens without a new page load. */
 export const TERMINAL_STATES: readonly ClaimState[] = [
   'invalid',
+  'email_only',
   'claimed_success',
   'already_claimed',
   'expired',
@@ -104,6 +108,7 @@ export function stateFromProblem(status: number, type: string | null): ClaimStat
     // The claim-policy gates (#79), same shape: a lapsed token asks again.
     if (type === CLAIM_CONFLICT_TYPE['code-required']) return 'code_required'
     if (type === CLAIM_CONFLICT_TYPE['passkey-required']) return 'passkey_required'
+    if (type === CLAIM_CONFLICT_TYPE['email-only']) return 'email_only'
   }
   return 'failed'
 }

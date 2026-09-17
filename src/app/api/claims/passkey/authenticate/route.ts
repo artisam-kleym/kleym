@@ -6,6 +6,7 @@ import { logger } from '@/lib/config/logger'
 import { clientIp } from '@/lib/auth/client-ip'
 import { rateLimit } from '@/lib/auth/rate-limit'
 import { passkeyAuthenticate } from '@/lib/api/claim-passkey'
+import { emailedFirst } from '@/lib/api/claim-policy'
 import { OTP_VERIFY_LIMIT, claimConflict, claimNotFound, claimRateLimited, claimServerError, claimValidationProblem } from '@/lib/api/claim-problems'
 
 export const runtime = 'nodejs'
@@ -32,6 +33,10 @@ export async function POST(request: Request) {
   const parsed = schema.safeParse(body)
   if (!parsed.success) return claimValidationProblem([{ path: 'response', message: 'must be a WebAuthn response' }])
   try {
+    // An emailed link's OTP comes first (#14), whichever device asserts.
+    const first = await emailedFirst(parsed.data.ephemeralPublicKey, request)
+    if (first) return claimConflict(first.detail, first.reason)
+
     const outcome = await passkeyAuthenticate(parsed.data.ephemeralPublicKey, parsed.data.response as never)
     if (outcome.kind === 'not-found') return claimNotFound()
     if (outcome.kind === 'conflict') return claimConflict(outcome.detail)

@@ -44,7 +44,8 @@ describe('the state list', () => {
 
   it('marks exactly the states nothing follows', () => {
     expect([...TERMINAL_STATES].sort()).toEqual(
-      ['already_claimed', 'claimed_success', 'expired', 'invalid'].sort(),
+      // email_only (#79): the link was never emailed under the EMAIL policy; nothing on this page can change that.
+      ['already_claimed', 'claimed_success', 'email_only', 'expired', 'invalid'].sort(),
     )
     expect(isTerminal('ready')).toBe(false)
     expect(isTerminal('failed')).toBe(false) // failed retries

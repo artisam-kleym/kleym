@@ -106,23 +106,43 @@ export function policyDecision(
       return null
     case 'email':
       if (!facts.emailed) {
-        return { reason: 'otp-required', detail: 'This link can only be claimed from the email it is sent in. Ask the sender to send it.' }
+        // Not "enter the code": there is no code coming. The page shows this as a dead end, not an OTP panel.
+        return { reason: 'email-only', detail: 'This link can only be claimed from the email it is sent in. Ask the sender to send it.' }
       }
       if (!facts.otpOk) {
         return { reason: 'otp-required', detail: 'This link was sent by email, so it needs the six-digit code from that message.' }
       }
       return null
     case 'code':
-      if (!facts.tokenOk) {
-        return { reason: 'code-required', detail: 'This link needs the claim code the sender gave you separately.' }
+    case 'passkey': {
+      /*
+       * The policy token stands for BOTH factors on an emailed link: the
+       * code/passkey routes refuse to issue it until the OTP is satisfied
+       * (`emailedFirst`), so a forwarded email cannot bind or claim without
+       * holding the address. Before the token exists the OTP is asked for
+       * first, so the page walks the gates in delivery order.
+       */
+      if (facts.tokenOk) return null
+      if (facts.emailed && !facts.otpOk) {
+        return { reason: 'otp-required', detail: 'This link was sent by email, so it needs the six-digit code from that message first.' }
       }
-      return null
-    case 'passkey':
-      if (!facts.tokenOk) {
-        return { reason: 'passkey-required', detail: 'This link is bound to a passkey. Register one on first claim, or use the device you registered.' }
-      }
-      return null
+      return policy === 'code'
+        ? { reason: 'code-required', detail: 'This link needs the claim code the sender gave you separately.' }
+        : { reason: 'passkey-required', detail: 'This link is bound to a passkey. Register one on first claim, or use the device you registered.' }
+    }
   }
+}
+
+/**
+ * The first factor on an emailed CODE/PASSKEY link (#14 + #79): the OTP
+ * token must be on the request before a code or passkey may earn the policy
+ * token. Null when the link was never emailed, or the OTP is satisfied.
+ */
+export async function emailedFirst(ephemeralPublicKey: string, request: Request): Promise<PolicyRefusal | null> {
+  const found = await policyFor(ephemeralPublicKey)
+  if (!found || !found.emailed) return null
+  if (await otpSatisfied(ephemeralPublicKey, request.headers.get(POLICY_TOKEN_HEADER))) return null
+  return { reason: 'otp-required', detail: 'This link was sent by email, so it needs the six-digit code from that message first.' }
 }
 
 /**
@@ -174,39 +194,51 @@ export type CodeVerify =
   | { ok: true; token: string }
   | { ok: false; reason: 'wrong' | 'locked' | 'not-code-policy'; attemptsLeft: number; retryAfterSeconds?: number }
 
+/** Hashed, so the key names neither the address nor the link in the clear. */
+const attemptsKey = (linkId: string, ip: string | null) =>
+  `claim:code:attempts:${createHash('sha256').update(`${linkId}\n${ip ?? ''}`).digest('hex')}`
+
 /**
- * Checks a claim code. The attempt is counted BEFORE the comparison — a
- * request abandoned mid-check has still been counted — and the fifth wrong
- * guess locks the link for fifteen minutes, after which the count resets.
+ * Checks a claim code. Guesses are counted per LINK AND CALLER, atomically
+ * (`INCR`, with the lock window as TTL), BEFORE the comparison — a request
+ * abandoned mid-check has still been counted — and the fifth wrong guess
+ * from one caller locks that caller out of that link for fifteen minutes.
+ *
+ * Per caller, not per link: the ephemeral key is the balance's claimant on
+ * the public ledger, so a per-link lock could be held shut indefinitely by
+ * anyone reading Horizon, and the sender has no reissue that would clear it.
+ * Sixty-five bits of code means brute force across callers is not a concern
+ * the lock has to carry.
  */
-export async function verifyClaimCode(ephemeralPublicKey: string, code: string, now: Date = new Date()): Promise<CodeVerify> {
+export async function verifyClaimCode(ephemeralPublicKey: string, code: string, ip: string | null): Promise<CodeVerify> {
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
-    select: { id: true, codeHash: true, codeAttempts: true, codeLockedUntil: true, campaign: { select: { claimPolicy: true } } },
+    select: { id: true, codeHash: true, campaign: { select: { claimPolicy: true } } },
   })
   if (!link || link.campaign.claimPolicy !== 'CODE' || !link.codeHash) {
     return { ok: false, reason: 'not-code-policy', attemptsLeft: 0 }
   }
-  if (link.codeLockedUntil && link.codeLockedUntil.getTime() > now.getTime()) {
-    return { ok: false, reason: 'locked', attemptsLeft: 0, retryAfterSeconds: Math.ceil((link.codeLockedUntil.getTime() - now.getTime()) / 1000) }
+
+  const key = attemptsKey(link.id, ip)
+  const attempts = await redis.incr(key)
+  if (attempts === 1) await redis.pexpire(key, CODE_LOCK_MS)
+  if (attempts > OTP_MAX_ATTEMPTS) {
+    const ttl = await redis.pttl(key)
+    return { ok: false, reason: 'locked', attemptsLeft: 0, retryAfterSeconds: Math.max(1, Math.ceil((ttl > 0 ? ttl : CODE_LOCK_MS) / 1000)) }
   }
-  // A lock that has passed resets the count; otherwise count this guess first.
-  const attempts = link.codeLockedUntil && link.codeLockedUntil.getTime() <= now.getTime() ? 1 : link.codeAttempts + 1
-  await prisma.claimLink.update({ where: { id: link.id }, data: { codeAttempts: attempts, codeLockedUntil: null } })
 
   const a = Buffer.from(hashClaimCode(code), 'hex')
   const b = Buffer.from(link.codeHash, 'hex')
   const match = a.length === b.length && timingSafeEqual(a, b)
   if (!match) {
-    const left = Math.max(0, OTP_MAX_ATTEMPTS - attempts)
+    const left = OTP_MAX_ATTEMPTS - attempts
     if (left === 0) {
-      await prisma.claimLink.update({ where: { id: link.id }, data: { codeLockedUntil: new Date(now.getTime() + CODE_LOCK_MS) } })
-      logger.warn({ linkId: link.id }, 'claim code locked after too many attempts')
+      logger.warn({ linkId: link.id }, 'claim code locked for this caller after too many attempts')
       return { ok: false, reason: 'locked', attemptsLeft: 0, retryAfterSeconds: CODE_LOCK_MS / 1000 }
     }
     return { ok: false, reason: 'wrong', attemptsLeft: left }
   }
 
-  await prisma.claimLink.update({ where: { id: link.id }, data: { codeAttempts: 0 } })
+  await redis.del(key)
   return { ok: true, token: await issueClaimToken(link.id) }
 }

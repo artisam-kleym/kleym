@@ -27,7 +27,7 @@ import { prisma } from '@/lib/db/client'
 import { recordAudit } from './audit'
 import { chooseSponsor } from '@/lib/stellar/sponsors'
 import { emitWebhook } from '@/lib/webhooks/emit'
-import { isClaimCode, policyToRow } from './claim-policy'
+import { isClaimCode, policyFromRow, policyToRow } from './claim-policy'
 
 /**
  * Money crosses the API boundary as a STRING. AGENT.md §4.1.
@@ -259,7 +259,8 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
     campaignId: campaign.id, name: campaign.name, network: campaign.network, assetCode: campaign.assetCode, assetIssuer: campaign.assetIssuer,
     amountPerLink: serialiseAmount(campaign.amountPerLink), linkCount: campaign.linkCount, expiresAt: campaign.expiresAt.toISOString(),
   })
-  return campaign
+  // The policy as the API accepts it (#79), not the enum's spelling.
+  return { ...campaign, claimPolicy: policyFromRow(campaign.claimPolicy) }
 }
 
 export type ExportMarkOutcome = { kind: 'not-found' } | { kind: 'no-links' } | { kind: 'ok'; csvExportedAt: Date }
