@@ -8,7 +8,7 @@
 import { randomUUID } from 'node:crypto'
 import { scanForSecretSeed } from '@/lib/validation/stellar'
 import { recordAudit } from '@/lib/api/audit'
-import { bodyTooDeepProblem, recordSecurityEvent, seedSubmittedProblem } from './events'
+import { bodyTooDeepProblem, bodyTooLongProblem, recordSecurityEvent, seedSubmittedProblem } from './events'
 
 export interface GuardFailure {
   response: Response
@@ -57,6 +57,12 @@ export function guardRequestBody(
     // Rejected, but NOT a security event: reporting this as SEED_SUBMITTED
     // would let anyone flood the security log with a nested JSON body.
     return { response: bodyTooDeepProblem() }
+  }
+
+  if (result.outcome === 'too-long') {
+    // Same reasoning (#77): a body of `zoo zoo zoo …` is refused for the CPU
+    // it would cost, not recorded as a seed nobody submitted.
+    return { response: bodyTooLongProblem() }
   }
 
   return null

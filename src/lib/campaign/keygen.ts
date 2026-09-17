@@ -24,6 +24,7 @@
  */
 import 'client-only'
 import { Keypair } from '@stellar/stellar-sdk'
+import { deriveKeypairs } from './derive'
 
 /** The sender's own reference data for one recipient (#52). Never key material. */
 export interface Attestation {
@@ -69,6 +70,33 @@ export function generateEphemeralKeys(
       amount: amounts[index] ?? null,
     }
   })
+}
+
+/**
+ * Generates `count` keypairs DETERMINISTICALLY from a recovery phrase (#77),
+ * at `m/44'/148'/campaignIndex'/link'`. The same phrase and index give the
+ * same keys, so the CSV is regenerable from the phrase alone — the sender
+ * keeps one phrase instead of one file per campaign. Same shape as
+ * `generateEphemeralKeys`; only where the randomness comes from differs.
+ */
+export function deriveEphemeralKeys(
+  phrase: string,
+  campaignIndex: number,
+  count: number,
+  labels: string[] = [],
+  attestations: (Attestation | null)[] = [],
+  amounts: (string | null)[] = [],
+): EphemeralKey[] {
+  if (!Number.isInteger(count) || count < 1) {
+    throw new Error(`link count must be a positive integer, got ${count}`)
+  }
+  return deriveKeypairs(phrase, campaignIndex, count).map((keypair, index) => ({
+    publicKey: keypair.publicKey(),
+    secret: keypair.secret(),
+    label: labels[index] ?? null,
+    attestation: attestations[index] ?? null,
+    amount: amounts[index] ?? null,
+  }))
 }
 
 /** Only the public halves. This is the ONLY shape that may be sent anywhere. */
