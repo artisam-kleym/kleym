@@ -144,10 +144,15 @@ model Organization {
   /// MFA policy (#47): OFF, APPROVERS (Approvers and Owners must have a
   /// second factor to sign in), or ALL members. Enforced at sign-in, server-side.
   mfaPolicy MfaPolicy @default(OFF)
+  /// Accounting export (#80): the fiat currency every journal line is valued
+  /// in. ISO 4217. The rate is captured per claim when it settles, so
+  /// changing this later affects only claims settled after the change.
+  reportingCurrency String @default("USD")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   memberships Membership[]
+  valuations  Valuation[]
   campaigns   Campaign[]
   apiKeys     ApiKey[]
   webhooks    WebhookEndpoint[]
@@ -616,7 +621,8 @@ model ReclaimBatch {
   amount          Decimal  @db.Decimal(23, 7)
   submittedAt     DateTime @default(now())
 
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaign  Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  valuation Valuation?
 
   @@index([campaignId])
 }
@@ -693,8 +699,9 @@ model ClaimLink {
 
   campaign Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   batch    Batch?    @relation(fields: [batchId], references: [id])
-  delivery Delivery?
-  passkey  ClaimLinkPasskey?
+  delivery  Delivery?
+  passkey   ClaimLinkPasskey?
+  valuation Valuation?
   findings ReconciliationFinding[]
   stranded StrandedAccount?
 
@@ -869,4 +876,55 @@ model IdempotencyKey {
 
   @@id([userId, key])
   @@index([createdAt])
+}
+
+/// What one settled movement was worth in the organisation's reporting
+/// currency AT ITS OWN LEDGER TIME (#80). Captured once when the claim (or
+/// reclaim) settles and stored, never recomputed: an export run twice must
+/// produce the same numbers, and a rate looked up at export time would make
+/// last month's report change every time someone opened it.
+///
+/// One row per claim (`linkId`) or per reclaim batch (`reclaimBatchId`);
+/// exactly one of the two is set. `rate` is null when no source could price
+/// the pair at that time — the line is exported with the reason, not dropped,
+/// and the hourly pass retries with the same historical window.
+model Valuation {
+  id             String        @id @default(cuid())
+  organizationId String
+  campaignId     String
+  linkId         String?       @unique
+  reclaimBatchId String?       @unique
+  kind           ValuationKind
+  /// The ledger instant the rate is for — the claim's or the reclaim's.
+  valuedAt       DateTime
+  assetCode      String
+  assetIssuer    String?
+  /// The asset amount that moved. Decimal (AGENT.md §4.1).
+  amount         Decimal       @db.Decimal(23, 7)
+  /// The network fee the sponsor paid for this movement, in XLM. Its own journal line.
+  feeXlm         Decimal       @db.Decimal(23, 7) @default(0)
+  currency       String
+  /// Units of `currency` per one unit of the asset, or null when unpriced.
+  rate           Decimal?      @db.Decimal(23, 7)
+  /// Units of `currency` per one XLM at the same instant, for the fee line.
+  xlmRate        Decimal?      @db.Decimal(23, 7)
+  rateSource     String
+  /// The window the rate came from, so a line names where its number is from.
+  rateWindow     String?
+  transactionHash String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  link         ClaimLink?    @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  reclaimBatch ReclaimBatch? @relation(fields: [reclaimBatchId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, valuedAt])
+  @@index([campaignId, valuedAt])
+  @@index([rate, valuedAt])
+}
+
+enum ValuationKind {
+  CLAIM
+  RECLAIM
 }

@@ -136,7 +136,7 @@ const check = (name: string, pass: boolean, detail = ''): void => {
 async function tenant(mappings: { group: string; role: 'VIEWER' | 'OPERATOR' | 'APPROVER' | 'OWNER' }[] = [], ssoOnly = false) {
   const owner = await prisma.user.create({ data: { username: `owner-${randomUUID().slice(0, 8)}`, passwordHash: await hashPassword('correct horse'), role: 'SENDER' }, select: { id: true, username: true } })
   const orgId = await personalOrg(prisma, owner.id)
-  const org = { id: orgId, name: 'sso', role: 'OWNER' as const, approvalThreshold: null, approvalsRequired: 1, screeningUrl: null, mfaPolicy: 'OFF' as const }
+  const org = { id: orgId, name: 'sso', role: 'OWNER' as const, approvalThreshold: null, approvalsRequired: 1, screeningUrl: null, mfaPolicy: 'OFF' as const, reportingCurrency: 'USD' }
   const handle = `acme-${randomUUID().slice(0, 6)}`
   const saved = await upsertConnection(owner.id, org, { handle, issuer: idp.issuer, clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, scopes: 'openid profile email', subjectClaim: 'sub', groupsClaim: 'groups', ssoOnly, defaultRole: 'VIEWER', mappings }, null)
   if (saved.kind !== 'ok') throw new Error(`connection: ${JSON.stringify(saved)}`)

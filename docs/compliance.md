@@ -173,6 +173,30 @@ pnpm audit:verify-export kleym-regulator-<org>-<date>.json "<x-kleym-signature>"
 (`docs/audit-log.md` §"Signed export" covers the key and how to distribute it.) Each
 export writes an audit row `org.regulator_export` with the window and the row count.
 
+## 4. Accounting export
+
+`GET /api/org/accounting/export?format=csv|json&from=&to=&campaignId=` — Operator and up,
+scoped to the session's organisation. One journal line per settled claim, **valued at the
+claim's own ledger time** in the organisation's reporting currency (Settings → Accounting;
+`reportingCurrency` on `PATCH /api/org`), with the rate, its source and the aggregation
+window it came from on the line. Reclaims are exported as reversals against the expense
+account, valued at the reclaim's own time; the network fee the sponsor paid for each
+movement is its own line in XLM.
+
+The rate is captured once, when the movement settles (`Valuation`), and never recomputed:
+the same range gives byte-identical bytes on every run, and the generation time travels in
+`x-kleym-generated-at` rather than in the body. Rates come from the Stellar DEX's trade
+history for the asset against the anchor that stands for the currency (`RATE_ANCHORS`,
+`USD=USDC:G…`): the close of the claim's hour, or of its day when the hour did not trade.
+A pair with no trades in either window is exported with `rateSource: unavailable` and an
+empty fiat column — never dropped — and the hourly `valuations` pass retries it against the
+same instant until it fills; `x-kleym-unpriced-lines` counts them. Signed and verified like
+the regulator export (`pnpm audit:verify-export`); audited as `org.accounting_export`.
+
+Accounts are fixed strings a bookkeeper maps once: `Payouts expense`, `Digital assets
+(<code>)`, `Network fees`. The JSON carries both the flat lines and balanced
+debit/credit entries per movement. This is reporting, not tax determination.
+
 ## Verification
 
 `pnpm verify:compliance` (CI) stands up a local receiver and proves: the request shape

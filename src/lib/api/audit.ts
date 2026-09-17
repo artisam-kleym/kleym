@@ -32,6 +32,8 @@ export type AuditAction =
   | 'org.webhook_remove'
   | 'org.webhook_enable'
   | 'org.regulator_export'
+  | 'org.accounting_export'
+  | 'org.reporting_currency'
   | 'link.reclaim'
   | 'link.claim'
   | 'user.create'

@@ -691,6 +691,7 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 | POST | `/api/claims/otp/request` | Email-delivered links only |
 | POST | `/api/claims/otp/verify` | 6 digits, 5 attempts, 10-minute expiry |
 | POST | `/api/claims/code/verify` | `{ ephemeralPublicKey, code }` — the CODE policy's 13-character claim code (#79); 5 attempts then a 15-minute lock, per link and caller; on an emailed link the OTP token must already be on the request; returns the token the claim actions require |
+| GET | `/api/org/accounting/export` | Signed journal-entry export (#80): one line per settled claim valued at its own ledger time, reclaims as reversals, fees as lines; byte-identical per range |
 | POST | `/api/claims/passkey/register/options`, `…/register`, `…/authenticate/options`, `…/authenticate` | The PASSKEY policy's WebAuthn ceremony (#79), keyed by the link and challenge; registration binds the first device and needs `proof`, the ephemeral keypair's signature over the challenge; authentication asserts it; an unclaimable link answers 404 like an unknown one; both return the token |
 
 Both `prepare` endpoints must re-verify against the ledger — not the database — that the balance still exists and the predicate is satisfiable. A stale `ACTIVE` row is not authorisation to build a claim. See §3.3.3 for why `prepare` is split rather than carrying a `phase` field.

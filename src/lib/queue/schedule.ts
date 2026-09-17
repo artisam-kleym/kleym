@@ -16,6 +16,9 @@ export const WATCH_INTERVAL_MS = WATCH_EVERY_MINUTES * 60_000
 /** Reminders (#78) are checked hourly; a point is due for a day, so an hour's granularity is plenty. */
 export const REMINDER_CRON = '41 * * * *'
 export const REMINDER_INTERVAL_MS = 60 * 60_000
+/** Unpriced valuations (#80) are retried hourly against the same historical window; a thin pair fills in when it trades. */
+export const VALUATION_CRON = '53 * * * *'
+export const VALUATION_INTERVAL_MS = 60 * 60_000
 
 /** The delivery retention sweep (#50) runs once a day, at an off-hour minute. */
 export const RETENTION_CRON = '23 3 * * *'

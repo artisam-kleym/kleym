@@ -29,4 +29,5 @@ export const QUEUE = {
   ephemeralWatch: 'ephemeral-watch',
   deliveryRetention: 'delivery-retention',
   reminders: 'reminders',
+  valuations: 'valuations',
 } as const

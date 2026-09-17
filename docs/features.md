@@ -20,6 +20,36 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-17 — Accounting export: journal entries valued at claim time (#80)
+
+An organisation can download a signed journal-entry export — CSV, or JSON with balanced
+debit/credit entries — with one line per settled claim, **valued at the claim's own ledger
+date** in the organisation's reporting currency, the rate and its source on every line.
+Reclaims appear as reversals valued at the reclaim's own time, and the network fee the sponsor
+paid for each movement is its own line in XLM. Date-range and campaign filters; Operator and up;
+Settings → Accounting sets the reporting currency (from the currencies the deployment can
+price) and links the export.
+
+The rate is captured once when the movement settles and stored beside it, never recomputed —
+so an export run twice over the same range is byte-identical, including rates, and the
+generation time is a response header, not part of the file. Rates come from the Stellar DEX's
+own trade history for the asset against the anchor standing for the currency (`RATE_ANCHORS`;
+USDC for USD by default): the close of the claim's hour, or of its day when the hour did not
+trade. A pair no window priced is exported with `rateSource: unavailable` and an empty fiat
+column rather than dropped, and an hourly pass retries it against the same instant until it
+fills; once filled, a row is never touched again. Decimal throughout, `.toFixed()` on output:
+no amount renders as an exponent at either extreme the system permits.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 9 new unit tests — claim
+valued at its date with expense/asset accounts and a fee line, reclaim as the reversal at its
+own time, unpriced lines kept and named, no exponent at 0.0000001 or at 16 digits, half-even
+fiat rounding, byte-identical export bodies across runs with a valid signature, balanced
+entries, anchor parsing. The database side — one valuation per claim, replay-safe, filled by
+the pass and never repriced, reclaim reversal, scoped and byte-identical export, claim lines
+summing to the claimed links — is `scripts/verify-valuations.ts`, NOT run here (no database in
+this environment). The DEX rate read (`trade_aggregations`) was not exercised against Horizon
+here. The migration was authored from the schema diff and not run against real data.
+
 ## 2026-09-17 — Unclaimed-value management: reminders, outstanding view, scheduled reclaim (#78)
 
 A campaign page now has an "Unclaimed value" panel that reads the **ledger**: how many of
