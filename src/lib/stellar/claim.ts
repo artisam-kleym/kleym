@@ -47,6 +47,27 @@ export interface ClaimContext {
   balanceId: string
   networkPassphrase: string
   baseFee: string
+  /**
+   * Receive-as (#74). When present, TX2 converts on the way out: a
+   * `pathPaymentStrictSend` from the ephemeral account replaces the plain
+   * payment, sending the whole link amount of `asset` and delivering at least
+   * `destMin` of `destAsset`. Quoted and bounded on the SERVER; the recipient
+   * never supplies a price. Absent, TX2 is byte-for-byte what it always was.
+   */
+  conversion?: Conversion
+}
+
+export interface Conversion {
+  destAsset: Asset
+  /** The quote minus tolerance. The whole risk control: below this, the transaction fails rather than fills. */
+  destMin: string
+  /** Intermediate assets from the quote, so the path that was priced is the path that is taken. */
+  path: Asset[]
+}
+
+/** What the recipient ends up holding — the destination asset when converting, the campaign asset otherwise. */
+export function deliveredAsset(context: Pick<ClaimContext, 'asset' | 'conversion'>): Asset {
+  return context.conversion?.destAsset ?? context.asset
 }
 
 /**
@@ -137,6 +158,14 @@ export interface ClaimPlan {
  */
 export function buildClaim(context: ClaimContext, facts: LedgerFacts): ClaimPlan {
   const nonNative = !context.asset.isNative()
+  /*
+   * The trustline the RECIPIENT needs is for what they RECEIVE (#74). With a
+   * conversion that is the destination asset; sponsoring the campaign asset's
+   * trustline instead would create the account and then fail `op_no_trust`.
+   * `facts.recipientTrusts` is read against this same asset by the caller.
+   */
+  const delivered = deliveredAsset(context)
+  const deliveredNonNative = !delivered.isNative()
 
   const builder = new TransactionBuilder(context.sponsorAccount, {
     fee: context.baseFee,
@@ -169,7 +198,7 @@ export function buildClaim(context: ClaimContext, facts: LedgerFacts): ClaimPlan
     )
   }
 
-  if (nonNative && !facts.recipientTrusts) {
+  if (deliveredNonNative && !facts.recipientTrusts) {
     builder.addOperation(
       Operation.beginSponsoringFutureReserves({
         sponsoredId: context.recipientPublicKey,
@@ -177,21 +206,35 @@ export function buildClaim(context: ClaimContext, facts: LedgerFacts): ClaimPlan
       }),
     )
     builder.addOperation(
-      Operation.changeTrust({ asset: context.asset, source: context.recipientPublicKey }),
+      Operation.changeTrust({ asset: delivered, source: context.recipientPublicKey }),
     )
     builder.addOperation(
       Operation.endSponsoringFutureReserves({ source: context.recipientPublicKey }),
     )
   }
 
-  builder.addOperation(
-    Operation.payment({
-      destination: context.recipientPublicKey,
-      asset: context.asset,
-      amount: context.amount,
-      source: context.ephemeralPublicKey,
-    }),
-  )
+  if (context.conversion) {
+    builder.addOperation(
+      Operation.pathPaymentStrictSend({
+        sendAsset: context.asset,
+        sendAmount: context.amount,
+        destination: context.recipientPublicKey,
+        destAsset: context.conversion.destAsset,
+        destMin: context.conversion.destMin,
+        path: context.conversion.path,
+        source: context.ephemeralPublicKey,
+      }),
+    )
+  } else {
+    builder.addOperation(
+      Operation.payment({
+        destination: context.recipientPublicKey,
+        asset: context.asset,
+        amount: context.amount,
+        source: context.ephemeralPublicKey,
+      }),
+    )
+  }
 
   // Before the merge, always. See the note above.
   if (nonNative) {
@@ -216,7 +259,7 @@ export function buildClaim(context: ClaimContext, facts: LedgerFacts): ClaimPlan
   return {
     xdr: transaction.toXDR(),
     operations: transaction.operations.length,
-    needsRecipientSignature: !facts.recipientExists || (nonNative && !facts.recipientTrusts),
+    needsRecipientSignature: !facts.recipientExists || (deliveredNonNative && !facts.recipientTrusts),
     recipientExists: facts.recipientExists,
     recipientTrusts: facts.recipientTrusts,
   }

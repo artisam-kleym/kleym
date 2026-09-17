@@ -29,7 +29,7 @@ separately (`x-ratelimit-write-remaining`). Errors are RFC 9457
 
 | Method | Path | Body | Returns |
 |---|---|---|---|
-| POST | `/api/v1/campaigns` | `{ name, network, senderPublicKey, assetCode, assetIssuer?, amountPerLink, linkCount, expiresAt }` | 201, the campaign |
+| POST | `/api/v1/campaigns` | `{ name, network, senderPublicKey, assetCode, assetIssuer?, amountPerLink, linkCount, expiresAt, receiveAs?: [{ assetCode, assetIssuer? }] }` | 201, the campaign |
 | POST | `/api/v1/campaigns/{id}/links` | `{ publicKeys: [G…], labels?: [], attestations?: [{reference?, category?, note?} \| null] }` | 201 `{ registered, total }` |
 | POST | `/api/v1/campaigns/{id}/export` | `{}` | `{ csvExportedAt }` — the caller's **attestation** that the secrets file is saved (see below); refused before any link exists |
 | POST | `/api/v1/campaigns/{id}/batches/prepare` | `{ sequence? }` | `{ sequence, totalBatches, linkCount, xdr, networkPassphrase, reserve, … }` |

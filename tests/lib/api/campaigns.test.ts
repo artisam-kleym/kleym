@@ -82,3 +82,32 @@ describe('createCampaignSchema', () => {
     expect(createCampaignSchema.safeParse({ ...valid, expiresAt: past }).success).toBe(false)
   })
 })
+
+/*
+ * Receive-as (#74): the sender's allow-list, validated like everything else
+ * — at most five, never the campaign asset, never repeated, an issuer for
+ * anything non-native and none for XLM.
+ */
+describe('createCampaignSchema receiveAs', () => {
+  it('accepts a short allow-list of other assets', () => {
+    expect(createCampaignSchema.safeParse({ ...valid, receiveAs: [{ assetCode: 'USDC', assetIssuer: PUB }] }).success).toBe(true)
+  })
+
+  it('refuses the campaign asset, a repeat, and more than five', () => {
+    expect(createCampaignSchema.safeParse({ ...valid, receiveAs: [{ assetCode: 'XLM' }] }).success).toBe(false)
+    expect(createCampaignSchema.safeParse({ ...valid, receiveAs: [{ assetCode: 'USDC', assetIssuer: PUB }, { assetCode: 'USDC', assetIssuer: PUB }] }).success).toBe(false)
+    const six = ['A', 'B', 'C', 'D', 'E', 'F'].map((assetCode) => ({ assetCode, assetIssuer: PUB }))
+    expect(createCampaignSchema.safeParse({ ...valid, receiveAs: six }).success).toBe(false)
+  })
+
+  it('needs an issuer for a non-native asset and refuses one on XLM', () => {
+    const usdc = { ...valid, assetCode: 'USDC', assetIssuer: PUB }
+    expect(createCampaignSchema.safeParse({ ...usdc, receiveAs: [{ assetCode: 'EURC' }] }).success).toBe(false)
+    expect(createCampaignSchema.safeParse({ ...usdc, receiveAs: [{ assetCode: 'XLM', assetIssuer: PUB }] }).success).toBe(false)
+    expect(createCampaignSchema.safeParse({ ...usdc, receiveAs: [{ assetCode: 'XLM' }] }).success).toBe(true)
+  })
+
+  it('refuses a seed as an issuer', () => {
+    expect(createCampaignSchema.safeParse({ ...valid, receiveAs: [{ assetCode: 'USDC', assetIssuer: SEED }] }).success).toBe(false)
+  })
+})

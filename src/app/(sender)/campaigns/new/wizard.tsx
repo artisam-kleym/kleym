@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import { Button, Stepper } from '@/components/ui'
 import { generateEphemeralKeys, publicHalves, type Attestation } from '@/lib/campaign/keygen'
 import { parseLabels } from '@/lib/campaign/csv'
+import { parseReceiveAs, receiveAsErrorMessage, type ReceiveAsEntry } from '@/lib/campaign/receive-as'
 import { affordability, computeCost, type CostBreakdown } from '@/lib/campaign/cost'
 import { triggerDownload } from './download-gate'
 import { canContinuePastExport, useWizard, type WizardConfig } from './use-wizard'
@@ -80,6 +81,20 @@ export function CampaignWizard(config: WizardConfig) {
   const [attestations, setAttestations] = useState<(Attestation | null)[]>([])
   const [labelError, setLabelError] = useState<string | null>(null)
   const [filename, setFilename] = useState<string | null>(null)
+  /**
+   * Receive-as (#74). The raw field is state; its parse is DERIVED from the
+   * raw text AND the campaign asset, so changing the asset after typing the
+   * list re-validates "differs from the campaign asset" here rather than as
+   * a 400 at signing.
+   */
+  const [receiveAsRaw, setReceiveAsRaw] = useState('')
+  const receiveAsParsed = useMemo(
+    () => parseReceiveAs(receiveAsRaw, { assetCode: draft.assetCode, assetIssuer: draft.assetIssuer }),
+    [receiveAsRaw, draft.assetCode, draft.assetIssuer],
+  )
+  const receiveAs = useMemo<ReceiveAsEntry[]>(() => (receiveAsParsed.ok ? receiveAsParsed.assets : []), [receiveAsParsed])
+  const receiveAsError = receiveAsParsed.ok ? null : receiveAsErrorMessage(receiveAsParsed)
+  const onReceiveAs = useCallback((raw: string) => setReceiveAsRaw(raw), [])
 
   const patch = useCallback((next: Partial<typeof draft>) => setDraft((d) => ({ ...d, ...next })), [])
 
@@ -227,7 +242,7 @@ export function CampaignWizard(config: WizardConfig) {
         return
       }
 
-      const campaignId = await createCampaign(draft, wizard.keys.length)
+      const campaignId = await createCampaign(draft, wizard.keys.length, receiveAs)
       wizard.setCampaignId(campaignId)
       await registerLinks(campaignId, wizard.keys)
 
@@ -254,7 +269,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
     }
-  }, [wizard, draft, cost, stepUp])
+  }, [wizard, draft, cost, stepUp, receiveAs])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -266,7 +281,8 @@ export function CampaignWizard(config: WizardConfig) {
         draft.name.trim().length > 0 &&
         draft.senderPublicKey.length === 56 &&
         accountExists === true &&
-        draft.amountPerLink.trim().length > 0
+        draft.amountPerLink.trim().length > 0 &&
+        receiveAsError === null
       )
     }
     if (wizard.step === 1) {
@@ -279,7 +295,7 @@ export function CampaignWizard(config: WizardConfig) {
       )
     }
     return false
-  }, [wizard.step, draft, accountExists, config.maxLinksPerCampaign, labelError, cost])
+  }, [wizard.step, draft, accountExists, config.maxLinksPerCampaign, labelError, cost, receiveAsError])
 
   return (
     <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
@@ -293,6 +309,9 @@ export function CampaignWizard(config: WizardConfig) {
             balances={balances}
             accountExists={accountExists}
             checking={checking}
+            receiveAsRaw={receiveAsRaw}
+            receiveAsError={receiveAsError}
+            onReceiveAs={onReceiveAs}
           />
         )}
         {wizard.step === 1 && (
@@ -383,6 +402,7 @@ function idempotencyKey(): string {
 async function createCampaign(
   draft: { name: string; network: string; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; expiresAt: string },
   linkCount: number,
+  receiveAs: ReceiveAsEntry[] = [],
 ): Promise<string> {
   const response = await fetch('/api/campaigns', {
     method: 'POST',
@@ -396,6 +416,8 @@ async function createCampaign(
       amountPerLink: draft.amountPerLink,
       linkCount,
       expiresAt: new Date(draft.expiresAt).toISOString(),
+      // Omitted entirely when empty, so the request is what it always was.
+      ...(receiveAs.length > 0 ? { receiveAs } : {}),
     }),
   })
   if (!response.ok) throw new Error((await problemDetail(response)) ?? 'The campaign could not be created.')

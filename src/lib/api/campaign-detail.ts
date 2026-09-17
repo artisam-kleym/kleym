@@ -83,7 +83,7 @@ export async function loadCampaignDetail(id: string, organizationId: string) {
   const campaign = await prisma.campaign.findFirst({
     where: owned(id, organizationId),
     select: {
-      id: true, userId: true, name: true, status: true, assetCode: true, amountPerLink: true,
+      id: true, userId: true, name: true, status: true, assetCode: true, amountPerLink: true, receiveAsAssets: true,
       linkCount: true, expiresAt: true, senderPublicKey: true, network: true,
       screeningDecision: true, screeningReason: true, screenedAt: true,
       suspendedAt: true, reclaimDueAt: true,
