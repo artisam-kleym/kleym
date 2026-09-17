@@ -6,6 +6,8 @@ import {
   EmptyState, FilterBar, FilterField, FilterSelect, Pagination, firstValues, formatDate,
 } from '@/components/list/filters'
 import { LINK_STATUSES, linksPage, linksQuerySchema, loadCampaignHeader } from '@/lib/api/campaign-detail'
+import { roleAtLeast } from '@/lib/api/session-guard'
+import { SuspendLinkButton } from './suspend-link-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,6 +34,11 @@ export default async function CampaignLinksPage({
   const { id } = await params
   const campaign = await loadCampaignHeader(id, org.id)
   if (!campaign) notFound()
+  // Per-link suspension (#72) is open while the campaign is live and not
+  // suspended as a whole; the whole-campaign action lives on the detail page.
+  const canSuspend =
+    roleAtLeast(org.role, 'OPERATOR') && !campaign.suspendedAt && !campaign.expired &&
+    ['ACTIVE', 'PARTIAL', 'CREATING'].includes(campaign.status)
 
   const raw = firstValues(await searchParams)
   const parsed = linksQuerySchema.safeParse(raw)
@@ -48,7 +55,13 @@ export default async function CampaignLinksPage({
       </p>
       <h1 className="mt-xs text-display-lg text-primary max-md:text-headline-md">Links</h1>
       <p className="mt-md text-body-md text-on-surface-variant">
-        {campaign.linkCount} links · {campaign.amountPerLink.toFixed()} {campaign.assetCode} each.
+        {campaign.linkCount} links ·{' '}
+        {campaign.variableAmounts
+          ? `${campaign.assetCode}, amounts vary by link`
+          : `${campaign.amountPerLink.toFixed()} ${campaign.assetCode} each`}.
+        {campaign.suspendedAt && (
+          <> · Suspended — Kleym is not serving these links, but each balance stays claimable by its holder until {campaign.expiresAt.toISOString().slice(0, 10)}.</>
+        )}
       </p>
 
       <FilterBar action={basePath}>
@@ -67,7 +80,7 @@ export default async function CampaignLinksPage({
       ) : (
         <div className="mt-lg">
           <Table>
-            <TableHead columns={['#', 'Label', 'Reference', 'Status', 'Claimant', 'Claimed', 'Transaction']} />
+            <TableHead columns={['#', 'Label', 'Reference', 'Amount', 'Status', 'Claimant', 'Claimed', 'Transaction', '']} />
             <tbody>
               {links.map((link, i) => (
                 <TableRow key={link.id}>
@@ -77,10 +90,21 @@ export default async function CampaignLinksPage({
                     {link.reference ?? '—'}
                     {link.category && <span className="ml-sm text-label-sm">{link.category}</span>}
                   </TableCell>
-                  <TableCell><StatusChip status={CHIP[link.status] ?? 'pending'} /></TableCell>
+                  <TableCell className="font-mono">{link.amount.toFixed()}</TableCell>
+                  <TableCell>
+                    <StatusChip status={CHIP[link.status] ?? 'pending'} />
+                    {link.suspendedAt && (
+                      <span className="ml-sm font-mono text-label-sm text-on-surface-variant">suspended</span>
+                    )}
+                  </TableCell>
                   <TableCell>{link.claimedBy ? <StellarAddress value={link.claimedBy} /> : '—'}</TableCell>
                   <TableCell>{link.claimedAt ? formatDate(link.claimedAt) : '—'}</TableCell>
                   <TableCell>{link.claimTxHash ? <StellarAddress value={link.claimTxHash} /> : '—'}</TableCell>
+                  <TableCell>
+                    {canSuspend && link.status === 'ACTIVE' && !link.suspendedAt && (
+                      <SuspendLinkButton campaignId={campaign.id} linkId={link.id} expiresAt={campaign.expiresAt.toISOString()} />
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </tbody>

@@ -74,6 +74,7 @@ async function makeLink(opts: LinkOpts = {}): Promise<string> {
     data: {
       campaignId: campaign.id,
       ephemeralPublicKey: key,
+      amount: '2.5000000',
       status: opts.status ?? 'ACTIVE',
       balanceId: opts.balanceId === undefined ? `00000000${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}`.slice(0, 72) : opts.balanceId,
     },

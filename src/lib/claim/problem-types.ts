@@ -15,7 +15,7 @@
 export const CLAIM_PROBLEM_BASE = 'https://kleym.app/problems'
 
 /** A conflict the page can name. Anything else is a generic `failed`. */
-export type ClaimConflictReason = 'expired' | 'already-claimed' | 'not-ready' | 'otp-required' | 'code-required' | 'passkey-required'
+export type ClaimConflictReason = 'expired' | 'already-claimed' | 'not-ready' | 'otp-required' | 'no-path' | 'quote-missed' | 'code-required' | 'passkey-required'
 
 export const CLAIM_CONFLICT_TYPE: Record<ClaimConflictReason, string> = {
   expired: `${CLAIM_PROBLEM_BASE}/conflict/expired`,
@@ -24,6 +24,10 @@ export const CLAIM_CONFLICT_TYPE: Record<ClaimConflictReason, string> = {
   'not-ready': `${CLAIM_PROBLEM_BASE}/conflict/not-ready`,
   /** An emailed link without a valid OTP token on the request. SPEC.md §6.4. */
   'otp-required': `${CLAIM_PROBLEM_BASE}/conflict/otp-required`,
+  /** Receive-as (#74): no path prices the link's asset into the one asked for. The original asset is still there. */
+  'no-path': `${CLAIM_PROBLEM_BASE}/conflict/no-path`,
+  /** Receive-as (#74): the book moved past `destMin` between quote and ledger; refused rather than filled. */
+  'quote-missed': `${CLAIM_PROBLEM_BASE}/conflict/quote-missed`,
   /** CODE policy (#79): no valid claim-code token on the request. */
   'code-required': `${CLAIM_PROBLEM_BASE}/conflict/code-required`,
   /** PASSKEY policy (#79): no valid passkey token on the request. */

@@ -85,7 +85,7 @@ export default async function DashboardPage() {
                   </Link>
                 </TableCell>
                 <TableCell><StatusChip status={CHIP[row.status] ?? 'pending'} /></TableCell>
-                <TableCell>{row.amountPerLink} {row.assetCode}</TableCell>
+                <TableCell>{row.variableAmounts ? 'varies' : row.amountPerLink} {row.assetCode}</TableCell>
                 <TableCell>
                   <ProgressCell claimed={row.claimed} total={row.linkCount} expired={row.status === 'EXPIRED'} />
                 </TableCell>

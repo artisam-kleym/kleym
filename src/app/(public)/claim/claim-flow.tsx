@@ -12,8 +12,8 @@ import { Keypair, Networks, Transaction, TransactionBuilder } from '@stellar/ste
 import { ClaimPanel } from '@/components/ui'
 import { clearFragment, readFragment } from '@/lib/claim/fragment'
 import { claimTraceHeaders } from '@/lib/claim/trace'
-import { isNotReady, retryTarget, stateFromProblem, type ClaimState } from '@/lib/claim/machine'
-import { ClaimScreen, type LinkDetails } from './screens'
+import { isConversionRefused, isNotReady, retryTarget, stateFromProblem, type ClaimState } from '@/lib/claim/machine'
+import { ClaimScreen, type LinkDetails, type ReceiveAsOption, type ReceiveAsQuote } from './screens'
 
 /**
  * One ledger is ~5s. §3.3.1 says the boundary is the ledger, not the clock, so
@@ -39,6 +39,18 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
   const [txHash, setTxHash] = useState<string | null>(null)
   const [claimedAt, setClaimedAt] = useState<string | null>(null)
   const [claimedBy, setClaimedBy] = useState<string | null>(null)
+
+  /*
+   * Receive-as (#74). The chosen asset and its live quote are ordinary state —
+   * nothing secret here. The quote is Kleym's own, and the price the claim is
+   * held to is set again on the server when the envelope is built; this one is
+   * what the recipient reads before committing.
+   */
+  const [receiveAs, setReceiveAs] = useState<ReceiveAsOption | null>(null)
+  const [quote, setQuote] = useState<ReceiveAsQuote | null>(null)
+  /** The latest quote request; an older one resolving later is dropped, not shown. */
+  const quoteRequest = useRef(0)
+  const [delivered, setDelivered] = useState<{ assetCode: string; destAmount: string; destMin: string } | null>(null)
 
   /*
    * A ref, not state. The seed must not be part of anything React might
@@ -118,6 +130,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
           network: body.network,
           policy,
           passkeyBound: body.passkeyBound === true,
+          receiveAs: Array.isArray(body.receiveAs) ? body.receiveAs : [],
         })
         /*
          * The policy (#79) is shown on the ready screen, and the credential is
@@ -148,6 +161,38 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       detail: (body?.detail as string) ?? null,
     }
   }, [])
+
+  /** Picks an asset to receive as and fetches Kleym's quote for it; null is the asset as sent. */
+  const onReceiveAs = useCallback(
+    async (option: ReceiveAsOption | null) => {
+      setReceiveAs(option)
+      const request = ++quoteRequest.current
+      if (!option) return setQuote(null)
+      const ephemeralPublicKey = ephemeral.current
+      if (!ephemeralPublicKey) return
+      setQuote({ status: 'loading' })
+      try {
+        const response = await fetch('/api/claims/quote', {
+          method: 'POST',
+          // The OTP token too: the quote is gated like every other action on the link.
+          headers: claimHeaders(otpToken.current),
+          body: JSON.stringify({ ephemeralPublicKey, receiveAs: { assetCode: option.assetCode, assetIssuer: option.assetIssuer } }),
+        })
+        // A later selection has superseded this one: its answer is not ours to show.
+        if (request !== quoteRequest.current) return
+        if (!response.ok) {
+          const p = await problem(response)
+          return setQuote({ status: 'unavailable', detail: p.detail ?? `There is no market for ${option.assetCode} right now.` })
+        }
+        const body = await response.json()
+        if (request !== quoteRequest.current) return
+        setQuote({ status: 'quoted', destAmount: body.destAmount, destMin: body.destMin })
+      } catch {
+        if (request === quoteRequest.current) setQuote({ status: 'unavailable', detail: 'A price could not be fetched.' })
+      }
+    },
+    [problem],
+  )
 
   /*
    * `from` is where the flow starts, and it is `retryTarget`'s answer, not a
@@ -227,12 +272,21 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
 
       /* TX2. */
       setState('preparing')
+      // Only a chosen asset with a price in hand is asked for; anything else is the asset as sent.
+      // The floor SHOWN travels with it, so the envelope is never bound below what was read.
+      const conversion = receiveAs && quote?.status === 'quoted'
+        ? { assetCode: receiveAs.assetCode, assetIssuer: receiveAs.assetIssuer, destMin: quote.destMin }
+        : null
       let prepared: Response
       for (let attempt = 1; ; attempt += 1) {
         prepared = await fetch('/api/claims/prepare/claim', {
           method: 'POST',
           headers: claimHeaders(otpToken.current),
-          body: JSON.stringify({ ephemeralPublicKey, recipientPublicKey: recipientKey }),
+          body: JSON.stringify({
+            ephemeralPublicKey,
+            recipientPublicKey: recipientKey,
+            ...(conversion ? { receiveAs: conversion } : {}),
+          }),
         })
         if (prepared.ok) break
         const p = await problem(prepared)
@@ -242,6 +296,15 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
           await new Promise((resolve) => setTimeout(resolve, NOT_READY_RETRY_MS))
           setState('preparing')
           continue
+        }
+        /*
+         * No market for the chosen asset (#74). The funds are untouched; drop
+         * the conversion so "Try again" claims the asset the sender sent, and
+         * say so.
+         */
+        if (isConversionRefused(p.status, p.type)) {
+          setReceiveAs(null)
+          setQuote(null)
         }
         setError(p.detail)
         return setState(stateFromProblem(p.status, p.type))
@@ -267,6 +330,12 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       })
       if (!submitted.ok) {
         const p = await problem(submitted)
+        // The price moved past the bound (#74): refused rather than filled.
+        // Retry claims the asset as sent.
+        if (isConversionRefused(p.status, p.type)) {
+          setReceiveAs(null)
+          setQuote(null)
+        }
         setError(p.detail)
         return setState(stateFromProblem(p.status, p.type))
       }
@@ -275,13 +344,14 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       setTxHash(result.hash)
       setClaimedAt(new Date().toISOString())
       setClaimedBy(recipientKey)
+      setDelivered(plan.conversion ? { assetCode: plan.conversion.assetCode, destAmount: plan.conversion.destAmount, destMin: plan.conversion.destMin } : null)
       setState('claimed_success')
     } catch (caught) {
       const { walletErrorMessage } = await import('./wallet')
       setError(await walletErrorMessage(caught))
       setState('failed')
     }
-  }, [network, problem])
+  }, [network, problem, receiveAs, quote])
 
   /*
    * Retry resumes at TX2 when TX1 has landed. Restarting from `ready` would
@@ -432,6 +502,10 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         onVerifyCode={(code) => void verifyCode(code)}
         passkeyError={passkeyError}
         onPasskey={() => void runPasskey()}
+        receiveAs={receiveAs}
+        quote={quote}
+        onReceiveAs={(option) => void onReceiveAs(option)}
+        delivered={delivered}
       />
     </ClaimPanel>
   )

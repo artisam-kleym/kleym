@@ -198,6 +198,17 @@ transaction carrying a signature it does not need with `tx_bad_auth_extra`. For 
 existing recipient that already holds the trustline, TX2 has no recipient-sourced
 operation and the recipient must not sign.
 
+**Receive-as (#74).** When the sender has allowed it (`Campaign.receiveAsAssets`) and the
+recipient chooses another asset, op 14 becomes
+`PathPaymentStrictSend(sendAsset: asset, sendAmount: amount, destAsset, destMin, path)`
+sourced from EPHEMERAL, and the trustline in ops 11–13 is for the **destination** asset —
+what the recipient ends up holding. `destMin` is the quote (Kleym's own Horizon,
+`strictSendPaths`, served through `/api/claims/quote` so `/claim` still makes no
+third-party request) less 1%, rounded down; below it the whole transaction fails, the
+balance stays claimable, and the page offers the asset as sent. With no conversion TX2 is
+byte-identical to the list above. The recipient-signature rule is unchanged: sign exactly
+when the recipient sources an operation.
+
 #### 3.3.1 Why two transactions
 
 Both constraints are protocol rules on `AccountMerge`, confirmed with isolated controls
@@ -402,7 +413,8 @@ model Campaign {
   senderPublicKey String                        // G... that funded it
   assetCode       String                        // "XLM" or e.g. "USDC"
   assetIssuer     String?                       // null for native
-  amountPerLink   Decimal        @db.Decimal(23, 7)
+  amountPerLink   Decimal        @db.Decimal(23, 7)  // the DEFAULT per link; each ClaimLink carries its own (#73)
+  variableAmounts Boolean        @default(false)     // any link differs from the default — display only
   linkCount       Int
   expiresAt       DateTime
   status          CampaignStatus @default(DRAFT)
@@ -445,6 +457,7 @@ model ClaimLink {
   ephemeralPublicKey String     @unique
 
   balanceId          String?    @unique      // set once the batch confirms
+  amount             Decimal    @db.Decimal(23, 7)  // what THIS link pays (#73); amountPerLink is the default
   status             LinkStatus @default(PENDING)
   label              String?                 // sender's own note: handle, email, etc.
 
@@ -639,10 +652,10 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/campaigns` | List, paginated, filterable by status |
-| POST | `/api/campaigns` | Create draft. Body: name, network, asset, amountPerLink, linkCount, expiresAt |
+| POST | `/api/campaigns` | Create draft. Body: name, network, asset, amountPerLink, linkCount, expiresAt, `receiveAs?` (#74: up to five assets a recipient may convert into) |
 | GET | `/api/campaigns/[id]` | Detail with aggregate counts |
 | PATCH | `/api/campaigns/[id]` | Rename, cancel draft |
-| POST | `/api/campaigns/[id]/links` | Register ephemeral **public** keys. Body: `{ publicKeys: string[], labels?: string[] }`. **Rejects any 56-char value beginning `S`.** |
+| POST | `/api/campaigns/[id]/links` | Register ephemeral **public** keys. Body: `{ publicKeys: string[], labels?: string[], amounts?: (string \| null)[] }` — a per-link amount (#73), `null` for `amountPerLink`. **Rejects any 56-char value beginning `S`.** |
 | POST | `/api/campaigns/[id]/batches/prepare` | Returns unsigned XDR for batch `n` |
 | POST | `/api/campaigns/[id]/batches/submit` | Body: `{ sequence, signedXdr }`. Submits, records hash, extracts balance IDs |
 | POST | `/api/campaigns/[id]/export` | Marks `csvExportedAt`. Returns nothing — the CSV is built client-side |
@@ -659,7 +672,8 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 |---|---|---|
 | GET | `/api/claims/resolve?pk=<G...>` | Link metadata: asset, amount, sender name, status, expiry. Rate-limited 20/min/IP. Returns identical shape for unknown and expired keys to prevent enumeration. |
 | POST | `/api/claims/prepare/materialise` | `{ ephemeralPublicKey }` → TX1 sponsor-signed XDR, or `{ alreadyExists: true }`. Rate-limited 20/min/IP — retried across the ledger boundary. |
-| POST | `/api/claims/prepare/claim` | `{ ephemeralPublicKey, recipientPublicKey }` → TX2 sponsor-signed XDR, plus whether a recipient signature is required |
+| POST | `/api/claims/quote` | `{ ephemeralPublicKey, receiveAs: { assetCode, assetIssuer } }` → `{ destAmount, destMin }` from Kleym's own Horizon (#74). OTP-gated like every claim action; one 404 for anything not claimable; 409 `no-path` when no market exists. Rate-limited 20/min/IP. |
+| POST | `/api/claims/prepare/claim` | `{ ephemeralPublicKey, recipientPublicKey, receiveAs?: { assetCode, assetIssuer, destMin? } }` → TX2 sponsor-signed XDR, whether a recipient signature is required, and `conversion` (`destAmount`, `destMin`) when receiving as another asset (#74). `destMin` is the floor the page showed: the envelope is bound to the higher of it and the fresh bound, and refused `quote-missed` if the fresh quote is below it. |
 | POST | `/api/claims/submit` | `{ ephemeralPublicKey, signedXdr, phase }` → submits, records claim. Rate-limited 10/min/IP. |
 | POST | `/api/claims/otp/request` | Email-delivered links only |
 | POST | `/api/claims/otp/verify` | 6 digits, 5 attempts, 10-minute expiry |
@@ -907,6 +921,7 @@ State these in the product, not just in this document.
 - **Lost CSV means stranded funds** until expiry. By design; the alternative is custody.
 - **Sponsor exhaustion halts claims on that sponsor's campaigns.** Sponsorship is a pool (#48): new campaigns are bound to the first sponsor with working float and keep it for life, so one exhausted account cannot stop every campaign, and crossing the alert threshold pages a webhook. It is still float that a person has to top up; `docs/sponsor-runbook.md`.
 - **A leaked link is a bearer instrument.** Anyone holding the URL can claim. Email delivery with OTP mitigates this; direct distribution does not.
+- **A funded campaign cannot be cancelled, only suspended (#72).** `claimantsFor` gives the recipient the balance before `expiresAt` and the sender from `expiresAt` on — there is no instant at which the sender can take it back early. "Suspend" stops Kleym resolving and preparing the links (campaign-wide or one link at a time) and schedules the reclaim for `expiresAt`, when the sweep marks it due and notifies the organisation; the sender still signs the return, because Kleym holds no key that can move the money. Until then every balance is still on the ledger and claimable by whoever holds the link, and the product says so wherever the action appears. True pre-expiry revocation would mean the sender as an unconditional claimant — a change to what a link promises its holder, and a product decision, not a feature to add quietly.
 - **Claim policies (#79) bind a link to a channel or a device, never to a person.** A sender may require a per-link claim code (distributed separately), Kleym email delivery (the OTP gate), or a passkey registered by the first claimant. The gate runs on every claim action. `resolve` reports `policy: open` on every unavailable answer, so the field is not an oracle. Recipients stay anonymous; none of this is identity verification.
 - **Partial batch failure** leaves a campaign in a mixed state requiring sender action.
 - **An abandoned claim strands sponsor reserves.** If TX1 of a claim lands and TX2 never

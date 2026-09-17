@@ -38,6 +38,8 @@ export interface EphemeralKey {
   secret: string
   label: string | null
   attestation: Attestation | null
+  /** This link's own amount (#73), fixed-point, or null for the campaign default. */
+  amount: string | null
   /**
    * CODE policy (#79): the claim code the sender hands the recipient through
    * a second channel. Generated here beside the key, exported in the CSV, and
@@ -75,6 +77,7 @@ export function generateEphemeralKeys(
   count: number,
   labels: string[] = [],
   attestations: (Attestation | null)[] = [],
+  amounts: (string | null)[] = [],
   options: { withCodes?: boolean } = {},
 ): EphemeralKey[] {
   if (!Number.isInteger(count) || count < 1) {
@@ -88,6 +91,7 @@ export function generateEphemeralKeys(
       secret: keypair.secret(),
       label: labels[index] ?? null,
       attestation: attestations[index] ?? null,
+      amount: amounts[index] ?? null,
       code: options.withCodes ? generateClaimCode() : null,
     }
   })
@@ -98,15 +102,18 @@ export function publicHalves(keys: EphemeralKey[]): {
   publicKeys: string[]
   labels: (string | null)[]
   attestations?: (Attestation | null)[]
+  amounts?: (string | null)[]
   codes?: string[]
 } {
   const attestations = keys.map((key) => key.attestation)
+  const amounts = keys.map((key) => key.amount)
   const codes = keys.map((key) => key.code)
   return {
     publicKeys: keys.map((key) => key.publicKey),
     labels: keys.map((key) => key.label),
     // Omitted entirely when nobody set one, so the request is what it always was.
     ...(attestations.some((a) => a !== null) ? { attestations } : {}),
+    ...(amounts.some((a) => a !== null) ? { amounts } : {}),
     /*
      * The claim codes (#79) DO cross to the server — as the credential the
      * gate will check, hashed on arrival. They are not key material: a code

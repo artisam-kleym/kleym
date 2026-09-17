@@ -51,6 +51,7 @@ async function fixture(links: number) {
       data: Array.from({ length: size }, (_, i) => ({
         campaignId: campaign.id,
         ephemeralPublicKey: Keypair.random().publicKey(),
+        amount: '1.0000000',
         status: STATUSES[(offset + i) % STATUSES.length]!,
         label: `link ${offset + i}`,
       })),

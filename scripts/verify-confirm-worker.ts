@@ -87,7 +87,7 @@ async function runConfirm(reversed: boolean): Promise<void> {
   const keys = reversed ? [...fixture.ephemeralPublicKeys].reverse() : fixture.ephemeralPublicKeys
   for (const key of keys) {
     await prisma.claimLink.create({
-      data: { campaignId: campaign.id, batchId: batch.id, ephemeralPublicKey: key },
+      data: { campaignId: campaign.id, batchId: batch.id, ephemeralPublicKey: key, amount: fixture.amount },
     })
   }
 

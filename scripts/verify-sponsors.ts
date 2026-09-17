@@ -125,7 +125,7 @@ async function inFlightCampaignsKeepTheirSponsor(): Promise<void> {
     })
     const key = Keypair.random().publicKey()
     const balanceId = `00000000${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}`.slice(0, 72)
-    await prisma.claimLink.create({ data: { campaignId: c.id, ephemeralPublicKey: key, status: 'ACTIVE', balanceId } })
+    await prisma.claimLink.create({ data: { campaignId: c.id, ephemeralPublicKey: key, amount: '2.5000000', status: 'ACTIVE', balanceId } })
     return { key, balanceId }
   }
   const onSecond = await mk(second.publicKey())

@@ -24,6 +24,8 @@ export interface LinkDetails {
   policy: 'open' | 'code' | 'email' | 'passkey'
   /** PASSKEY policy: whether a device has already been bound to this link. */
   passkeyBound?: boolean
+  /** Receive-as (#74): what the sender lets this recipient convert into. Empty when not offered. */
+  receiveAs: ReceiveAsOption[]
 }
 
 /** What each policy means for the person reading, in their words. */
@@ -33,6 +35,17 @@ export const POLICY_COPY: Record<LinkDetails['policy'], string> = {
   email: 'This link was sent to an email address and can only be claimed with the code sent to that address.',
   passkey: 'This link is bound to a passkey. The first time, you register one on this device; after that only that device can claim.',
 }
+
+export interface ReceiveAsOption {
+  assetCode: string
+  assetIssuer: string | null
+}
+
+/** A live quote for the chosen asset, from Kleym's own backend — never a third-party widget. */
+export type ReceiveAsQuote =
+  | { status: 'loading' }
+  | { status: 'quoted'; destAmount: string; destMin: string }
+  | { status: 'unavailable'; detail: string }
 
 function Centred({ children }: { children: ReactNode }) {
   return <div className="flex flex-col items-center gap-md text-center">{children}</div>
@@ -94,6 +107,10 @@ export function ClaimScreen({
   onVerifyCode,
   passkeyError = null,
   onPasskey,
+  receiveAs = null,
+  quote = null,
+  onReceiveAs,
+  delivered = null,
 }: {
   state: ClaimState
   link: LinkDetails | null
@@ -113,6 +130,12 @@ export function ClaimScreen({
   /** PASSKEY policy (#79). */
   passkeyError?: string | null
   onPasskey?: () => void
+  /** Receive-as (#74): the asset chosen, null for the one the sender sent. */
+  receiveAs?: ReceiveAsOption | null
+  quote?: ReceiveAsQuote | null
+  onReceiveAs?: (option: ReceiveAsOption | null) => void
+  /** What TX2 actually delivered when converting, for the success screen. */
+  delivered?: { assetCode: string; destAmount: string; destMin: string } | null
 }) {
   switch (state) {
     case 'loading':
@@ -146,7 +169,18 @@ export function ClaimScreen({
             </p>
           )}
 
-          <Button variant="claim" onClick={onConnect} data-testid="claim-connect" className="w-full">
+          {link && link.receiveAs.length > 0 && onReceiveAs && (
+            <ReceiveAsChooser link={link} chosen={receiveAs ?? null} quote={quote ?? null} onChoose={onReceiveAs} />
+          )}
+
+          <Button
+            variant="claim"
+            onClick={onConnect}
+            data-testid="claim-connect"
+            className="w-full"
+            // Not while a price is still being fetched: the button commits to what is shown.
+            disabled={quote?.status === 'loading'}
+          >
             Connect wallet to claim
           </Button>
 
@@ -217,10 +251,21 @@ export function ClaimScreen({
           <Centred>
             <Icon name="check_circle" size={32} filled className="text-secondary" />
             <p className="text-headline-sm text-on-surface">Claimed</p>
-            {link && <Amount amount={link.amount} assetCode={link.assetCode} />}
-            <p className="text-body-md text-on-surface-variant">
-              The funds are in your wallet.
-            </p>
+            {delivered ? (
+              <>
+                <Amount amount={`≥ ${delivered.destMin}`} assetCode={delivered.assetCode} />
+                <p className="text-body-md text-on-surface-variant">
+                  {link ? `${link.amount} ${link.assetCode} was converted on the way — at least ${delivered.destMin} ${delivered.assetCode} is in your wallet; the exact figure is in the transaction.` : 'The funds are in your wallet.'}
+                </p>
+              </>
+            ) : (
+              <>
+                {link && <Amount amount={link.amount} assetCode={link.assetCode} />}
+                <p className="text-body-md text-on-surface-variant">
+                  The funds are in your wallet.
+                </p>
+              </>
+            )}
           </Centred>
 
           {txHash && (
@@ -351,6 +396,66 @@ function PasskeyPanel({ error, bound, onPasskey }: { error: string | null; bound
       {error && <p role="alert" className="text-body-md text-error">{error}</p>}
       <Button onClick={onPasskey} data-testid="claim-passkey">{bound ? 'Continue with passkey' : 'Register passkey'}</Button>
     </Centred>
+  )
+}
+
+/**
+ * Receive-as (#74). The recipient picks what to receive; the price comes from
+ * Kleym, is shown with the floor the claim is held to, and when there is no
+ * market the original asset is what they get — said plainly, not hidden.
+ */
+function ReceiveAsChooser({
+  link,
+  chosen,
+  quote,
+  onChoose,
+}: {
+  link: LinkDetails
+  chosen: ReceiveAsOption | null
+  quote: ReceiveAsQuote | null
+  onChoose: (option: ReceiveAsOption | null) => void
+}) {
+  const key = (o: ReceiveAsOption | null) => (o ? `${o.assetCode}:${o.assetIssuer ?? ''}` : '')
+  // Two issuers of the same code must not both read as "USDC": name the issuer when codes collide.
+  const label = (o: ReceiveAsOption) => {
+    const collides = link.receiveAs.filter((other) => other.assetCode === o.assetCode).length > 1
+    return collides && o.assetIssuer ? `${o.assetCode} (${o.assetIssuer.slice(0, 4)}…${o.assetIssuer.slice(-4)})` : o.assetCode
+  }
+  return (
+    <div className="flex flex-col gap-xs rounded-lg border border-outline-variant bg-surface-container-low p-md">
+      <label htmlFor="receive-as" className="text-label-md font-semibold text-on-surface">
+        Receive as
+      </label>
+      <select
+        id="receive-as"
+        data-testid="receive-as"
+        value={key(chosen)}
+        onChange={(e) => onChoose(link.receiveAs.find((o) => key(o) === e.target.value) ?? null)}
+        className="min-h-11 rounded-lg border border-outline bg-surface px-3 font-mono text-label-md text-on-surface"
+      >
+        <option value="">{link.assetCode} — as sent</option>
+        {link.receiveAs.map((option) => (
+          <option key={key(option)} value={key(option)}>
+            {label(option)}
+          </option>
+        ))}
+      </select>
+      {chosen && quote?.status === 'loading' && (
+        <p role="status" className="text-body-md text-on-surface-variant">Getting a price…</p>
+      )}
+      {chosen && quote?.status === 'quoted' && (
+        <p role="status" className="text-body-md text-on-surface-variant" data-testid="receive-as-quote">
+          About <span className="font-mono text-on-surface">{quote.destAmount} {chosen.assetCode}</span> at today’s
+          price, and never less than <span className="font-mono text-on-surface">{quote.destMin}</span>. If the price
+          moves further than that before the claim lands, it will not go through and you can take {link.assetCode} instead.
+        </p>
+      )}
+      {chosen && quote?.status === 'unavailable' && (
+        <p role="status" className="text-body-md text-on-surface-variant">
+          {quote.detail} Choose “{link.assetCode} — as sent” to continue.
+        </p>
+      )}
+    </div>
   )
 }
 

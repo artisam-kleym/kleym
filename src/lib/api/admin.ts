@@ -136,6 +136,8 @@ export interface AdminCampaignRow {
   status: string
   assetCode: string
   amountPerLink: string
+  /** True once the links pay different amounts (#73): the page says "varies", not the default. */
+  variableAmounts: boolean
   linkCount: number
   claimed: number
   expiresAt: Date
@@ -148,7 +150,7 @@ export async function listAllCampaigns(limit = 200): Promise<AdminCampaignRow[]>
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit,
     select: {
-      id: true, name: true, status: true, assetCode: true, amountPerLink: true,
+      id: true, name: true, status: true, assetCode: true, amountPerLink: true, variableAmounts: true,
       linkCount: true, expiresAt: true, createdAt: true,
       user: { select: { username: true } },
       _count: { select: { links: true } },
@@ -169,6 +171,7 @@ export async function listAllCampaigns(limit = 200): Promise<AdminCampaignRow[]>
     status: campaign.status,
     assetCode: campaign.assetCode,
     amountPerLink: campaign.amountPerLink.toString(),
+    variableAmounts: campaign.variableAmounts,
     linkCount: campaign.linkCount,
     claimed: byCampaign.get(campaign.id) ?? 0,
     expiresAt: campaign.expiresAt,

@@ -68,18 +68,21 @@ Redirects are not followed.
   "version": 1,
   "campaign": {
     "id": "cmt…", "name": "September payroll", "network": "testnet",
-    "assetCode": "USDC", "assetIssuer": "GA5Z…", "amountPerLink": "250",
+    "assetCode": "USDC", "assetIssuer": "GA5Z…", "amountPerLink": "250", "totalAmount": "30250",
     "linkCount": 120, "expiresAt": "2026-10-12T00:00:00.000Z", "createdBy": "mh"
   },
   "organization": { "id": "cmt…", "name": "Acme Treasury" },
   "recipients": [
-    { "linkId": "cmt…", "label": "alice", "reference": "PAY-2026-001", "category": "payroll", "note": "September salary" },
-    { "linkId": "cmt…", "label": "bob",   "reference": null, "category": null, "note": null }
+    { "linkId": "cmt…", "label": "alice", "reference": "PAY-2026-001", "category": "payroll", "note": "September salary", "amount": "500" },
+    { "linkId": "cmt…", "label": "bob",   "reference": null, "category": null, "note": null, "amount": "250" }
   ]
 }
 ```
 
-- `amountPerLink` is a decimal **string**; never parse it as a float.
+- `amountPerLink`, `totalAmount` and each recipient's `amount` are decimal **strings**; never
+  parse them as floats. `amount` is what that link pays (#73 — links may differ from the
+  campaign default) and `totalAmount` is their sum: the figure to screen, not
+  `amountPerLink × linkCount`.
 - `recipients` carries what the sender recorded, one entry per link, in link order. It
   never carries a claimant address (nobody has claimed yet) and never key material.
 - `version` is bumped only for an incompatible change. Fields may be added within a

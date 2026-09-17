@@ -109,6 +109,15 @@ export function stateFromProblem(status: number, type: string | null): ClaimStat
 }
 
 /**
+ * Receive-as (#74): the conversion could not be priced or could not be met.
+ * Not a failure of the CLAIM — the balance is untouched — so the page drops
+ * the conversion and offers the asset the sender actually sent.
+ */
+export function isConversionRefused(status: number, type: string | null): boolean {
+  return status === 409 && (type === CLAIM_CONFLICT_TYPE['no-path'] || type === CLAIM_CONFLICT_TYPE['quote-missed'])
+}
+
+/**
  * Whether a `prepare/claim` refusal means only that TX1 has not reached the
  * ledger yet. §3.3.1 says the boundary is the ledger, not the clock, so the
  * page answers this by asking again rather than by having slept long enough.

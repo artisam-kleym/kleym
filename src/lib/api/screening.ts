@@ -16,6 +16,7 @@
  */
 import { createHash, createHmac } from 'node:crypto'
 import { z } from 'zod'
+import Decimal from 'decimal.js'
 import type { ScreeningDecision } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
 import { env } from '@/lib/config/env'
@@ -53,12 +54,14 @@ export interface ScreeningRequest {
     assetCode: string
     assetIssuer: string | null
     amountPerLink: string
+    /** SUM of the recipients' own amounts (#73) — what the campaign actually disburses. */
+    totalAmount: string
     linkCount: number
     expiresAt: string
     createdBy: string
   }
   organization: { id: string; name: string }
-  recipients: { linkId: string; label: string | null; reference: string | null; category: string | null; note: string | null }[]
+  recipients: { linkId: string; label: string | null; reference: string | null; category: string | null; note: string | null; amount: string }[]
 }
 
 export type ScreeningOutcome =
@@ -75,7 +78,7 @@ const CAMPAIGN_SELECT = {
   linkCount: true, expiresAt: true, screeningDecision: true, screeningReason: true, screeningHash: true,
   user: { select: { username: true } },
   organization: { select: { id: true, name: true, screeningUrl: true } },
-  links: { select: { id: true, label: true, reference: true, category: true, note: true }, orderBy: LINK_ORDER },
+  links: { select: { id: true, label: true, reference: true, category: true, note: true, amount: true }, orderBy: LINK_ORDER },
 } as const
 
 type ScreenedCampaign = NonNullable<Awaited<ReturnType<typeof loadForScreening>>>
@@ -85,15 +88,22 @@ function loadForScreening(campaignId: string) {
 }
 
 export function buildScreeningRequest(campaign: ScreenedCampaign): ScreeningRequest {
+  /*
+   * Each recipient's OWN amount (#73), and their sum, are part of what the
+   * provider sees and — because the ALLOW is bound to a hash of this request —
+   * part of what it allowed. Without them a default of 0.0000001 and one
+   * enormous link would screen as a few stroops.
+   */
+  const total = campaign.links.reduce((sum, l) => sum.plus(l.amount.toString()), new Decimal(0))
   return {
     version: SCREENING_REQUEST_VERSION,
     campaign: {
       id: campaign.id, name: campaign.name, network: campaign.network, assetCode: campaign.assetCode,
-      assetIssuer: campaign.assetIssuer, amountPerLink: campaign.amountPerLink.toFixed(), linkCount: campaign.linkCount,
+      assetIssuer: campaign.assetIssuer, amountPerLink: campaign.amountPerLink.toFixed(), totalAmount: total.toFixed(), linkCount: campaign.linkCount,
       expiresAt: campaign.expiresAt.toISOString(), createdBy: campaign.user.username,
     },
     organization: { id: campaign.organization.id, name: campaign.organization.name },
-    recipients: campaign.links.map((l) => ({ linkId: l.id, label: l.label, reference: l.reference, category: l.category, note: l.note })),
+    recipients: campaign.links.map((l) => ({ linkId: l.id, label: l.label, reference: l.reference, category: l.category, note: l.note, amount: new Decimal(l.amount.toString()).toFixed() })),
   }
 }
 
