@@ -51,12 +51,15 @@ export function claimUrl(appUrl: string, secret: string): string {
 }
 
 export function buildCsv(rows: CsvRow[]): string {
-  // Attestation columns come LAST so anything reading the first four by position still works.
-  const header = ['label', 'public_key', 'secret', 'claim_url', 'reference', 'category', 'note'].join(',')
+  // Attestation columns come LAST so anything reading the first four by position
+  // still works; `amount` (#73) after them, for the same reason. Blank when the
+  // link pays the campaign default.
+  const header = ['label', 'public_key', 'secret', 'claim_url', 'reference', 'category', 'note', 'amount'].join(',')
   const lines = rows.map(({ key, url }) =>
     [
       quote(key.label ?? ''), quote(key.publicKey), quote(key.secret), quote(url),
       quote(key.attestation?.reference ?? ''), quote(key.attestation?.category ?? ''), quote(key.attestation?.note ?? ''),
+      quote(key.amount ?? ''),
     ].join(','),
   )
   // Trailing newline: without it, some tools drop the final row.
@@ -70,8 +73,9 @@ export function csvFilename(campaignName: string): string {
 }
 
 export type LabelParseResult =
-  | { ok: true; labels: string[]; attestations?: (Attestation | null)[] }
+  | { ok: true; labels: string[]; attestations?: (Attestation | null)[]; amounts?: (string | null)[] }
   | { ok: false; reason: 'address'; line: number }
+  | { ok: false; reason: 'amount'; line: number; value: string }
   | { ok: false; reason: 'seed'; line: number }
   | { ok: false; reason: 'empty' }
   | { ok: false; reason: 'too-many'; found: number; allowed: number }
@@ -111,7 +115,10 @@ export function splitCsvLine(line: string): string[] {
  *
  * Only the FIRST column is read, unless a header row NAMES the attestation
  * columns (#52) — `label,reference,category,note`, in any order, with any
- * other column ignored. A pasted spreadsheet row often carries an address in
+ * other column ignored — or `amount` (#73), this link's own amount, blank
+ * for the campaign default and refused with its row number when malformed or
+ * not positive: silently paying the default for a row that said otherwise is
+ * exactly the wrong figure leaving the sender's account. A pasted spreadsheet row often carries an address in
  * a later column, and reading it would be reading the thing this refuses; a
  * column is read only when the sender said what it is, and every cell read
  * gets the same seed and address check as a label.
@@ -135,9 +142,11 @@ export function parseLabels(input: string, allowed: number): LabelParseResult {
     }
   }
   const withAttestation = Object.keys(columns).length > 0
+  const amountAt = hasHeader ? header.indexOf('amount') : -1
 
   const labels: string[] = []
   const attestations: (Attestation | null)[] = []
+  const amounts: (string | null)[] = []
 
   for (const [index, line] of lines.entries()) {
     if (hasHeader && index === 0) continue
@@ -147,6 +156,15 @@ export function parseLabels(input: string, allowed: number): LabelParseResult {
     const refused = refuseKeyMaterial(first, index + 1)
     if (refused) return refused
     labels.push(first)
+
+    if (amountAt > 0) {
+      const raw = cells[amountAt] ?? ''
+      const bad = refuseKeyMaterial(raw, index + 1)
+      if (bad) return bad
+      if (raw === '') amounts.push(null)
+      else if (isStellarAmount(raw)) amounts.push(raw)
+      else return { ok: false, reason: 'amount', line: index + 1, value: raw }
+    }
 
     if (!withAttestation) continue
     const fields: Attestation = { reference: null, category: null, note: null }
@@ -166,7 +184,22 @@ export function parseLabels(input: string, allowed: number): LabelParseResult {
     return { ok: false, reason: 'too-many', found: labels.length, allowed }
   }
 
-  return withAttestation ? { ok: true, labels, attestations } : { ok: true, labels }
+  return {
+    ok: true,
+    labels,
+    ...(withAttestation ? { attestations } : {}),
+    // Present only when some row said something: an all-blank column is the default everywhere.
+    ...(amounts.some((a) => a !== null) ? { amounts } : {}),
+  }
+}
+
+/**
+ * The same shape `stellarAmount` accepts on the server (lib/api/campaigns.ts):
+ * digits, at most seven decimal places, greater than zero. Checked as a
+ * string — no `Number`, which would take '1e3' and lose the seventh place.
+ */
+export function isStellarAmount(value: string): boolean {
+  return /^\d+(\.\d{1,7})?$/.test(value) && /[1-9]/.test(value)
 }
 
 function refuseKeyMaterial(value: string, line: number): LabelParseResult | null {

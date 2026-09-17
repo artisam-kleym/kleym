@@ -27,7 +27,7 @@ export interface DistributedRow {
   network: string
   assetCode: string
   assetIssuer: string | null
-  /** Sum of `amountPerLink` over CLAIMED links, as a fixed-point string. */
+  /** Sum of each CLAIMED link's own `amount` (#73), as a fixed-point string. */
   amount: string
   claimed: number
 }
@@ -37,11 +37,12 @@ export interface DistributedRow {
  * created value is not distributed value, and the larger number on a page
  * headed "distributed" is what a finance user stops trusting the product over.
  *
- * `$queryRaw`, justified: this is a SUM of a campaign column over a filtered
- * join to its links, grouped by the campaign's asset. Prisma's `groupBy`
- * cannot aggregate across a relation, and the alternative — loading one row
- * per campaign and summing in JS — is unbounded in the number of campaigns.
- * The query is a tagged template, so `organizationId` is a bound parameter.
+ * `$queryRaw`, justified: this is a SUM of each LINK's own amount (#73 — the
+ * campaign figure is only the default) over a filtered join, grouped by the
+ * campaign's asset. Prisma's `groupBy` cannot group by a relation's columns,
+ * and the alternative — loading one row per link and summing in JS — is
+ * unbounded in the number of links. The query is a tagged template, so
+ * `organizationId` is a bound parameter.
  */
 export async function distributedByAsset(organizationId: string): Promise<DistributedRow[]> {
   const rows = await prisma.$queryRaw<
@@ -51,7 +52,7 @@ export async function distributedByAsset(organizationId: string): Promise<Distri
       SELECT c."network" AS "network",
              c."assetCode" AS "assetCode",
              c."assetIssuer" AS "assetIssuer",
-             SUM(c."amountPerLink") AS "amount",
+             SUM(l."amount") AS "amount",
              COUNT(l."id") AS "claimed"
       FROM "ClaimLink" l
       JOIN "Campaign" c ON c."id" = l."campaignId"
@@ -96,6 +97,8 @@ export interface RecentCampaign {
   status: string
   assetCode: string
   amountPerLink: string
+  /** True once the links pay different amounts (#73): the page says "varies", not the default. */
+  variableAmounts: boolean
   linkCount: number
   claimed: number
   createdAt: Date
@@ -108,7 +111,7 @@ export async function recentCampaigns(organizationId: string): Promise<RecentCam
     orderBy: CAMPAIGN_ORDER,
     take: RECENT_CAMPAIGNS,
     select: {
-      id: true, name: true, status: true, assetCode: true, amountPerLink: true, linkCount: true, createdAt: true,
+      id: true, name: true, status: true, assetCode: true, amountPerLink: true, variableAmounts: true, linkCount: true, createdAt: true,
       _count: { select: { links: { where: { status: 'CLAIMED' } } } },
     },
   })
@@ -118,6 +121,7 @@ export async function recentCampaigns(organizationId: string): Promise<RecentCam
     status: row.status,
     assetCode: row.assetCode,
     amountPerLink: serialiseAmount(row.amountPerLink),
+    variableAmounts: row.variableAmounts,
     linkCount: row.linkCount,
     claimed: row._count.links,
     createdAt: row.createdAt,

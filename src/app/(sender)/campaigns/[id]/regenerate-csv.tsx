@@ -22,6 +22,8 @@ interface LinkRow {
   reference?: string | null
   category?: string | null
   note?: string | null
+  /** What this link pays (#73), fixed-point. */
+  amount?: string | null
 }
 
 type Phase = 'closed' | 'open' | 'working' | 'done'
@@ -64,6 +66,7 @@ export function RegenerateCsv({
         rows.map((row): Attestation | null =>
           row.reference || row.category || row.note ? { reference: row.reference ?? null, category: row.category ?? null, note: row.note ?? null } : null,
         ),
+        rows.map((row) => row.amount ?? null),
       ).slice(0, rows.length)
 
       /*

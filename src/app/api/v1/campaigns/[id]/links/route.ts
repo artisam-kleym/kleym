@@ -15,6 +15,7 @@ import { clientIp } from '@/lib/auth/client-ip'
 import { guardRequestBody } from '@/lib/security/guard'
 import { isWriteConflict, registerLinks } from '@/lib/api/links'
 import {
+  amount,
   apiConflict,
   apiNotFound,
   apiServerError,
@@ -56,12 +57,13 @@ export async function GET(request: Request, { params }: Params) {
         skip: (page - 1) * perPage,
         select: {
           id: true, ephemeralPublicKey: true, balanceId: true, status: true,
-          label: true, claimedBy: true, claimedAt: true, claimTxHash: true,
+          label: true, claimedBy: true, claimedAt: true, claimTxHash: true, amount: true,
         },
       }),
     ])
 
-    return jsonWithHeaders({ links, page, perPage, total }, auth.headers)
+    // Amounts are strings on the wire (README: a JSON number cannot hold seven places).
+    return jsonWithHeaders({ links: links.map((link) => ({ ...link, amount: amount(link.amount) })), page, perPage, total }, auth.headers)
   } catch (error) {
     logger.error({ reason: error instanceof Error ? error.message : 'unknown' }, 'v1 link list failed')
     return apiServerError()
@@ -79,7 +81,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!parsed.success) return apiValidationProblem(zodErrors(parsed.error))
 
   try {
-    const outcome = await registerLinks(id, auth.caller.organizationId, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations)
+    const outcome = await registerLinks(id, auth.caller.organizationId, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations, parsed.data.amounts)
     if (outcome.kind === 'not-found') return apiNotFound()
     if (outcome.kind === 'bad-status') return apiConflict(`Links can only be registered while a campaign is DRAFT or CREATING; this one is ${outcome.status}.`)
     if (outcome.kind === 'over-limit') return apiConflict(`This campaign declares ${outcome.declared} links; registering ${outcome.adding} more would make ${outcome.wouldTotal}.`)

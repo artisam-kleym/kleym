@@ -80,6 +80,8 @@ export function CampaignWizard(config: WizardConfig) {
   const [reservePerLink, setReservePerLink] = useState<string | null>(null)
   const [labels, setLabels] = useState<string[]>([])
   const [attestations, setAttestations] = useState<(Attestation | null)[]>([])
+  /** Per-link amounts (#73) from the pasted CSV; empty means every link pays the default. */
+  const [amounts, setAmounts] = useState<(string | null)[]>([])
   const [labelError, setLabelError] = useState<string | null>(null)
   const [filename, setFilename] = useState<string | null>(null)
   /**
@@ -155,6 +157,7 @@ export function CampaignWizard(config: WizardConfig) {
     try {
       return computeCost({
         amountPerLink: draft.amountPerLink,
+        amounts: amounts.length > 0 ? amounts : undefined,
         linkCount: draft.linkCount,
         reservePerLink,
         maxOpsPerBatch: config.maxOpsPerBatch,
@@ -165,7 +168,7 @@ export function CampaignWizard(config: WizardConfig) {
       // the sender is still typing.
       return null
     }
-  }, [reservePerLink, draft.amountPerLink, draft.linkCount, config])
+  }, [reservePerLink, draft.amountPerLink, draft.linkCount, amounts, config])
 
   const affordable = useMemo(() => {
     if (!cost || balances.length === 0) return null
@@ -203,6 +206,7 @@ export function CampaignWizard(config: WizardConfig) {
       if (raw.trim() === '') {
         setLabels([])
         setAttestations([])
+        setAmounts([])
         setLabelError(null)
         return
       }
@@ -210,11 +214,13 @@ export function CampaignWizard(config: WizardConfig) {
       if (parsed.ok) {
         setLabels(parsed.labels)
         setAttestations(parsed.attestations ?? [])
+        setAmounts(parsed.amounts ?? [])
         setLabelError(null)
         return
       }
       setLabels([])
       setAttestations([])
+      setAmounts([])
       setLabelError(labelErrorMessage(parsed, draft.linkCount))
     },
     [draft.linkCount],
@@ -225,13 +231,13 @@ export function CampaignWizard(config: WizardConfig) {
     wizard.setPhase('generating')
     try {
       if (!phrase.current || !derivation) throw new Error('Confirm your recovery phrase first.')
-      wizard.replaceKeys(deriveEphemeralKeys(phrase.current, derivation.index, draft.linkCount, labels, attestations))
+      wizard.replaceKeys(deriveEphemeralKeys(phrase.current, derivation.index, draft.linkCount, labels, attestations, amounts))
       wizard.setPhase('awaiting-download')
     } catch (error) {
       wizard.setPhase('editing')
       wizard.setError(error instanceof Error ? error.message : 'Could not generate keys.')
     }
-  }, [draft.linkCount, labels, attestations, wizard, derivation])
+  }, [draft.linkCount, labels, attestations, amounts, wizard, derivation])
 
   /* THE GATE. Only this can open it, and only after the file is written. */
   const onDownload = useCallback(() => {
@@ -316,7 +322,7 @@ export function CampaignWizard(config: WizardConfig) {
 
   return (
     <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
-      <Stepper steps={summarise(STEPS, draft, cost)} current={wizard.step} />
+      <Stepper steps={summarise(STEPS, draft, cost, amounts.some((a) => a !== null))} current={wizard.step} />
 
       <div>
         {wizard.step === 0 && (
@@ -336,6 +342,7 @@ export function CampaignWizard(config: WizardConfig) {
             draft={draft}
             onChange={patch}
             labels={labels}
+            amounts={amounts}
             labelError={labelError}
             onLabels={onLabels}
             cost={cost}
@@ -509,6 +516,8 @@ function labelErrorMessage(
       return `${parsed.found} labels for ${linkCount} links. Raise the link count or remove some.`
     case 'too-long':
       return `Line ${parsed.line}: the ${parsed.column} column is over ${parsed.allowed} characters.`
+    case 'amount':
+      return `Line ${parsed.line}: "${parsed.value}" is not an amount. Use digits with up to seven decimal places, greater than zero — or leave the cell blank for the default.`
     case 'empty':
       return 'No labels found.'
   }
@@ -518,12 +527,13 @@ function summarise(
   steps: { title: string }[],
   draft: { assetCode: string; amountPerLink: string; linkCount: number },
   cost: CostBreakdown | null,
+  amountsVary = false,
 ) {
   return steps.map((step, index) => ({
     ...step,
     summary:
       index === 0 && draft.amountPerLink
-        ? `${draft.amountPerLink} ${draft.assetCode} per link`
+        ? `${draft.amountPerLink} ${draft.assetCode} per link${cost && amountsVary ? ` by default · ${cost.totalAmount} in total` : ''}`
         : index === 1 && cost
           ? `${draft.linkCount} links · ${cost.signatures} signature${cost.signatures === 1 ? '' : 's'}`
           : undefined,

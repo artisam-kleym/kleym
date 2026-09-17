@@ -21,6 +21,7 @@
  * themselves, and the UI says so at the point of choosing (BRAND.md, §6.5).
  */
 import { Keypair } from '@stellar/stellar-sdk'
+import Decimal from 'decimal.js'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/client'
 import { env } from '@/lib/config/env'
@@ -111,7 +112,7 @@ export async function queueDeliveries(
   const campaign = await prisma.campaign.findFirst({
     where: owned(campaignId, organizationId),
     select: {
-      id: true, name: true, assetCode: true, amountPerLink: true, expiresAt: true,
+      id: true, name: true, assetCode: true, expiresAt: true,
       user: { select: { username: true } },
     },
   })
@@ -124,7 +125,7 @@ export async function queueDeliveries(
   const keys = input.recipients.map((recipient) => recipient.publicKey)
   const links = await prisma.claimLink.findMany({
     where: { campaignId: campaign.id, ephemeralPublicKey: { in: keys } },
-    select: { id: true, ephemeralPublicKey: true, status: true },
+    select: { id: true, ephemeralPublicKey: true, status: true, amount: true },
   })
   const byKey = new Map(links.map((link) => [link.ephemeralPublicKey, link]))
 
@@ -180,7 +181,8 @@ export async function queueDeliveries(
       email: recipient.email,
       claimUrl: recipient.claimUrl,
       senderName: campaign.user.username,
-      amount: campaign.amountPerLink.toString(),
+      // What THIS link pays (#73) — the figure the recipient will actually receive.
+      amount: new Decimal(link.amount.toString()).toFixed(),
       assetCode: campaign.assetCode,
       expiresAt: campaign.expiresAt.toISOString(),
       // Every email-delivered link is OTP-gated. Delivery by email is what

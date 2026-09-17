@@ -15,7 +15,7 @@ import type { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
 import { owned } from './session-guard'
 import { LINK_ORDER } from './link-order'
-import { outstandingValue } from './suspend'
+import { outstandingLinks } from './suspend'
 
 /** Links the detail page previews before handing off to the full table. */
 export const LINK_PREVIEW = 10
@@ -52,6 +52,7 @@ export async function statusCounts(campaignId: string): Promise<StatusCounts> {
 
 export const LINK_SELECT = {
   id: true, status: true, label: true, reference: true, category: true, claimedBy: true, claimTxHash: true, claimedAt: true,
+  amount: true,
   suspendedAt: true,
 } satisfies Prisma.ClaimLinkSelect
 
@@ -83,7 +84,7 @@ export async function loadCampaignDetail(id: string, organizationId: string) {
   const campaign = await prisma.campaign.findFirst({
     where: owned(id, organizationId),
     select: {
-      id: true, userId: true, name: true, status: true, assetCode: true, amountPerLink: true, receiveAsAssets: true, derivationIndex: true, keyFingerprint: true,
+      id: true, userId: true, name: true, status: true, assetCode: true, amountPerLink: true, receiveAsAssets: true, variableAmounts: true, derivationIndex: true, keyFingerprint: true,
       linkCount: true, expiresAt: true, senderPublicKey: true, network: true,
       screeningDecision: true, screeningReason: true, screenedAt: true,
       suspendedAt: true, reclaimDueAt: true,
@@ -96,8 +97,14 @@ export async function loadCampaignDetail(id: string, organizationId: string) {
   })
   if (!campaign) return null
 
-  const [counts, suspendedLinks, inFlight] = await Promise.all([
+  const [counts, outstandingLinksRow, suspendedLinks, inFlight] = await Promise.all([
     statusCounts(campaign.id),
+    /*
+     * What the outstanding links are worth, in the campaign's asset — the SUM
+     * of each link's own amount (#73), not count × default. The database's
+     * view, like the counts: the ledger decides what a reclaim actually returns.
+     */
+    outstandingLinks(campaign.id),
     // Per-link suspensions (#72) still live: one integer, not the rows.
     prisma.claimLink.count({ where: { campaignId: campaign.id, suspendedAt: { not: null }, status: 'ACTIVE' } }),
     /*
@@ -108,17 +115,11 @@ export async function loadCampaignDetail(id: string, organizationId: string) {
      */
     prisma.strandedAccount.count({ where: { campaignId: campaign.id, link: { status: 'ACTIVE' } } }),
   ])
-  const outstanding = counts.ACTIVE + counts.EXPIRED
   return {
     campaign,
     counts,
-    outstanding,
-    /*
-     * What the outstanding links are worth, in the campaign's asset. The
-     * database's view, like the counts — the ledger decides what a reclaim
-     * actually returns. Decimal throughout (AGENT.md §4.1).
-     */
-    outstandingAmount: outstandingValue(outstanding, campaign.amountPerLink.toString()),
+    outstanding: outstandingLinksRow.count,
+    outstandingAmount: outstandingLinksRow.amount,
     suspendedLinks,
     inFlight,
     // Answered once, here, rather than by reading the clock during render.
@@ -130,7 +131,7 @@ export async function loadCampaignDetail(id: string, organizationId: string) {
 export async function loadCampaignHeader(id: string, organizationId: string) {
   const campaign = await prisma.campaign.findFirst({
     where: owned(id, organizationId),
-    select: { id: true, name: true, assetCode: true, amountPerLink: true, linkCount: true, expiresAt: true, suspendedAt: true, status: true },
+    select: { id: true, name: true, assetCode: true, amountPerLink: true, linkCount: true, expiresAt: true, suspendedAt: true, status: true, variableAmounts: true },
   })
   if (!campaign) return null
   // Answered here, not during render — the same reason loadCampaignDetail gives.

@@ -119,6 +119,8 @@ export interface CampaignListRow {
   network: string
   assetCode: string
   amountPerLink: string
+  /** Per-link amounts differ (#73); `amountPerLink` is then the default, not the figure. */
+  variableAmounts: boolean
   linkCount: number
   claimed: number
   status: string
@@ -139,7 +141,7 @@ export async function listCampaigns(organizationId: string, query: CampaignListQ
       take: query.perPage,
       select: {
         id: true, name: true, network: true, assetCode: true, amountPerLink: true,
-        linkCount: true, status: true, expiresAt: true, createdAt: true, suspendedAt: true,
+        linkCount: true, status: true, expiresAt: true, createdAt: true, suspendedAt: true, variableAmounts: true,
         // A count, not the rows. Ten thousand links per campaign is supported.
         _count: { select: { links: { where: { status: 'CLAIMED' } } } },
       },
@@ -152,6 +154,7 @@ export async function listCampaigns(organizationId: string, query: CampaignListQ
     network: c.network,
     assetCode: c.assetCode,
     amountPerLink: serialiseAmount(c.amountPerLink),
+    variableAmounts: c.variableAmounts,
     linkCount: c.linkCount,
     claimed: c._count.links,
     status: c.status,
@@ -185,8 +188,8 @@ export async function claimHistory(organizationId: string, query: HistoryQuery) 
       skip: (query.page - 1) * query.perPage,
       take: query.perPage,
       select: {
-        id: true, status: true, claimedAt: true, claimedBy: true, claimTxHash: true,
-        campaign: { select: { id: true, name: true, network: true, assetCode: true, amountPerLink: true } },
+        id: true, status: true, claimedAt: true, claimedBy: true, claimTxHash: true, amount: true,
+        campaign: { select: { id: true, name: true, network: true, assetCode: true } },
       },
     }),
   ])
@@ -197,7 +200,8 @@ export async function claimHistory(organizationId: string, query: HistoryQuery) 
     campaignName: link.campaign.name,
     network: link.campaign.network,
     assetCode: link.campaign.assetCode,
-    amount: serialiseAmount(link.campaign.amountPerLink),
+    // What THIS link paid (#73), not the campaign default.
+    amount: serialiseAmount(link.amount),
     status: link.status as 'CLAIMED' | 'RECLAIMED',
     claimedAt: link.claimedAt,
     claimedBy: link.claimedBy,

@@ -54,6 +54,41 @@ generation; the phrase appears in no request, storage or server-rendered payload
 written but **not run** in this environment — no Postgres/Redis — and no page was opened
 in a browser. Regeneration against a real campaign's rows is believed correct, unchecked.
 
+## 2026-09-17 — Different amounts per recipient in one campaign (#73)
+
+A campaign can now pay each recipient a different amount. In the wizard, the pasted CSV
+takes an `amount` column beside `label`, `reference`, `category` and `note`; a blank cell
+pays the campaign's amount per link, a malformed or non-positive one is refused naming its
+row, and the seed and address checks apply to that column too. The cost estimate is the
+sum of what the links pay, not a multiplication. The downloaded secrets file carries the
+amount as its last column so it round-trips. Over the API, `POST …/links` takes `amounts`
+(strings, `null` for the default) and `GET …/links` returns each link's `amount`.
+
+Each `ClaimLink` carries its own `amount` (Decimal(23,7), backfilled from the campaign so
+no existing row is ambiguous), and money reads the link everywhere: the batch builder
+writes it, the batch verifier checks every operation against **that link's** row by
+position — one altered operation in an otherwise valid batch is refused — the claim path
+and delivery email use it, and reconciliation opens an `amount_mismatch` finding when the
+ledger holds something else. Dual control (#45) gates on the SUM of the links' amounts and
+never less than the uniform figure, so 9,999 tiny links and one enormous one cannot slip
+under the threshold; a uniform campaign's terms hash — and every approval already
+recorded — is unchanged, keyed on the campaign's `variableAmounts` flag rather than on the
+running sum, so registering a uniform campaign in several batches never invalidates an
+approval. The dashboard's "total distributed", the claim history, the signed regulator
+export (new `amount` column) and the screening request (`amount` per recipient and a
+`totalAmount`, both under the ALLOW hash) all read the link's own figure, as do the
+outstanding value on a suspended campaign and a per-link suspension. Detail and link tables
+show the per-link amount; the campaign, dashboard and admin lists say "varies" where it does.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 32 new unit tests — the
+planted single-altered-operation batch and a two-links-swap-amounts batch both refused, a
+per-link batch accepted with each operation carrying its own figure, the one-large-link
+approval case, the CSV amount column's accept/refuse table, and the summed cost estimate.
+Existing batch and claim tests run unmodified. `scripts/verify-reconcile.ts` gained the
+amount-mismatch case but was NOT run here (no database in this environment), and the
+backfill migration was authored from the schema diff and not run against a copy of real
+data — both believed correct, unchecked. The wizard was not opened in a browser.
+
 ## 2026-09-17 — Receive-as: the recipient chooses which asset they claim (#74)
 
 A sender can list up to five assets a recipient may receive as (wizard step 1, one per

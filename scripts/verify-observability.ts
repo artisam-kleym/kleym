@@ -98,7 +98,7 @@ async function campaignWithLink(userId: string, linkStatus: 'ACTIVE' | 'PENDING'
   })
   const ephemeral = Keypair.random().publicKey()
   const link = await prisma.claimLink.create({
-    data: { campaignId: campaign.id, ephemeralPublicKey: ephemeral, status: linkStatus, balanceId: linkStatus === 'ACTIVE' ? `00000000${randomUUID().replace(/-/g, '')}${'0'.repeat(32)}`.slice(0, 72) : null },
+    data: { campaignId: campaign.id, ephemeralPublicKey: ephemeral, amount: '2.5', status: linkStatus, balanceId: linkStatus === 'ACTIVE' ? `00000000${randomUUID().replace(/-/g, '')}${'0'.repeat(32)}`.slice(0, 72) : null },
     select: { id: true },
   })
   return { campaignId: campaign.id, linkId: link.id, ephemeral }

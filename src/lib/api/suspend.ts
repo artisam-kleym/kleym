@@ -64,9 +64,11 @@ export function suspensionDecision(
   return { kind: 'ok' }
 }
 
-/** `count × amountPerLink`, in Decimal. AGENT.md §4.1: this is money on a page. */
-export function outstandingValue(count: number, amountPerLink: string | Decimal): string {
-  return new Decimal(amountPerLink).times(count).toFixed()
+/** The outstanding links and what they are worth, in the campaign's asset. */
+export interface Outstanding {
+  count: number
+  /** Fixed-point string, Decimal throughout (AGENT.md §4.1). */
+  amount: string
 }
 
 export interface Suspension {
@@ -91,13 +93,19 @@ export interface Actor {
 }
 
 const CAMPAIGN_SELECT = {
-  id: true, status: true, expiresAt: true, suspendedAt: true, amountPerLink: true, assetCode: true, organizationId: true,
+  id: true, status: true, expiresAt: true, suspendedAt: true, assetCode: true, organizationId: true,
 } as const
 
-async function outstandingLinks(campaignId: string): Promise<number> {
+export async function outstandingLinks(campaignId: string): Promise<Outstanding> {
   // ACTIVE and EXPIRED both mean "a balance was created and nothing says it
-  // moved" — the same reading settleReclaimStatus uses.
-  return prisma.claimLink.count({ where: { campaignId, status: { in: ['ACTIVE', 'EXPIRED'] } } })
+  // moved" — the same reading settleReclaimStatus uses. The value is the SUM
+  // of each link's own amount (#73): the campaign figure is only the default.
+  const rows = await prisma.claimLink.aggregate({
+    where: { campaignId, status: { in: ['ACTIVE', 'EXPIRED'] } },
+    _count: { id: true },
+    _sum: { amount: true },
+  })
+  return { count: rows._count.id, amount: new Decimal(rows._sum.amount?.toString() ?? '0').toFixed() }
 }
 
 /**
@@ -116,8 +124,7 @@ export async function suspendCampaign(
   const decision = suspensionDecision(campaign, now)
   if (decision.kind === 'refuse') return { kind: 'conflict', detail: decision.detail, reason: decision.reason }
 
-  const outstanding = await outstandingLinks(campaign.id)
-  const outstandingAmount = outstandingValue(outstanding, campaign.amountPerLink.toString())
+  const { count: outstanding, amount: outstandingAmount } = await outstandingLinks(campaign.id)
 
   if (decision.kind === 'already') {
     return {
@@ -187,11 +194,12 @@ export async function suspendLink(
 
   const link = await prisma.claimLink.findFirst({
     where: { id: linkId, campaignId: campaign.id },
-    select: { id: true, status: true, suspendedAt: true },
+    select: { id: true, status: true, suspendedAt: true, amount: true },
   })
   if (!link) return { kind: 'not-found' }
 
-  const amount = campaign.amountPerLink.toString()
+  // The link's own amount (#73), not the campaign default.
+  const amount = new Decimal(link.amount.toString()).toFixed()
   const base = { linkId: link.id, expiresAt: campaign.expiresAt, amount, assetCode: campaign.assetCode }
 
   if (link.suspendedAt) return { kind: 'ok', value: { ...base, suspendedAt: link.suspendedAt, already: true } }
@@ -235,11 +243,11 @@ export async function announceDueReclaims(now: Date = new Date()): Promise<Recla
     // between expiry and the sweep has nothing due, and `campaign.reclaimed`
     // has already gone out.
     where: { suspendedAt: { not: null }, reclaimDueAt: null, expiresAt: { lte: now }, status: { in: ['ACTIVE', 'PARTIAL', 'CREATING', 'EXPIRED'] } },
-    select: { id: true, organizationId: true, amountPerLink: true, assetCode: true, expiresAt: true },
+    select: { id: true, organizationId: true, assetCode: true, expiresAt: true },
   })
 
   for (const campaign of due) {
-    const outstanding = await outstandingLinks(campaign.id)
+    const { count: outstanding, amount: outstandingAmount } = await outstandingLinks(campaign.id)
     // Claim the row first so a crash between the update and the webhook
     // loses one notice rather than sending it every hour.
     const marked = await prisma.campaign.updateMany({
@@ -248,7 +256,7 @@ export async function announceDueReclaims(now: Date = new Date()): Promise<Recla
     })
     if (marked.count === 0) continue
     await emitWebhook(campaign.organizationId, 'campaign.reclaim_due', {
-      campaignId: campaign.id, outstanding, outstandingAmount: outstandingValue(outstanding, campaign.amountPerLink.toString()),
+      campaignId: campaign.id, outstanding, outstandingAmount,
       assetCode: campaign.assetCode, expiresAt: campaign.expiresAt.toISOString(),
     })
   }

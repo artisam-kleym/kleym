@@ -140,12 +140,13 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
     where: { ephemeralPublicKey },
     select: {
       status: true,
+      amount: true,
       suspendedAt: true,
       delivery: { select: { id: true } },
       campaign: {
         select: {
           name: true, network: true, assetCode: true, assetIssuer: true,
-          amountPerLink: true, expiresAt: true, status: true, suspendedAt: true, receiveAsAssets: true,
+          expiresAt: true, status: true, suspendedAt: true, receiveAsAssets: true,
           user: { select: { username: true } },
         },
       },
@@ -164,7 +165,8 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
     status: 'claimable',
     assetCode: link.campaign.assetCode,
     assetIssuer: link.campaign.assetIssuer,
-    amount: new Decimal(link.campaign.amountPerLink.toString()).toFixed(),
+    // THIS link's amount (#73), not the campaign's default.
+    amount: new Decimal(link.amount.toString()).toFixed(),
     senderName: link.campaign.user.username,
     expiresAt: link.campaign.expiresAt.toISOString(),
     network: link.campaign.network,
@@ -219,9 +221,9 @@ export async function loadClaimable(
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
     select: {
-      id: true, status: true, balanceId: true, campaignId: true, suspendedAt: true,
+      id: true, status: true, balanceId: true, campaignId: true, amount: true, suspendedAt: true,
       campaign: {
-        select: { assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true, status: true, sponsorPublicKey: true, suspendedAt: true, receiveAsAssets: true },
+        select: { assetCode: true, assetIssuer: true, expiresAt: true, status: true, sponsorPublicKey: true, suspendedAt: true, receiveAsAssets: true },
       },
     },
   })
@@ -269,7 +271,8 @@ export async function loadClaimable(
    */
   const asset = assetOf(link.campaign)
   const expectedAsset = asset.isNative() ? 'native' : `${asset.getCode()}:${asset.getIssuer()}`
-  const rowAmount = new Decimal(link.campaign.amountPerLink.toString())
+  // The LINK's row (#73): each link pays its own amount.
+  const rowAmount = new Decimal(link.amount.toString())
 
   if (onChain.asset !== expectedAsset) {
     logger.error(
