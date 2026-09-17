@@ -10,9 +10,11 @@
  * "Claimed", not "Success!". Errors name the fix and say the funds are safe,
  * because the first thing a person fears is that they just lost the money.
  */
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { StrKey } from '@stellar/stellar-sdk'
 import { Button, Icon, StellarAddress } from '@/components/ui'
 import type { ClaimState } from '@/lib/claim/machine'
+import { MEMO_TYPES, checkMemo, type DepositMemo, type MemoType } from '@/lib/stellar/memo'
 
 export interface LinkDetails {
   amount: string
@@ -26,6 +28,21 @@ export interface LinkDetails {
   passkeyBound?: boolean
   /** Receive-as (#74): what the sender lets this recipient convert into. Empty when not offered. */
   receiveAs: ReceiveAsOption[]
+  /** Exchange deposit (#75): may this recipient claim to an address plus a memo? */
+  exchangeDeposit: boolean
+}
+
+/** Exchange deposit (#75): where the funds go instead of a connected wallet. */
+export interface Deposit {
+  publicKey: string
+  memo: DepositMemo
+}
+
+/** What the recipient has typed into the deposit form, kept across a refusal so it comes back pre-filled (#75). */
+export interface DepositDraft {
+  address: string
+  memoType: MemoType
+  memoValue: string
 }
 
 /** What each policy means for the person reading, in their words. */
@@ -111,6 +128,11 @@ export function ClaimScreen({
   quote = null,
   onReceiveAs,
   delivered = null,
+  onDeposit,
+  depositDraft = null,
+  onDepositDraft,
+  lookupFederation,
+  depositMade = null,
 }: {
   state: ClaimState
   link: LinkDetails | null
@@ -136,6 +158,15 @@ export function ClaimScreen({
   onReceiveAs?: (option: ReceiveAsOption | null) => void
   /** What TX2 actually delivered when converting, for the success screen. */
   delivered?: { assetCode: string; destAmount: string; destMin: string } | null
+  /** Exchange deposit (#75): claim to this address with this memo instead of a wallet. */
+  onDeposit?: (deposit: Deposit) => void
+  /** The form as last typed; present after a refusal, so the panel re-opens filled in. */
+  depositDraft?: DepositDraft | null
+  onDepositDraft?: (draft: DepositDraft) => void
+  /** Resolves `name*domain` through Kleym's server. */
+  lookupFederation?: (address: string) => Promise<{ accountId: string; memo: DepositMemo | null }>
+  /** The deposit that was made, for the success screen. */
+  depositMade?: Deposit | null
 }) {
   switch (state) {
     case 'loading':
@@ -175,6 +206,13 @@ export function ClaimScreen({
             {link && <Amount amount={link.amount} assetCode={link.assetCode} />}
           </Centred>
 
+          {error && (
+            // A refused deposit address or memo lands back here with the reason (#75).
+            <p role="alert" className="text-center text-body-md text-error" data-testid="ready-error">
+              Your funds are untouched. {error}
+            </p>
+          )}
+
           {link && (
             <p className="text-center text-body-md text-on-surface-variant" data-testid="claim-policy" data-policy={link.policy}>
               {POLICY_COPY[link.policy]}
@@ -195,6 +233,17 @@ export function ClaimScreen({
           >
             Connect wallet to claim
           </Button>
+
+          {link?.exchangeDeposit && onDeposit && (
+            <DepositForm
+              link={link}
+              onDeposit={onDeposit}
+              draft={depositDraft}
+              onDraft={onDepositDraft}
+              lookupFederation={lookupFederation}
+              quoteLoading={quote?.status === 'loading'}
+            />
+          )}
 
           {/*
             BRAND.md §5.2. The panel exists because "connect a wallet" is where
@@ -263,6 +312,13 @@ export function ClaimScreen({
           <Centred>
             <Icon name="check_circle" size={32} filled className="text-secondary" />
             <p className="text-headline-sm text-on-surface">Claimed</p>
+            {depositMade && (
+              <p className="text-body-md text-on-surface-variant" data-testid="deposit-made">
+                Sent to <span className="font-mono text-on-surface">{depositMade.publicKey.slice(0, 8)}…</span> with memo{' '}
+                <span className="font-mono text-on-surface">{depositMade.memo.value}</span> ({depositMade.memo.type}). The
+                exchange credits it from that memo — allow a few minutes.
+              </p>
+            )}
             {delivered ? (
               <>
                 <Amount amount={`≥ ${delivered.destMin}`} assetCode={delivered.assetCode} />
@@ -347,6 +403,199 @@ export function ClaimScreen({
         </Centred>
       )
   }
+}
+
+/**
+ * Exchange deposit (#75). Address plus memo instead of a wallet, with the
+ * memo checked as it is typed and an unmissable statement — before the
+ * irreversible step — that a wrong memo cannot be recovered by anyone.
+ */
+function DepositForm({
+  link,
+  onDeposit,
+  draft = null,
+  onDraft,
+  lookupFederation,
+  quoteLoading = false,
+}: {
+  link: LinkDetails
+  onDeposit: (deposit: Deposit) => void
+  /** Re-opened and pre-filled from this after a refusal, so nothing typed is lost. */
+  draft?: DepositDraft | null
+  onDraft?: (draft: DepositDraft) => void
+  lookupFederation?: (address: string) => Promise<{ accountId: string; memo: DepositMemo | null }>
+  /** A receive-as price still being fetched: committing now would send the asset as sent. */
+  quoteLoading?: boolean
+}) {
+  const [open, setOpen] = useState(draft !== null)
+  const [address, setAddress] = useState(draft?.address ?? '')
+  const [memoType, setMemoType] = useState<MemoType>(draft?.memoType ?? 'id')
+  const [memoValue, setMemoValue] = useState(draft?.memoValue ?? '')
+  /*
+   * A lookup result belongs to the address it was asked for. The address it
+   * answers is kept with it, so a result that lands after the field was
+   * edited is never attached to a different name — the form would show
+   * `bob*ex.com` while paying alice's account with alice's memo, irreversibly.
+   */
+  const [lookup, setLookup] = useState<
+    { status: 'idle' } | { status: 'busy'; address: string } | { status: 'error'; address: string; detail: string } | { status: 'done'; address: string; accountId: string }
+  >({ status: 'idle' })
+  const [confirmed, setConfirmed] = useState(false)
+
+  const trimmed = address.trim()
+  const isFederation = trimmed.includes('*')
+  const resolved = lookup.status === 'done' && lookup.address === trimmed ? lookup.accountId : null
+  const publicKey = isFederation ? (resolved ?? '') : trimmed
+  const addressOk = StrKey.isValidEd25519PublicKey(publicKey)
+  const memoCheck = checkMemo({ type: memoType, value: memoValue })
+  const ready = addressOk && memoCheck.ok && confirmed
+
+  // Reported as typed, so a refusal can bring the form back exactly as it was.
+  useEffect(() => {
+    onDraft?.({ address, memoType, memoValue })
+  }, [address, memoType, memoValue, onDraft])
+
+  // The address as it is NOW, for a lookup that resolves after an edit.
+  const addressRef = useRef(address)
+  useEffect(() => {
+    addressRef.current = address
+  }, [address])
+
+  async function resolveFederation() {
+    if (!lookupFederation) return
+    const asked = trimmed
+    setLookup({ status: 'busy', address: asked })
+    try {
+      const result = await lookupFederation(asked)
+      setLookup({ status: 'done', address: asked, accountId: result.accountId })
+      // The memo the exchange named goes with ITS address only: compared
+      // against the field as it is AFTER the await, not a value captured
+      // before it — through a ref, since a state updater must stay pure.
+      if (result.memo && addressRef.current.trim() === asked) {
+        setMemoType(result.memo.type)
+        setMemoValue(result.memo.value)
+      }
+    } catch (caught) {
+      setLookup({ status: 'error', address: asked, detail: caught instanceof Error ? caught.message : 'That address could not be looked up.' })
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        data-testid="deposit-open"
+        className="min-h-11 text-center font-mono text-label-md text-primary underline-offset-4 hover:underline"
+      >
+        Send to an exchange or custodian account instead
+      </button>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-md rounded-lg border border-outline-variant bg-surface-container-low p-md" data-testid="deposit-form">
+      <p className="text-label-md font-semibold text-on-surface">Send to an exchange or custodian</p>
+      <p className="text-body-md text-on-surface-variant">
+        Use the {link.assetCode} deposit address <em>and</em> the memo your exchange shows you. The exchange keeps one
+        shared account and tells deposits apart by the memo alone.
+      </p>
+
+      <label className="flex flex-col gap-xs">
+        <span className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">Deposit address</span>
+        <input
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="G… or name*exchange.com"
+          spellCheck={false}
+          autoComplete="off"
+          data-testid="deposit-address"
+          className="min-h-11 rounded-lg border border-outline bg-surface px-3 font-mono text-label-md text-on-surface"
+        />
+      </label>
+      {isFederation && lookupFederation && (
+        <div className="flex flex-wrap items-center gap-sm">
+          <Button variant="secondary" onClick={() => void resolveFederation()} disabled={lookup.status === 'busy'}>
+            {lookup.status === 'busy' ? 'Looking up…' : 'Look up address'}
+          </Button>
+          {resolved && (
+            <span className="font-mono text-label-sm text-on-surface-variant">→ {resolved.slice(0, 8)}…{resolved.slice(-4)}</span>
+          )}
+          {lookup.status === 'error' && lookup.address === trimmed && <span role="alert" className="text-label-sm text-error">{lookup.detail}</span>}
+        </div>
+      )}
+      {trimmed.length > 0 && !isFederation && !addressOk && (
+        <p role="alert" className="text-label-sm text-error">That is not a Stellar address (G…) or a federation address (name*domain).</p>
+      )}
+
+      <div className="grid grid-cols-[auto_1fr] gap-sm">
+        <label className="flex flex-col gap-xs">
+          <span className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">Memo type</span>
+          <select
+            value={memoType}
+            onChange={(e) => setMemoType(e.target.value as MemoType)}
+            data-testid="deposit-memo-type"
+            className="min-h-11 rounded-lg border border-outline bg-surface px-3 font-mono text-label-md text-on-surface"
+          >
+            {MEMO_TYPES.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-xs">
+          <span className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">Memo</span>
+          <input
+            value={memoValue}
+            onChange={(e) => setMemoValue(e.target.value)}
+            spellCheck={false}
+            autoComplete="off"
+            data-testid="deposit-memo"
+            className="min-h-11 rounded-lg border border-outline bg-surface px-3 font-mono text-label-md text-on-surface"
+          />
+        </label>
+      </div>
+      {memoValue.length > 0 && !memoCheck.ok && (
+        <p role="alert" className="text-label-sm text-error" data-testid="deposit-memo-error">{memoCheck.detail}</p>
+      )}
+
+      {/* BRAND.md §5.7: a warning panel is reserved for the irreversible. This is it. */}
+      <div role="alert" className="rounded-lg border border-error-container bg-error-container/30 p-md">
+        <div className="flex gap-sm">
+          <Icon name="warning" size={20} filled className="shrink-0 text-error" />
+          <div>
+            <p className="text-body-md font-bold text-on-surface">A wrong memo cannot be undone</p>
+            <p className="mt-1 text-body-md text-on-surface-variant">
+              The funds go into the exchange’s shared account and are credited from the memo alone. If the memo is
+              wrong or missing, <span className="font-semibold text-on-surface">no one — not Kleym, not the sender — can get them back.</span>{' '}
+              Copy both from your exchange’s deposit page and check them character by character.
+            </p>
+          </div>
+        </div>
+      </div>
+      <label className="flex items-start gap-sm text-body-md text-on-surface">
+        <input
+          type="checkbox"
+          checked={confirmed}
+          onChange={(e) => setConfirmed(e.target.checked)}
+          data-testid="deposit-confirm"
+          className="mt-1 h-5 w-5"
+        />
+        <span>I have checked the address and the memo against my exchange’s {link.assetCode} deposit page.</span>
+      </label>
+
+      <Button
+        variant="claim"
+        className="w-full"
+        // Not while a price is loading, for the same reason as the wallet button:
+        // the flow commits to the conversion shown, and none is shown yet.
+        disabled={!ready || quoteLoading}
+        onClick={() => memoCheck.ok && onDeposit({ publicKey, memo: memoCheck.memo })}
+        data-testid="deposit-claim"
+      >
+        Send to this address
+      </Button>
+    </div>
+  )
 }
 
 /**

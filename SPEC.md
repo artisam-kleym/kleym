@@ -211,6 +211,16 @@ balance stays claimable, and the page offers the asset as sent. With no conversi
 byte-identical to the list above. The recipient-signature rule is unchanged: sign exactly
 when the recipient sources an operation.
 
+**Exchange deposit (#75).** When the sender has allowed it (`Campaign.allowExchangeDeposit`)
+the recipient may give a deposit address plus a memo instead of connecting a wallet. The
+memo (`id`, `text` ≤ 28 bytes, or `hash`) is required and checked before anything is built,
+and rides on TX2. The exchange account must already exist and trust the asset, so TX2 is
+claim → payment → merge with no recipient signature. **Op 16 merges to the SPONSOR, not the
+recipient:** `AccountMerge` carries no memo, and its remainder arriving at an omnibus account
+would be credited to nobody. The sponsored reserve returns to the sponsor on merge whatever
+the destination, and the ephemeral account's own balance is ~0. `claimedBy` is therefore
+read from the payment's destination, and the memo is recorded beside it.
+
 #### 3.3.1 Why two transactions
 
 Both constraints are protocol rules on `AccountMerge`, confirmed with isolated controls
@@ -654,7 +664,7 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/campaigns` | List, paginated, filterable by status |
-| POST | `/api/campaigns` | Create draft. Body: name, network, asset, amountPerLink, linkCount, expiresAt, `receiveAs?` (#74: up to five assets a recipient may convert into) |
+| POST | `/api/campaigns` | Create draft. Body: name, network, asset, amountPerLink, linkCount, expiresAt, `receiveAs?` (#74: up to five assets a recipient may convert into), `allowExchangeDeposit?` (#75) |
 | GET | `/api/campaigns/[id]` | Detail with aggregate counts |
 | PATCH | `/api/campaigns/[id]` | Rename, cancel draft |
 | POST | `/api/campaigns/[id]/links` | Register ephemeral **public** keys. Body: `{ publicKeys: string[], labels?: string[], amounts?: (string \| null)[] }` — a per-link amount (#73), `null` for `amountPerLink`. **Rejects any 56-char value beginning `S`.** |
@@ -675,7 +685,8 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 | GET | `/api/claims/resolve?pk=<G...>` | Link metadata: asset, amount, sender name, status, expiry. Rate-limited 20/min/IP. Returns identical shape for unknown and expired keys to prevent enumeration. |
 | POST | `/api/claims/prepare/materialise` | `{ ephemeralPublicKey }` → TX1 sponsor-signed XDR, or `{ alreadyExists: true }`. Rate-limited 20/min/IP — retried across the ledger boundary. |
 | POST | `/api/claims/quote` | `{ ephemeralPublicKey, receiveAs: { assetCode, assetIssuer } }` → `{ destAmount, destMin }` from Kleym's own Horizon (#74). OTP-gated like every claim action; one 404 for anything not claimable; 409 `no-path` when no market exists. Rate-limited 20/min/IP. |
-| POST | `/api/claims/prepare/claim` | `{ ephemeralPublicKey, recipientPublicKey, receiveAs?: { assetCode, assetIssuer, destMin? } }` → TX2 sponsor-signed XDR, whether a recipient signature is required, and `conversion` (`destAmount`, `destMin`) when receiving as another asset (#74). `destMin` is the floor the page showed: the envelope is bound to the higher of it and the fresh bound, and refused `quote-missed` if the fresh quote is below it. |
+| POST | `/api/claims/federation` | `{ address: "name*domain" }` → `{ accountId, memo }` resolved by Kleym's server (#75), HTTPS only, public hosts only, the returned key validated. Rate-limited 20/min/IP. |
+| POST | `/api/claims/prepare/claim` | `{ ephemeralPublicKey, recipientPublicKey, receiveAs?: { assetCode, assetIssuer, destMin? }, memo? }` → TX2 sponsor-signed XDR, whether a recipient signature is required, `conversion` (`destAmount`, `destMin`) when receiving as another asset (#74), and `memo` when depositing to an exchange (#75: required, typed, `text` ≤ 28 bytes, checked before anything is signed; the address must exist and trust the asset). `destMin` is the floor the page showed: the envelope is bound to the higher of it and the fresh bound, and refused `quote-missed` if the fresh quote is below it. |
 | POST | `/api/claims/submit` | `{ ephemeralPublicKey, signedXdr, phase }` → submits, records claim. Rate-limited 10/min/IP. |
 | POST | `/api/claims/otp/request` | Email-delivered links only |
 | POST | `/api/claims/otp/verify` | 6 digits, 5 attempts, 10-minute expiry |

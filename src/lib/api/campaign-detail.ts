@@ -52,6 +52,8 @@ export async function statusCounts(campaignId: string): Promise<StatusCounts> {
 
 export const LINK_SELECT = {
   id: true, status: true, label: true, reference: true, category: true, claimedBy: true, claimTxHash: true, claimedAt: true,
+  // The deposit memo TX2 carried (#75): how an exchange credited the claimant. Beside the claimant, for a dispute.
+  claimMemoType: true, claimMemo: true,
   amount: true,
   suspendedAt: true,
 } satisfies Prisma.ClaimLinkSelect
@@ -84,7 +86,7 @@ export async function loadCampaignDetail(id: string, organizationId: string) {
   const campaign = await prisma.campaign.findFirst({
     where: owned(id, organizationId),
     select: {
-      id: true, userId: true, name: true, status: true, assetCode: true, amountPerLink: true, receiveAsAssets: true, variableAmounts: true, derivationIndex: true, keyFingerprint: true, claimPolicy: true,
+      id: true, userId: true, name: true, status: true, assetCode: true, amountPerLink: true, receiveAsAssets: true, variableAmounts: true, derivationIndex: true, keyFingerprint: true, claimPolicy: true, allowExchangeDeposit: true,
       linkCount: true, expiresAt: true, senderPublicKey: true, network: true,
       screeningDecision: true, screeningReason: true, screenedAt: true,
       suspendedAt: true, reclaimDueAt: true,

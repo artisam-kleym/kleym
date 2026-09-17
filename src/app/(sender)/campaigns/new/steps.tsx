@@ -14,6 +14,8 @@ export function AssetStep({
   receiveAsRaw,
   receiveAsError,
   onReceiveAs,
+  allowExchangeDeposit,
+  onAllowExchangeDeposit,
 }: {
   draft: { network: 'testnet' | 'public'; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; name: string }
   onChange: (patch: Partial<typeof draft>) => void
@@ -24,6 +26,9 @@ export function AssetStep({
   receiveAsRaw: string
   receiveAsError: string | null
   onReceiveAs: (raw: string) => void
+  /** Exchange deposit (#75): may recipients claim to an address plus a memo? */
+  allowExchangeDeposit: boolean
+  onAllowExchangeDeposit: (allow: boolean) => void
 }) {
   const native = balances.find((b) => b.assetIssuer === null)
 
@@ -151,6 +156,25 @@ export function AssetStep({
             </p>
           )}
         </div>
+
+        <label className="flex items-start gap-sm">
+          <input
+            type="checkbox"
+            name="allowExchangeDeposit"
+            checked={allowExchangeDeposit}
+            onChange={(e) => onAllowExchangeDeposit(e.target.checked)}
+            className="mt-1 h-5 w-5"
+          />
+          <span className="flex flex-col gap-xs">
+            <span className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">
+              Allow claiming to an exchange account
+            </span>
+            <span className="font-mono text-label-sm text-on-surface-variant">
+              Recipients may enter a deposit address and memo instead of connecting a wallet. Kleym requires
+              and checks the memo before signing, and warns that a wrong one cannot be undone.
+            </span>
+          </span>
+        </label>
       </div>
     </SolidCard>
   )

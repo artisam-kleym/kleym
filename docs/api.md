@@ -29,7 +29,7 @@ separately (`x-ratelimit-write-remaining`). Errors are RFC 9457
 
 | Method | Path | Body | Returns |
 |---|---|---|---|
-| POST | `/api/v1/campaigns` | `{ name, network, senderPublicKey, assetCode, assetIssuer?, amountPerLink, linkCount, expiresAt, receiveAs?: [{ assetCode, assetIssuer? }], claimPolicy?: "open" \| "code" \| "email" \| "passkey" }` | 201, the campaign |
+| POST | `/api/v1/campaigns` | `{ name, network, senderPublicKey, assetCode, assetIssuer?, amountPerLink, linkCount, expiresAt, receiveAs?: [{ assetCode, assetIssuer? }], allowExchangeDeposit?: boolean, claimPolicy?: "open" \| "code" \| "email" \| "passkey" }` | 201, the campaign |
 | POST | `/api/v1/campaigns/{id}/links` | `{ publicKeys: [G…], labels?: [], attestations?: [{reference?, category?, note?} \| null], amounts?: ["12.5" \| null], codes?: [13-char] }` — `codes` required, one per key, when the campaign's `claimPolicy` is `code`; hashed on arrival | 201 `{ registered, total }` |
 | POST | `/api/v1/campaigns/{id}/export` | `{}` | `{ csvExportedAt }` — the caller's **attestation** that the secrets file is saved (see below); refused before any link exists |
 | POST | `/api/v1/campaigns/{id}/batches/prepare` | `{ sequence? }` | `{ sequence, totalBatches, linkCount, xdr, networkPassphrase, reserve, … }` |
@@ -103,7 +103,8 @@ x-kleym-signature: v1=<hex HMAC-SHA256 of "<timestamp>.<raw body>">
 
 ```json
 { "id": "whd_…", "event": "link.claimed", "createdAt": "…", "organizationId": "…",
-  "data": { "campaignId": "…", "linkId": "…", "ephemeralPublicKey": "G…", "claimedBy": "G…", "claimTxHash": "…", "claimedAt": "…" } }
+  "data": { "campaignId": "…", "linkId": "…", "ephemeralPublicKey": "G…", "claimedBy": "G…", "claimTxHash": "…", "claimedAt": "…",
+            "claimMemoType": "id" | "text" | "hash" | null, "claimMemo": "…" | null } }
 ```
 
 **Payloads carry no claim URL, no fragment, no seed and no address.** A body is

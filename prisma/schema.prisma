@@ -553,6 +553,10 @@ model Campaign {
   /// campaign asset and TX2 is exactly what it was. The conversion is a
   /// `pathPaymentStrictSend` inside TX2, quoted and bounded server-side.
   receiveAsAssets String[]       @default([])
+  /// Exchange deposit (#75): whether a recipient may claim to an address plus
+  /// a memo instead of connecting a wallet. Off by default — the sender
+  /// decides whether that option is offered at all.
+  allowExchangeDeposit Boolean   @default(false)
   expiresAt       DateTime
   status          CampaignStatus @default(DRAFT)
   csvExportedAt   DateTime? // hard gate: null blocks activation
@@ -666,9 +670,14 @@ model ClaimLink {
   /// per-link counter could be held shut by anyone reading the ledger.
   codeHash        String?
 
-  claimedBy   String? // recipient G...
+  claimedBy   String? // recipient G... — the PAYMENT destination, read off the submitted envelope
   claimedAt   DateTime?
   claimTxHash String?
+  /// Deposit memo (#75) TX2 carried, when the recipient claimed to an
+  /// exchange or custodian: how the omnibus account credited them. Read
+  /// back off the envelope beside `claimedBy`, never from the request.
+  claimMemoType String?
+  claimMemo     String?
   /// The policy that was satisfied when this link was claimed (#79).
   claimedUnder ClaimPolicy?
 

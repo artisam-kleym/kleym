@@ -123,6 +123,17 @@ export function isConversionRefused(status: number, type: string | null): boolea
 }
 
 /**
+ * Exchange deposit (#75): the address or memo was refused before anything
+ * was built. Not a failure of the claim — the balance is untouched and TX1
+ * may already have landed — so the page drops the deposit and returns to
+ * `ready`, where the recipient can correct the address or connect a wallet
+ * instead. Retrying the same address would be a dead end.
+ */
+export function isDepositRefused(status: number, type: string | null): boolean {
+  return status === 409 && (type === CLAIM_CONFLICT_TYPE['deposit-unready'] || type === CLAIM_CONFLICT_TYPE.memo)
+}
+
+/**
  * Whether a `prepare/claim` refusal means only that TX1 has not reached the
  * ledger yet. §3.3.1 says the boundary is the ledger, not the clock, so the
  * page answers this by asking again rather than by having slept long enough.

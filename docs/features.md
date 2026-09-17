@@ -20,6 +20,46 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-17 — Claim straight to an exchange account, with the memo enforced (#75)
+
+When the sender allows it (a checkbox in wizard step 1; `allowExchangeDeposit` on the
+API), a recipient can send the funds to an exchange or custodian account instead of
+connecting a wallet: a deposit address — a `G…` key, or a `name*domain` federation address
+that Kleym's server resolves to an address and, usually, the memo — plus a memo of type
+`id`, `text` or `hash`. The memo is required and checked as it is typed and again on the
+server before anything is built: a text memo over 28 bytes is refused with the limit
+named. Before the irreversible step the page states, in a warning panel and a checkbox
+the recipient must tick, that a wrong memo cannot be recovered by anyone.
+
+TX2 for this path is the cheapest shape there is — claim → payment → merge, no recipient
+signature — and carries the memo. The ephemeral account is merged to the **sponsor**, not
+the exchange: `accountMerge` carries no memo, so its remainder at an omnibus account
+would be credited to nobody. Because of that, `claimedBy` is now read from the payment's
+destination rather than the merge's, and the memo is recorded beside it
+(`ClaimLink.claimMemoType` / `claimMemo`) and shown wherever the claimant is: the links
+table, both links APIs, the signed regulator export and the `link.claimed` webhook — a
+sender disputing an exchange credit can see what TX2 carried. An address that does not
+exist or does not trust the asset is refused in words before the recipient commits, and
+the form comes back open and filled in as it was, so one field is corrected rather than
+the whole panel retyped.
+
+The federation lookup is a server-side fetch to a host the caller names, so it is held to
+a public host in every spelling — `127.1`, `0177.0.0.1` and `0x7f.0.0.1` are checked on
+what the URL parser makes of them, not on their text — over HTTPS only, with no redirects
+followed on either the stellar.toml or the federation query (native fetch, not the SDK
+resolvers, for that reason). A returned `hash` memo is decoded from SEP-0002's base64 to
+the hex TX2 carries; an `id` memo returned as a JSON number past 2^53 is refused rather
+than relayed rounded. A lookup's answer is bound to the address it was asked for: editing
+the field while a lookup is in flight can no longer pay the previous name's account.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 18 new unit tests — the
+memo rides on TX2 for all three types, the merge goes to the sponsor while the payment
+goes to the exchange, no recipient signature, the wallet path is unchanged, the exchange
+path composes with receive-as, `recipientOf` records the payment destination for the
+wallet, conversion and exchange shapes with the memo beside it, and the memo checks
+(absent, uint64 bound, 28 BYTES not characters, 64-hex hash). **Not verified:** a deposit
+on testnet, the federation lookup against a real exchange, and the page in a browser.
+
 ## 2026-09-17 — Claim policies: bind a link to a channel or a device (#79)
 
 A sender chooses, when creating a campaign, who may claim its links: **anyone with the link**
