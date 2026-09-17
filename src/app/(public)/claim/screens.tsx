@@ -10,7 +10,7 @@
  * "Claimed", not "Success!". Errors name the fix and say the funds are safe,
  * because the first thing a person fears is that they just lost the money.
  */
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { StrKey } from '@stellar/stellar-sdk'
 import { Button, Icon, StellarAddress } from '@/components/ui'
 import type { ClaimState } from '@/lib/claim/machine'
@@ -455,6 +455,12 @@ function DepositForm({
     onDraft?.({ address, memoType, memoValue })
   }, [address, memoType, memoValue, onDraft])
 
+  // The address as it is NOW, for a lookup that resolves after an edit.
+  const addressRef = useRef(address)
+  useEffect(() => {
+    addressRef.current = address
+  }, [address])
+
   async function resolveFederation() {
     if (!lookupFederation) return
     const asked = trimmed
@@ -462,18 +468,12 @@ function DepositForm({
     try {
       const result = await lookupFederation(asked)
       setLookup({ status: 'done', address: asked, accountId: result.accountId })
-      // The memo the exchange named goes with ITS address only: applied through
-      // the address state so it is the CURRENT text that is compared, not a
-      // value captured before the await.
-      if (result.memo) {
-        const memo = result.memo
-        setAddress((current) => {
-          if (current.trim() === asked) {
-            setMemoType(memo.type)
-            setMemoValue(memo.value)
-          }
-          return current
-        })
+      // The memo the exchange named goes with ITS address only: compared
+      // against the field as it is AFTER the await, not a value captured
+      // before it — through a ref, since a state updater must stay pure.
+      if (result.memo && addressRef.current.trim() === asked) {
+        setMemoType(result.memo.type)
+        setMemoValue(result.memo.value)
       }
     } catch (caught) {
       setLookup({ status: 'error', address: asked, detail: caught instanceof Error ? caught.message : 'That address could not be looked up.' })

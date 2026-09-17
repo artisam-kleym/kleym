@@ -27,6 +27,7 @@ describe('isPublicHost', () => {
 describe('federationServerOf', () => {
   it('reads the top-level key and stops at the first table', () => {
     expect(federationServerOf('VERSION="2.0.0"\nFEDERATION_SERVER="https://fed.exchange.com/api"\n[DOCUMENTATION]\nORG_NAME="x"')).toBe('https://fed.exchange.com/api')
+    expect(federationServerOf("FEDERATION_SERVER = 'https://fed.exchange.com/api'")).toBe('https://fed.exchange.com/api')
     expect(federationServerOf('[DOCUMENTATION]\nFEDERATION_SERVER="https://fed.exchange.com/api"')).toBeNull()
     expect(federationServerOf('NETWORK_PASSPHRASE="x"')).toBeNull()
   })

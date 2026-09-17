@@ -89,9 +89,25 @@ async function fetchPublic(url: string, accept: string): Promise<string> {
     headers: { accept },
   })
   if (!response.ok) throw new Error(`upstream answered ${response.status}`)
-  const text = await response.text()
-  if (text.length > MAX_BODY_BYTES) throw new Error('upstream body too large')
-  return text
+  // The cap is enforced WHILE reading, in bytes: a hostile host must not be
+  // able to make this server buffer an arbitrarily large body first.
+  const declared = Number(response.headers.get('content-length') ?? '0')
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) throw new Error('upstream body too large')
+  if (!response.body) throw new Error('upstream sent no body')
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let received = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    received += value.byteLength
+    if (received > MAX_BODY_BYTES) {
+      await reader.cancel().catch(() => undefined)
+      throw new Error('upstream body too large')
+    }
+    chunks.push(value)
+  }
+  return Buffer.concat(chunks).toString('utf8')
 }
 
 /**
@@ -103,8 +119,9 @@ export function federationServerOf(toml: string): string | null {
   for (const line of toml.split(/\r?\n/)) {
     const trimmed = line.trim()
     if (/^\[/.test(trimmed)) break
-    const match = /^FEDERATION_SERVER\s*=\s*"([^"]*)"/.exec(trimmed)
-    if (match) return match[1]!
+    // Either TOML quote style; the value is taken as written.
+    const match = /^FEDERATION_SERVER\s*=\s*(["'])([^"']*)\1/.exec(trimmed)
+    if (match) return match[2]!
   }
   return null
 }
@@ -166,7 +183,9 @@ export async function POST(request: Request) {
     let federationHost = ''
     try {
       const url = new URL(federationUrl)
-      federationHost = url.protocol === 'https:' ? url.hostname : ''
+      // `hostname` has already dropped the port; a non-default port is
+      // refused here, or "no ports" above would not hold for this hop.
+      federationHost = url.protocol === 'https:' && url.port === '' ? url.hostname : ''
     } catch {
       federationHost = ''
     }
