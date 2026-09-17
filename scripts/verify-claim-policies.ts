@@ -52,7 +52,7 @@ async function fixture(policy: Policy, over: { status?: 'ACTIVE' | 'EXPIRED' | '
   const code = '0123456789ABC'
   const link = await prisma.claimLink.create({
     data: {
-      campaignId: campaign.id, ephemeralPublicKey: key, status: over.status ?? 'ACTIVE',
+      campaignId: campaign.id, ephemeralPublicKey: key, status: over.status ?? 'ACTIVE', amount: '1.0000000',
       balanceId: `00000000${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}`.slice(0, 72),
       codeHash: policy === 'CODE' ? hashClaimCode(code) : null,
     },
