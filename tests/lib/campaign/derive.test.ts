@@ -58,6 +58,19 @@ describe('phrase-derived ephemeral keys (#77)', () => {
     expect(new Set(deriveEphemeralKeys(phrase, 7, 50).map((k) => k.publicKey)).size).toBe(50)
   })
 
+  it('derives the claim code (#79) beside the key, from a child the link seed alone cannot reach', () => {
+    const coded = deriveEphemeralKeys(phrase, 7, 20, [], [], [], { withCodes: true })
+    for (const key of coded) expect(key.code).toMatch(/^[0-9ABCDEFGHJKMNPQRSTVWXYZ]{13}$/)
+    expect(new Set(coded.map((k) => k.code)).size).toBe(20)
+    // Deterministic, so a regenerated CSV carries the same codes.
+    expect(deriveEphemeralKeys(phrase, 7, 20, [], [], [], { withCodes: true }).map((k) => k.code)).toEqual(coded.map((k) => k.code))
+    // The code is the hardened child 1 of the link node: chain code needed, which the URL never carries.
+    const child = deriveChild(derivePath(mnemonicToSeedSync(phrase), 7, 3), 1)
+    expect(coded[3]!.code).toBe(Array.from(child.key.subarray(0, 13), (b) => '0123456789ABCDEFGHJKMNPQRSTVWXYZ'[b & 31]).join(''))
+    // Not asked for: null, and the CSV column is blank.
+    expect(deriveEphemeralKeys(phrase, 7, 2).every((k) => k.code === null)).toBe(true)
+  })
+
   it('yields real Stellar keypairs whose public half matches the secret', () => {
     for (const key of deriveEphemeralKeys(phrase, 1, 3)) {
       expect(Keypair.fromSecret(key.secret).publicKey()).toBe(key.publicKey)

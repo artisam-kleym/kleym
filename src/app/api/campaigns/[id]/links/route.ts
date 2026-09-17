@@ -97,7 +97,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!idempotency.reserved) return idempotency.response
 
   try {
-    const outcome = await registerLinks(id, org.id, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations, parsed.data.amounts)
+    const outcome = await registerLinks(id, org.id, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations, parsed.data.amounts, parsed.data.codes)
 
     if (outcome.kind !== 'ok') {
       await releaseIdempotency(request, context)
@@ -107,6 +107,7 @@ export async function POST(request: Request, { params }: Params) {
           `Links can only be registered while a campaign is DRAFT or CREATING; this one is ${outcome.status}.`,
         )
       }
+      if (outcome.kind === 'codes') return conflict(outcome.detail)
       return conflict(
         `This campaign declares ${outcome.declared} links; registering ${outcome.adding} more would make ${outcome.wouldTotal}.`,
       )

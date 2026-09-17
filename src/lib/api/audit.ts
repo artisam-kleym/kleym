@@ -33,6 +33,7 @@ export type AuditAction =
   | 'org.webhook_enable'
   | 'org.regulator_export'
   | 'link.reclaim'
+  | 'link.claim'
   | 'user.create'
   | 'user.revoke_invitation'
   | 'org.member_add'

@@ -84,6 +84,8 @@ export function CampaignWizard(config: WizardConfig) {
   const [amounts, setAmounts] = useState<(string | null)[]>([])
   const [labelError, setLabelError] = useState<string | null>(null)
   const [filename, setFilename] = useState<string | null>(null)
+  /** Who may claim (#79). Open unless the sender says otherwise. */
+  const [claimPolicy, setClaimPolicy] = useState<'open' | 'code' | 'email' | 'passkey'>('open')
   /**
    * Receive-as (#74). The raw field is state; its parse is DERIVED from the
    * raw text AND the campaign asset, so changing the asset after typing the
@@ -232,13 +234,14 @@ export function CampaignWizard(config: WizardConfig) {
     wizard.setPhase('generating')
     try {
       if (!phrase.current || !derivation) throw new Error('Confirm your recovery phrase first.')
-      wizard.replaceKeys(deriveEphemeralKeys(phrase.current, derivation.index, draft.linkCount, labels, attestations, amounts))
+      // CODE policy: a claim code is derived beside each key — from the phrase too, so a regenerated CSV carries it (#79).
+      wizard.replaceKeys(deriveEphemeralKeys(phrase.current, derivation.index, draft.linkCount, labels, attestations, amounts, { withCodes: claimPolicy === 'code' }))
       wizard.setPhase('awaiting-download')
     } catch (error) {
       wizard.setPhase('editing')
       wizard.setError(error instanceof Error ? error.message : 'Could not generate keys.')
     }
-  }, [draft.linkCount, labels, attestations, amounts, wizard, derivation])
+  }, [draft.linkCount, labels, attestations, amounts, wizard, derivation, claimPolicy])
 
   /* THE GATE. Only this can open it, and only after the file is written. */
   const onDownload = useCallback(() => {
@@ -266,7 +269,7 @@ export function CampaignWizard(config: WizardConfig) {
         return
       }
 
-      const campaignId = await createCampaign(draft, wizard.keys.length, derivation, receiveAs, allowExchangeDeposit)
+      const campaignId = await createCampaign(draft, wizard.keys.length, derivation, claimPolicy, receiveAs, allowExchangeDeposit)
       wizard.setCampaignId(campaignId)
       await registerLinks(campaignId, wizard.keys)
 
@@ -293,7 +296,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
     }
-  }, [wizard, draft, cost, stepUp, derivation, receiveAs, allowExchangeDeposit])
+  }, [wizard, draft, cost, stepUp, derivation, claimPolicy, receiveAs, allowExchangeDeposit])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -348,6 +351,8 @@ export function CampaignWizard(config: WizardConfig) {
             amounts={amounts}
             labelError={labelError}
             onLabels={onLabels}
+            claimPolicy={claimPolicy}
+            onClaimPolicy={setClaimPolicy}
             cost={cost}
             reserveSource={reservePerLink}
             maxLinks={config.maxLinksPerCampaign}
@@ -432,6 +437,7 @@ async function createCampaign(
   draft: { name: string; network: string; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; expiresAt: string },
   linkCount: number,
   derivation: { index: number; fingerprint: string } | null,
+  claimPolicy: 'open' | 'code' | 'email' | 'passkey' = 'open',
   receiveAs: ReceiveAsEntry[] = [],
   allowExchangeDeposit = false,
 ): Promise<string> {
@@ -449,6 +455,7 @@ async function createCampaign(
       expiresAt: new Date(draft.expiresAt).toISOString(),
       // The path index and a PUBLIC-key fingerprint (#77). Never the phrase.
       ...(derivation ? { derivationIndex: derivation.index, keyFingerprint: derivation.fingerprint } : {}),
+      ...(claimPolicy !== 'open' ? { claimPolicy } : {}),
       // Omitted entirely when empty, so the request is what it always was.
       ...(receiveAs.length > 0 ? { receiveAs } : {}),
       ...(allowExchangeDeposit ? { allowExchangeDeposit } : {}),
