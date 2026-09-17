@@ -76,6 +76,80 @@ async function reachExportStep(page: Page) {
   await expect(page.getByRole('heading', { name: /review & create/i })).toBeVisible()
 }
 
+/**
+ * The recovery phrase (#77) comes before the keys: generate is disabled until
+ * it is confirmed. Returns the twelve words as shown, so a test can assert
+ * they went nowhere.
+ */
+async function confirmPhrase(page: Page): Promise<string[]> {
+  await page.getByTestId('phrase-new').click()
+  const words = await page.getByTestId('phrase-words').locator('li').allInnerTexts()
+  await page.getByTestId('phrase-stored').check()
+  await page.getByTestId('phrase-understood').check()
+  await page.getByTestId('phrase-confirm').click()
+  return words.map((w) => w.replace(/^\d+\.\s*/, '').trim())
+}
+
+test.describe('recovery phrase (#77)', () => {
+  test('keys cannot be generated before the phrase is confirmed, and the trade is stated', async ({ page }) => {
+    await reachExportStep(page)
+    const generate = page.getByTestId('generate-keys')
+    await expect(generate).toBeDisabled()
+
+    await page.getByTestId('phrase-new').click()
+    await expect(page.getByTestId('phrase-words').locator('li')).toHaveCount(12)
+    // Concentration of risk, said plainly, before the sender can continue.
+    await expect(page.getByText(/every campaign made from it is exposed at once/i)).toBeVisible()
+    await expect(page.getByTestId('phrase-confirm')).toBeDisabled()
+
+    await page.getByTestId('phrase-stored').check()
+    await expect(page.getByTestId('phrase-confirm')).toBeDisabled()
+    await page.getByTestId('phrase-understood').check()
+    await page.getByTestId('phrase-confirm').click()
+    await expect(generate).toBeEnabled()
+  })
+
+  test('the phrase appears in no request, no storage and no server-rendered payload', async ({ page }) => {
+    const traffic = recordTraffic(page)
+    await reachExportStep(page)
+    const words = await confirmPhrase(page)
+    expect(words).toHaveLength(12)
+    const phrase = words.join(' ')
+
+    await page.getByTestId('generate-keys').click()
+    await expect(page.getByTestId('download-secrets')).toBeVisible()
+    const download = page.waitForEvent('download')
+    await page.getByTestId('download-secrets').click()
+    await download
+
+    for (const request of traffic.requests) {
+      expect(request.url()).not.toContain(words[0]!)
+      const body = request.postData()
+      if (body) {
+        expect(body, `phrase in body to ${request.url()}`).not.toContain(phrase)
+        // Nor any run of it: four consecutive words is not a coincidence.
+        for (let i = 0; i + 4 <= words.length; i += 1) {
+          expect(body).not.toContain(words.slice(i, i + 4).join(' '))
+        }
+      }
+    }
+
+    const stored = await page.evaluate(() => ({
+      local: JSON.stringify(window.localStorage),
+      session: JSON.stringify(window.sessionStorage),
+      cookie: document.cookie,
+      url: window.location.href,
+      // The RSC flight payload and anything else server-rendered into the document.
+      html: document.documentElement.outerHTML,
+    }))
+    for (const where of [stored.local, stored.session, stored.cookie, stored.url]) {
+      expect(where).not.toContain(phrase)
+    }
+    // The words are on screen only inside the panel while it is open; it closed on confirm.
+    expect(stored.html).not.toContain(phrase)
+  })
+})
+
 test.describe('CSV gate', () => {
   test('signing is unreachable until the export has fired', async ({ page }) => {
     await reachExportStep(page)
@@ -84,7 +158,8 @@ test.describe('CSV gate', () => {
     await expect(page.getByText(/we cannot recover them for you if lost/i)).toBeVisible()
     await expect(page.getByTestId('download-secrets')).toHaveCount(0)
 
-    // 2 — generate.
+    // 2 — the phrase, then generate.
+    await confirmPhrase(page)
     await page.getByTestId('generate-keys').click()
     await expect(page.getByTestId('download-secrets')).toBeVisible()
 
@@ -122,6 +197,7 @@ test.describe('CSV gate', () => {
     const traffic = recordTraffic(page)
     await reachExportStep(page)
 
+    await confirmPhrase(page)
     await page.getByTestId('generate-keys').click()
     await expect(page.getByTestId('download-secrets')).toBeVisible()
 
@@ -168,6 +244,7 @@ test.describe('CSV gate', () => {
   test('regenerating shuts the gate again', async ({ page }) => {
     await reachExportStep(page)
 
+    await confirmPhrase(page)
     await page.getByTestId('generate-keys').click()
     const download = page.waitForEvent('download')
     await page.getByTestId('download-secrets').click()

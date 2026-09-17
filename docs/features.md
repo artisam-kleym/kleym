@@ -20,6 +20,35 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-17 — Regenerable links: derive every key from one recovery phrase (#77)
+
+Before generating keys, the wizard now asks the sender for a recovery phrase — a new
+twelve-word phrase shown once, or one they already hold — and will not continue until they
+confirm it is stored and that they understand the trade: one phrase reconstructs every
+campaign derived from it, so it concentrates risk as it reduces the chance of loss. Every
+link's key is then derived in the browser (SLIP-0010 ed25519 at
+`m/44'/148'/<campaign>'/<link>'`), and the campaign page gains "Regenerate from recovery
+phrase", which derives the keys again, checks every public key against the campaign's
+links, and writes the same CSV — all client-side. The CSV hard gate is unchanged. The
+server stores only the campaign's path index and a fingerprint of a public key; campaigns
+made before this keep working and simply have no regenerate button.
+
+The most important change is to the leak guards: a phrase matches none of the `S…` seed
+patterns, so `containsSecretSeed` — and with it every request-body scan, audit scrub and
+webhook payload check — now refuses any string containing a checksum-valid BIP39 phrase,
+and CI refuses a committed one. Detection is by checksum, so ordinary English made of
+wordlist words does not raise a false security event.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 36 new unit tests — the
+SLIP-0010 ed25519 test vectors (master, `m/0'`, and the five-level path), determinism and
+byte-identical CSVs, distinct keys per index and per phrase, phrase detection embedded in
+prose / Title Case / across lines / in JSON, non-detection of wordlist-only English, and a
+planted phrase found by the request scanner in a stripped field, a nested field and a
+label; `scripts/check-no-mnemonic.ts` run clean. The Playwright specs (phrase gates
+generation; the phrase appears in no request, storage or server-rendered payload) were
+written but **not run** in this environment — no Postgres/Redis — and no page was opened
+in a browser. Regeneration against a real campaign's rows is believed correct, unchecked.
+
 ## 2026-09-12 — Single sign-on (OIDC) and SCIM provisioning with deprovisioning (#46)
 
 An Owner connects their organisation's identity provider under Settings →

@@ -16,6 +16,7 @@
  * before they have it has created funds nobody can claim (SPEC.md §1.2).
  */
 import { Button, SolidCard, WarningPanel } from '@/components/ui'
+import { PhrasePanel } from './phrase-panel'
 import type { CostBreakdown } from '@/lib/campaign/cost'
 import type { EphemeralKey } from '@/lib/campaign/keygen'
 import type { BatchProgress, Phase } from './use-wizard'
@@ -36,6 +37,8 @@ export function ExportStep({
   campaignId,
   appUrl,
   screening,
+  phraseConfirmed,
+  onPhrase,
 }: {
   phase: Phase
   keys: EphemeralKey[]
@@ -51,6 +54,9 @@ export function ExportStep({
   campaignId: string | null
   appUrl: string
   screening: boolean
+  /** Recovery phrase (#77): the keys are derived from it, so it comes first. */
+  phraseConfirmed: boolean
+  onPhrase: (phrase: string) => void
 }) {
   const generated = keys.length > 0
 
@@ -64,11 +70,18 @@ export function ExportStep({
           heading="You will hold the only copy of these keys"
           consequence="We cannot recover them for you if lost."
         >
-          Each link is a key generated in this tab. They are never sent to Kleym, so
-          nothing on our side can reproduce them. If the export is lost, those funds
-          stay locked until the campaign expires and you reclaim them.
+          Each link is a key derived in this tab from your recovery phrase. Neither the
+          phrase nor the keys are ever sent to Kleym, so nothing on our side can
+          reproduce them. If the export AND the phrase are lost, those funds stay locked
+          until the campaign expires and you reclaim them.
         </WarningPanel>
       </div>
+
+      {!generated && (
+        <div className="mt-lg">
+          <PhrasePanel confirmed={phraseConfirmed} onConfirmed={onPhrase} />
+        </div>
+      )}
 
       {cost && (
         <dl className="mt-lg grid grid-cols-2 gap-md font-mono text-label-md max-md:grid-cols-1">
@@ -103,7 +116,8 @@ export function ExportStep({
           <Button
             type="button"
             onClick={onGenerate}
-            disabled={phase === 'generating'}
+            // Not before the phrase is confirmed: the keys come FROM it.
+            disabled={phase === 'generating' || !phraseConfirmed}
             data-testid="generate-keys"
             className="self-start"
           >

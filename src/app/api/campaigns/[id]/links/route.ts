@@ -48,6 +48,8 @@ export async function GET(request: Request, { params }: Params) {
         select: {
           id: true, ephemeralPublicKey: true, balanceId: true, status: true,
           label: true, claimedBy: true, claimedAt: true, claimTxHash: true,
+          // Attestation fields ride along so a regenerated CSV (#77) round-trips them.
+          reference: true, category: true, note: true,
         },
       }),
     ])

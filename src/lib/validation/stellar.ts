@@ -8,6 +8,7 @@
  */
 import { StrKey } from '@stellar/stellar-sdk'
 import { z } from 'zod'
+import { containsMnemonic } from './mnemonic'
 
 /** Thrown shape for a rejected seed, surfaced as 400 SEED_SUBMITTED. */
 export const SEED_SUBMITTED = 'SEED_SUBMITTED' as const
@@ -20,10 +21,18 @@ export const SEED_SUBMITTED = 'SEED_SUBMITTED' as const
 export function containsSecretSeed(value: unknown): boolean {
   if (typeof value !== 'string') return false
   const candidates = value.match(/S[A-Z2-7]{55}/g)
-  if (!candidates) return false
-  // StrKey confirms the checksum, so a random 56-char string is not a false
-  // positive — but the regex prescreen is what catches embedded occurrences.
-  return candidates.some((candidate) => StrKey.isValidEd25519SecretSeed(candidate))
+  if (candidates) {
+    // StrKey confirms the checksum, so a random 56-char string is not a false
+    // positive — but the regex prescreen is what catches embedded occurrences.
+    if (candidates.some((candidate) => StrKey.isValidEd25519SecretSeed(candidate))) return true
+  }
+  /*
+   * A BIP39 recovery phrase (#77) is a seed in a different alphabet — and
+   * one that reconstructs every campaign derived from it. Everything that
+   * refuses a StrKey seed refuses a phrase too, through this one function:
+   * request bodies, audit metadata, webhook payloads, the environment scan.
+   */
+  return containsMnemonic(value)
 }
 
 /**

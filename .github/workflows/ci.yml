@@ -479,6 +479,13 @@ jobs:
           fi
           echo "clean"
 
+      # #77. A BIP39 recovery phrase is a seed in a different alphabet and the
+      # grep above cannot see it. The same detector the request guard uses,
+      # over the same paths the seed guards cover; tests/ and scripts/ exempt
+      # for the same reason they are exempt above.
+      - name: No recovery phrase in application code
+        run: pnpm tsx scripts/check-no-mnemonic.ts
+
       # What makes the exemption above safe. A seed generated in the browser is
       # the design; the same call reached from a route handler, a worker, or a
       # server component would put a seed in a response body or a log.
@@ -497,12 +504,14 @@ jobs:
         run: |
           FAILED=0
           # Any import whose specifier ends in /keygen, aliased or relative.
-          for FILE in $(grep -rlE "from ['\"][^'\"]*/keygen['\"]" src/ 2>/dev/null); do
+          # keygen.ts and, since #77, derive.ts — the phrase-to-key derivation —
+          # both carry `import 'client-only'` and both are checked here.
+          for FILE in $(grep -rlE "from ['\"][^'\"]*/(keygen|derive)['\"]" src/ 2>/dev/null); do
             case "$FILE" in
-              src/lib/campaign/keygen.ts) continue ;;
+              src/lib/campaign/keygen.ts|src/lib/campaign/derive.ts) continue ;;
             esac
             # A type-only import is erased and reaches no runtime code.
-            if ! grep -E "from ['\"][^'\"]*/keygen['\"]" "$FILE" | grep -qv 'import type'; then
+            if ! grep -E "from ['\"][^'\"]*/(keygen|derive)['\"]" "$FILE" | grep -qv 'import type'; then
               continue
             fi
             # Both quote styles, and anywhere in the preamble rather than the

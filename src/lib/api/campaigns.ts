@@ -71,8 +71,20 @@ export const createCampaignSchema = z
     amountPerLink: stellarAmount,
     linkCount: z.number().int().positive().refine(withinLinkLimit, { message: linkLimitMessage() }),
     expiresAt: z.iso.datetime(),
+    /**
+     * Regenerable links (#77): the campaign's index in the sender's derivation
+     * path and a fingerprint of a PUBLIC key from their phrase. Both or
+     * neither. Neither is secret, and the phrase itself would be refused by
+     * the seed guard before this schema ever saw it.
+     */
+    derivationIndex: z.number().int().min(0).max(2 ** 31 - 1).optional(),
+    keyFingerprint: z.string().regex(/^[0-9a-f]{16}$/, 'must be 16 hex characters').optional(),
   })
   .strict()
+  .refine((v) => (v.derivationIndex === undefined) === (v.keyFingerprint === undefined), {
+    message: 'derivationIndex and keyFingerprint come together',
+    path: ['derivationIndex'],
+  })
   .refine((v) => v.assetCode === 'XLM' || v.assetIssuer !== undefined, {
     message: 'a non-native asset requires an issuer',
     path: ['assetIssuer'],
@@ -189,6 +201,8 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
       amountPerLink: input.amountPerLink,
       linkCount: input.linkCount,
       expiresAt: new Date(input.expiresAt),
+      derivationIndex: input.derivationIndex ?? null,
+      keyFingerprint: input.keyFingerprint ?? null,
     },
     select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true },
   })

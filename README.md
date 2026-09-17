@@ -240,6 +240,17 @@ Integration tests are deliberately absent — `AGENT.md` §7.2 forbids tests tha
 the public network, and the testnet spike depends on Horizon being reachable, so it runs
 on a schedule rather than per-commit.
 
+### Recovery phrases are seeds too (#77)
+
+Ephemeral keys are derived in the browser from a twelve-word BIP39 phrase the sender keeps
+(`src/lib/campaign/derive.ts`, SLIP-0010 at `m/44'/148'/<campaign>'/<link>'`), so a lost
+secrets CSV can be regenerated from the campaign page. A phrase matches none of the
+`S[A-Z2-7]{55}` guards, so `containsSecretSeed` also refuses any string containing a
+checksum-valid phrase — request bodies, audit metadata, webhook payloads — and CI runs
+`scripts/check-no-mnemonic.ts` over `src/`, `prisma/` and the docs. `derive.ts` carries
+`import 'client-only'` like `keygen.ts`, and the same CI step checks that nothing on the
+server imports either.
+
 ### A note on the §1 grep guard
 
 `AGENT.md` §1 suggests grepping for identifier *names*:
