@@ -31,22 +31,25 @@ export interface Terms {
   linkCount: number
   expiresAt: Date
   /**
-   * SUM of the registered links' own amounts (#73), fixed-point, or null
-   * before any link exists. Part of the terms only when it differs from
-   * `amountPerLink × linkCount`, so a uniform campaign's hash — and every
-   * approval already recorded against one — is exactly what it was.
+   * True once any registered link's amount differs from `amountPerLink`
+   * (#73) — the campaign's own flag, set at registration and never cleared.
+   * A uniform campaign's hash — and every approval already recorded against
+   * one — is exactly what it was, whether its links are registered in one
+   * POST or several: partial registration leaves this false and the sum out
+   * of the hash.
    */
+  variableAmounts?: boolean
+  /** SUM of the registered links' own amounts (#73), fixed-point, or null before any link exists. */
   totalAmount?: string | null
 }
 
 const uniformTotal = (terms: { amountPerLink: unknown; linkCount: number }) =>
   new Decimal(String(terms.amountPerLink)).times(terms.linkCount)
 
-/** The per-link total when it says something the uniform figure does not; null otherwise. */
+/** The per-link total, only for a campaign whose links vary; null for a uniform one. */
 function variableTotal(terms: Terms): string | null {
-  if (terms.totalAmount === null || terms.totalAmount === undefined) return null
-  const total = new Decimal(terms.totalAmount)
-  return total.equals(uniformTotal(terms)) ? null : total.toFixed()
+  if (!terms.variableAmounts || terms.totalAmount === null || terms.totalAmount === undefined) return null
+  return new Decimal(terms.totalAmount).toFixed()
 }
 
 /** Fixed-point amount and ISO time, so the hash is stable across drivers. */
@@ -58,7 +61,7 @@ export function termsHash(terms: Terms): string {
     amountPerLink: new Decimal(String(terms.amountPerLink)).toFixed(),
     linkCount: terms.linkCount,
     expiresAt: new Date(terms.expiresAt).toISOString(),
-    // Only a varied campaign carries the key at all — see Terms.totalAmount.
+    // Only a varied campaign carries the key at all — see Terms.variableAmounts.
     ...(total ? { totalAmount: total } : {}),
   })
   return createHash('sha256').update(canonical).digest('hex')
@@ -137,7 +140,7 @@ export interface ApprovalStatus {
 
 const CAMPAIGN_SELECT = {
   id: true, userId: true, status: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true,
-  approvalThreshold: true, approvalsRequired: true,
+  variableAmounts: true, approvalThreshold: true, approvalsRequired: true,
   organization: { select: { approvalThreshold: true, approvalsRequired: true } },
   approvals: {
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -256,6 +259,8 @@ async function approvedTermsFor(campaignId: string, hash: string): Promise<Terms
     amountPerLink: String(m.amountPerLink),
     linkCount: m.linkCount,
     expiresAt: new Date(m.expiresAt),
+    // Recorded only for a varied campaign; an older row without it is uniform.
+    variableAmounts: typeof m.totalAmount === 'string',
     totalAmount: typeof m.totalAmount === 'string' ? m.totalAmount : null,
   }
 }
@@ -312,7 +317,7 @@ export async function decide(
       amountPerLink: new Decimal(String(campaign.amountPerLink)).toFixed(),
       linkCount: campaign.linkCount,
       expiresAt: campaign.expiresAt.toISOString(),
-      ...(campaign.totalAmount ? { totalAmount: campaign.totalAmount } : {}),
+      ...(variableTotal(campaign) ? { totalAmount: variableTotal(campaign) } : {}),
       ...(input.note ? { note: input.note } : {}),
     },
     ip,

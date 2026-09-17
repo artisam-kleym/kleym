@@ -38,8 +38,13 @@ and delivery email use it, and reconciliation opens an `amount_mismatch` finding
 ledger holds something else. Dual control (#45) gates on the SUM of the links' amounts and
 never less than the uniform figure, so 9,999 tiny links and one enormous one cannot slip
 under the threshold; a uniform campaign's terms hash — and every approval already
-recorded — is unchanged. Detail and link tables show the per-link amount; the campaign list
-says "varies" where it does.
+recorded — is unchanged, keyed on the campaign's `variableAmounts` flag rather than on the
+running sum, so registering a uniform campaign in several batches never invalidates an
+approval. The dashboard's "total distributed", the claim history, the signed regulator
+export (new `amount` column) and the screening request (`amount` per recipient and a
+`totalAmount`, both under the ALLOW hash) all read the link's own figure, as do the
+outstanding value on a suspended campaign and a per-link suspension. Detail and link tables
+show the per-link amount; the campaign, dashboard and admin lists say "varies" where it does.
 
 **Verified by:** `typecheck`, `lint`, `test` and `build` clean; 32 new unit tests — the
 planted single-altered-operation batch and a two-links-swap-amounts batch both refused, a

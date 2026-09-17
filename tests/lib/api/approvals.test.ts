@@ -3,7 +3,7 @@ import { Keypair } from '@stellar/stellar-sdk'
 import { approvalRequired, campaignValue, changedTerms, termsHash } from '@/lib/api/approvals'
 
 const EXPIRES = new Date('2027-01-01T00:00:00.000Z')
-const terms = (over: Partial<{ amountPerLink: string; linkCount: number; totalAmount: string | null }> = {}) => ({
+const terms = (over: Partial<{ amountPerLink: string; linkCount: number; variableAmounts: boolean; totalAmount: string | null }> = {}) => ({
   assetCode: 'USDC',
   assetIssuer: Keypair.random().publicKey(),
   amountPerLink: '1.0000000',
@@ -50,18 +50,27 @@ describe('campaignValue with per-link amounts', () => {
 describe('termsHash with per-link amounts', () => {
   it('is unchanged for a uniform campaign, so recorded approvals still match', () => {
     const t = terms()
-    expect(termsHash({ ...t, totalAmount: null })).toBe(termsHash(t))
-    // A total that equals the product says nothing the terms did not already.
-    expect(termsHash({ ...t, totalAmount: '10000' })).toBe(termsHash(t))
+    expect(termsHash({ ...t, variableAmounts: false, totalAmount: null })).toBe(termsHash(t))
+    expect(termsHash({ ...t, variableAmounts: false, totalAmount: '10000' })).toBe(termsHash(t))
+  })
+
+  it('is keyed on the campaign flag, not on the sum: a uniform campaign registered in batches keeps its hash', () => {
+    // Approved after the first 500 of 10,000 links (sum 500 ≠ 10,000), then the rest arrive.
+    const t = terms()
+    const firstBatch = { ...t, variableAmounts: false, totalAmount: '500' }
+    const complete = { ...t, variableAmounts: false, totalAmount: '10000' }
+    expect(termsHash(firstBatch)).toBe(termsHash(t))
+    expect(termsHash(complete)).toBe(termsHash(firstBatch))
+    expect(changedTerms(firstBatch, complete)).toEqual([])
   })
 
   it('changes when the links pay something other than the uniform total', () => {
     const t = terms()
-    expect(termsHash({ ...t, totalAmount: '10001' })).not.toBe(termsHash(t))
+    expect(termsHash({ ...t, variableAmounts: true, totalAmount: '10001' })).not.toBe(termsHash(t))
   })
 
   it('names the total as the changed term', () => {
-    const before = terms({ totalAmount: '10001' })
+    const before = terms({ variableAmounts: true, totalAmount: '10001' })
     expect(changedTerms(before, { ...before, totalAmount: '20000' })).toEqual(['total amount'])
     expect(changedTerms(before, before)).toEqual([])
   })

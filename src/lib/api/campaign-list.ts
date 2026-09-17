@@ -188,8 +188,8 @@ export async function claimHistory(organizationId: string, query: HistoryQuery) 
       skip: (query.page - 1) * query.perPage,
       take: query.perPage,
       select: {
-        id: true, status: true, claimedAt: true, claimedBy: true, claimTxHash: true,
-        campaign: { select: { id: true, name: true, network: true, assetCode: true, amountPerLink: true } },
+        id: true, status: true, claimedAt: true, claimedBy: true, claimTxHash: true, amount: true,
+        campaign: { select: { id: true, name: true, network: true, assetCode: true } },
       },
     }),
   ])
@@ -200,7 +200,8 @@ export async function claimHistory(organizationId: string, query: HistoryQuery) 
     campaignName: link.campaign.name,
     network: link.campaign.network,
     assetCode: link.campaign.assetCode,
-    amount: serialiseAmount(link.campaign.amountPerLink),
+    // What THIS link paid (#73), not the campaign default.
+    amount: serialiseAmount(link.amount),
     status: link.status as 'CLAIMED' | 'RECLAIMED',
     claimedAt: link.claimedAt,
     claimedBy: link.claimedBy,

@@ -221,7 +221,7 @@ export async function loadClaimable(
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
     select: {
-      id: true, status: true, balanceId: true, campaignId: true, suspendedAt: true,
+      id: true, status: true, balanceId: true, campaignId: true, amount: true, suspendedAt: true,
       campaign: {
         select: { assetCode: true, assetIssuer: true, expiresAt: true, status: true, sponsorPublicKey: true, suspendedAt: true, receiveAsAssets: true },
       },
