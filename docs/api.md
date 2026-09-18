@@ -85,8 +85,18 @@ re-add.
 
 Events: `campaign.created`, `campaign.activated`, `batch.confirmed`,
 `link.claimed`, `campaign.expiring_soon`, `campaign.suspended`,
-`campaign.reclaim_due`, `campaign.reclaimed`, `sponsor.low` (platform-wide:
-every endpoint subscribed, once per dedupe window).
+`campaign.reclaim_due`, `campaign.reclaimed`, `template.run_prepared`,
+`template.run_failed`, `sponsor.low` (platform-wide: every endpoint subscribed,
+once per dedupe window).
+
+`template.run_prepared` (#82) fires from the hourly template pass when a
+scheduled run has created its DRAFT campaign: `{ templateId, templateName,
+campaignId, scheduledFor, linkCount, amountPerLink, assetCode, totalAmount,
+approvalRequired }`. Nothing has moved; an operator must generate keys and
+sign. `template.run_failed` fires instead when the run could not be prepared
+— an empty list, a list over the limit, terms the campaign refused —
+`{ templateId, templateName, scheduledFor, reason }`; the schedule has moved
+on and the template needs fixing.
 
 `campaign.expiring_soon` (#78) fires once per campaign, from the hourly
 reminder pass, when a campaign with unclaimed links is within seven days (or

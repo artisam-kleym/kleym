@@ -87,13 +87,20 @@ export function TemplateEditor({ id, recipientsCsv, cadence, runHour }: { id: st
     const kind = String(form.get('cadence') ?? 'none')
     const day = String(form.get('day') ?? '1')
     const next = kind === 'none' ? null : kind === 'daily' ? 'daily' : `${kind}:${day}`
+    // An emptied hour keeps the current one: Number('') is 0, and 0 is midnight, not "unchanged".
+    const hourRaw = String(form.get('runHour') ?? '').trim()
+    const hour = hourRaw === '' ? runHour : Number(hourRaw)
+    if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+      setError('The hour is 0 to 23, UTC.')
+      return
+    }
     setBusy(true)
     setError(null)
     setSaved(false)
     try {
       await call(`/api/templates/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ recipientsCsv: String(form.get('recipientsCsv') ?? ''), cadence: next, runHour: Number(form.get('runHour') ?? 9) }),
+        body: JSON.stringify({ recipientsCsv: String(form.get('recipientsCsv') ?? ''), cadence: next, runHour: hour }),
       })
       setSaved(true)
       router.refresh()

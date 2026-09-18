@@ -5,6 +5,7 @@
  * never holds a key that could sign it (SPEC.md §8, AGENT.md §1).
  */
 import { logger } from '@/lib/config/logger'
+import { prisma } from '@/lib/db/client'
 import { clientIp } from '@/lib/auth/client-ip'
 import { guardRequestBody } from '@/lib/security/guard'
 import { requireStepUp, requireUser } from '@/lib/api/session-guard'
@@ -56,6 +57,8 @@ export async function POST(request: Request, { params }: Params) {
     const outcome = await prepareBatch(id, org.id, parsed.data)
     if (outcome.kind === 'not-found') return notFound()
     if (outcome.kind === 'conflict') return conflict(outcome.detail)
+    // Whoever takes the first envelope is the signer (#45, #82), if links did not already say so.
+    await prisma.campaign.updateMany({ where: { id, organizationId: org.id, signedById: null }, data: { signedById: user.id } })
 
     logger.info(
       { userId: user.id, campaignId: id, sequence: outcome.value.sequence, links: outcome.value.linkCount },

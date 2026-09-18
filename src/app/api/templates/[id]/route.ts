@@ -44,7 +44,7 @@ export async function PATCH(request: Request, { params }: Params) {
   try {
     const outcome = await updateTemplate({ userId: user.id, org, ip }, id, parsed.data, env.MAX_LINKS_PER_CAMPAIGN)
     if (outcome.kind === 'not-found') return notFound()
-    if (outcome.kind === 'invalid') return conflict(outcome.detail)
+    if (outcome.kind === 'invalid') return outcome.errors ? validationProblem(outcome.errors) : conflict(outcome.detail)
     return Response.json(outcome.value)
   } catch (error) {
     logger.error({ reason: error instanceof Error ? error.message : 'unknown' }, 'template update failed')

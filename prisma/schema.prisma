@@ -562,6 +562,11 @@ model Campaign {
   /// The terms were copied at creation; the template can change afterwards
   /// without touching this row — an approval binds to THIS campaign's hash.
   templateId      String?
+  /// Dual control (#45, #82): the user who first registered links to, or
+  /// prepared a batch for, this campaign — the one who exports the CSV and
+  /// signs. For a prepared template run that is not the template's author,
+  /// and neither may approve it: maker and checker must differ from BOTH.
+  signedById      String?
   expiresAt       DateTime
   status          CampaignStatus @default(DRAFT)
   csvExportedAt   DateTime? // hard gate: null blocks activation
@@ -916,16 +921,23 @@ model CampaignTemplate {
 
 /// One campaign produced from a template (#82), by the schedule or by hand.
 model TemplateRun {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   templateId   String
-  campaignId   String   @unique
+  /// Null for a FAILED run: nothing was prepared, and the history says why.
+  campaignId   String?   @unique
   kind         RunKind
+  status       RunStatus @default(PREPARED)
+  /// Why a FAILED run prepared nothing — the operator's message, not a stack.
+  failure      String?
   /// For a scheduled run, the instant it was due; for a manual one, when it started.
   scheduledFor DateTime
-  createdAt    DateTime @default(now())
+  /// The recipient list AS PREPARED, so the draft is continued with the
+  /// list its link count was fixed for, whatever the template says by then.
+  recipientsCsv String   @default("")
+  createdAt    DateTime  @default(now())
 
   template CampaignTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  campaign Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaign Campaign?        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@index([templateId, createdAt])
 }
@@ -933,4 +945,9 @@ model TemplateRun {
 enum RunKind {
   SCHEDULED
   MANUAL
+}
+
+enum RunStatus {
+  PREPARED
+  FAILED
 }

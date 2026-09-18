@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Keypair } from '@stellar/stellar-sdk'
-import { cadenceSchema, nextRun, parseRecipients, runTotal, templateSchema, templateTermsSchema } from '@/lib/api/templates'
-import { termsHash } from '@/lib/api/approvals'
+import { cadenceSchema, nextRun, parseRecipients, refusedTerms, runTotal, templateSchema, templateTermsSchema } from '@/lib/api/templates'
+import { selfApproving, termsHash } from '@/lib/api/approvals'
 
 /*
  * #82. The schedule and the template's terms are pure; the runs — a DRAFT
@@ -9,7 +9,7 @@ import { termsHash } from '@/lib/api/approvals'
  * a database by scripts/verify-templates.ts.
  */
 const PUB = Keypair.random().publicKey()
-const terms = { network: 'testnet', senderPublicKey: PUB, assetCode: 'XLM', amountPerLink: '25', expiryDays: 30 }
+const terms = { network: 'testnet' as const, senderPublicKey: PUB, assetCode: 'XLM', amountPerLink: '25', expiryDays: 30 }
 
 describe('nextRun', () => {
   const after = new Date('2026-09-17T10:30:00Z') // a Thursday
@@ -79,5 +79,39 @@ describe('template terms', () => {
     expect(termsHash(march)).not.toBe(termsHash(april))
     // Same template, same count, same total, different expiry: still its own campaign, still its own hash.
     expect(termsHash(march)).not.toBe(termsHash({ ...march, expiresAt: april.expiresAt }))
+  })
+})
+
+describe('refusedTerms — the campaign schema judges a template at save time, not at its first run', () => {
+  it('passes terms a campaign would accept', () => {
+    expect(refusedTerms(terms)).toBeNull()
+    expect(refusedTerms({ ...terms, assetCode: 'USDC', assetIssuer: PUB })).toBeNull()
+  })
+
+  it('refuses a credit asset with no issuer', () => {
+    expect(refusedTerms({ ...terms, assetCode: 'USDC' })).toEqual([expect.objectContaining({ path: 'assetIssuer' })])
+  })
+
+  it('refuses an issuer on XLM', () => {
+    expect(refusedTerms({ ...terms, assetIssuer: PUB })).toEqual([expect.objectContaining({ path: 'assetIssuer' })])
+  })
+
+  it('refuses a receive-as entry that is the campaign asset, and a repeated one', () => {
+    expect(refusedTerms({ ...terms, receiveAs: [{ assetCode: 'XLM' }] })).toEqual([expect.objectContaining({ path: 'receiveAs' })])
+    expect(refusedTerms({ ...terms, receiveAs: [{ assetCode: 'USDC', assetIssuer: PUB }, { assetCode: 'USDC', assetIssuer: PUB }] })).toEqual([expect.objectContaining({ path: 'receiveAs' })])
+  })
+})
+
+describe('dual control on a prepared run (#45, #82)', () => {
+  it('refuses the author AND the signer as approvers; a third person may approve', () => {
+    const campaign = { userId: 'author-a', signedById: 'signer-b' }
+    expect(selfApproving(campaign, 'author-a')).toBe(true)
+    expect(selfApproving(campaign, 'signer-b')).toBe(true)
+    expect(selfApproving(campaign, 'approver-c')).toBe(false)
+  })
+
+  it('is unchanged for an ordinary campaign: creator refused, signer unset', () => {
+    expect(selfApproving({ userId: 'a', signedById: null }, 'a')).toBe(true)
+    expect(selfApproving({ userId: 'a', signedById: null }, 'b')).toBe(false)
   })
 })

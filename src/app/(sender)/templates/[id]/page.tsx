@@ -51,21 +51,33 @@ export default async function TemplatePage({ params }: { params: Promise<{ id: s
         <Table className="mt-md">
           <TableHead columns={['Run', 'Campaign', 'Status', 'Links', 'Total', 'Scheduled for']} />
           <tbody>
-            {runs.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className="font-mono">{r.kind.toLowerCase()}</TableCell>
-                <TableCell>
-                  <Link href={r.campaign.status === 'DRAFT' ? `/campaigns/new?draft=${r.campaign.id}` : `/campaigns/${r.campaign.id}`} className="text-primary underline-offset-4 hover:underline">
-                    {r.campaign.name}
-                  </Link>
-                  {r.campaign.status === 'DRAFT' && <span className="ml-sm font-mono text-label-sm text-on-surface-variant">needs keys and signature</span>}
-                </TableCell>
-                <TableCell><StatusChip status={CHIP[r.campaign.status] ?? 'pending'} /></TableCell>
-                <TableCell className="font-mono">{r.campaign.claimed}/{r.campaign.linkCount}</TableCell>
-                <TableCell className="font-mono">{r.campaign.total} {r.campaign.assetCode}</TableCell>
-                <TableCell>{formatDate(r.scheduledFor)}</TableCell>
-              </TableRow>
-            ))}
+            {runs.map((r) =>
+              r.campaign ? (
+                <TableRow key={r.id}>
+                  <TableCell className="font-mono">{r.kind.toLowerCase()}</TableCell>
+                  <TableCell>
+                    <Link href={r.campaign.status === 'DRAFT' ? `/campaigns/new?draft=${r.campaign.id}` : `/campaigns/${r.campaign.id}`} className="text-primary underline-offset-4 hover:underline">
+                      {r.campaign.name}
+                    </Link>
+                    {r.campaign.status === 'DRAFT' && <span className="ml-sm font-mono text-label-sm text-on-surface-variant">needs keys and signature</span>}
+                  </TableCell>
+                  <TableCell><StatusChip status={CHIP[r.campaign.status] ?? 'pending'} /></TableCell>
+                  <TableCell className="font-mono">{r.campaign.claimed}/{r.campaign.linkCount}</TableCell>
+                  <TableCell className="font-mono">{r.campaign.total} {r.campaign.assetCode}</TableCell>
+                  <TableCell>{formatDate(r.scheduledFor)}</TableCell>
+                </TableRow>
+              ) : (
+                // A run that prepared nothing: the schedule moved on, and this is why (#82).
+                <TableRow key={r.id}>
+                  <TableCell className="font-mono">{r.kind.toLowerCase()}</TableCell>
+                  <TableCell className="text-error" data-testid="run-failed">Nothing prepared — {r.failure ?? 'unknown reason'}</TableCell>
+                  <TableCell><StatusChip status="expired" /></TableCell>
+                  <TableCell>—</TableCell>
+                  <TableCell>—</TableCell>
+                  <TableCell>{formatDate(r.scheduledFor)}</TableCell>
+                </TableRow>
+              ),
+            )}
           </tbody>
         </Table>
       )}

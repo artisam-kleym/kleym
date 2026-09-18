@@ -45,6 +45,8 @@ export function CampaignWizard(config: WizardConfig) {
   const reissue = config.reissue ?? null
   /** Template (#82): terms and list prefilled; for a prepared run the campaign already exists. */
   const template = config.template ?? null
+  /** A prepared run's terms and list cannot change here: they are the draft's, fixed at preparation. */
+  const locked = template?.draftCampaignId !== null && template?.draftCampaignId !== undefined
   const [draft, setDraft] = useState({
     // A reissue (#78) carries the source campaign's terms; only the expiry is new.
     // A template (#82) carries every term, and its own expiry offset.
@@ -374,6 +376,13 @@ export function CampaignWizard(config: WizardConfig) {
       <Stepper steps={summarise(STEPS, draft, cost, amounts.some((a) => a !== null))} current={wizard.step} />
 
       <div>
+        {/*
+          * A prepared run (#82): the draft's terms and list are fixed — the
+          * link count, policy, sender and asset are already the campaign's
+          * and the server would refuse anything else at registration or
+          * signing. Every field in both steps is disabled; the banner says why.
+          */}
+        <fieldset disabled={locked} className="contents" data-testid={locked ? 'terms-locked' : undefined}>
         {wizard.step === 0 && (
           <AssetStep
             draft={draft}
@@ -408,6 +417,7 @@ export function CampaignWizard(config: WizardConfig) {
             affordable={affordable}
           />
         )}
+        </fieldset>
         {wizard.step === 2 && stepUp.panel}
         {wizard.step === 2 && (
           <ExportStep

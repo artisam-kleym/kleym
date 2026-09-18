@@ -1,8 +1,12 @@
 -- CreateEnum
 CREATE TYPE "RunKind" AS ENUM ('SCHEDULED', 'MANUAL');
 
+-- CreateEnum
+CREATE TYPE "RunStatus" AS ENUM ('PREPARED', 'FAILED');
+
 -- AlterTable
-ALTER TABLE "Campaign" ADD COLUMN     "templateId" TEXT;
+ALTER TABLE "Campaign" ADD COLUMN     "templateId" TEXT,
+ADD COLUMN     "signedById" TEXT;
 
 -- CreateTable
 CREATE TABLE "CampaignTemplate" (
@@ -27,9 +31,12 @@ CREATE TABLE "CampaignTemplate" (
 CREATE TABLE "TemplateRun" (
     "id" TEXT NOT NULL,
     "templateId" TEXT NOT NULL,
-    "campaignId" TEXT NOT NULL,
+    "campaignId" TEXT,
     "kind" "RunKind" NOT NULL,
+    "status" "RunStatus" NOT NULL DEFAULT 'PREPARED',
+    "failure" TEXT,
     "scheduledFor" TIMESTAMP(3) NOT NULL,
+    "recipientsCsv" TEXT NOT NULL DEFAULT '',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "TemplateRun_pkey" PRIMARY KEY ("id")

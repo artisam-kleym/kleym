@@ -113,6 +113,9 @@ export async function POST(request: Request, { params }: Params) {
       )
     }
 
+    // The first person to act on the draft is its signer (#45, #82): recorded once, and never the creator overwritten.
+    await prisma.campaign.updateMany({ where: { id, organizationId: org.id, signedById: null }, data: { signedById: user.id } })
+
     const payload = { registered: outcome.registered, total: outcome.total }
     await storeIdempotentResult(request, context, { status: 201, body: payload })
 

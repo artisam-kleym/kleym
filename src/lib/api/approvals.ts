@@ -85,6 +85,16 @@ export interface Policy {
 }
 
 /**
+ * Whether `actorId` is a maker of this campaign and so may not be its
+ * checker: its creator, or the person who registered its links / prepared
+ * its batches (#82 — a prepared template run's author and its signer can
+ * differ, and dual control has to refuse both). Pure.
+ */
+export function selfApproving(campaign: { userId: string; signedById: string | null }, actorId: string): boolean {
+  return campaign.userId === actorId || campaign.signedById === actorId
+}
+
+/**
  * The policy a campaign is gated by: the STRICTER of its own snapshot (taken
  * at creation) and the organisation's current policy. Tightening the
  * organisation's policy reaches campaigns in flight; loosening it does not —
@@ -139,7 +149,7 @@ export interface ApprovalStatus {
 }
 
 const CAMPAIGN_SELECT = {
-  id: true, userId: true, status: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true,
+  id: true, userId: true, signedById: true, status: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true,
   variableAmounts: true, approvalThreshold: true, approvalsRequired: true,
   organization: { select: { approvalThreshold: true, approvalsRequired: true } },
   approvals: {
@@ -289,8 +299,11 @@ export async function decide(
 ): Promise<DecideOutcome> {
   const campaign = await loadForApproval(campaignId, org.id)
   if (!campaign) return { kind: 'not-found' }
-  if (campaign.userId === actor.id) {
-    return { kind: 'conflict', detail: 'You created this campaign; a different approver has to sign it off.' }
+  if (selfApproving(campaign, actor.id)) {
+    return {
+      kind: 'conflict',
+      detail: campaign.userId === actor.id ? 'You created this campaign; a different approver has to sign it off.' : 'You are signing this campaign; a different approver has to sign it off.',
+    }
   }
   if (campaign.status !== 'DRAFT' && campaign.status !== 'CREATING' && campaign.status !== 'PARTIAL') {
     return { kind: 'conflict', detail: `This campaign is ${campaign.status}; approval applies before signing.` }

@@ -11,7 +11,7 @@ import { SaveTemplate } from './save-template'
 import { OutstandingPanel } from './outstanding-panel'
 import { SuspendLinkButton } from './links/suspend-link-button'
 import { ApprovalPanel } from './approval-panel'
-import { approvalStatus } from '@/lib/api/approvals'
+import { approvalStatus, selfApproving } from '@/lib/api/approvals'
 import { roleAtLeast } from '@/lib/api/session-guard'
 
 export const dynamic = 'force-dynamic'
@@ -132,7 +132,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           approvers: approval.approvers.map((a) => ({ ...a, at: a.at.toISOString() })),
         }}
         canDecide={roleAtLeast(org.role, 'APPROVER')}
-        isCreator={campaign.userId === user.id}
+        isCreator={selfApproving(campaign, user.id)}
       />
 
       {['ACTIVE', 'PARTIAL', 'EXPIRED'].includes(campaign.status) && (

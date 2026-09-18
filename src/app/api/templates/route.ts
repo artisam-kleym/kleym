@@ -9,7 +9,7 @@ import { guardRequestBody } from '@/lib/security/guard'
 import { requireUser } from '@/lib/api/session-guard'
 import { conflict, serverError, validationProblem } from '@/lib/api/problems'
 import { zodErrors } from '@/lib/api/campaigns'
-import { createTemplate, listTemplates, templateSchema } from '@/lib/api/templates'
+import { createTemplate, listTemplates, parseRecipients, templateSchema } from '@/lib/api/templates'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,7 +18,12 @@ export async function GET() {
   const { user, org, response } = await requireUser()
   if (!user) return response
   const templates = await listTemplates(org.id)
-  return Response.json({ templates: templates.map(({ recipientsCsv, ...t }) => ({ ...t, recipients: recipientsCsv.trim() === '' ? 0 : recipientsCsv.trim().split(/\r?\n/).length - 1 })) })
+  // Counted by the same parser the run uses: header or not, blank lines or not; 0 when the list would be refused.
+  const count = (csv: string) => {
+    const parsed = parseRecipients(csv, env.MAX_LINKS_PER_CAMPAIGN)
+    return parsed.ok ? parsed.recipients.labels.length : 0
+  }
+  return Response.json({ templates: templates.map(({ recipientsCsv, ...t }) => ({ ...t, recipients: count(recipientsCsv) })) })
 }
 
 export async function POST(request: Request) {
@@ -37,7 +42,8 @@ export async function POST(request: Request) {
   if (!parsed.success) return validationProblem(zodErrors(parsed.error))
   try {
     const outcome = await createTemplate({ userId: user.id, org, ip }, parsed.data, env.MAX_LINKS_PER_CAMPAIGN)
-    if (outcome.kind === 'invalid') return conflict(outcome.detail)
+    // Terms the campaign schema would refuse come back as the validation problem the wizard would get (F2).
+    if (outcome.kind === 'invalid') return outcome.errors ? validationProblem(outcome.errors) : conflict(outcome.detail)
     if (outcome.kind === 'not-found') return conflict('That template could not be found.')
     return Response.json(outcome.value, { status: 201 })
   } catch (error) {

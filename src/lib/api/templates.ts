@@ -28,7 +28,7 @@ import { parseLabels } from '@/lib/campaign/csv'
 import { emitWebhook } from '@/lib/webhooks/emit'
 import { recordAudit } from './audit'
 import { approvalRequired, campaignValue, effectivePolicy } from './approvals'
-import { campaignBodySchema, createCampaign, createCampaignSchema, serialiseAmount, type CreateCampaignInput } from './campaigns'
+import { campaignBodySchema, createCampaign, createCampaignSchema, serialiseAmount, zodErrors } from './campaigns'
 import { owned, type OrgScope } from './session-guard'
 import { seedFreeString } from '@/lib/validation/stellar'
 
@@ -59,6 +59,18 @@ export const templateSchema = z
   .strict()
 
 export type TemplateInput = z.infer<typeof templateSchema>
+
+/**
+ * The terms as the campaign schema would judge them (issuer for a credit
+ * asset, none for XLM, receive-as differs from the asset…), checked when a
+ * template is SAVED with a synthetic body, so a run cannot be the first
+ * thing to find out. The same errors the wizard would show.
+ */
+export function refusedTerms(terms: TemplateTerms): { path: string; message: string }[] | null {
+  const { expiryDays, ...body } = terms
+  const parsed = createCampaignSchema.safeParse({ ...body, name: 'x', linkCount: 1, expiresAt: new Date(Date.now() + expiryDays * 86_400_000).toISOString() })
+  return parsed.success ? null : zodErrors(parsed.error)
+}
 
 /** Partial update: any subset of the same fields. */
 export const templatePatchSchema = templateSchema.partial().strict()
@@ -120,7 +132,7 @@ const TEMPLATE_SELECT = {
 
 export type TemplateRow = Prisma.CampaignTemplateGetPayload<{ select: typeof TEMPLATE_SELECT }>
 
-export type TemplateOutcome<T> = { kind: 'ok'; value: T } | { kind: 'not-found' } | { kind: 'invalid'; detail: string }
+export type TemplateOutcome<T> = { kind: 'ok'; value: T } | { kind: 'not-found' } | { kind: 'invalid'; detail: string; errors?: { path: string; message: string }[] }
 
 function termsOf(row: { terms: unknown }): TemplateTerms {
   return templateTermsSchema.parse(row.terms)
@@ -141,6 +153,8 @@ export async function createTemplate(
 ): Promise<TemplateOutcome<TemplateRow>> {
   const recipients = parseRecipients(input.recipientsCsv, maxLinks)
   if (!recipients.ok) return { kind: 'invalid', detail: recipients.detail }
+  const refused = refusedTerms(input.terms)
+  if (refused) return { kind: 'invalid', detail: refused.map((e) => `${e.path}: ${e.message}`).join('; '), errors: refused }
   const now = new Date()
   const row = await prisma.campaignTemplate.create({
     data: {
@@ -169,9 +183,16 @@ export async function updateTemplate(
     const recipients = parseRecipients(patch.recipientsCsv, maxLinks)
     if (!recipients.ok) return { kind: 'invalid', detail: recipients.detail }
   }
+  if (patch.terms !== undefined) {
+    const refused = refusedTerms(patch.terms)
+    if (refused) return { kind: 'invalid', detail: refused.map((e) => `${e.path}: ${e.message}`).join('; '), errors: refused }
+  }
   const cadence = patch.cadence === undefined ? existing.cadence : patch.cadence
   const runHour = patch.runHour ?? existing.runHour
   const enabled = patch.enabled ?? existing.enabled
+  // The pointer moves only when the SCHEDULE changes. A list pushed at 09:03
+  // for a 09:00 run must not push that run to the next period.
+  const scheduleChanged = cadence !== existing.cadence || runHour !== existing.runHour || enabled !== existing.enabled
   const row = await prisma.campaignTemplate.update({
     where: { id: existing.id },
     data: {
@@ -180,7 +201,7 @@ export async function updateTemplate(
       ...(patch.recipientsCsv !== undefined ? { recipientsCsv: patch.recipientsCsv } : {}),
       cadence, runHour, enabled,
       // Disabling stops future runs and leaves past ones untouched: only the pointer moves.
-      nextRunAt: cadence && enabled ? nextRun(cadence, runHour, new Date()) : null,
+      ...(scheduleChanged ? { nextRunAt: cadence && enabled ? nextRun(cadence, runHour, new Date()) : null } : {}),
     },
     select: TEMPLATE_SELECT,
   })
@@ -248,8 +269,14 @@ export interface RunResult {
 
 /**
  * Prepares one run: a DRAFT campaign with the template's terms and the
- * recipient list, dated from now. Never funds, never signs. The campaign's
- * own terms hash is what any approval binds to.
+ * recipient list AS OF NOW (stored with the run, so the draft is continued
+ * with the list its link count was fixed for). Expiry is dated from now, not
+ * from the scheduled instant — a run caught up after an outage is not
+ * shortened, nor lost. Never funds, never signs. The campaign's own terms
+ * hash is what any approval binds to.
+ *
+ * The run row is what makes the draft visible; if it cannot be written the
+ * draft is deleted again, so a failure between the two leaves no orphan.
  */
 export async function prepareRun(
   template: TemplateRow,
@@ -257,46 +284,63 @@ export async function prepareRun(
   scheduledFor: Date,
   maxLinks: number,
   actor: { userId: string; ip: string | null },
+  now: Date = new Date(),
 ): Promise<TemplateOutcome<RunResult>> {
   const terms = termsOf(template)
   const recipients = parseRecipients(template.recipientsCsv, maxLinks)
   if (!recipients.ok) return { kind: 'invalid', detail: recipients.detail }
   if (recipients.recipients.labels.length === 0) return { kind: 'invalid', detail: 'The template has no recipients; add a list before running it.' }
   const { expiryDays, ...body } = terms
-  const input: CreateCampaignInput = createCampaignSchema.parse({
+  const input = createCampaignSchema.safeParse({
     ...body,
-    name: `${template.name} — ${scheduledFor.toISOString().slice(0, 10)}`,
+    name: `${template.name} — ${now.toISOString().slice(0, 10)}`,
     linkCount: recipients.recipients.labels.length,
-    expiresAt: new Date(scheduledFor.getTime() + expiryDays * 86_400_000).toISOString(),
+    expiresAt: new Date(now.getTime() + expiryDays * 86_400_000).toISOString(),
   })
-  const campaign = await createCampaign({ userId: actor.userId, organizationId: template.organizationId }, input, actor.ip)
-  await prisma.$transaction([
-    prisma.campaign.update({ where: { id: campaign.id }, data: { templateId: template.id } }),
-    prisma.templateRun.create({ data: { templateId: template.id, campaignId: campaign.id, kind, scheduledFor } }),
-  ])
+  if (!input.success) return { kind: 'invalid', detail: zodErrors(input.error).map((e) => `${e.path}: ${e.message}`).join('; '), errors: zodErrors(input.error) }
+
+  const campaign = await createCampaign({ userId: actor.userId, organizationId: template.organizationId }, input.data, actor.ip)
+  try {
+    await prisma.$transaction([
+      prisma.campaign.update({ where: { id: campaign.id }, data: { templateId: template.id } }),
+      prisma.templateRun.create({ data: { templateId: template.id, campaignId: campaign.id, kind, status: 'PREPARED', scheduledFor, recipientsCsv: template.recipientsCsv } }),
+    ])
+  } catch (error) {
+    // No run row means no way to see or continue the draft: remove it rather than leave an orphan.
+    await prisma.campaign.delete({ where: { id: campaign.id } }).catch(() => undefined)
+    throw error
+  }
   const total = runTotal(terms, recipients.recipients)
   const org = await prisma.organization.findUniqueOrThrow({ where: { id: template.organizationId }, select: { approvalThreshold: true, approvalsRequired: true } })
   const policy = effectivePolicy(
     { approvalThreshold: org.approvalThreshold, approvalsRequired: org.approvalsRequired },
     { approvalThreshold: org.approvalThreshold, approvalsRequired: org.approvalsRequired },
   )
-  const needsApproval = approvalRequired({ amountPerLink: terms.amountPerLink, linkCount: input.linkCount, totalAmount: total.toFixed() }, policy)
+  const needsApproval = approvalRequired({ amountPerLink: terms.amountPerLink, linkCount: input.data.linkCount, totalAmount: total.toFixed() }, policy)
   await recordAudit({
     userId: actor.userId, organizationId: template.organizationId, action: 'template.run', entityType: 'template', entityId: template.id,
-    metadata: { campaignId: campaign.id, kind, scheduledFor: scheduledFor.toISOString(), linkCount: input.linkCount, totalAmount: total.toFixed() }, ip: actor.ip,
+    metadata: { campaignId: campaign.id, kind, scheduledFor: scheduledFor.toISOString(), linkCount: input.data.linkCount, totalAmount: total.toFixed() }, ip: actor.ip,
   })
-  logger.info({ templateId: template.id, campaignId: campaign.id, kind, linkCount: input.linkCount }, 'template run prepared')
-  return { kind: 'ok', value: { campaignId: campaign.id, linkCount: input.linkCount, totalAmount: total.toFixed(), approvalRequired: needsApproval } }
+  logger.info({ templateId: template.id, campaignId: campaign.id, kind, linkCount: input.data.linkCount }, 'template run prepared')
+  return { kind: 'ok', value: { campaignId: campaign.id, linkCount: input.data.linkCount, totalAmount: total.toFixed(), approvalRequired: needsApproval } }
 }
 
 export const RUN_PASS_LIMIT = 50
+
+/** A run that prepared nothing is still a run: recorded FAILED with the reason, announced, and shown in the history. */
+async function recordFailedRun(template: TemplateRow, scheduledFor: Date, reason: string): Promise<void> {
+  await prisma.templateRun.create({ data: { templateId: template.id, campaignId: null, kind: 'SCHEDULED', status: 'FAILED', failure: reason, scheduledFor, recipientsCsv: template.recipientsCsv } })
+  await emitWebhook(template.organizationId, 'template.run_failed', { templateId: template.id, templateName: template.name, scheduledFor: scheduledFor.toISOString(), reason })
+  logger.warn({ templateId: template.id, reason }, 'scheduled template run could not be prepared')
+}
 
 /**
  * The hourly pass: every enabled template whose next run is due gets ONE
  * run, and its pointer moves past now before anything else — so a crash
  * mid-pass cannot prepare the same run twice, and a template that was down
  * for a week gets one run, not seven. The operator is told by webhook and
- * on the dashboard; nothing is signed.
+ * on the dashboard; nothing is signed. A run that cannot be prepared is
+ * recorded as FAILED with why, since the schedule has already moved on.
  */
 export async function runDueTemplates(now: Date = new Date(), maxLinks: number, limit = RUN_PASS_LIMIT): Promise<{ checked: number; prepared: number; failed: number }> {
   const due = await prisma.campaignTemplate.findMany({
@@ -316,10 +360,10 @@ export async function runDueTemplates(now: Date = new Date(), maxLinks: number, 
     })
     if (claimed.count === 0) continue
     try {
-      const outcome = await prepareRun(template, 'SCHEDULED', scheduledFor, maxLinks, { userId: template.createdById, ip: null })
+      const outcome = await prepareRun(template, 'SCHEDULED', scheduledFor, maxLinks, { userId: template.createdById, ip: null }, now)
       if (outcome.kind !== 'ok') {
         failed += 1
-        logger.warn({ templateId: template.id, reason: outcome.kind === 'invalid' ? outcome.detail : outcome.kind }, 'scheduled template run could not be prepared')
+        await recordFailedRun(template, scheduledFor, outcome.kind === 'invalid' ? outcome.detail : 'The template could not be found.')
         continue
       }
       const terms = termsOf(template)
@@ -331,43 +375,50 @@ export async function runDueTemplates(now: Date = new Date(), maxLinks: number, 
       prepared += 1
     } catch (error) {
       failed += 1
-      logger.error({ templateId: template.id, reason: error instanceof Error ? error.message : 'unknown' }, 'scheduled template run failed')
+      const reason = error instanceof Error ? error.message : 'unknown'
+      await recordFailedRun(template, scheduledFor, `The run failed before a campaign was created: ${reason}`).catch((again: unknown) =>
+        logger.error({ templateId: template.id, reason: again instanceof Error ? again.message : 'unknown' }, 'failed run could not be recorded'),
+      )
     }
   }
   return { checked: due.length, prepared, failed }
 }
 
-/** Every campaign this template produced, newest first, with status and value. */
+/** Every run of this template, newest first — prepared ones with their campaign's status and value, failed ones with why. */
 export async function runHistory(templateId: string, organizationId: string) {
   const runs = await prisma.templateRun.findMany({
     where: { templateId, template: { organizationId } },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     select: {
-      id: true, kind: true, scheduledFor: true, createdAt: true,
+      id: true, kind: true, status: true, failure: true, scheduledFor: true, createdAt: true,
       campaign: { select: { id: true, name: true, status: true, assetCode: true, amountPerLink: true, linkCount: true, expiresAt: true, _count: { select: { links: { where: { status: 'CLAIMED' } } } } } },
     },
   })
-  const totals = await prisma.claimLink.groupBy({ by: ['campaignId'], where: { campaignId: { in: runs.map((r) => r.campaign.id) } }, _sum: { amount: true } })
+  const campaignIds = runs.flatMap((r) => (r.campaign ? [r.campaign.id] : []))
+  const totals = await prisma.claimLink.groupBy({ by: ['campaignId'], where: { campaignId: { in: campaignIds } }, _sum: { amount: true } })
   const sums = new Map(totals.map((t) => [t.campaignId, t._sum.amount]))
   return runs.map((r) => ({
-    id: r.id, kind: r.kind, scheduledFor: r.scheduledFor, createdAt: r.createdAt,
-    campaign: {
-      id: r.campaign.id, name: r.campaign.name, status: r.campaign.status, assetCode: r.campaign.assetCode, linkCount: r.campaign.linkCount,
-      claimed: r.campaign._count.links, expiresAt: r.campaign.expiresAt,
-      // Registered links' own amounts when they exist; the uniform figure until they do.
-      total: campaignValue({ amountPerLink: r.campaign.amountPerLink, linkCount: r.campaign.linkCount, totalAmount: sums.get(r.campaign.id)?.toString() ?? null }).toFixed(),
-    },
+    id: r.id, kind: r.kind, status: r.status, failure: r.failure, scheduledFor: r.scheduledFor, createdAt: r.createdAt,
+    campaign: r.campaign
+      ? {
+          id: r.campaign.id, name: r.campaign.name, status: r.campaign.status, assetCode: r.campaign.assetCode, linkCount: r.campaign.linkCount,
+          claimed: r.campaign._count.links, expiresAt: r.campaign.expiresAt,
+          // Registered links' own amounts when they exist; the uniform figure until they do.
+          total: campaignValue({ amountPerLink: r.campaign.amountPerLink, linkCount: r.campaign.linkCount, totalAmount: sums.get(r.campaign.id)?.toString() ?? null }).toFixed(),
+        }
+      : null,
   }))
 }
 
 /** Prepared runs still waiting for keys — what the dashboard shows an operator. */
 export async function pendingRuns(organizationId: string) {
-  return prisma.templateRun.findMany({
-    where: { template: { organizationId }, campaign: { status: 'DRAFT' } },
+  const runs = await prisma.templateRun.findMany({
+    where: { template: { organizationId }, status: 'PREPARED', campaign: { status: 'DRAFT' } },
     orderBy: [{ scheduledFor: 'desc' }],
     take: 10,
     select: { id: true, kind: true, scheduledFor: true, template: { select: { id: true, name: true } }, campaign: { select: { id: true, name: true, linkCount: true, amountPerLink: true, assetCode: true } } },
   })
+  return runs.flatMap((r) => (r.campaign ? [{ ...r, campaign: r.campaign }] : []))
 }
 
 /* ── Wizard prefill ─────────────────────────────────────────────────────── */
@@ -424,11 +475,12 @@ export async function prefillFromDraft(campaignId: string, organizationId: strin
       id: true, name: true, network: true, senderPublicKey: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true,
       claimPolicy: true, reminderDaysBefore: true, receiveAsAssets: true, allowExchangeDeposit: true,
       _count: { select: { links: true } },
-      templateRun: { select: { template: { select: { id: true, name: true, recipientsCsv: true } } } },
+      // The list AS PREPARED, not the template's current one: the count was fixed for this list.
+      templateRun: { select: { recipientsCsv: true, template: { select: { id: true, name: true } } } },
     },
   })
   if (!campaign || !campaign.templateRun || campaign._count.links > 0) return null
-  const template = campaign.templateRun.template
+  const template = { ...campaign.templateRun.template, recipientsCsv: campaign.templateRun.recipientsCsv }
   const recipients = parseRecipients(template.recipientsCsv, maxLinks)
   return {
     templateId: template.id, templateName: template.name, draftCampaignId: campaign.id,

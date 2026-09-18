@@ -19,6 +19,7 @@ export const WEBHOOK_EVENTS = [
   'campaign.expiring_soon',
   'sponsor.low',
   'template.run_prepared',
+  'template.run_failed',
 ] as const
 
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number]
@@ -36,6 +37,8 @@ export interface WebhookPayloads {
   'campaign.reclaim_due': { campaignId: string; outstanding: number; outstandingAmount: string; assetCode: string; expiresAt: string }
   /** A scheduled template run (#82) prepared a DRAFT campaign; an operator must generate keys, export and sign it. Nothing has moved. */
   'template.run_prepared': { templateId: string; templateName: string; campaignId: string; scheduledFor: string; linkCount: number; amountPerLink: string; assetCode: string; totalAmount: string; approvalRequired: boolean }
+  /** A scheduled run (#82) prepared nothing — an empty or over-long list, or terms the campaign schema refused. The schedule has moved on; the operator must fix the template. */
+  'template.run_failed': { templateId: string; templateName: string; scheduledFor: string; reason: string }
   /** Within a week (or the first reminder point) of expiry with links still unclaimed (#78). Once per campaign. */
   'campaign.expiring_soon': { campaignId: string; outstanding: number; outstandingAmount: string; assetCode: string; expiresAt: string }
   'sponsor.low': { sponsorPublicKey: string; spendable: string; threshold: string }
