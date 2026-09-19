@@ -666,7 +666,11 @@ a hash of (asset, issuer, amount per link, link count, expiry); a decision
 whose hash no longer matches counts for nothing, and the refusal names what
 changed and who had approved the old terms — approve small, edit large, sign
 is the first thing a penetration test tries. The creator's own approval never
-counts, at any role including Owner. Approvals and rejections are audited
+counts, at any role including Owner — and neither does the signer's: the
+first person to register links or take an envelope (wizard or WRITE key) is
+recorded as `signedById`, refused as an approver, and an approval they gave
+before signing is voided the moment they do (#82: a scheduled run's author
+and the operator who continues it can differ, and both are makers). Approvals and rejections are audited
 with approver, campaign and terms hash (and the terms themselves, so "what
 changed" can be named without a second table). A rejection blocks signing
 even alongside approvals. `/approvals` lists what is waiting; the campaign

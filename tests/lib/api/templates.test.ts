@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Keypair } from '@stellar/stellar-sdk'
 import { cadenceSchema, nextRun, parseRecipients, refusedTerms, runTotal, templateSchema, templateTermsSchema } from '@/lib/api/templates'
-import { selfApproving, termsHash } from '@/lib/api/approvals'
+import { selfApproving, statusOf, termsHash } from '@/lib/api/approvals'
 
 /*
  * #82. The schedule and the template's terms are pure; the runs — a DRAFT
@@ -113,5 +113,24 @@ describe('dual control on a prepared run (#45, #82)', () => {
   it('is unchanged for an ordinary campaign: creator refused, signer unset', () => {
     expect(selfApproving({ userId: 'a', signedById: null }, 'a')).toBe(true)
     expect(selfApproving({ userId: 'a', signedById: null }, 'b')).toBe(false)
+  })
+
+  it('voids an approval given BEFORE its author became the signer: approve the run, then continue it, and the gate closes', () => {
+    const base = {
+      id: 'c1', userId: 'author-a', status: 'DRAFT', assetCode: 'XLM', assetIssuer: null, amountPerLink: '100', linkCount: 100,
+      expiresAt: new Date('2027-01-01T00:00:00Z'), variableAmounts: false, approvalThreshold: '1000', approvalsRequired: 1,
+      organization: { approvalThreshold: '1000', approvalsRequired: 1 }, totalAmount: null,
+    }
+    const hash = termsHash(base)
+    const approval = (approverId: string) => ({ approverId, decision: 'APPROVED', termsHash: hash, note: null, createdAt: new Date(), approver: { username: approverId } })
+    const loaded = (signedById: string | null, approvals: ReturnType<typeof approval>[]) => ({ ...base, signedById, approvals }) as unknown as Parameters<typeof statusOf>[0]
+    // B approved while no one had signed: satisfied.
+    expect(statusOf(loaded(null, [approval('signer-b')])).satisfied).toBe(true)
+    // B then registered links / took an envelope: B's approval counts for nothing.
+    const after = statusOf(loaded('signer-b', [approval('signer-b')]))
+    expect(after.satisfied).toBe(false)
+    expect(after.granted).toBe(0)
+    // A third person's approval still stands.
+    expect(statusOf(loaded('signer-b', [approval('signer-b'), approval('approver-c')])).satisfied).toBe(true)
   })
 })

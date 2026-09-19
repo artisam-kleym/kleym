@@ -14,7 +14,7 @@ import { env } from '@/lib/config/env'
 import { owned } from './session-guard'
 import { LINK_ORDER } from './link-order'
 import { isWriteConflict } from './links'
-import { approvalGate } from './approvals'
+import { approvalGate, recordSigner } from './approvals'
 import { screeningGate } from './screening'
 import { recordBatchConfirmLatency } from '@/lib/observability/metrics'
 import { emitWebhook } from '@/lib/webhooks/emit'
@@ -153,12 +153,16 @@ export async function prepareBatch(
   campaignId: string,
   organizationId: string,
   input: PrepareInput,
+  /** Who is taking the envelope — recorded as the signer BEFORE the gate, so their own approval cannot let it through (#82). */
+  actorId?: string,
 ): Promise<BatchOutcome<PreparedBatch>> {
   const campaign = await loadCampaign(campaignId, organizationId)
   if (!campaign) return { kind: 'not-found' }
 
   const blocked = notReadyToSign(campaign)
   if (blocked) return blocked
+
+  if (actorId) await recordSigner(campaign.id, organizationId, actorId)
 
   // Dual control (#45): no envelope is handed over for an unapproved
   // campaign above the organisation's threshold. Checked against the
