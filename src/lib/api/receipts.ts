@@ -149,12 +149,12 @@ export async function issueReceipt(linkId: string): Promise<SignedReceipt | null
   const link = await prisma.claimLink.findUnique({
     where: { id: linkId },
     select: {
-      id: true, amount: true, deliveredAsset: true, deliveredAmount: true,
+      id: true, amount: true, ephemeralPublicKey: true, deliveredAsset: true, deliveredAmount: true,
       status: true, claimedBy: true, claimedAt: true, claimTxHash: true, claimMemoType: true, claimMemo: true,
       delivery: { select: { id: true } },
       campaign: {
         select: {
-          id: true, name: true, network: true, assetCode: true, assetIssuer: true, claimPolicy: true,
+          id: true, name: true, network: true, assetCode: true, assetIssuer: true, claimPolicy: true, receiveAsAssets: true,
           organization: { select: { id: true, name: true } },
         },
       },
@@ -166,17 +166,32 @@ export async function issueReceipt(linkId: string): Promise<SignedReceipt | null
   }
 
   /*
+   * A row reconciliation settled (`reconcile.ts`) names the claimable
+   * balance's CLAIMANT — the ephemeral account, merged away — not the payee,
+   * and knows nothing of what TX2 delivered. A receipt naming it as the
+   * recipient would be signed and wrong: none is issued.
+   */
+  if (link.claimedBy === link.ephemeralPublicKey) {
+    logger.warn({ linkId }, 'claim was settled by reconciliation, its payee is not recorded; no receipt issued')
+    return null
+  }
+
+  /*
    * What was delivered: recorded at submit for every claim from here on. A
-   * claim settled before that column existed, or one whose result was not
-   * on hand, is attested as a plain payment of the link's amount in the
-   * campaign asset — which is what a plain payment delivered. A receive-as
-   * claim without a recorded delivered amount is NOT guessed: no receipt.
+   * claim settled before that column existed is attested as a plain payment
+   * of the link's amount in the campaign asset ONLY where that is the one
+   * thing it can have been — a campaign offering no receive-as asset (#74).
+   * Where a conversion was possible and nothing was recorded, or a receive-as
+   * claim's result was not on hand, the delivered figure is NOT guessed:
+   * no receipt.
    */
   const campaignAssetRef = link.campaign.assetIssuer ? `${link.campaign.assetCode}:${link.campaign.assetIssuer}` : 'XLM'
-  const deliveredAsset = link.deliveredAsset ?? campaignAssetRef
-  const deliveredAmount = link.deliveredAmount !== null ? link.deliveredAmount.toString() : deliveredAsset === campaignAssetRef ? link.amount.toString() : null
-  if (deliveredAmount === null) {
-    logger.warn({ linkId }, 'receive-as claim has no recorded delivered amount; no receipt issued')
+  const plainOnly = link.campaign.receiveAsAssets.length === 0
+  const deliveredAsset = link.deliveredAsset ?? (plainOnly ? campaignAssetRef : null)
+  const deliveredAmount =
+    link.deliveredAmount !== null ? link.deliveredAmount.toString() : link.deliveredAsset === null && plainOnly ? link.amount.toString() : null
+  if (deliveredAsset === null || deliveredAmount === null) {
+    logger.warn({ linkId }, 'what this claim delivered is not recorded; no receipt issued')
     return null
   }
   const receiptId = `rcpt_${link.id}`
@@ -234,8 +249,10 @@ export interface ReceiptsQuery {
  * Every receipt in scope, one per settled claim and no others, in claim
  * order. A settled claim with no receipt yet — settled before this shipped,
  * or whose claim-time issue failed — is issued here first, so the bundle
- * holds every CLAIMED link the page counts. Bounded by the scope: a campaign
- * is at most MAX_LINKS_PER_CAMPAIGN links, and each issue is one row.
+ * holds every CLAIMED link the page counts, less only those `issueReceipt`
+ * refuses (no payee, or what was delivered is not on record). Bounded by the
+ * scope: a campaign is at most MAX_LINKS_PER_CAMPAIGN links, and each issue
+ * is one row.
  */
 export async function receiptsFor(query: ReceiptsQuery): Promise<BundledReceipt[]> {
   const missing = await prisma.claimLink.findMany({

@@ -46,7 +46,7 @@ if (doc?.format === 'kleym-claim-receipts' && Array.isArray(doc.receipts)) {
     // A malformed entry is INVALID, not a crash: `check` refuses anything that is not a string.
     if (typeof r?.canonical !== 'string' || !check(r.canonical, r.signature, r.publicKey)) {
       bad += 1
-      console.log(`receipt ${r.receiptId}: INVALID`)
+      console.log(`receipt ${r?.receiptId ?? '(malformed entry)'}: INVALID`)
     }
   }
   console.log(`receipts: ${doc.receipts.length - bad} of ${doc.receipts.length} VALID`)
@@ -57,7 +57,7 @@ if (doc?.format === 'kleym-claim-receipts' && Array.isArray(doc.receipts)) {
     console.log('a single receipt needs the signature and public key from the response headers; nothing verified')
     ok = false
   }
-} else if (!signature) {
+} else if (!signature || !publicKey) {
   console.log('not a receipts bundle; pass the signature and public key to verify the file itself')
   ok = false
 }

@@ -176,15 +176,19 @@ export writes an audit row `org.regulator_export` with the window and the row co
 ## 4. Claim receipts
 
 Every settled claim has a signed receipt (#81), issued the moment the claim lands and
-never regenerated: the recipient address (read off the submitted envelope), the amount
-this link paid, the ledger time, the transaction hash, the memo where one applied (#75),
-the delivery channel and the claim policy that applied (#79), the campaign's terms and the
-sender's label and attestation fields. Nothing derived from the link — no URL, no fragment,
-no seed.
+never regenerated: the recipient address (read off the submitted envelope), what was
+delivered — for a receive-as claim (#74) the destination asset and the amount the ledger paid
+out — the ledger time, the transaction hash, the memo where one applied (#75), the delivery
+channel and the claim policy that applied (#79), and the campaign's terms. The link is named
+by id only: the sender's label, reference, category and note are never in a receipt or a
+recipient's copy; the sender-facing CSV bundle carries them as unsigned columns beside each
+receipt. Nothing derived from the link — no URL, no fragment, no seed.
 
 - `GET /api/campaigns/{id}/links/{linkId}/receipt` — one receipt; the body is its exact
   signed bytes, the signature and key in the headers above.
-- `GET /api/campaigns/{id}/receipts?format=json|csv` — every receipt of one campaign.
+- `GET /api/campaigns/{id}/receipts?format=json|csv` — every receipt of one campaign
+  (Operator and up; audited as `campaign.receipts_export`). A settled claim the claim-time
+  issue missed is issued when a bundle is built.
 - `GET /api/org/receipts?from=&to=&format=` — every receipt of the organisation in a
   claim-date range (Operator and up; audited as `org.receipts_export`).
 
