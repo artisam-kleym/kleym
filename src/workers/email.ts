@@ -10,7 +10,7 @@ import { Worker } from 'bullmq'
 import { logger } from '@/lib/config/logger'
 import { QUEUE, queueConnection } from '@/lib/queue/connection'
 import type { EmailJob } from '@/lib/queue/email'
-import { claimEmail, reminderEmail } from '@/lib/email/templates'
+import { claimEmail, receiptEmail, reminderEmail } from '@/lib/email/templates'
 import { resend, type Mailer } from '@/lib/email/provider'
 import { prisma } from '@/lib/db/client'
 
@@ -31,6 +31,26 @@ export function startEmailWorker(mailer: Mailer = resend): Worker<EmailJob> {
         })
         const { id } = await mailer({ to: reminder.email, ...message })
         logger.info({ deliveryId: reminder.deliveryId, point: reminder.point, providerId: id }, 'reminder email sent')
+        return { providerId: id }
+      }
+
+      if (job.data.kind === 'receipt') {
+        // No URL anywhere in this branch either — the receipt names the ledger's facts (#81).
+        const receipt = job.data
+        const message = receiptEmail({
+          senderName: receipt.senderName,
+          amount: receipt.amount,
+          assetCode: receipt.assetCode,
+          recipient: receipt.recipient,
+          claimedAt: new Date(receipt.claimedAt),
+          transactionHash: receipt.transactionHash,
+          receiptId: receipt.receiptId,
+          canonical: receipt.canonical,
+          signature: receipt.signature,
+          publicKey: receipt.publicKey,
+        })
+        const { id } = await mailer({ to: receipt.email, ...message })
+        logger.info({ deliveryId: receipt.deliveryId, receiptId: receipt.receiptId, providerId: id }, 'receipt email sent')
         return { providerId: id }
       }
 

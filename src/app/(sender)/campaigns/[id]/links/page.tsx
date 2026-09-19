@@ -109,6 +109,16 @@ export default async function CampaignLinksPage({
                   <TableCell>{link.claimedAt ? formatDate(link.claimedAt) : '—'}</TableCell>
                   <TableCell>{link.claimTxHash ? <StellarAddress value={link.claimTxHash} /> : '—'}</TableCell>
                   <TableCell>
+                    {link.status === 'CLAIMED' && (
+                      // The signed receipt for this claim (#81): the file IS the signed bytes.
+                      <a
+                        href={`/api/campaigns/${campaign.id}/links/${link.id}/receipt`}
+                        className="font-mono text-label-sm text-primary underline-offset-4 hover:underline"
+                        data-testid="link-receipt"
+                      >
+                        Receipt
+                      </a>
+                    )}
                     {canSuspend && link.status === 'ACTIVE' && !link.suspendedAt && (
                       <SuspendLinkButton campaignId={campaign.id} linkId={link.id} expiresAt={campaign.expiresAt.toISOString()} />
                     )}
