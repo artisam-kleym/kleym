@@ -36,16 +36,24 @@ async function fixture() {
     },
     select: { id: true },
   })
-  const link = async (claimed: boolean, over: { claimedBy?: string | null } = {}) =>
-    prisma.claimLink.create({
+  const link = async (claimed: boolean, over: { claimedBy?: string | null; reconciled?: boolean } = {}) => {
+    const ephemeralPublicKey = Keypair.random().publicKey()
+    // A row reconciliation settled names the claimable balance's claimant — the ephemeral account — as `claimedBy`.
+    const claimedBy = over.reconciled ? ephemeralPublicKey : over.claimedBy === undefined ? Keypair.random().publicKey() : over.claimedBy
+    return prisma.claimLink.create({
       data: {
-        campaignId: campaign.id, ephemeralPublicKey: Keypair.random().publicKey(), amount: '1.0000000',
+        campaignId: campaign.id, ephemeralPublicKey, amount: '1.0000000',
         status: claimed ? 'CLAIMED' : 'ACTIVE',
-        ...(claimed ? { claimedBy: over.claimedBy === undefined ? Keypair.random().publicKey() : over.claimedBy, claimedAt: new Date(), claimTxHash: randomUUID().replace(/-/g, '').repeat(2), claimMemoType: 'id', claimMemo: '42' } : {}),
+        ...(claimed ? { claimedBy, claimedAt: new Date(), claimTxHash: randomUUID().replace(/-/g, '').repeat(2), claimMemoType: 'id', claimMemo: '42' } : {}),
       },
       select: { id: true },
     })
-  return { organizationId, campaignId: campaign.id, claimedA: await link(true), claimedB: await link(true), active: await link(false), unpaid: await link(true, { claimedBy: null }) }
+  }
+  return {
+    organizationId, campaignId: campaign.id,
+    claimedA: await link(true), claimedB: await link(true), active: await link(false),
+    unpaid: await link(true, { claimedBy: null }), reconciled: await link(true, { reconciled: true }),
+  }
 }
 
 async function main(): Promise<void> {
@@ -70,6 +78,7 @@ async function main(): Promise<void> {
   const receipts = await receiptsFor({ organizationId: f.organizationId, campaignId: f.campaignId })
   check('two settled claims, two receipts — the one claim time missed was issued by the bundle', receipts.length === 2, `${receipts.length}`)
   check('a CLAIMED link with no payee gets no receipt and does not break the bundle', receipts.every((r) => r.contents.link.id !== f.unpaid.id))
+  check('a claim reconciliation settled (payee unknown) gets no receipt', (await issueReceipt(f.reconciled.id)) === null && receipts.every((r) => r.contents.link.id !== f.reconciled.id))
   check('the sender\'s label rides beside the receipt, unsigned', receipts.every((r) => 'sender' in r && !r.canonical.includes('"label"')))
   check('the active link is not among them', receipts.every((r) => r.contents.link.id !== f.active.id))
   const bundle = buildReceiptBundle(receipts, { organizationId: f.organizationId, organizationName: 'x', campaignId: f.campaignId }, 'json')
