@@ -137,9 +137,11 @@ function stub(over: Partial<{ links: unknown[]; batches: unknown[]; reclaimedLin
   const db = {
     claimLink: {
       findUnique: vi.fn(async (args: { where: { id: string } }) => ({ ...claimedLink, id: args.where.id })),
-      findMany: vi.fn(async (args: { where: { status: string } }) => (args.where.status === 'CLAIMED' ? (over.links ?? []) : (over.reclaimedLinks ?? []))),
+      findMany: vi.fn(async () => over.links ?? []),
     },
     reclaimBatch: { findUnique: vi.fn(async () => null), findMany: vi.fn(async () => over.batches ?? []) },
+    // The corrected-reclaim query is raw SQL (its exclusion joins on a hash Prisma cannot express); the stand-in answers ids.
+    $queryRaw: vi.fn(async () => over.reclaimedLinks ?? []),
     valuation: {
       findMany: vi.fn(async () => over.rows ?? []),
       upsert: vi.fn(async (args: unknown) => { writes.upsert!.push(args) }),
@@ -160,15 +162,18 @@ describe('revalueUnpriced', () => {
     expect((db.claimLink.findMany as ReturnType<typeof vi.fn>).mock.calls[0]![0]).toMatchObject({ where: { status: 'CLAIMED', claimTxHash: { not: null }, valuation: null }, take: 50 })
   })
 
-  it('skips a RECLAIMED link whose hash is a batch reclaim (valued by the batch), and values one that is not', async () => {
-    const hash = 'cd'.repeat(32)
-    const { db, writes } = stub({ reclaimedLinks: [
-      { id: 'lb', claimTxHash: hash, campaign: { reclaims: [{ transactionHash: hash }] } },
-      { id: 'lr', claimTxHash: 'ef'.repeat(32), campaign: { reclaims: [{ transactionHash: hash }] } },
-    ] })
+  it('values a reconciled RECLAIMED link (no batch behind its hash), excluding batch-reclaimed links IN the query so they cannot fill its slots', async () => {
+    const { db, writes } = stub({ reclaimedLinks: [{ id: 'lr' }] })
     const report = await revalueUnpriced(rates({ USDC: '1', XLM: '0.1' }), 50, db)
     expect(report.created).toBe(1)
     expect((writes.upsert![0] as { where: unknown }).where).toEqual({ linkId: 'lr' })
+    const [sql] = (db.$queryRaw as ReturnType<typeof vi.fn>).mock.calls[0]! as [{ sql: string; values: unknown[] }]
+    const text = sql.sql.replace(/\s+/g, ' ')
+    expect(text).toMatch(/"status" = 'RECLAIMED'/)
+    expect(text).toMatch(/NOT EXISTS \(SELECT 1 FROM "Valuation" v WHERE v."linkId" = l."id"\)/)
+    expect(text).toMatch(/NOT EXISTS \(SELECT 1 FROM "ReclaimBatch" b WHERE b."transactionHash" = l."claimTxHash"\)/)
+    expect(text.trim()).toMatch(/LIMIT \?$/)
+    expect(sql.values).toEqual([50])
   })
 
   it('orders unpriced rows by attempts then time, bumps attempts on a miss, and fills only the missing half', async () => {

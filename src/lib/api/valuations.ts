@@ -23,7 +23,7 @@
 import { Asset } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
 import { z } from 'zod'
-import type { Prisma } from '@/generated/prisma/client'
+import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
 import { RATE_SOURCE_UNAVAILABLE, dexRates, type RateSource } from '@/lib/stellar/rates'
@@ -72,7 +72,7 @@ async function price(asset: Asset, currency: string, at: Date, rates: RateSource
 }
 
 /** The subset of the client the valuation writers touch, so a test can stand one in. */
-export type ValuationDb = Pick<typeof prisma, 'claimLink' | 'reclaimBatch' | 'valuation'>
+export type ValuationDb = Pick<typeof prisma, 'claimLink' | 'reclaimBatch' | 'valuation' | '$queryRaw'>
 
 /**
  * Records what a settled link was worth at its ledger time — a claim, or a
@@ -182,16 +182,32 @@ export async function revalueUnpriced(rates: RateSource = dexRates, limit = REVA
     await recordReclaimValuation(batch.id, null, rates, db)
     report.created += 1
   }
-  // A reclaim the ledger reported for one link, with no batch behind it: reconcile's correction.
-  const corrected = await db.claimLink.findMany({
-    where: { status: 'RECLAIMED', claimTxHash: { not: null }, valuation: null },
-    orderBy: [{ claimedAt: 'asc' }, { id: 'asc' }],
-    take: limit,
-    select: { id: true, claimTxHash: true, campaign: { select: { reclaims: { select: { transactionHash: true } } } } },
-  })
+  /*
+   * A reclaim the ledger reported for one link, with no batch behind it:
+   * reconcile's correction. A batch reclaim's links carry the batch's hash
+   * and are valued by the batch row, never per link, so they never have a
+   * row of their own — and they must be excluded IN the query: fetched and
+   * skipped, a campaign's older batch-reclaimed links would fill every slot
+   * on every pass and the corrected link behind them would never be reached.
+   *
+   * `$queryRaw`, justified: the exclusion compares the link's own hash with
+   * ReclaimBatch.transactionHash, a column of another table with no relation
+   * to it, which Prisma's filter language cannot express. Tagged template,
+   * so `limit` is a bound parameter.
+   */
+  const corrected = await db.$queryRaw<{ id: string }[]>(
+    Prisma.sql`
+      SELECT l."id"
+      FROM "ClaimLink" l
+      WHERE l."status" = 'RECLAIMED'
+        AND l."claimTxHash" IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM "Valuation" v WHERE v."linkId" = l."id")
+        AND NOT EXISTS (SELECT 1 FROM "ReclaimBatch" b WHERE b."transactionHash" = l."claimTxHash")
+      ORDER BY l."claimedAt" ASC, l."id" ASC
+      LIMIT ${limit}
+    `,
+  )
   for (const link of corrected) {
-    // A batch reclaim's links carry the batch's hash and are valued by the batch row, not per link.
-    if (link.campaign.reclaims.some((r) => r.transactionHash === link.claimTxHash)) continue
     await recordClaimValuation(link.id, null, rates, db)
     report.created += 1
   }

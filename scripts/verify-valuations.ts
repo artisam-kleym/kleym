@@ -97,6 +97,29 @@ async function main(): Promise<void> {
   const other = await fixture()
   check("another organisation's export holds none of these", (await valuationRows({ organizationId: other.organizationId })).every((r) => r.campaignId !== f.campaignId))
 
+  console.log('\n5. The pass creates the row a failed claim-time write left missing — never one for a batch-reclaimed link')
+  const g = await fixture()
+  const missingClaim = g.a // CLAIMED, hash set, no valuation: the claim-time write never happened.
+  const batch = await prisma.reclaimBatch.create({ data: { campaignId: g.campaignId, transactionHash: randomUUID().replace(/-/g, '').repeat(2), balanceCount: 1, amount: '1.0000000' }, select: { id: true, transactionHash: true } })
+  // A link the batch returned: carries the batch's hash, valued by the batch row, never per link.
+  const batched = await prisma.claimLink.create({
+    data: { campaignId: g.campaignId, ephemeralPublicKey: Keypair.random().publicKey(), amount: '1', status: 'RECLAIMED', claimedAt: new Date('2026-08-01T00:00:00Z'), claimTxHash: batch.transactionHash },
+    select: { id: true },
+  })
+  // A link reconcile corrected to RECLAIMED from the ledger: its hash is no batch's.
+  const corrected = await prisma.claimLink.create({
+    data: { campaignId: g.campaignId, ephemeralPublicKey: Keypair.random().publicKey(), amount: '1', status: 'RECLAIMED', claimedAt: new Date('2026-09-02T00:00:00Z'), claimTxHash: randomUUID().replace(/-/g, '').repeat(2) },
+    select: { id: true },
+  })
+  const created = await revalueUnpriced(rates({ XLM: '0.4' }), 50)
+  check('the pass reports the rows it created', created.created >= 4, `${created.created}`)
+  check('the CLAIMED link with no row has one now', (await prisma.valuation.findUnique({ where: { linkId: missingClaim.id } }))?.kind === 'CLAIM')
+  check('the reclaim batch with no row has one now', (await prisma.valuation.findUnique({ where: { reclaimBatchId: batch.id } }))?.kind === 'RECLAIM')
+  check('the corrected link has a reversal of its own', (await prisma.valuation.findUnique({ where: { linkId: corrected.id } }))?.kind === 'RECLAIM')
+  check('the batch-reclaimed link has none: the batch row is its line', (await prisma.valuation.findUnique({ where: { linkId: batched.id } })) === null)
+  const again = await revalueUnpriced(rates({ XLM: '0.4' }), 50)
+  check('a second pass creates nothing more', again.created === 0, `${again.created}`)
+
   await prisma.$disconnect()
   console.log(failures === 0 ? '\nall checks passed' : `\n${failures} check(s) failed`)
   process.exit(failures === 0 ? 0 : 1)
