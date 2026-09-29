@@ -26,7 +26,8 @@ export async function POST(request: Request, { params }: Params) {
   if (!parsed.success) return apiValidationProblem(zodErrors(parsed.error))
 
   try {
-    const outcome = await prepareBatch(id, auth.caller.organizationId, parsed.data)
+    // The key's issuer is the signer (#45, #82), as in the wizard: recorded before the approval gate.
+    const outcome = await prepareBatch(id, auth.caller.organizationId, parsed.data, auth.caller.userId)
     if (outcome.kind === 'not-found') return apiNotFound()
     if (outcome.kind === 'conflict') return apiConflict(outcome.detail)
     return jsonWithHeaders(outcome.value, auth.headers)

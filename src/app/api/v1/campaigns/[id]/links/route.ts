@@ -14,6 +14,7 @@ import { LINK_ORDER } from '@/lib/api/link-order'
 import { clientIp } from '@/lib/auth/client-ip'
 import { guardRequestBody } from '@/lib/security/guard'
 import { isWriteConflict, registerLinks } from '@/lib/api/links'
+import { recordSigner } from '@/lib/api/approvals'
 import {
   amount,
   apiConflict,
@@ -88,6 +89,8 @@ export async function POST(request: Request, { params }: Params) {
     if (outcome.kind === 'bad-status') return apiConflict(`Links can only be registered while a campaign is DRAFT or CREATING; this one is ${outcome.status}.`)
     if (outcome.kind === 'codes') return apiConflict(outcome.detail)
     if (outcome.kind === 'over-limit') return apiConflict(`This campaign declares ${outcome.declared} links; registering ${outcome.adding} more would make ${outcome.wouldTotal}.`)
+    // The key's issuer is the signer (#45, #82), exactly as the wizard's user would be: a prepared run continued by API cannot then be approved by the same person.
+    await recordSigner(id, auth.caller.organizationId, auth.caller.userId)
     return jsonWithHeaders({ registered: outcome.registered, total: outcome.total }, auth.headers, 201)
   } catch (error) {
     if (isWriteConflict(error)) return apiConflict('Another registration for this campaign is in progress; retry.')

@@ -1,9 +1,28 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { Networks } from '@stellar/stellar-sdk'
+import { stellarMetadata } from '@/lib/stellar/network'
 
 afterEach(() => {
   vi.unstubAllEnvs()
   vi.restoreAllMocks()
+})
+
+it.each(['testnet', 'public'] as const)('defaults the accounting anchor to the selected %s network', async (network) => {
+  vi.resetModules()
+  vi.stubEnv('RATE_ANCHORS', undefined)
+  vi.stubEnv('STELLAR_NETWORK', network)
+  vi.stubEnv('NODE_ENV', 'production')
+  vi.stubEnv('NETWORK_PASSPHRASE', network === 'testnet' ? Networks.TESTNET : Networks.PUBLIC)
+  vi.stubEnv('HORIZON_URL', network === 'testnet' ? 'https://horizon-testnet.stellar.org' : 'https://horizon.stellar.org')
+  const { env } = await import('@/lib/config/env')
+  expect(env.RATE_ANCHORS).toBe(`USD=USDC:${stellarMetadata(network).defaultAsset.assetIssuer}`)
+})
+
+it('preserves an explicit accounting anchor override', async () => {
+  vi.resetModules()
+  vi.stubEnv('RATE_ANCHORS', 'EUR=EURC:custom-anchor')
+  const { env } = await import('@/lib/config/env')
+  expect(env.RATE_ANCHORS).toBe('EUR=EURC:custom-anchor')
 })
 
 it.each([

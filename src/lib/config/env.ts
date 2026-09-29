@@ -6,7 +6,7 @@
  * undefined deep inside a request.
  */
 import { z } from 'zod'
-import { stellarConfigurationProblem } from '@/lib/stellar/network'
+import { stellarConfigurationProblem, stellarMetadata } from '@/lib/stellar/network'
 
 /**
  * Two regexes, deliberately. Do not collapse them.
@@ -87,6 +87,13 @@ const schema = z.object({
 
   // Stellar
   STELLAR_NETWORK: z.enum(['testnet', 'public']).default('testnet'),
+  /**
+   * Accounting export (#80): the anchor asset standing for each reporting
+   * currency, `USD=USDC:G…,EUR=EURC:G…`. Rates are read from the DEX's trade
+   * history for that pair at the claim's ledger time. The default is Circle's
+   * USDC on the selected network; an explicit override names custom anchors.
+   */
+  RATE_ANCHORS: z.string().optional(),
   HORIZON_URL: z.url(),
   NETWORK_PASSPHRASE: z.string().min(1),
   SPONSOR_PUBLIC_KEY: z.string().regex(PUBLIC_KEY, 'must be a Stellar public key (G…)'),
@@ -157,7 +164,10 @@ const schema = z.object({
 }).superRefine((value, context) => {
   const problem = stellarConfigurationProblem(value)
   if (problem) context.addIssue({ code: 'custom', path: ['STELLAR_NETWORK'], message: problem })
-})
+}).transform((value) => ({
+  ...value,
+  RATE_ANCHORS: value.RATE_ANCHORS ?? `USD=USDC:${stellarMetadata(value.STELLAR_NETWORK).defaultAsset.assetIssuer}`,
+}))
 
 /**
  * Every environment key whose value must never reach a log line.

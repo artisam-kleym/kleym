@@ -11,6 +11,9 @@ import { reconcileAll, reconcileCampaign, sweepExpired } from '@/lib/api/reconci
 import { watchEphemerals } from '@/lib/api/stranded'
 import { sweepDeliveryRetention } from '@/lib/api/privacy'
 import { sendReminders } from '@/lib/api/reminders'
+import { runDueTemplates } from '@/lib/api/templates'
+import { env } from '@/lib/config/env'
+import { revalueUnpriced } from '@/lib/api/valuations'
 import { retainAudit } from '@/lib/api/audit-chain'
 
 interface ReconcileJob {
@@ -114,6 +117,40 @@ export function startReminderWorker(): Worker {
   )
   worker.on('failed', (job, error) => {
     logger.warn({ attempt: job?.attemptsMade, reason: error.message }, 'reminder pass attempt failed')
+  })
+  return worker
+}
+
+/** The hourly valuation pass (#80): rows no source could price at settle time are tried again against the same instant. */
+export function startValuationWorker(): Worker {
+  const worker = new Worker(
+    QUEUE.valuations,
+    async () => {
+      const report = await revalueUnpriced()
+      if (report.checked > 0) logger.info(report, 'valuation pass completed')
+      return report
+    },
+    { connection: queueConnection(), concurrency: 1 },
+  )
+  worker.on('failed', (job, error) => {
+    logger.warn({ attempt: job?.attemptsMade, reason: error.message }, 'valuation pass attempt failed')
+  })
+  return worker
+}
+
+/** The hourly template pass (#82): due schedules prepare a DRAFT campaign each and tell the operator. Nothing is signed. */
+export function startTemplateWorker(): Worker {
+  const worker = new Worker(
+    QUEUE.templates,
+    async () => {
+      const report = await runDueTemplates(new Date(), env.MAX_LINKS_PER_CAMPAIGN)
+      if (report.checked > 0) logger.info(report, 'template pass completed')
+      return report
+    },
+    { connection: queueConnection(), concurrency: 1 },
+  )
+  worker.on('failed', (job, error) => {
+    logger.warn({ attempt: job?.attemptsMade, reason: error.message }, 'template pass attempt failed')
   })
   return worker
 }

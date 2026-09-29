@@ -28,6 +28,8 @@
     "fixture:balance-id": "tsx scripts/make-balance-id-fixture.ts",
     "verify:email": "tsx scripts/verify-email.ts",
     "verify:claim-policies": "tsx scripts/verify-claim-policies.ts",
+    "verify:templates": "tsx scripts/verify-templates.ts",
+    "verify:valuations": "tsx scripts/verify-valuations.ts",
     "verify:receipts": "tsx scripts/verify-receipts.ts",
     "verify:reconcile": "tsx scripts/verify-reconcile.ts",
     "verify:reclaim": "tsx scripts/verify-reclaim.ts",

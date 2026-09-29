@@ -173,7 +173,44 @@ pnpm audit:verify-export kleym-regulator-<org>-<date>.json "<x-kleym-signature>"
 (`docs/audit-log.md` §"Signed export" covers the key and how to distribute it.) Each
 export writes an audit row `org.regulator_export` with the window and the row count.
 
-## 4. Claim receipts
+## 4. Accounting export
+
+`GET /api/org/accounting/export?format=csv|json&from=&to=&campaignId=` — Operator and up,
+scoped to the session's organisation. One journal line per settled claim, **valued at the
+claim's own ledger time** in the organisation's reporting currency (Settings → Accounting;
+`reportingCurrency` on `PATCH /api/org`), with the rate, its source and the aggregation
+window it came from on the line. Reclaims are exported as reversals against the expense
+account, valued at the reclaim's own time; the network fee the sponsor paid for each
+movement is its own line in XLM.
+
+The rate is captured once, when the movement settles (`Valuation`), and never recomputed:
+the same range gives byte-identical bytes on every run, and the generation time travels in
+`x-kleym-generated-at` rather than in the body. Rates come from the Stellar DEX's trade
+history for the asset against the anchor that stands for the currency (`RATE_ANCHORS`,
+`USD=USDC:G…`): the close of the claim's hour, or of its day when the hour did not trade.
+A pair with no trades in either window is exported with `rateSource: unavailable` and an
+empty fiat column — never dropped — and the hourly `valuations` pass retries it against the
+same instant until it fills (the asset rate and the fee's XLM rate are separate lookups, each
+with its own source and window on its line; a row's failed tries are counted and the pass
+takes the least-tried rows first, so a pair that never trades cannot starve newer ones);
+`x-kleym-unpriced-lines` counts them. The pass also creates the row for any settled movement
+whose claim-time write failed — a claimed link, a reclaim batch, or a link reconciliation
+corrected from the ledger — so every settled movement has a line within the hour. At claim
+time the price lookup is given three seconds; past that the row is written unpriced for the
+pass, and the claim is not held.
+
+The fee line is TX2's fee (the claim or reclaim transaction). TX1 (materialise) is
+submitted separately and its result is not kept on the link, so its fee is not on the line;
+a reconciliation-corrected movement has no fee line at all, its fee being unknown.
+
+`from` and `to` accept a bare date (`YYYY-MM-DD`), read as that whole day — `to=2026-09-30`
+includes the 30th — or an ISO instant, taken as is. Signed and verified like
+the regulator export (`pnpm audit:verify-export`); audited as `org.accounting_export`.
+
+Accounts are fixed strings a bookkeeper maps once: `Payouts expense`, `Digital assets
+(<code>)`, `Network fees`. The JSON carries both the flat lines and balanced
+debit/credit entries per movement. This is reporting, not tax determination.
+## 5. Claim receipts
 
 Every settled claim has a signed receipt (#81), issued the moment the claim lands and
 never regenerated: the recipient address (read off the submitted envelope), what was

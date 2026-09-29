@@ -14,6 +14,7 @@ import { WEBHOOK_EVENTS } from '@/lib/webhooks/events'
 import { PasswordChange } from './password-change'
 import { Organisation } from './organisation'
 import { listMembers } from '@/lib/api/organizations'
+import { supportedCurrencies } from '@/lib/stellar/rates'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,6 +61,8 @@ export default async function SettingsPage() {
         members={members.map((m) => ({ userId: m.userId, username: m.username, role: m.role, invited: m.invited, isActive: m.isActive }))}
         policy={{ approvalThreshold: org.approvalThreshold, approvalsRequired: org.approvalsRequired }}
         screeningUrl={org.screeningUrl}
+        reportingCurrency={org.reportingCurrency}
+        currencies={supportedCurrencies()}
         mfaPolicy={org.mfaPolicy}
       />
 

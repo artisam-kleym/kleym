@@ -150,7 +150,7 @@ async function tenant() {
   const orgId = await personalOrg(prisma, user.id)
   const key = await issueApiKey(user.id, orgId, 'verify', 'WRITE')
   const readKey = await issueApiKey(user.id, orgId, 'reporting')
-  const org = { id: orgId, name: 'wapi', role: 'OWNER' as const, approvalThreshold: null, approvalsRequired: 1, screeningUrl: null, mfaPolicy: 'OFF' as const }
+  const org = { id: orgId, name: 'wapi', role: 'OWNER' as const, approvalThreshold: null, approvalsRequired: 1, screeningUrl: null, mfaPolicy: 'OFF' as const, reportingCurrency: 'USD' }
   return { userId: user.id, orgId, org, apiKey: key.key, readKey: readKey.key }
 }
 const dir = mkdtempSync(join(tmpdir(), 'kleym-sdk-'))
@@ -304,7 +304,7 @@ async function signedDeliveries(ctx: { campaignId: string; orgId: string }): Pro
 
 /* ── 4. retry with backoff, park, disable ──────────────────────────────── */
 
-async function retryAndPark(ctx: { orgId: string; org: { id: string; name: string; role: 'OWNER'; approvalThreshold: null; approvalsRequired: number; screeningUrl: null; mfaPolicy: 'OFF' }; userId: string }): Promise<void> {
+async function retryAndPark(ctx: { orgId: string; org: { id: string; name: string; role: 'OWNER'; approvalThreshold: null; approvalsRequired: number; screeningUrl: null; mfaPolicy: 'OFF'; reportingCurrency: string }; userId: string }): Promise<void> {
   console.log('\n4. A failing endpoint is retried with backoff, parked, and the organisation sees it')
   receiver.mode = 'fail'
   receiver.hits = []

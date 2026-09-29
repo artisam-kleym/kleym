@@ -3,6 +3,7 @@ import { pageScope } from '@/lib/api/session-guard'
 import { distributedLabel, loadDashboard } from '@/lib/api/dashboard'
 import { MetricCard, ProgressCell, StatusChip, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
 import { formatDate } from '@/components/list/filters'
+import { pendingRuns } from '@/lib/api/templates'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +24,7 @@ const CHIP: Record<string, Status> = {
  */
 export default async function DashboardPage() {
   const { user, org } = await pageScope()
-  const { distributed, counts, recent } = await loadDashboard(org.id)
+  const [{ distributed, counts, recent }, prepared] = await Promise.all([loadDashboard(org.id), pendingRuns(org.id)])
 
   return (
     <>
@@ -31,6 +32,24 @@ export default async function DashboardPage() {
       <p className="mt-md font-mono text-label-md text-on-surface-variant">
         Signed in as {user.username}
       </p>
+
+      {prepared.length > 0 && (
+        // Prepared template runs (#82): drafts a schedule made, waiting for a person to generate keys and sign.
+        <section aria-label="Prepared runs" className="mt-lg rounded-xl border border-outline-variant bg-surface-container-lowest p-md" data-testid="prepared-runs">
+          <h2 className="text-body-md font-bold text-on-surface">Prepared runs waiting for you</h2>
+          <p className="mt-xs text-body-md text-on-surface-variant">
+            Each has its terms and recipients; nothing has moved. Generate the keys, save the secrets file and sign.
+          </p>
+          <ul className="mt-sm flex flex-col gap-xs">
+            {prepared.map((run) => (
+              <li key={run.id} className="font-mono text-label-md">
+                <Link href={`/campaigns/new?draft=${run.campaign.id}`} className="text-primary underline-offset-4 hover:underline">{run.campaign.name}</Link>
+                {' '}· {run.campaign.linkCount} links · {run.campaign.amountPerLink.toFixed()} {run.campaign.assetCode} each · {run.kind.toLowerCase()} {formatDate(run.scheduledFor)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section aria-label="Totals" className="mt-lg grid grid-cols-1 gap-md md:grid-cols-3">
         {distributed.length === 0 ? (

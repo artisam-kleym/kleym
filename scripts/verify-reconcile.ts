@@ -87,9 +87,11 @@ const holding = (ids: string[]) => async (balanceId: string) =>
     : null
 
 const noDisposal = async () => null
+const DISPOSAL_TIME = new Date('2026-09-14T10:15:00.000Z')
 const disposalBy = (claimant: string, hash = randomUUID().replace(/-/g, '')) => async () => ({
   claimant,
   transactionHash: hash,
+  claimedAt: DISPOSAL_TIME,
 })
 
 async function correctsDriftTowardsTheChain(): Promise<void> {
@@ -108,11 +110,14 @@ async function correctsDriftTowardsTheChain(): Promise<void> {
 
   const link = await prisma.claimLink.findUniqueOrThrow({
     where: { id: f.links[0]!.id },
-    select: { status: true, claimedBy: true, claimTxHash: true },
+    select: { status: true, claimedBy: true, claimTxHash: true, claimedAt: true },
   })
   check('the row is CLAIMED', link.status === 'CLAIMED', link.status)
   check('with the claimant the LEDGER named', link.claimedBy === recipient, `${link.claimedBy}`)
   check('and that transaction hash', link.claimTxHash === hash, `${link.claimTxHash}`)
+  check('settled time is the disposal ledger time, not reconciliation time', link.claimedAt?.getTime() === DISPOSAL_TIME.getTime())
+  const valuation = await prisma.valuation.findUnique({ where: { linkId: f.links[0]!.id } })
+  check('valuation uses the same disposal ledger time', valuation?.valuedAt.getTime() === DISPOSAL_TIME.getTime())
 
   const findings = await openFindings()
   const mine = findings.filter((finding) => finding.link.id === f.links[0]!.id)

@@ -43,19 +43,24 @@ export function CampaignWizard(config: WizardConfig) {
   const stepUp = useStepUp()
 
   const reissue = config.reissue ?? null
+  /** Template (#82): terms and list prefilled; for a prepared run the campaign already exists. */
+  const template = config.template ?? null
+  /** A prepared run's terms and list cannot change here: they are the draft's, fixed at preparation. */
+  const locked = template?.draftCampaignId !== null && template?.draftCampaignId !== undefined
   const [draft, setDraft] = useState({
     // A reissue (#78) carries the source campaign's terms; only the expiry is new.
-    name: reissue ? `${reissue.name} (reissue)` : '',
-    network: reissue?.network ?? config.stellar.network,
-    senderPublicKey: reissue?.senderPublicKey ?? '',
-    assetCode: reissue?.assetCode ?? config.stellar.defaultAsset.assetCode,
-    assetIssuer: reissue ? (reissue.assetIssuer ?? '') : config.stellar.defaultAsset.assetIssuer,
-    amountPerLink: reissue?.amountPerLink ?? '',
-    linkCount: reissue ? Math.max(1, reissue.outstanding) : 10,
-    expiresAt: defaultExpiry(),
+    // A template (#82) carries every term, and its own expiry offset.
+    name: template?.name ?? (reissue ? `${reissue.name} (reissue)` : ''),
+    network: template?.network ?? reissue?.network ?? config.stellar.network,
+    senderPublicKey: template?.senderPublicKey ?? reissue?.senderPublicKey ?? '',
+    assetCode: template?.assetCode ?? reissue?.assetCode ?? config.stellar.defaultAsset.assetCode,
+    assetIssuer: template ? (template.assetIssuer ?? '') : reissue ? (reissue.assetIssuer ?? '') : config.stellar.defaultAsset.assetIssuer,
+    amountPerLink: template?.amountPerLink ?? reissue?.amountPerLink ?? '',
+    linkCount: template ? Math.max(1, template.linkCount) : reissue ? Math.max(1, reissue.outstanding) : 10,
+    expiresAt: template?.expiresAt ?? defaultExpiry(),
   })
   /** Reminder points (#78): days before expiry at which emailed, unclaimed recipients hear again. */
-  const [reminderDays, setReminderDays] = useState<number[]>([])
+  const [reminderDays, setReminderDays] = useState<number[]>(template?.reminderDaysBefore ?? [])
 
   /*
    * One piece of state keyed by the address it describes, rather than three
@@ -82,21 +87,29 @@ export function CampaignWizard(config: WizardConfig) {
     [complete, fresh, lookup.balances],
   )
   const [reservePerLink, setReservePerLink] = useState<string | null>(null)
-  const [labels, setLabels] = useState<string[]>([])
-  const [attestations, setAttestations] = useState<(Attestation | null)[]>([])
+  /* The template's recipient list (#82) is the labels field's initial text, parsed once as initial state. */
+  const [labelsInitial] = useState(config.template?.recipientsCsv ?? '')
+  const [recipientsCsv, setRecipientsCsv] = useState(labelsInitial)
+  const initialRecipients = useMemo(() => {
+    if (labelsInitial.trim() === '') return null
+    const parsed = parseLabels(labelsInitial, Math.max(1, config.template?.linkCount ?? 0))
+    return parsed.ok ? parsed : null
+  }, [labelsInitial, config.template?.linkCount])
+  const [labels, setLabels] = useState<string[]>(() => initialRecipients?.labels ?? [])
+  const [attestations, setAttestations] = useState<(Attestation | null)[]>(() => initialRecipients?.attestations ?? [])
   /** Per-link amounts (#73) from the pasted CSV; empty means every link pays the default. */
-  const [amounts, setAmounts] = useState<(string | null)[]>([])
+  const [amounts, setAmounts] = useState<(string | null)[]>(() => initialRecipients?.amounts ?? [])
   const [labelError, setLabelError] = useState<string | null>(null)
   const [filename, setFilename] = useState<string | null>(null)
   /** Who may claim (#79). Open unless the sender says otherwise. */
-  const [claimPolicy, setClaimPolicy] = useState<'open' | 'code' | 'email' | 'passkey'>('open')
+  const [claimPolicy, setClaimPolicy] = useState<'open' | 'code' | 'email' | 'passkey'>(template?.claimPolicy ?? 'open')
   /**
    * Receive-as (#74). The raw field is state; its parse is DERIVED from the
    * raw text AND the campaign asset, so changing the asset after typing the
    * list re-validates "differs from the campaign asset" here rather than as
    * a 400 at signing.
    */
-  const [receiveAsRaw, setReceiveAsRaw] = useState('')
+  const [receiveAsRaw, setReceiveAsRaw] = useState(template?.receiveAsRaw ?? '')
   const receiveAsParsed = useMemo(
     () => parseReceiveAs(receiveAsRaw, { assetCode: draft.assetCode, assetIssuer: draft.assetIssuer }),
     [receiveAsRaw, draft.assetCode, draft.assetIssuer],
@@ -104,8 +117,7 @@ export function CampaignWizard(config: WizardConfig) {
   const receiveAs = useMemo<ReceiveAsEntry[]>(() => (receiveAsParsed.ok ? receiveAsParsed.assets : []), [receiveAsParsed])
   const receiveAsError = receiveAsParsed.ok ? null : receiveAsErrorMessage(receiveAsParsed)
   const onReceiveAs = useCallback((raw: string) => setReceiveAsRaw(raw), [])
-  const [allowExchangeDeposit, setAllowExchangeDeposit] = useState(false)
-  /** Signed receipts (#81): email each recipient theirs on claim. */
+  const [allowExchangeDeposit, setAllowExchangeDeposit] = useState(template?.allowExchangeDeposit ?? false)
   const [emailReceipts, setEmailReceipts] = useState(false)
 
   /*
@@ -212,6 +224,7 @@ export function CampaignWizard(config: WizardConfig) {
 
   const onLabels = useCallback(
     (raw: string) => {
+      setRecipientsCsv(raw)
       if (raw.trim() === '') {
         setLabels([])
         setAttestations([])
@@ -275,7 +288,15 @@ export function CampaignWizard(config: WizardConfig) {
         return
       }
 
-      const campaignId = await createCampaign(draft, wizard.keys.length, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, emailReceipts)
+      /*
+       * A prepared run (#82) already has its DRAFT campaign — a schedule or
+       * "Run now" made it with these terms — so links are registered to it
+       * rather than to a new one. Otherwise a campaign from a template is a
+       * MANUAL run, recorded as such.
+       */
+      const campaignId = template?.draftCampaignId
+        ? template.draftCampaignId
+        : await createCampaign(draft, wizard.keys.length, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template?.templateId ?? null, emailReceipts, recipientsCsv)
       wizard.setCampaignId(campaignId)
       await registerLinks(campaignId, wizard.keys)
 
@@ -302,7 +323,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
     }
-  }, [wizard, draft, cost, stepUp, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, emailReceipts])
+  }, [wizard, draft, cost, stepUp, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template, emailReceipts, recipientsCsv])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -333,6 +354,18 @@ export function CampaignWizard(config: WizardConfig) {
 
   return (
     <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
+      {template && (
+        <div className="mb-lg rounded-lg border border-outline-variant/50 bg-surface-container p-md lg:col-span-2" data-testid="template-banner">
+          <p className="text-label-md font-semibold text-on-surface">
+            {template.draftCampaignId ? `Prepared run of “${template.templateName}”` : `From template “${template.templateName}”`}
+          </p>
+          <p className="mt-1 text-body-md text-on-surface-variant">
+            {template.draftCampaignId
+              ? 'The campaign exists in draft with the template’s terms and recipients. What is left is what only you can do: generate the keys in this tab, save the secrets file, and sign — nothing has moved.'
+              : 'The terms and the recipient list are filled in from the template. Keys are generated fresh here, as for any campaign, and the secrets file must be saved before signing.'}
+          </p>
+        </div>
+      )}
       {reissue && (
         // Both columns: as a plain child it would take the sidebar cell and push the stepper over.
         <div className="mb-lg rounded-lg border border-outline-variant/50 bg-surface-container p-md lg:col-span-2">
@@ -347,6 +380,13 @@ export function CampaignWizard(config: WizardConfig) {
       <Stepper steps={summarise(STEPS, draft, cost, amounts.some((a) => a !== null))} current={wizard.step} />
 
       <div>
+        {/*
+          * A prepared run (#82): the draft's terms and list are fixed — the
+          * link count, policy, sender and asset are already the campaign's
+          * and the server would refuse anything else at registration or
+          * signing. Every field in both steps is disabled; the banner says why.
+          */}
+        <fieldset disabled={locked} className="contents" data-testid={locked ? 'terms-locked' : undefined}>
         {wizard.step === 0 && (
           <AssetStep
             stellar={config.stellar}
@@ -367,6 +407,7 @@ export function CampaignWizard(config: WizardConfig) {
         {wizard.step === 1 && (
           <RecipientsStep
             draft={draft}
+            labelsDefault={labelsInitial}
             onChange={patch}
             labels={labels}
             amounts={amounts}
@@ -383,6 +424,7 @@ export function CampaignWizard(config: WizardConfig) {
             affordable={affordable}
           />
         )}
+        </fieldset>
         {wizard.step === 2 && stepUp.panel}
         {wizard.step === 2 && (
           <ExportStep
@@ -464,7 +506,9 @@ async function createCampaign(
   reminderDaysBefore: number[] = [],
   receiveAs: ReceiveAsEntry[] = [],
   allowExchangeDeposit = false,
+  templateId: string | null = null,
   emailReceipts = false,
+  recipientsCsv = '',
 ): Promise<string> {
   const response = await fetch('/api/campaigns', {
     method: 'POST',
@@ -485,6 +529,8 @@ async function createCampaign(
       // Omitted entirely when empty, so the request is what it always was.
       ...(receiveAs.length > 0 ? { receiveAs } : {}),
       ...(allowExchangeDeposit ? { allowExchangeDeposit } : {}),
+      // A campaign from a template (#82) is recorded as a manual run of it.
+      ...(templateId ? { templateId, recipientsCsv } : {}),
       ...(emailReceipts ? { emailReceipts } : {}),
     }),
   })

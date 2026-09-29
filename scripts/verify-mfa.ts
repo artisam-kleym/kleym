@@ -228,7 +228,7 @@ async function policyHoldsSignIn(): Promise<void> {
   const owner = await user('owner')
   const viewer = await user('viewer')
   await prisma.membership.create({ data: { userId: viewer.id, organizationId: owner.orgId, role: 'VIEWER' } })
-  const org = { id: owner.orgId, name: 'p', role: 'OWNER' as const, approvalThreshold: null, approvalsRequired: 1, screeningUrl: null, mfaPolicy: 'OFF' as const }
+  const org = { id: owner.orgId, name: 'p', role: 'OWNER' as const, approvalThreshold: null, approvalsRequired: 1, screeningUrl: null, mfaPolicy: 'OFF' as const, reportingCurrency: 'USD' }
   const so = await session(owner.id)
   const sv = await session(viewer.id)
   check('before any policy, both sessions are ok', (await state(so.token)) === 'ok' && (await state(sv.token)) === 'ok')

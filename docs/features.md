@@ -20,6 +20,68 @@ State plainly when something is believed correct but unchecked (`AGENT.md` §6.5
 
 <!-- Entries begin below. Newest first. -->
 
+## 2026-09-17 — Campaign templates and recurring schedules (#82)
+
+A campaign's terms — asset, amount, expiry as an offset, claim policy, reminders, receive-as,
+exchange deposit — and its recipient list can be saved as a template ("Save as template" on
+the campaign page, or built from scratch through the API). Starting a campaign from a template
+opens the wizard with everything filled in but the keys. A template can carry a schedule —
+daily, weekly on a weekday, monthly on a day up to the 28th, at an hour UTC — and an hourly
+pass prepares each due run: it creates the campaign in **draft** with the terms and the list,
+records the run, fires `template.run_prepared` to the organisation's webhooks and lists it on
+the dashboard as waiting. **A schedule prepares; a person still signs.** Keys are generated in
+the operator's browser and batches signed by their wallet exactly as for any campaign, and the
+CSV hard gate applies unchanged; nothing here can move money on its own. A run above the
+approval threshold is in the approval queue by construction — it is an ordinary draft whose
+terms hash is its own — so an approval of one run says nothing about the next and a template
+is never a way around dual control. Each template lists every campaign it produced with status,
+links claimed and value. Disabling stops future runs and leaves past ones untouched; deleting
+keeps the campaigns. The write API gains `GET /api/v1/templates`, `PUT …/recipients` (a payroll
+system pushes the list; the operator only signs) and `POST …/run`.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 10 new unit tests — the next-run
+arithmetic for each cadence (including that a due instant never reschedules itself and days a
+month can lack are refused), CSV parsing with per-link amounts and Decimal totals, keys refused
+in a list, the terms shape, and that two runs of one template hash differently while a run
+hashes on its own values. The database side — a template from a campaign carrying its terms and
+links, one draft per due instant with the pointer moved once, no links and no batches on the
+draft, the wizard prefill scoped to the organisation, a run above the threshold in the approval
+queue, disable stopping runs and keeping history — is `scripts/verify-templates.ts`, NOT run
+here (no database in this environment). The migration was authored from the schema diff. The
+wizard prefill and the templates pages were not opened in a browser.
+## 2026-09-17 — Accounting export: journal entries valued at claim time (#80)
+
+An organisation can download a signed journal-entry export — CSV, or JSON with balanced
+debit/credit entries — with one line per settled claim, **valued at the claim's own ledger
+date** in the organisation's reporting currency, the rate and its source on every line.
+Reclaims appear as reversals valued at the reclaim's own time, and the network fee the sponsor
+paid for each movement is its own line in XLM. Date-range and campaign filters; Operator and up;
+Settings → Accounting sets the reporting currency (from the currencies the deployment can
+price) and links the export.
+
+The rate is captured once when the movement settles and stored beside it, never recomputed —
+so an export run twice over the same range is byte-identical, including rates, and the
+generation time is a response header, not part of the file. Rates come from the Stellar DEX's
+own trade history for the asset against the anchor standing for the currency (`RATE_ANCHORS`;
+USDC for USD by default): the close of the claim's hour, or of its day when the hour did not
+trade. A pair no window priced is exported with `rateSource: unavailable` and an empty fiat
+column rather than dropped, and an hourly pass retries it against the same instant until it
+fills — least-tried rows first, the asset rate and the fee's XLM rate each on its own source —
+and creates the row for any settled movement whose claim-time write failed, including a link
+reconciliation corrected from the ledger; once filled, a rate is never touched again. The
+claim-time lookup is bounded to three seconds so a slow Horizon never holds a claim that has
+landed. The fee line is TX2's; `to=YYYY-MM-DD` includes that whole day. Decimal throughout, `.toFixed()` on output:
+no amount renders as an exponent at either extreme the system permits.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 9 new unit tests — claim
+valued at its date with expense/asset accounts and a fee line, reclaim as the reversal at its
+own time, unpriced lines kept and named, no exponent at 0.0000001 or at 16 digits, half-even
+fiat rounding, byte-identical export bodies across runs with a valid signature, balanced
+entries, anchor parsing. The database side — one valuation per claim, replay-safe, filled by
+the pass and never repriced, reclaim reversal, scoped and byte-identical export, claim lines
+summing to the claimed links — is `scripts/verify-valuations.ts`, NOT run here (no database in
+this environment). The DEX rate read (`trade_aggregations`) was not exercised against Horizon
+here. The migration was authored from the schema diff and not run against real data.
 ## 2026-09-17 — Signed delivery receipts, per claim (#81)
 
 Every settled claim now produces a signed receipt: who received what, when, in which
@@ -669,7 +731,11 @@ a hash of (asset, issuer, amount per link, link count, expiry); a decision
 whose hash no longer matches counts for nothing, and the refusal names what
 changed and who had approved the old terms — approve small, edit large, sign
 is the first thing a penetration test tries. The creator's own approval never
-counts, at any role including Owner. Approvals and rejections are audited
+counts, at any role including Owner — and neither does the signer's: the
+first person to register links or take an envelope (wizard or WRITE key) is
+recorded as `signedById`, refused as an approver, and an approval they gave
+before signing is voided the moment they do (#82: a scheduled run's author
+and the operator who continues it can differ, and both are makers). Approvals and rejections are audited
 with approver, campaign and terms hash (and the terms themselves, so "what
 changed" can be named without a second table). A rejection blocks signing
 even alongside approvals. `/approvals` lists what is waiting; the campaign

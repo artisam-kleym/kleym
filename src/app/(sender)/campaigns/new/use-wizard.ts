@@ -43,6 +43,34 @@ export interface WizardConfig {
     outstanding: number
     expiresAt: string
   } | null
+  /**
+   * Template (#82): terms and recipient list prefilled; this campaign is a
+   * MANUAL run of it. Or a PREPARED run: the campaign already exists in
+   * DRAFT (a schedule or "Run now" made it) and only keys are missing — the
+   * terms are the draft's and cannot change here.
+   */
+  template?: TemplatePrefill | null
+}
+
+export interface TemplatePrefill {
+  templateId: string
+  templateName: string
+  /** Set when a DRAFT campaign already exists for this run; the wizard registers links to it instead of creating one. */
+  draftCampaignId: string | null
+  name: string
+  network: 'testnet' | 'public'
+  senderPublicKey: string
+  assetCode: string
+  assetIssuer: string | null
+  amountPerLink: string
+  expiresAt: string
+  claimPolicy: 'open' | 'code' | 'email' | 'passkey'
+  reminderDaysBefore: number[]
+  /** One per line, `XLM` or `CODE:ISSUER` — the raw the receive-as field takes. */
+  receiveAsRaw: string
+  allowExchangeDeposit: boolean
+  recipientsCsv: string
+  linkCount: number
 }
 
 export interface DraftCampaign {

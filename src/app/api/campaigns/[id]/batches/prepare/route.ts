@@ -53,7 +53,8 @@ export async function POST(request: Request, { params }: Params) {
    * that does.
    */
   try {
-    const outcome = await prepareBatch(id, org.id, parsed.data)
+    // Whoever takes the first envelope is the signer (#45, #82), recorded inside before the approval gate.
+    const outcome = await prepareBatch(id, org.id, parsed.data, user.id)
     if (outcome.kind === 'not-found') return notFound()
     if (outcome.kind === 'conflict') return conflict(outcome.detail)
 

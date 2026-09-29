@@ -10,7 +10,7 @@ export interface ApprovalView {
   granted: number
   satisfied: boolean
   reason: string | null
-  approvers: { username: string; decision: string; note: string | null; at: string; current: boolean }[]
+  approvers: { username: string; decision: string; note: string | null; at: string; current: boolean; voided: boolean }[]
 }
 
 /**
@@ -77,6 +77,7 @@ export function ApprovalPanel({
             <li key={a.username}>
               {a.username} · {a.decision.toLowerCase()} · {new Date(a.at).toUTCString()}
               {!a.current && ' · for earlier terms'}
+              {a.voided && ' · campaign maker; approval does not count'}
               {a.note && ` — “${a.note}”`}
             </li>
           ))}
