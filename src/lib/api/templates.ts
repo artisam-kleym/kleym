@@ -299,6 +299,14 @@ export async function prepareRun(
   })
   if (!input.success) return { kind: 'invalid', detail: zodErrors(input.error).map((e) => `${e.path}: ${e.message}`).join('; '), errors: zodErrors(input.error) }
 
+  const total = runTotal(terms, recipients.recipients)
+  const org = await prisma.organization.findUniqueOrThrow({ where: { id: template.organizationId }, select: { approvalThreshold: true, approvalsRequired: true } })
+  const policy = effectivePolicy(
+    { approvalThreshold: org.approvalThreshold, approvalsRequired: org.approvalsRequired },
+    { approvalThreshold: org.approvalThreshold, approvalsRequired: org.approvalsRequired },
+  )
+  const needsApproval = approvalRequired({ amountPerLink: terms.amountPerLink, linkCount: input.data.linkCount, totalAmount: total.toFixed() }, policy)
+
   const campaign = await createCampaign({ userId: actor.userId, organizationId: template.organizationId }, input.data, actor.ip)
   try {
     await prisma.$transaction([
@@ -310,17 +318,10 @@ export async function prepareRun(
     await prisma.campaign.delete({ where: { id: campaign.id } }).catch(() => undefined)
     throw error
   }
-  const total = runTotal(terms, recipients.recipients)
-  const org = await prisma.organization.findUniqueOrThrow({ where: { id: template.organizationId }, select: { approvalThreshold: true, approvalsRequired: true } })
-  const policy = effectivePolicy(
-    { approvalThreshold: org.approvalThreshold, approvalsRequired: org.approvalsRequired },
-    { approvalThreshold: org.approvalThreshold, approvalsRequired: org.approvalsRequired },
-  )
-  const needsApproval = approvalRequired({ amountPerLink: terms.amountPerLink, linkCount: input.data.linkCount, totalAmount: total.toFixed() }, policy)
   await recordAudit({
     userId: actor.userId, organizationId: template.organizationId, action: 'template.run', entityType: 'template', entityId: template.id,
     metadata: { campaignId: campaign.id, kind, scheduledFor: scheduledFor.toISOString(), linkCount: input.data.linkCount, totalAmount: total.toFixed() }, ip: actor.ip,
-  })
+  }).catch((error: unknown) => logger.error({ templateId: template.id, campaignId: campaign.id, reason: error instanceof Error ? error.message : 'unknown' }, 'prepared run audit could not be recorded'))
   logger.info({ templateId: template.id, campaignId: campaign.id, kind, linkCount: input.data.linkCount }, 'template run prepared')
   return { kind: 'ok', value: { campaignId: campaign.id, linkCount: input.data.linkCount, totalAmount: total.toFixed(), approvalRequired: needsApproval } }
 }
@@ -329,6 +330,8 @@ export const RUN_PASS_LIMIT = 50
 
 /** A run that prepared nothing is still a run: recorded FAILED with the reason, announced, and shown in the history. */
 async function recordFailedRun(template: TemplateRow, scheduledFor: Date, reason: string): Promise<void> {
+  // An already persisted result is authoritative even if a later notification fails.
+  if (await prisma.templateRun.findFirst({ where: { templateId: template.id, scheduledFor, kind: 'SCHEDULED' }, select: { id: true } })) return
   await prisma.templateRun.create({ data: { templateId: template.id, campaignId: null, kind: 'SCHEDULED', status: 'FAILED', failure: reason, scheduledFor, recipientsCsv: template.recipientsCsv } })
   await emitWebhook(template.organizationId, 'template.run_failed', { templateId: template.id, templateName: template.name, scheduledFor: scheduledFor.toISOString(), reason })
   logger.warn({ templateId: template.id, reason }, 'scheduled template run could not be prepared')
@@ -371,12 +374,12 @@ export async function runDueTemplates(now: Date = new Date(), maxLinks: number, 
         templateId: template.id, templateName: template.name, campaignId: outcome.value.campaignId, scheduledFor: scheduledFor.toISOString(),
         linkCount: outcome.value.linkCount, amountPerLink: new Decimal(terms.amountPerLink).toFixed(), assetCode: terms.assetCode,
         totalAmount: outcome.value.totalAmount, approvalRequired: outcome.value.approvalRequired,
-      })
+      }).catch((error: unknown) => logger.error({ templateId: template.id, campaignId: outcome.value.campaignId, reason: error instanceof Error ? error.message : 'unknown' }, 'prepared run notification failed'))
       prepared += 1
     } catch (error) {
       failed += 1
       const reason = error instanceof Error ? error.message : 'unknown'
-      await recordFailedRun(template, scheduledFor, `The run failed before a campaign was created: ${reason}`).catch((again: unknown) =>
+      await recordFailedRun(template, scheduledFor, `The run could not be prepared: ${reason}`).catch((again: unknown) =>
         logger.error({ templateId: template.id, reason: again instanceof Error ? again.message : 'unknown' }, 'failed run could not be recorded'),
       )
     }

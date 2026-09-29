@@ -7,7 +7,7 @@
  */
 import { Queue } from 'bullmq'
 import { QUEUE, queueConnection } from './connection'
-import { RECONCILE_EVERY_MINUTES, REMINDER_CRON, RETENTION_CRON, TEMPLATE_CRON, WATCH_EVERY_MINUTES, everyMinutes } from './schedule'
+import { RECONCILE_EVERY_MINUTES, REMINDER_CRON, RETENTION_CRON, VALUATION_CRON, TEMPLATE_CRON, WATCH_EVERY_MINUTES, everyMinutes } from './schedule'
 
 /**
  * A fixed job id per schedule.
@@ -25,6 +25,7 @@ const EPHEMERAL_SCHEDULE = 'ephemeral-watch-every-15m'
 const RETENTION_SCHEDULE = 'delivery-retention-daily'
 const REMINDER_SCHEDULE = 'reminders-hourly'
 const TEMPLATE_SCHEDULE = 'templates-hourly'
+const VALUATION_SCHEDULE = 'valuations-hourly'
 
 let reconcileQueue: Queue | undefined
 let expiryQueue: Queue | undefined
@@ -94,6 +95,20 @@ export function reminderJobs(): Queue {
   }))
 }
 
+let valuationQueue: Queue | undefined
+
+export function valuationJobs(): Queue {
+  return (valuationQueue ??= new Queue(QUEUE.valuations, {
+    connection: queueConnection(),
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 60_000 },
+      removeOnComplete: { age: 7 * 86_400, count: 200 },
+      removeOnFail: { age: 7 * 86_400 },
+    },
+  }))
+}
+
 let templateQueue: Queue | undefined
 
 export function templateJobs(): Queue {
@@ -116,6 +131,7 @@ export async function scheduleMaintenance(): Promise<void> {
   await retentionJobs().upsertJobScheduler(RETENTION_SCHEDULE, { pattern: RETENTION_CRON })
   await reminderJobs().upsertJobScheduler(REMINDER_SCHEDULE, { pattern: REMINDER_CRON })
   await templateJobs().upsertJobScheduler(TEMPLATE_SCHEDULE, { pattern: TEMPLATE_CRON })
+  await valuationJobs().upsertJobScheduler(VALUATION_SCHEDULE, { pattern: VALUATION_CRON })
 }
 
 /**

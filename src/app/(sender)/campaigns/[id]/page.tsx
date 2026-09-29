@@ -77,6 +77,13 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         </p>
       )}
 
+      {campaign.emailReceipts && (
+        // Signed receipts (#81): each email-delivered recipient is mailed theirs on claim.
+        <p className="mt-sm font-mono text-label-md text-on-surface-variant">
+          Recipients delivered to by email are sent a signed receipt when they claim.
+        </p>
+      )}
+
       {campaign.receiveAsAssets.length > 0 && (
         // Receive-as (#74): what a recipient may convert into at claim time, at a live price with a floor.
         <p className="mt-sm font-mono text-label-md text-on-surface-variant">
@@ -188,14 +195,26 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
 
       <div className="mt-xl flex flex-wrap items-baseline justify-between gap-md">
         <h2 className="text-headline-md text-on-surface">Links</h2>
-        <Link
-          href={`/campaigns/${campaign.id}/links`}
-          className="font-mono text-label-md text-primary underline-offset-4 hover:underline"
-        >
-          {campaign.linkCount > LINK_PREVIEW
-            ? `Showing the first ${Math.min(LINK_PREVIEW, campaign.links.length)} — see all ${campaign.linkCount}`
-            : 'Open the full table'}
-        </Link>
+        <div className="flex flex-wrap gap-md">
+          {counts.CLAIMED > 0 && (
+            // Signed receipts (#81): one per settled claim, signed as a bundle and each on its own.
+            <a
+              href={`/api/campaigns/${campaign.id}/receipts?format=csv`}
+              className="font-mono text-label-md text-primary underline-offset-4 hover:underline"
+              data-testid="download-receipts"
+            >
+              Download receipts ({counts.CLAIMED})
+            </a>
+          )}
+          <Link
+            href={`/campaigns/${campaign.id}/links`}
+            className="font-mono text-label-md text-primary underline-offset-4 hover:underline"
+          >
+            {campaign.linkCount > LINK_PREVIEW
+              ? `Showing the first ${Math.min(LINK_PREVIEW, campaign.links.length)} — see all ${campaign.linkCount}`
+              : 'Open the full table'}
+          </Link>
+        </div>
       </div>
       <Table className="mt-md">
         <TableHead columns={['Label', 'Amount', 'Status', 'Claimant', 'Transaction', '']} />

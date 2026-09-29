@@ -150,7 +150,7 @@ export interface ApprovalStatus {
   /** Approvals given for terms that have since changed. */
   stale: string[]
   rejected: { username: string; note: string | null }[]
-  approvers: { username: string; decision: ApprovalDecision; note: string | null; at: Date; current: boolean }[]
+  approvers: { username: string; decision: ApprovalDecision; note: string | null; at: Date; current: boolean; voided: boolean }[]
   termsHash: string
   /** True when signing may proceed. */
   satisfied: boolean
@@ -227,6 +227,7 @@ export function statusOf(campaign: Loaded): ApprovalStatus {
     rejected,
     approvers: campaign.approvals.map((a) => ({
       username: a.approver.username, decision: a.decision, note: a.note, at: a.createdAt, current: a.termsHash === hash,
+      voided: selfApproving(campaign, a.approverId),
     })),
     termsHash: hash,
     satisfied: !required || (rejected.length === 0 && granted >= needed),

@@ -16,6 +16,8 @@ export function AssetStep({
   onReceiveAs,
   allowExchangeDeposit,
   onAllowExchangeDeposit,
+  emailReceipts,
+  onEmailReceipts,
 }: {
   draft: { network: 'testnet' | 'public'; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; name: string }
   onChange: (patch: Partial<typeof draft>) => void
@@ -29,6 +31,9 @@ export function AssetStep({
   /** Exchange deposit (#75): may recipients claim to an address plus a memo? */
   allowExchangeDeposit: boolean
   onAllowExchangeDeposit: (allow: boolean) => void
+  /** Signed receipts (#81): email each recipient theirs when they claim. */
+  emailReceipts: boolean
+  onEmailReceipts: (send: boolean) => void
 }) {
   const native = balances.find((b) => b.assetIssuer === null)
 
@@ -172,6 +177,26 @@ export function AssetStep({
             <span className="font-mono text-label-sm text-on-surface-variant">
               Recipients may enter a deposit address and memo instead of connecting a wallet. Kleym requires
               and checks the memo before signing, and warns that a wrong one cannot be undone.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-sm">
+          <input
+            type="checkbox"
+            name="emailReceipts"
+            checked={emailReceipts}
+            onChange={(e) => onEmailReceipts(e.target.checked)}
+            className="mt-1 h-5 w-5"
+          />
+          <span className="flex flex-col gap-xs">
+            <span className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">
+              Email each recipient a signed receipt when they claim
+            </span>
+            <span className="font-mono text-label-sm text-on-surface-variant">
+              Only recipients you deliver to by email have an address. The receipt names the address that claimed,
+              the amount, the time and the transaction — never the link — and verifies with Kleym’s public key alone.
+              Every claim gets a receipt you can download regardless.
             </span>
           </span>
         </label>

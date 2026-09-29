@@ -130,6 +130,7 @@ describe('dual control on a prepared run (#45, #82)', () => {
     const after = statusOf(loaded('signer-b', [approval('signer-b')]))
     expect(after.satisfied).toBe(false)
     expect(after.granted).toBe(0)
+    expect(after.approvers[0]).toMatchObject({ current: true, voided: true })
     // A third person's approval still stands.
     expect(statusOf(loaded('signer-b', [approval('signer-b'), approval('approver-c')])).satisfied).toBe(true)
   })

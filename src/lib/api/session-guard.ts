@@ -31,6 +31,8 @@ export interface OrgScope {
   screeningUrl: string | null
   /** MFA policy (#47). */
   mfaPolicy: 'OFF' | 'APPROVERS' | 'ALL'
+  /** Accounting export (#80): the fiat currency journal lines are valued in. */
+  reportingCurrency: string
 }
 
 export interface RequestScope {
@@ -54,7 +56,7 @@ export async function resolveScope(user: SessionUser): Promise<OrgScope | null> 
   const memberships = await prisma.membership.findMany({
     where: { userId: user.id },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    select: { role: true, organization: { select: { id: true, name: true, approvalThreshold: true, approvalsRequired: true, screeningUrl: true, mfaPolicy: true } } },
+    select: { role: true, organization: { select: { id: true, name: true, approvalThreshold: true, approvalsRequired: true, screeningUrl: true, mfaPolicy: true, reportingCurrency: true } } },
   })
   if (memberships.length === 0) return null
 
@@ -71,6 +73,7 @@ export async function resolveScope(user: SessionUser): Promise<OrgScope | null> 
     approvalsRequired: chosen.organization.approvalsRequired,
     screeningUrl: chosen.organization.screeningUrl,
     mfaPolicy: chosen.organization.mfaPolicy,
+    reportingCurrency: chosen.organization.reportingCurrency,
   }
 }
 

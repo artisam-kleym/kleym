@@ -23,11 +23,12 @@ console.log(`signature: ${signed ? 'VALID' : 'INVALID'}`)
 
 let chain = 'n/a (csv)'
 if (file.endsWith('.json')) {
-  const doc = JSON.parse(bytes.toString('utf8')) as { format?: string; rows: Array<Record<string, unknown>> }
+  const doc = JSON.parse(bytes.toString('utf8')) as { format?: string; rows?: Array<Record<string, unknown>>; lines?: unknown[] }
   let ok = true
-  const regulator = doc.format === 'kleym-regulator-export'
-  if (regulator) console.log(`format: ${doc.format} (${doc.rows.length} rows; signature only, no hash chain)`)
-  for (const r of regulator ? [] : doc.rows) {
+  // Every export but the audit log is signature-only: no hash chain to recompute.
+  const regulator = doc.format !== undefined && doc.format !== 'kleym-audit-export'
+  if (regulator) console.log(`format: ${doc.format} (${(doc.rows ?? doc.lines ?? []).length} rows; signature only, no hash chain)`)
+  for (const r of regulator ? [] : (doc.rows ?? [])) {
     const recomputed = rowHashFor(String(r.prevHash ?? ''), canonicalRowV1({
       id: String(r.id), seq: BigInt(String(r.seq)), createdAt: new Date(String(r.createdAt)),
       userId: (r.userId as string | null) ?? null, organizationId: (r.organizationId as string | null) ?? null,

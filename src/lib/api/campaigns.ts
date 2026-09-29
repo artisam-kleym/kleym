@@ -117,6 +117,10 @@ export const campaignBodySchema = z
     allowExchangeDeposit: z.boolean().optional(),
     /** Template (#82): this campaign is a manual run of it. Must belong to the caller's organisation. */
     templateId: z.string().min(1).max(64).optional(),
+    /** Freeze the wizard's actual list so a draft can recover before registration. */
+    recipientsCsv: seedFreeString.max(2_000_000).optional(),
+    /** Signed receipts (#81): email each recipient their receipt on claim. Only email-delivered links have an address. */
+    emailReceipts: z.boolean().optional(),
   })
   .strict()
 
@@ -278,16 +282,17 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
       // Stored as refs ("XLM" / "CODE:ISSUER"); read back through parseAssetRef, never trusted raw.
       receiveAsAssets: (input.receiveAs ?? []).map((a) => (a.assetCode === 'XLM' ? 'XLM' : `${a.assetCode}:${a.assetIssuer}`)),
       allowExchangeDeposit: input.allowExchangeDeposit ?? false,
+      emailReceipts: input.emailReceipts ?? false,
     },
     select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true, receiveAsAssets: true, claimPolicy: true, allowExchangeDeposit: true },
   })
   if (input.templateId) {
     // Scoped in the query: a template from another organisation is simply not there, and the campaign stands alone.
-    const template = await prisma.campaignTemplate.findFirst({ where: { id: input.templateId, organizationId: creator.organizationId }, select: { id: true } })
+    const template = await prisma.campaignTemplate.findFirst({ where: { id: input.templateId, organizationId: creator.organizationId }, select: { id: true, recipientsCsv: true } })
     if (template) {
       await prisma.$transaction([
         prisma.campaign.update({ where: { id: campaign.id }, data: { templateId: template.id } }),
-        prisma.templateRun.create({ data: { templateId: template.id, campaignId: campaign.id, kind: 'MANUAL', scheduledFor: campaign.createdAt } }),
+        prisma.templateRun.create({ data: { templateId: template.id, campaignId: campaign.id, kind: 'MANUAL', scheduledFor: campaign.createdAt, recipientsCsv: input.recipientsCsv ?? template.recipientsCsv } }),
       ])
     }
   }

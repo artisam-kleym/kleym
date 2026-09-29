@@ -20,6 +20,7 @@ applyEnvPlaceholders()
 const { prisma } = await import('../src/lib/db/client')
 const { createTemplate, loadTemplate, prepareRun, runDueTemplates, runHistory, templateFromCampaign, updateTemplate, prefillFromDraft } = await import('../src/lib/api/templates')
 const { approvalQueue } = await import('../src/lib/api/approvals')
+const { createCampaign } = await import('../src/lib/api/campaigns')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -30,7 +31,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 async function tenant() {
   const user = await prisma.user.create({ data: { username: `tpl-${randomUUID()}`, passwordHash: 'x', role: 'SENDER' }, select: { id: true } })
   const organizationId = await personalOrg(prisma, user.id)
-  const org = { id: organizationId, name: 'tpl', role: 'OWNER' as const, approvalThreshold: null, approvalsRequired: 1, screeningUrl: null, mfaPolicy: 'OFF' as const }
+  const org = { id: organizationId, name: 'tpl', role: 'OWNER' as const, approvalThreshold: null, approvalsRequired: 1, screeningUrl: null, mfaPolicy: 'OFF' as const, reportingCurrency: 'USD' }
   return { userId: user.id, org }
 }
 
@@ -95,6 +96,17 @@ async function main(): Promise<void> {
   await prisma.campaignTemplate.update({ where: { id: created.value.id }, data: { nextRunAt: new Date(Date.now() - 60_000) } })
   check('a disabled template is not run even when a stale pointer says due', (await runDueTemplates(new Date(), 1000)).prepared === 0)
   check('past runs are untouched', (await runHistory(created.value.id, t.org.id)).length === 3)
+
+  console.log('\n5. A wizard-made run recovers its frozen list before any links register')
+  const recipientsCsv = 'label,amount,reference\ncarol,0.1,INV-C\ndave,0.2,INV-D\n'
+  const wizardDraft = await createCampaign({ userId: t.userId, organizationId: t.org.id }, {
+    name: 'Wizard recovery', network: 'testnet', senderPublicKey: sender, assetCode: 'XLM', amountPerLink: '100', linkCount: 2,
+    expiresAt: new Date(Date.now() + 30 * 86_400_000).toISOString(), templateId: created.value.id, recipientsCsv,
+  }, null)
+  await updateTemplate(actor, created.value.id, { recipientsCsv: 'label\nchanged\n' }, 1000)
+  const recovered = await prefillFromDraft(wizardDraft.id, t.org.id, 1000)
+  check('zero-link draft recovers the exact edited wizard list after a later template edit', recovered?.recipientsCsv === recipientsCsv)
+  check('recovered list retains both per-link amounts and references', recovered?.recipientsCsv.includes('carol,0.1,INV-C') === true && recovered.recipientsCsv.includes('dave,0.2,INV-D'))
 
   await prisma.$disconnect()
   console.log(failures === 0 ? '\nall checks passed' : `\n${failures} check(s) failed`)

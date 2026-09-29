@@ -173,6 +173,74 @@ pnpm audit:verify-export kleym-regulator-<org>-<date>.json "<x-kleym-signature>"
 (`docs/audit-log.md` §"Signed export" covers the key and how to distribute it.) Each
 export writes an audit row `org.regulator_export` with the window and the row count.
 
+## 4. Accounting export
+
+`GET /api/org/accounting/export?format=csv|json&from=&to=&campaignId=` — Operator and up,
+scoped to the session's organisation. One journal line per settled claim, **valued at the
+claim's own ledger time** in the organisation's reporting currency (Settings → Accounting;
+`reportingCurrency` on `PATCH /api/org`), with the rate, its source and the aggregation
+window it came from on the line. Reclaims are exported as reversals against the expense
+account, valued at the reclaim's own time; the network fee the sponsor paid for each
+movement is its own line in XLM.
+
+The rate is captured once, when the movement settles (`Valuation`), and never recomputed:
+the same range gives byte-identical bytes on every run, and the generation time travels in
+`x-kleym-generated-at` rather than in the body. Rates come from the Stellar DEX's trade
+history for the asset against the anchor that stands for the currency (`RATE_ANCHORS`,
+`USD=USDC:G…`): the close of the claim's hour, or of its day when the hour did not trade.
+A pair with no trades in either window is exported with `rateSource: unavailable` and an
+empty fiat column — never dropped — and the hourly `valuations` pass retries it against the
+same instant until it fills (the asset rate and the fee's XLM rate are separate lookups, each
+with its own source and window on its line; a row's failed tries are counted and the pass
+takes the least-tried rows first, so a pair that never trades cannot starve newer ones);
+`x-kleym-unpriced-lines` counts them. The pass also creates the row for any settled movement
+whose claim-time write failed — a claimed link, a reclaim batch, or a link reconciliation
+corrected from the ledger — so every settled movement has a line within the hour. At claim
+time the price lookup is given three seconds; past that the row is written unpriced for the
+pass, and the claim is not held.
+
+The fee line is TX2's fee (the claim or reclaim transaction). TX1 (materialise) is
+submitted separately and its result is not kept on the link, so its fee is not on the line;
+a reconciliation-corrected movement has no fee line at all, its fee being unknown.
+
+`from` and `to` accept a bare date (`YYYY-MM-DD`), read as that whole day — `to=2026-09-30`
+includes the 30th — or an ISO instant, taken as is. Signed and verified like
+the regulator export (`pnpm audit:verify-export`); audited as `org.accounting_export`.
+
+Accounts are fixed strings a bookkeeper maps once: `Payouts expense`, `Digital assets
+(<code>)`, `Network fees`. The JSON carries both the flat lines and balanced
+debit/credit entries per movement. This is reporting, not tax determination.
+## 5. Claim receipts
+
+Every settled claim has a signed receipt (#81), issued the moment the claim lands and
+never regenerated: the recipient address (read off the submitted envelope), what was
+delivered — for a receive-as claim (#74) the destination asset and the amount the ledger paid
+out — the ledger time, the transaction hash, the memo where one applied (#75), the delivery
+channel and the claim policy that applied (#79), and the campaign's terms. The link is named
+by id only: the sender's label, reference, category and note are never in a receipt or a
+recipient's copy; the sender-facing CSV bundle carries them as unsigned columns beside each
+receipt. Nothing derived from the link — no URL, no fragment, no seed.
+
+- `GET /api/campaigns/{id}/links/{linkId}/receipt` — one receipt; the body is its exact
+  signed bytes, the signature and key in the headers above.
+- `GET /api/campaigns/{id}/receipts?format=json|csv` — every receipt of one campaign
+  (Operator and up; audited as `campaign.receipts_export`). A settled claim the claim-time
+  issue missed is issued when a bundle is built.
+- `GET /api/org/receipts?from=&to=&format=` — every receipt of the organisation in a
+  claim-date range (Operator and up; audited as `org.receipts_export`).
+
+A bundle is signed as a whole and each receipt inside carries its own signature over its
+own canonical bytes (the CSV's last column), so one can be lifted out and verified alone:
+
+```
+pnpm receipts:verify kleym-receipts-<campaign>-<date>.json                       # every receipt inside
+pnpm receipts:verify kleym-receipt-rcpt_….json "<x-kleym-signature>" "<x-kleym-signing-key>"
+```
+
+`link.claimed` carries `receiptId`. With "Email each recipient a signed receipt" on, an
+email-delivered recipient is mailed their receipt — the bytes, the signature and the public
+key in the message — when they claim; it carries no link.
+
 ## Verification
 
 `pnpm verify:compliance` (CI) stands up a local receiver and proves: the request shape

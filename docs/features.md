@@ -49,6 +49,71 @@ draft, the wizard prefill scoped to the organisation, a run above the threshold 
 queue, disable stopping runs and keeping history — is `scripts/verify-templates.ts`, NOT run
 here (no database in this environment). The migration was authored from the schema diff. The
 wizard prefill and the templates pages were not opened in a browser.
+## 2026-09-17 — Accounting export: journal entries valued at claim time (#80)
+
+An organisation can download a signed journal-entry export — CSV, or JSON with balanced
+debit/credit entries — with one line per settled claim, **valued at the claim's own ledger
+date** in the organisation's reporting currency, the rate and its source on every line.
+Reclaims appear as reversals valued at the reclaim's own time, and the network fee the sponsor
+paid for each movement is its own line in XLM. Date-range and campaign filters; Operator and up;
+Settings → Accounting sets the reporting currency (from the currencies the deployment can
+price) and links the export.
+
+The rate is captured once when the movement settles and stored beside it, never recomputed —
+so an export run twice over the same range is byte-identical, including rates, and the
+generation time is a response header, not part of the file. Rates come from the Stellar DEX's
+own trade history for the asset against the anchor standing for the currency (`RATE_ANCHORS`;
+USDC for USD by default): the close of the claim's hour, or of its day when the hour did not
+trade. A pair no window priced is exported with `rateSource: unavailable` and an empty fiat
+column rather than dropped, and an hourly pass retries it against the same instant until it
+fills — least-tried rows first, the asset rate and the fee's XLM rate each on its own source —
+and creates the row for any settled movement whose claim-time write failed, including a link
+reconciliation corrected from the ledger; once filled, a rate is never touched again. The
+claim-time lookup is bounded to three seconds so a slow Horizon never holds a claim that has
+landed. The fee line is TX2's; `to=YYYY-MM-DD` includes that whole day. Decimal throughout, `.toFixed()` on output:
+no amount renders as an exponent at either extreme the system permits.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 9 new unit tests — claim
+valued at its date with expense/asset accounts and a fee line, reclaim as the reversal at its
+own time, unpriced lines kept and named, no exponent at 0.0000001 or at 16 digits, half-even
+fiat rounding, byte-identical export bodies across runs with a valid signature, balanced
+entries, anchor parsing. The database side — one valuation per claim, replay-safe, filled by
+the pass and never repriced, reclaim reversal, scoped and byte-identical export, claim lines
+summing to the claimed links — is `scripts/verify-valuations.ts`, NOT run here (no database in
+this environment). The DEX rate read (`trade_aggregations`) was not exercised against Horizon
+here. The migration was authored from the schema diff and not run against real data.
+## 2026-09-17 — Signed delivery receipts, per claim (#81)
+
+Every settled claim now produces a signed receipt: who received what, when, in which
+transaction — the recipient address read off the submitted envelope, **what was delivered**
+(for a receive-as claim the destination asset and the amount the ledger paid out, read off the
+envelope and the result, not the link's figure in the campaign asset), the ledger time, the
+transaction hash, the exchange memo where one applied, the delivery channel and the claim
+policy that applied, and the campaign's terms. The link is named by id only: the sender's
+label, reference, category and note are their own reference data and are never in a receipt
+or in a recipient's copy — the sender-facing CSV bundle carries them as unsigned columns beside
+each receipt. It is generated the
+moment the claim lands and never regenerated, so renaming a campaign later changes nothing a
+receipt already says. A sender downloads one from the links table, all of a campaign's from
+the campaign page (Operator and up, audited), or a claim-date range for the whole organisation; a
+settled claim the claim-time issue missed is issued when a bundle is built, so a bundle holds
+every claimed link the page counts; `link.claimed` carries the
+receipt id. A sender can also have each email-delivered recipient mailed their receipt on
+claim — the receipt's bytes, signature and public key in the message, and never the link.
+
+The receipt is signed with the audit-export key in the same envelope as the audit and regulator
+exports, so one verifier covers all three: `pnpm receipts:verify` checks a saved receipt or a
+whole bundle with the public key alone, no Kleym involved. Altering any field fails it. Nothing
+in a receipt derives from the link — no URL, no fragment, no seed.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 8 new unit tests — verifies
+with the public key (through the same `verifyBytes` the other exports use), deterministic,
+every altered field fails, memo/channel/policy recorded, no exponent, and a `verify-email`-style
+search of the receipt and the recipient email for `/claim`, `#s=`, a seed and any URL. The
+database side (issued exactly once per settled claim, never for an unsettled one,
+organisation-scoped, one per settled claim in the bundle) is `scripts/verify-receipts.ts`,
+which was NOT run here (no database in this environment). The migration was authored from the
+schema diff and not run against real data. Pages not opened in a browser.
 
 ## 2026-09-17 — Unclaimed-value management: reminders, outstanding view, scheduled reclaim (#78)
 

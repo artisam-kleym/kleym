@@ -18,6 +18,9 @@ export const REMINDER_CRON = '41 * * * *'
 export const REMINDER_INTERVAL_MS = 60 * 60_000
 /** Template schedules (#82) are checked hourly; a run is due at an hour, so an hour's granularity is exact. */
 export const TEMPLATE_CRON = '7 * * * *'
+/** Unpriced valuations (#80) are retried hourly against the same historical window; a thin pair fills in when it trades. */
+export const VALUATION_CRON = '53 * * * *'
+export const VALUATION_INTERVAL_MS = 60 * 60_000
 
 /** The delivery retention sweep (#50) runs once a day, at an off-hour minute. */
 export const RETENTION_CRON = '23 3 * * *'

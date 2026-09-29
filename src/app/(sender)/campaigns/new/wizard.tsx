@@ -89,6 +89,7 @@ export function CampaignWizard(config: WizardConfig) {
   const [reservePerLink, setReservePerLink] = useState<string | null>(null)
   /* The template's recipient list (#82) is the labels field's initial text, parsed once as initial state. */
   const [labelsInitial] = useState(config.template?.recipientsCsv ?? '')
+  const [recipientsCsv, setRecipientsCsv] = useState(labelsInitial)
   const initialRecipients = useMemo(() => {
     if (labelsInitial.trim() === '') return null
     const parsed = parseLabels(labelsInitial, Math.max(1, config.template?.linkCount ?? 0))
@@ -117,6 +118,7 @@ export function CampaignWizard(config: WizardConfig) {
   const receiveAsError = receiveAsParsed.ok ? null : receiveAsErrorMessage(receiveAsParsed)
   const onReceiveAs = useCallback((raw: string) => setReceiveAsRaw(raw), [])
   const [allowExchangeDeposit, setAllowExchangeDeposit] = useState(template?.allowExchangeDeposit ?? false)
+  const [emailReceipts, setEmailReceipts] = useState(false)
 
   /*
    * Recovery phrase (#77). A REF, like the seeds in useWizard: the phrase must
@@ -222,6 +224,7 @@ export function CampaignWizard(config: WizardConfig) {
 
   const onLabels = useCallback(
     (raw: string) => {
+      setRecipientsCsv(raw)
       if (raw.trim() === '') {
         setLabels([])
         setAttestations([])
@@ -293,7 +296,7 @@ export function CampaignWizard(config: WizardConfig) {
        */
       const campaignId = template?.draftCampaignId
         ? template.draftCampaignId
-        : await createCampaign(draft, wizard.keys.length, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template?.templateId ?? null)
+        : await createCampaign(draft, wizard.keys.length, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template?.templateId ?? null, emailReceipts, recipientsCsv)
       wizard.setCampaignId(campaignId)
       await registerLinks(campaignId, wizard.keys)
 
@@ -320,7 +323,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
     }
-  }, [wizard, draft, cost, stepUp, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template])
+  }, [wizard, draft, cost, stepUp, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template, emailReceipts, recipientsCsv])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -395,6 +398,8 @@ export function CampaignWizard(config: WizardConfig) {
             onReceiveAs={onReceiveAs}
             allowExchangeDeposit={allowExchangeDeposit}
             onAllowExchangeDeposit={setAllowExchangeDeposit}
+            emailReceipts={emailReceipts}
+            onEmailReceipts={setEmailReceipts}
           />
         )}
         {wizard.step === 1 && (
@@ -500,6 +505,8 @@ async function createCampaign(
   receiveAs: ReceiveAsEntry[] = [],
   allowExchangeDeposit = false,
   templateId: string | null = null,
+  emailReceipts = false,
+  recipientsCsv = '',
 ): Promise<string> {
   const response = await fetch('/api/campaigns', {
     method: 'POST',
@@ -521,7 +528,8 @@ async function createCampaign(
       ...(receiveAs.length > 0 ? { receiveAs } : {}),
       ...(allowExchangeDeposit ? { allowExchangeDeposit } : {}),
       // A campaign from a template (#82) is recorded as a manual run of it.
-      ...(templateId ? { templateId } : {}),
+      ...(templateId ? { templateId, recipientsCsv } : {}),
+      ...(emailReceipts ? { emailReceipts } : {}),
     }),
   })
   if (!response.ok) throw new Error((await problemDetail(response)) ?? 'The campaign could not be created.')

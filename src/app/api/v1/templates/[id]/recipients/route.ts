@@ -62,7 +62,7 @@ export async function PUT(request: Request, { params }: Params) {
 
   try {
     if (!(await loadTemplate(id, auth.caller.organizationId))) return apiNotFound()
-    const org = { id: auth.caller.organizationId, name: '', role: 'OPERATOR' as const, approvalThreshold: null, approvalsRequired: 1, screeningUrl: null, mfaPolicy: 'OFF' as const }
+    const org = { id: auth.caller.organizationId, name: '', role: 'OPERATOR' as const, approvalThreshold: null, approvalsRequired: 1, screeningUrl: null, mfaPolicy: 'OFF' as const, reportingCurrency: 'USD' }
     const outcome = await updateTemplate({ userId: auth.caller.userId, org, ip }, id, { recipientsCsv: csv }, env.MAX_LINKS_PER_CAMPAIGN)
     if (outcome.kind === 'not-found') return apiNotFound()
     if (outcome.kind === 'invalid') return apiConflict(outcome.detail)

@@ -30,4 +30,5 @@ export const QUEUE = {
   deliveryRetention: 'delivery-retention',
   reminders: 'reminders',
   templates: 'templates',
+  valuations: 'valuations',
 } as const
