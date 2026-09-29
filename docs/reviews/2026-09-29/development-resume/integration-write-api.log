@@ -1,0 +1,80 @@
+
+1. The SDK creates a campaign end to end, without a browser
+  PASS  an endpoint is created with a signing key shown once
+{"level":30,"time":1790669786365,"pid":23756,"hostname":"Adealix","keyId":"cmumek1sp0002bwkjct97m5jv","campaignId":"cmumek1xi0005bwkjzwk3lehh","msg":"v1 campaign created"}
+  PASS  the campaign exists and is the organisation's
+  PASS  5 public keys registered with labels and attestation
+  FAIL  the secrets CSV is on disk, mode 0600, one seed per link — mode 666
+  PASS  and re-imports through the server's own parser with its attestation
+  PASS  the export was marked
+  PASS  two batches (3 + 2) were prepared, signed locally and submitted
+  PASS  Horizon was asked for the sender account and given two transactions
+  PASS  the batch-confirm job was queued for each
+  PASS  no request the SDK sent contains a seed
+  PASS  no server log line contains a seed
+  PASS  no database row for the campaign contains a seed
+  PASS  the sender secret was used only locally: it is in no request
+  PASS  KleymClient throws SeedInRequestError and sends nothing when given a seed
+
+1b. A key issued without write scope is refused by every write route, with no side effect
+  PASS  /api/v1/campaigns: 403 insufficient-scope with WWW-Authenticate scope="write"
+  PASS  /api/v1/campaigns/{id}/links: 403 insufficient-scope with WWW-Authenticate scope="write"
+  PASS  /api/v1/campaigns/{id}/export: 403 insufficient-scope with WWW-Authenticate scope="write"
+  PASS  /api/v1/campaigns/{id}/batches/prepare: 403 insufficient-scope with WWW-Authenticate scope="write"
+  PASS  /api/v1/campaigns/{id}/batches/submit: 403 insufficient-scope with WWW-Authenticate scope="write"
+  PASS  nothing was created, registered or audited
+  PASS  the same READ key still reads
+  PASS  and a WRITE key still reads
+  PASS  a key issued without a scope is READ
+
+2. Every write endpoint rejects a planted seed with 400 and a SEED_SUBMITTED event
+{"level":40,"time":1790669787376,"pid":23756,"hostname":"Adealix","securityEvent":"SEED_SUBMITTED","route":"/api/v1/campaigns","field":"senderPublicKey","ip":"unknown","msg":"security event: SEED_SUBMITTED"}
+  PASS  /api/v1/campaigns: 400 problems/seed-submitted
+{"level":40,"time":1790669787436,"pid":23756,"hostname":"Adealix","securityEvent":"SEED_SUBMITTED","route":"/api/v1/campaigns/[id]/links","field":"publicKeys.0","ip":"unknown","msg":"security event: SEED_SUBMITTED"}
+  PASS  /api/v1/campaigns/cmumek1xi0005bwkjzwk3lehh/links: 400 problems/seed-submitted
+{"level":40,"time":1790669787492,"pid":23756,"hostname":"Adealix","securityEvent":"SEED_SUBMITTED","route":"/api/v1/campaigns/[id]/export","field":"note","ip":"unknown","msg":"security event: SEED_SUBMITTED"}
+  PASS  /api/v1/campaigns/cmumek1xi0005bwkjzwk3lehh/export: 400 problems/seed-submitted
+{"level":40,"time":1790669787554,"pid":23756,"hostname":"Adealix","securityEvent":"SEED_SUBMITTED","route":"/api/v1/campaigns/[id]/batches/prepare","field":"memo","ip":"unknown","msg":"security event: SEED_SUBMITTED"}
+  PASS  /api/v1/campaigns/cmumek1xi0005bwkjzwk3lehh/batches/prepare: 400 problems/seed-submitted
+{"level":40,"time":1790669787620,"pid":23756,"hostname":"Adealix","securityEvent":"SEED_SUBMITTED","route":"/api/v1/campaigns/[id]/batches/submit","field":"signedXdr","ip":"unknown","msg":"security event: SEED_SUBMITTED"}
+  PASS  /api/v1/campaigns/cmumek1xi0005bwkjzwk3lehh/batches/submit: 400 problems/seed-submitted
+  PASS  five SEED_SUBMITTED security events were recorded
+  PASS  and none of the audit rows carries the seed
+
+3. Webhook deliveries are signed; the SDK verifier refuses a replay and a tampered body
+  PASS  campaign.created, batch.confirmed ×2, campaign.activated and link.claimed were delivered
+  PASS  the verifier accepts a live delivery
+  PASS  and refuses the same delivery replayed ten minutes later (stale)
+  PASS  and a tampered body (mismatch)
+  PASS  and a wrong key
+  PASS  the delivery id is in the header and the body, for idempotency
+  PASS  link.claimed carries the ephemeral PUBLIC key, the claimant and the hash
+  PASS  no delivery contains a claim URL, a fragment, a seed or an address
+  PASS  the delivery log shows them DELIVERED
+
+4. A failing endpoint is retried with backoff, parked, and the organisation sees it
+{"level":40,"time":1790669789060,"pid":23756,"hostname":"Adealix","deliveryId":"whd_2f37c0be6c0941d591c093c8","endpointId":"cmumek3f0000dbwkjhgbh1qel","attempt":3,"status":500,"reason":"HTTP 500","disabled":false,"msg":"webhook delivery parked"}
+  PASS  after three failed attempts the delivery is PARKED with the receiver's status
+  PASS  the receiver was hit three times
+  PASS  one park counts against the endpoint; it is still enabled
+{"level":40,"time":1790669789972,"pid":23756,"hostname":"Adealix","deliveryId":"whd_782fbccf77414593b121f333","endpointId":"cmumek3f0000dbwkjhgbh1qel","attempt":3,"status":500,"reason":"HTTP 500","disabled":false,"msg":"webhook delivery parked"}
+{"level":40,"time":1790669790776,"pid":23756,"hostname":"Adealix","deliveryId":"whd_80e228aa564342bca76bb9d1","endpointId":"cmumek3f0000dbwkjhgbh1qel","attempt":3,"status":500,"reason":"HTTP 500","disabled":true,"msg":"webhook delivery parked"}
+  PASS  three consecutive parks disable the endpoint
+  PASS  the organisation's list shows it disabled with 3 parked deliveries
+  PASS  and the delivery log names each failure
+  PASS  a disabled endpoint gets no further delivery row (the healthy one still does)
+  PASS  another organisation's log is not readable through this one
+
+5. No payload can carry a claim URL, a fragment, a seed or an address
+  PASS  a claim URL is refused
+  PASS  a bare fragment is refused
+  PASS  a seed is refused
+  PASS  an email address is refused
+  PASS  a clean payload passes
+
+6. Write endpoints are rate-limited per key, separately from reads
+  PASS  the 429 names the write limit
+  PASS  the 31th write in a minute is refused
+  PASS  a read on the same key still works (its own budget)
+
+1 check(s) failed.

@@ -16,9 +16,11 @@ import { randomUUID } from 'node:crypto'
 import { Account, Keypair, Operation, TransactionBuilder, type Transaction } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { startTestnetNetworkFixture } from '../tests/fixtures/horizon-network'
 import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
+const stopNetworkFixture = await startTestnetNetworkFixture()
 
 const { prisma } = await import('../src/lib/db/client')
 const { env } = await import('../src/lib/config/env')
@@ -502,6 +504,7 @@ async function main(): Promise<void> {
     await doesNotClaimAFullyClaimedCampaign()
   } finally {
     await prisma.$disconnect()
+    await stopNetworkFixture()
   }
   console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)
   process.exit(failures === 0 ? 0 : 1)

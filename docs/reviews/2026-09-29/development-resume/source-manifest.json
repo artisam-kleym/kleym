@@ -1,0 +1,212 @@
+{
+  "status": "resumed; local verification saved; Freighter setup required",
+  "baseCommit": "290d5894994f323e83103b29f8dec0a94a3ef12e",
+  "branch": "codex/96-usdc-network",
+  "checkout": "D:\\kleym\\.worktrees\\96-usdc-network",
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "17be2643115d8f2786bd3d32ef506474f6f14e381e1b2b96f361e94a4f0ce334",
+      "bytes": 4690,
+      "new": false
+    },
+    {
+      "path": "docs/freighter-testnet-proof.md",
+      "sha256": "1aeab1593f8a9bf0321c11e8319c952b3b037e29ce76db1dc17deeda6f7ee3e5",
+      "bytes": 3866,
+      "new": true
+    },
+    {
+      "path": "docs/stellar-network.md",
+      "sha256": "f5b5787df1aaaee1f9ec7ffb514261be08e80619030beef3f133056e287a2c66",
+      "bytes": 3644,
+      "new": true
+    },
+    {
+      "path": "e2e/csv-gate.spec.ts",
+      "sha256": "18424c075fb30ad0aed6bdaba18160e03d90d69c877e538ec39a96130a585e01",
+      "bytes": 15208,
+      "new": false
+    },
+    {
+      "path": "packages/sdk/README.md",
+      "sha256": "5a8b1836ec554b448891e21526c8d51acad84d4ad3fe50294f7d972dd9b34cc0",
+      "bytes": 1959,
+      "new": false
+    },
+    {
+      "path": "packages/sdk/src/cli.ts",
+      "sha256": "0409c0fa500d83a58c1702847bc831b2005516dc8bd2f9e729dd49e1e4fa69dc",
+      "bytes": 3152,
+      "new": false
+    },
+    {
+      "path": "packages/sdk/src/client.ts",
+      "sha256": "faf812ed15bf71118d20a79b404fe13148be3369df9f9e6d6ad591faafe194c2",
+      "bytes": 5479,
+      "new": false
+    },
+    {
+      "path": "packages/sdk/src/index.ts",
+      "sha256": "2fd049a705895c128c43517fd16c8790f771feee93b56b781c56bb84331b43eb",
+      "bytes": 699,
+      "new": false
+    },
+    {
+      "path": "scripts/verify-claims.ts",
+      "sha256": "96577418f39dfec1ad625b3881b566147b0be0b55375e3cf1355e5789dd42a42",
+      "bytes": 17583,
+      "new": false
+    },
+    {
+      "path": "scripts/verify-reclaim.ts",
+      "sha256": "3087f7dbdba2b2e2715a1ba6bc5f129b7f6aa7cdac4738e97e3a5c2fb18d05cd",
+      "bytes": 22500,
+      "new": false
+    },
+    {
+      "path": "scripts/verify-sponsors.ts",
+      "sha256": "3ed7303809e66e4ca626b197dbcbc75f06e23b61ebe2646c631a5ab4bb4f0cbc",
+      "bytes": 13728,
+      "new": false
+    },
+    {
+      "path": "scripts/verify-stellar-asset-ui.ts",
+      "sha256": "3e839f16a7cfc8db9f54fe897615ca2925d93c98afe0cc8d33af82914e269637",
+      "bytes": 3606,
+      "new": true
+    },
+    {
+      "path": "scripts/verify-write-api.ts",
+      "sha256": "c83a1ed725fb60c7439e85416a9e622bf4cd3242a059a3b061b672908e663cb1",
+      "bytes": 29131,
+      "new": false
+    },
+    {
+      "path": "src/app/(sender)/campaigns/new/page.tsx",
+      "sha256": "1a20f44610672377341c3285ccad836226367ef6bf948eada0e7c815261daf13",
+      "bytes": 2210,
+      "new": false
+    },
+    {
+      "path": "src/app/(sender)/campaigns/new/steps.tsx",
+      "sha256": "904e786a787067770e64df447cd2a826c9fcdaf594bc613aa390de512f93146c",
+      "bytes": 17371,
+      "new": false
+    },
+    {
+      "path": "src/app/(sender)/campaigns/new/use-wizard.ts",
+      "sha256": "70bdb6c40aa4d0d0e4f29d0c62665ca6198b716a5c0dc1d13dc0357d9fabe3ba",
+      "bytes": 3191,
+      "new": false
+    },
+    {
+      "path": "src/app/(sender)/campaigns/new/wizard.tsx",
+      "sha256": "06432a85d610a9d4bd84c42a7200a709227e1d453142ddc685300cb046caf2cd",
+      "bytes": 24867,
+      "new": false
+    },
+    {
+      "path": "src/app/api/stellar/network/route.ts",
+      "sha256": "4e97654ec3b7ea40c4407f5d736f174df519e674d00dc15ee5f61b762e5911c4",
+      "bytes": 385,
+      "new": true
+    },
+    {
+      "path": "src/instrumentation.ts",
+      "sha256": "79da3cf495c9d288be3a9464172746840f13689d6aea1616f1a2430f6defd8da",
+      "bytes": 938,
+      "new": false
+    },
+    {
+      "path": "src/lib/api/batches.ts",
+      "sha256": "900f4a0e8dd2d6f8900453b4cafbdc0deccc65646f5d9f6baddfb95d71cc5366",
+      "bytes": 19701,
+      "new": false
+    },
+    {
+      "path": "src/lib/api/campaigns.ts",
+      "sha256": "c145744a31a437f23a557af9b959d62012848d34ff07d38b53d6be7642607a84",
+      "bytes": 15204,
+      "new": false
+    },
+    {
+      "path": "src/lib/api/claims.ts",
+      "sha256": "b0888522f5edb6d309ae478037d82a91194417d0f3b71aff0eea353d2137a3b8",
+      "bytes": 44456,
+      "new": false
+    },
+    {
+      "path": "src/lib/api/reclaim.ts",
+      "sha256": "ed0014d50f28455b6aa0db877b5c3da415043ab9c69faf8dbb89a7bb570a8f80",
+      "bytes": 17966,
+      "new": false
+    },
+    {
+      "path": "src/lib/config/env.ts",
+      "sha256": "34e6caba4e2c250d1b4b1c866c8ce96d1f98e67ffe61bcdda3bd2f32e51d06f5",
+      "bytes": 9951,
+      "new": false
+    },
+    {
+      "path": "src/lib/observability/status.ts",
+      "sha256": "baf4d887fc06aa758ea2ba70bf02a102f62731215f0c2ae6ebc9955183e4792b",
+      "bytes": 11678,
+      "new": false
+    },
+    {
+      "path": "src/lib/stellar/context.ts",
+      "sha256": "87ff3f45652df61d22f1edc251f37063573f74eb6e0365a55eff5fa2eee4e0fb",
+      "bytes": 1085,
+      "new": true
+    },
+    {
+      "path": "src/lib/stellar/horizon.ts",
+      "sha256": "a7d5a9b8ac9e3409fabe5486bf6bca22129e973215d6a788de9b5e81ee823159",
+      "bytes": 7157,
+      "new": false
+    },
+    {
+      "path": "src/lib/stellar/network.ts",
+      "sha256": "0d8a4c91667403a035d219012af62088d87bec4f4dc6b3dc0cc1891d7a3bae2c",
+      "bytes": 2700,
+      "new": true
+    },
+    {
+      "path": "tests/fixtures/horizon-network.ts",
+      "sha256": "0342040250f29c2eea5cd70350f482c9b8be24cf3e8e654c0358fc7d7451ab93",
+      "bytes": 1712,
+      "new": true
+    },
+    {
+      "path": "tests/lib/api/campaigns.test.ts",
+      "sha256": "0eeb7dbe7a41d99764df5b2b57bed3ddd58e12aa813ee4c774f86a1c037d26fa",
+      "bytes": 6767,
+      "new": false
+    },
+    {
+      "path": "tests/lib/api/stellar-boundaries.test.ts",
+      "sha256": "34161e424a10f56d736f494e95e36a2dda9cdd6b0475292c43ed19124cf82c9f",
+      "bytes": 7741,
+      "new": true
+    },
+    {
+      "path": "tests/lib/stellar/environment.test.ts",
+      "sha256": "7f0a15bda6d1fe2eaa1d2cc65e6ee47177afd88387e1619091cc5527df4ab51c",
+      "bytes": 1000,
+      "new": true
+    },
+    {
+      "path": "tests/lib/stellar/network-fixture.test.ts",
+      "sha256": "b5c8dd89e5e26b062762a59260c9890d60473c36a56c4884ab7e099e198e178b",
+      "bytes": 1437,
+      "new": true
+    },
+    {
+      "path": "tests/lib/stellar/network.test.ts",
+      "sha256": "45a496ea342829dc9a0d8feaa0f89caac7ff20e8d26772e7cd3e4977d787b8a9",
+      "bytes": 3537,
+      "new": true
+    }
+  ]
+}

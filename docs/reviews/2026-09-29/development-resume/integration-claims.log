@@ -1,0 +1,43 @@
+
+1. resolve answers identically for every unavailable link
+  PASS  unknown, expired, claimed, cancelled and pending are byte-identical
+  PASS  and they match the canonical unavailable shape
+  PASS  which carries no campaign detail at all
+  PASS  a live link does answer differently
+  PASS  and carries what the claim page needs
+  PASS  both shapes have the same keys
+
+2. resolve and claim hold separate per-IP budgets
+  PASS  the first 20 resolves are allowed
+  PASS  the 21st is refused
+  PASS  claim from the same IP is unaffected
+  PASS  the first 10 claims are allowed
+  PASS  the 11th is refused
+  PASS  another IP is unaffected
+
+3. prepare refuses what the row alone would allow
+  PASS  a live link with a live balance loads
+{"level":40,"time":1790669776581,"pid":25348,"hostname":"Adealix","linkId":"cmumejueg000nk4kjl3oe91ae","campaignId":"cmumejuec000mk4kj6hiulzg0","msg":"link is ACTIVE but its balance is not on the ledger"}
+  PASS  an ACTIVE row whose balance has left the ledger is refused, with the reason the page reads
+  PASS  an ACTIVE row past expiresAt is refused as expired, with the reason the page reads
+  PASS  a link with no balance ID is not found
+  PASS  an already-CLAIMED link is not found
+  PASS  a PENDING link is not found
+  PASS  a cancelled campaign is not found
+  PASS  an unknown key is not found
+
+4. submit refuses an envelope prepared for a different link
+  PASS  link A's envelope is refused under link B's key
+  PASS  the victim link is untouched
+  PASS  and carries no hash or claimant
+{"level":30,"time":1790669776884,"pid":25348,"hostname":"Adealix","linkId":"cmumejul5001bk4kjwevembmi","campaignId":"cmumejul0001ak4kjvl5r0t6c","hash":"c2ced768a942b211df8e0e080cf63f1aa94450225f3ce3aeaa7beedb211a0a75","policy":"open","msg":"link claimed"}
+{"level":30,"time":1790669776912,"pid":25348,"hostname":"Adealix","linkId":"cmumejul5001bk4kjwevembmi","campaignId":"cmumejul0001ak4kjvl5r0t6c","receiptId":"rcpt_cmumejul5001bk4kjwevembmi","msg":"claim receipt issued"}
+  PASS  the holder's own envelope still succeeds
+  PASS  their link is CLAIMED
+  PASS  and claimedBy is read from the envelope, not the request
+  PASS  an envelope naming this balance but spending another account is refused
+  PASS  a TX1 that creates another link's account is refused
+  PASS  its own TX1 succeeds
+  PASS  an envelope not sourced from the sponsor is refused
+
+All checks passed.

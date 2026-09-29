@@ -20,6 +20,7 @@
  */
 import Decimal from 'decimal.js'
 import { env } from '@/lib/config/env'
+import { assertHorizonNetwork } from '@/lib/stellar/horizon'
 import { prisma } from '@/lib/db/client'
 import { redis } from '@/lib/redis/client'
 import { QUEUE } from '@/lib/queue/connection'
@@ -65,10 +66,7 @@ export function probeDependencies(): Promise<Probe[]> {
   return Promise.all([
     probe('postgres', () => prisma.$queryRaw`SELECT 1`),
     probe('redis', () => redis.ping()),
-    probe('horizon', async () => {
-      const response = await fetch(env.HORIZON_URL, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    }),
+    probe('horizon', assertHorizonNetwork),
   ])
 }
 

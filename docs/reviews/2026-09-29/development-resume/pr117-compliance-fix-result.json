@@ -1,0 +1,8 @@
+{
+  "suite": "compliance",
+  "exitCode": 0,
+  "passes": 55,
+  "failures": 0,
+  "isolatedDatabase": "kleym_verify_96",
+  "network": "local Testnet identity fixture; no ledger submission"
+}

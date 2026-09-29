@@ -1,0 +1,32 @@
+
+Running 23 tests using 1 worker
+
+(node:12032) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [setup] › e2e\auth.setup.ts:17:1 › authenticate (3.5s)
+(node:25912) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   2 [chromium] › e2e\claim-page.spec.ts:48:3 › hardened surface › loads zero third-party requests (1.4s)
+  ✓   3 [chromium] › e2e\claim-page.spec.ts:63:3 › hardened surface › sends Referrer-Policy: no-referrer and a CSP with no unsafe directives (183ms)
+  ✓   4 [chromium] › e2e\claim-page.spec.ts:82:3 › hardened surface › hydrates under the real CSP (4.4s)
+  ✓   5 [chromium] › e2e\claim-page.spec.ts:98:3 › the fragment › is removed from the URL and appears in no request, cookie or storage (240ms)
+  ✓   6 [chromium] › e2e\claim-page.spec.ts:129:3 › the fragment › sends the public key, never the secret (231ms)
+  ✓   7 [chromium] › e2e\claim-page.spec.ts:144:3 › states › a claimable link reaches ready and shows the amount (239ms)
+  ✓   8 [chromium] › e2e\claim-page.spec.ts:155:3 › states › an unavailable link reaches invalid (204ms)
+  ✓   9 [chromium] › e2e\claim-page.spec.ts:162:3 › states › a malformed fragment reaches invalid without calling the API (182ms)
+  ✓  10 [chromium] › e2e\claim-page.spec.ts:170:3 › states › no fragment at all reaches invalid (180ms)
+  ✓  11 [chromium] › e2e\claim-page.spec.ts:177:3 › accessibility › announces state changes through a live region (223ms)
+  ✓  12 [chromium] › e2e\claim-page.spec.ts:186:3 › accessibility › the claim button is reachable and operable by keyboard (223ms)
+  ✓  13 [chromium] › e2e\claim-page.spec.ts:195:3 › accessibility › has one h1 and a main landmark (199ms)
+  ✓  14 [chromium] › e2e\claim-page.spec.ts:204:3 › accessibility › stops the decorative pulse under prefers-reduced-motion (235ms)
+  ✓  15 [chromium] › e2e\claim-page.spec.ts:222:3 › voice › uses no jargon a recipient would not know (242ms)
+  ✓  16 [chromium] › e2e\csv-gate.spec.ts:60:3 › deployment asset identity (#96) › locks the network and selects official USDC after hydration (563ms)
+  ✓  17 [chromium] › e2e\csv-gate.spec.ts:83:3 › deployment asset identity (#96) › keeps missing official USDC unavailable and allows explicit XLM (294ms)
+  ✓  18 [chromium] › e2e\csv-gate.spec.ts:140:3 › recovery phrase (#77) › keys cannot be generated before the phrase is confirmed, and the trade is stated (1.1s)
+  ✓  19 [chromium] › e2e\csv-gate.spec.ts:158:3 › recovery phrase (#77) › the phrase appears in no request, no storage and no server-rendered payload (700ms)
+  ✓  20 [chromium] › e2e\csv-gate.spec.ts:209:3 › CSV gate › signing is unreachable until the export has fired (724ms)
+  ✓  21 [chromium] › e2e\csv-gate.spec.ts:251:3 › CSV gate › no seed leaves the browser (816ms)
+  ✓  22 [chromium] › e2e\csv-gate.spec.ts:299:3 › CSV gate › regenerating shuts the gate again (885ms)
+  ✓  23 [chromium] › e2e\csv-gate.spec.ts:324:3 › CSV gate › labels refuse an address and a seed (406ms)
+
+  23 passed (27.3s)

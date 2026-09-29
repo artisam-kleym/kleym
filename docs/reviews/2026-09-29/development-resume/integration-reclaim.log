@@ -1,0 +1,84 @@
+
+1. Prepare before expiresAt is refused
+  PASS  it is refused
+  PASS  as not-expired, which the panel must NOT read as nothing-left
+  PASS  and says why, naming the date
+
+2. The op list comes from the ledger, not the rows
+  PASS  it prepares
+  PASS  one operation, not three
+  PASS  and it is the one the ledger still holds
+
+3. 200 unclaimed links produce exactly 3 batches, walked by re-preparing
+  PASS  it prepares
+  PASS  exactly 3 batches remain
+  PASS  the first holds 90
+  PASS  after batch 1 lands, 2 remain
+  PASS  and the next holds 90 — links 91–180, not 181–200
+  PASS  the third holds the remaining 20
+  PASS  then nothing is left, and it says so by reason, not only by prose
+  PASS  a `sequence` in the body is rejected
+
+4. A balance claimed while the sender signs does not fail the batch
+  PASS  the stale envelope is refused
+  PASS  and the sender is told to prepare again
+  PASS  nothing was sent to the network
+  PASS  and no row was marked reclaimed
+  PASS  the rebuilt batch drops the claimed one
+{"level":30,"time":1790669783041,"pid":18436,"hostname":"Adealix","campaignId":"cmumejzaw006084kj0qmy2uy3","hash":"bbb28ae3e81fde00be8b6b9ec13a5033029928f1ebddc9ab2273df322dc2c3d3","balances":2,"amount":"5","msg":"reclaim submitted"}
+  PASS  and the rest are returned
+  PASS  two balances
+
+5. Rows and amounts come from the ledger, exactly
+  PASS  the quoted total is the ledger sum
+  PASS  and not the float answer
+{"level":30,"time":1790669783158,"pid":18436,"hostname":"Adealix","campaignId":"cmumejzfq006784kjbg4ofqrl","hash":"72240d962933a7a34e261a90ef888eda2a650650d10b75fbad6757a3c0ed2ec1","balances":2,"amount":"0.3","msg":"reclaim submitted"}
+  PASS  it submits
+  PASS  one transaction was sent
+  PASS  recorded under the hash that was sent
+  PASS  every link is RECLAIMED
+  PASS  each carries the transaction hash
+  PASS  and records the sender as the recipient
+  PASS  the reclaim total is exact
+  PASS  over two balances
+  PASS  one stroop is quoted as 0.0000001, not 1e-7
+{"level":30,"time":1790669783255,"pid":18436,"hostname":"Adealix","campaignId":"cmumejzj0006d84kjoomg1k5o","hash":"a3201d53b56f239b7208eab3cb398819160859786da366c5fd04f411932778b3","balances":1,"amount":"0.0000001","msg":"reclaim submitted"}
+  PASS  and submitted the same way
+  PASS  the campaign is RECLAIMED
+  PASS  and the response agrees
+  PASS  with nothing remaining
+
+6. An envelope reaching for another campaign's funds
+  PASS  it is refused
+  PASS  as not belonging to this campaign
+  PASS  nothing was sent
+  PASS  and the victim's link is untouched
+
+7. An envelope carrying an extra operation
+  PASS  it is refused
+  PASS  nothing was sent
+
+8. The same signed envelope arriving twice
+{"level":30,"time":1790669783508,"pid":18436,"hostname":"Adealix","campaignId":"cmumejzpq006u84kj58g8fjoc","hash":"69a82ba8a732ceb3b4e07e7689b819c60ab7354c2a0515a7a608ac71d5bce43d","balances":2,"amount":"5","msg":"reclaim submitted"}
+  PASS  the first submits
+  PASS  the second is a replay
+  PASS  reporting the same hash
+  PASS  and the same amount
+  PASS  the network saw it once
+  PASS  one reclaim was recorded, not two
+
+9. The same envelope submitted twice at once
+{"level":30,"time":1790669783699,"pid":18436,"hostname":"Adealix","campaignId":"cmumejzt8007084kjifn8l94o","hash":"2099ee08208fd4df790d20f1f92e39f67aa878a9712713f8025f1f7c29c44f4b","balances":2,"amount":"5","msg":"reclaim submitted"}
+  PASS  both reached the write
+  PASS  both callers get an answer
+  PASS  reporting the same hash
+  PASS  and the same amount
+  PASS  exactly one reclaim was recorded
+  PASS  every link is RECLAIMED once
+
+10. A campaign whose links were all claimed by recipients
+  PASS  there is nothing to reclaim
+  PASS  and it says so plainly
+  PASS  the campaign does NOT become RECLAIMED
+
+All checks passed.

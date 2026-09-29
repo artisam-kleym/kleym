@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Keypair } from '@stellar/stellar-sdk'
 import { cadenceSchema, nextRun, parseRecipients, refusedTerms, runTotal, templateSchema, templateTermsSchema } from '@/lib/api/templates'
 import { selfApproving, statusOf, termsHash } from '@/lib/api/approvals'
+import { stellarMetadata } from '@/lib/stellar/network'
 
 /*
  * #82. The schedule and the template's terms are pure; the runs — a DRAFT
@@ -85,11 +86,12 @@ describe('template terms', () => {
 describe('refusedTerms — the campaign schema judges a template at save time, not at its first run', () => {
   it('passes terms a campaign would accept', () => {
     expect(refusedTerms(terms)).toBeNull()
-    expect(refusedTerms({ ...terms, assetCode: 'USDC', assetIssuer: PUB })).toBeNull()
+    expect(refusedTerms({ ...terms, ...stellarMetadata('testnet').defaultAsset })).toBeNull()
+    expect(refusedTerms({ ...terms, assetCode: 'USDC', assetIssuer: PUB })).not.toBeNull()
   })
 
   it('refuses a credit asset with no issuer', () => {
-    expect(refusedTerms({ ...terms, assetCode: 'USDC' })).toEqual([expect.objectContaining({ path: 'assetIssuer' })])
+    expect(refusedTerms({ ...terms, assetCode: 'USDC' })).toEqual(expect.arrayContaining([expect.objectContaining({ path: 'assetIssuer', message: 'a non-native asset requires an issuer' })]))
   })
 
   it('refuses an issuer on XLM', () => {

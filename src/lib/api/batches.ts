@@ -25,6 +25,7 @@ import {
   verifyBatchTransaction,
 } from '@/lib/stellar/batch'
 import { assetOf, baseReserve, horizon, reservePerLink } from '@/lib/stellar/horizon'
+import { campaignContextProblem, stellarContextProblem } from '@/lib/stellar/context'
 
 /** Kleym always writes two claimants per link — SPEC.md §3.2. */
 export const CLAIMANTS_PER_LINK = 2
@@ -70,6 +71,7 @@ async function loadCampaign(campaignId: string, organizationId: string) {
       id: true, name: true, status: true, network: true, senderPublicKey: true,
       assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true,
       expiresAt: true, csvExportedAt: true,
+      sponsorPublicKey: true,
     },
   })
 }
@@ -158,6 +160,9 @@ export async function prepareBatch(
 ): Promise<BatchOutcome<PreparedBatch>> {
   const campaign = await loadCampaign(campaignId, organizationId)
   if (!campaign) return { kind: 'not-found' }
+
+  const networkProblem = await stellarContextProblem(campaign)
+  if (networkProblem) return conflict(networkProblem)
 
   const blocked = notReadyToSign(campaign)
   if (blocked) return blocked
@@ -272,6 +277,9 @@ export async function submitBatch(
   const campaign = await loadCampaign(campaignId, organizationId)
   if (!campaign) return { kind: 'not-found' }
 
+  const networkProblem = campaignContextProblem(campaign)
+  if (networkProblem) return conflict(networkProblem)
+
   // The same gate at the moment money moves. A wallet holding an envelope
   // prepared before an approval was withdrawn does not get to submit it.
   const unapproved = await approvalGate(campaign.id)
@@ -304,6 +312,9 @@ export async function submitBatch(
       value: { sequence: batch.sequence, status: batch.status, transactionHash: batch.transactionHash, replay: true },
     }
   }
+
+  const providerProblem = await stellarContextProblem(campaign)
+  if (providerProblem) return conflict(providerProblem)
 
   const verified = verifyBatchTransaction(input.signedXdr, {
     senderPublicKey: campaign.senderPublicKey,

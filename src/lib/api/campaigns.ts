@@ -9,6 +9,7 @@
 import { z } from 'zod'
 import { Decimal } from 'decimal.js'
 import { env } from '@/lib/config/env'
+import { isOfficialUsdc } from '@/lib/stellar/network'
 
 /*
  * Read LAZILY, inside a refine, never at schema-construction time.
@@ -125,6 +126,14 @@ export const campaignBodySchema = z
   .strict()
 
 export const createCampaignSchema = campaignBodySchema
+  .refine((v) => v.network === env.STELLAR_NETWORK, {
+    message: 'must match the Stellar network of this deployment',
+    path: ['network'],
+  })
+  .refine((v) => v.assetCode !== 'USDC' || isOfficialUsdc(v.network, v), {
+    message: 'USDC must use the official Circle issuer for the selected network',
+    path: ['assetIssuer'],
+  })
   .refine((v) => !v.receiveAs || v.receiveAs.every((a) => !sameAsset(a, v)), {
     message: 'receive-as assets must differ from the campaign asset',
     path: ['receiveAs'],
@@ -256,6 +265,9 @@ export type CreateCampaignInput = z.infer<typeof createCampaignSchema>
  * here has seen one, and nothing here will ever see a seed.
  */
 export async function createCampaign(creator: CampaignCreator, input: CreateCampaignInput, ip: string | null) {
+  // Shared functions can also be called by local tooling; do not rely solely
+  // on an HTTP route having parsed its body.
+  input = createCampaignSchema.parse(input)
   const [{ sponsor }, org] = await Promise.all([
     chooseSponsor(),
     prisma.organization.findUniqueOrThrow({ where: { id: creator.organizationId }, select: { approvalThreshold: true, approvalsRequired: true } }),

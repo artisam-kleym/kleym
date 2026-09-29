@@ -51,10 +51,10 @@ export function CampaignWizard(config: WizardConfig) {
     // A reissue (#78) carries the source campaign's terms; only the expiry is new.
     // A template (#82) carries every term, and its own expiry offset.
     name: template?.name ?? (reissue ? `${reissue.name} (reissue)` : ''),
-    network: template?.network ?? reissue?.network ?? ('testnet' as 'testnet' | 'public'),
+    network: template?.network ?? reissue?.network ?? config.stellar.network,
     senderPublicKey: template?.senderPublicKey ?? reissue?.senderPublicKey ?? '',
-    assetCode: template?.assetCode ?? reissue?.assetCode ?? 'XLM',
-    assetIssuer: template?.assetIssuer ?? reissue?.assetIssuer ?? '',
+    assetCode: template?.assetCode ?? reissue?.assetCode ?? config.stellar.defaultAsset.assetCode,
+    assetIssuer: template ? (template.assetIssuer ?? '') : reissue ? (reissue.assetIssuer ?? '') : config.stellar.defaultAsset.assetIssuer,
     amountPerLink: template?.amountPerLink ?? reissue?.amountPerLink ?? '',
     linkCount: template ? Math.max(1, template.linkCount) : reissue ? Math.max(1, reissue.outstanding) : 10,
     expiresAt: template?.expiresAt ?? defaultExpiry(),
@@ -335,6 +335,7 @@ export function CampaignWizard(config: WizardConfig) {
         draft.name.trim().length > 0 &&
         draft.senderPublicKey.length === 56 &&
         accountExists === true &&
+        balances.some((balance) => balance.assetCode === draft.assetCode && (balance.assetIssuer ?? '') === draft.assetIssuer) &&
         draft.amountPerLink.trim().length > 0 &&
         receiveAsError === null
       )
@@ -349,7 +350,7 @@ export function CampaignWizard(config: WizardConfig) {
       )
     }
     return false
-  }, [wizard.step, draft, accountExists, config.maxLinksPerCampaign, labelError, cost, receiveAsError])
+  }, [wizard.step, draft, accountExists, balances, config.maxLinksPerCampaign, labelError, cost, receiveAsError])
 
   return (
     <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
@@ -388,6 +389,7 @@ export function CampaignWizard(config: WizardConfig) {
         <fieldset disabled={locked} className="contents" data-testid={locked ? 'terms-locked' : undefined}>
         {wizard.step === 0 && (
           <AssetStep
+            stellar={config.stellar}
             draft={draft}
             onChange={patch}
             balances={balances}

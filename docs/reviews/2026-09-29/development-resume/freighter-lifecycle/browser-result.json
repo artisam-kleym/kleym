@@ -1,0 +1,13 @@
+{
+  "checkedAtUTC": "2026-09-29T09:42:05.282Z",
+  "passed": true,
+  "results": [
+    "Hydrated page with correct addresses; funding/claim disabled initially; no POST on opening; 390px has no horizontal overflow.",
+    "Local key generation and private CSV download work; funding requires download plus explicit saved acknowledgment; no seeds in DOM/storage/requests. CSV not retained.",
+    "Foreign origin/Host/header, unexpected fields and submission without prepared work rejected. No faucet or ledger write invoked.",
+    "Freighter-only chooser loads without CSP or browser execution errors. Empty profile does not prove actual wallet signing."
+  ],
+  "actualFreighterSigning": false,
+  "lifecycleSettlement": false,
+  "retainedCsv": false
+}

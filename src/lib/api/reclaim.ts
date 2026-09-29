@@ -25,6 +25,7 @@ import {
   verifyReclaimTransaction,
 } from '@/lib/stellar/reclaim'
 import { horizon } from '@/lib/stellar/horizon'
+import { stellarContextProblem } from '@/lib/stellar/context'
 import { horizonResultCode } from './batches'
 import { recordReclaimValuation } from './valuations'
 import { feeChargedOf } from '@/lib/stellar/fees'
@@ -145,7 +146,7 @@ async function loadCampaign(campaignId: string, organizationId: string) {
   return prisma.campaign.findFirst({
     where: owned(campaignId, organizationId),
     select: {
-      id: true, name: true, status: true, senderPublicKey: true,
+      id: true, name: true, status: true, senderPublicKey: true, network: true, sponsorPublicKey: true,
       assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true,
     },
   })
@@ -201,6 +202,9 @@ export async function prepareReclaim(
 ): Promise<ReclaimOutcome<PreparedReclaim>> {
   const campaign = await loadCampaign(campaignId, organizationId)
   if (!campaign) return { kind: 'not-found' }
+
+  const networkProblem = await stellarContextProblem(campaign)
+  if (networkProblem) return conflict(networkProblem)
 
   if (Date.now() < campaign.expiresAt.getTime()) {
     return conflict(
@@ -278,6 +282,9 @@ export async function submitReclaim(
 ): Promise<ReclaimOutcome<SubmittedReclaim>> {
   const campaign = await loadCampaign(campaignId, organizationId)
   if (!campaign) return { kind: 'not-found' }
+
+  const networkProblem = await stellarContextProblem(campaign)
+  if (networkProblem) return conflict(networkProblem)
 
   if (Date.now() < campaign.expiresAt.getTime()) {
     return conflict('This campaign has not expired yet.', 'not-expired')

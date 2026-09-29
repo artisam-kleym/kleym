@@ -1,0 +1,64 @@
+{
+  "recordedAtUTC": "2026-09-29T10:08:22.006Z",
+  "positiveLifecyclePassed": true,
+  "fullIssue97Complete": false,
+  "proof": "independent-reclaim-proof-2026-09-29T10-05-46-672Z.json",
+  "runtimeSourceUnchangedSincePreparation": true,
+  "documentationChanged": [
+    "docs/freighter-testnet-proof.md"
+  ],
+  "checkout": "D:\\kleym\\.worktrees\\96-usdc-network",
+  "files": [
+    {
+      "path": "scripts/spike-freighter-lifecycle.ts",
+      "sha256": "e1e8de22d183ea8588a2684e2cc8296ec30d452bc406e3ef00a4c03a94c32bac"
+    },
+    {
+      "path": "scripts/freighter-lifecycle-browser.ts",
+      "sha256": "c75a282179dd87b50aafc2cc39683550791988b20bfdeab7bf88554d2609e28c"
+    },
+    {
+      "path": "scripts/lib/freighter-lifecycle.ts",
+      "sha256": "32449aedeb1f2b7ebbc9cc0e08f6151815e3038172569f5a7a90c87edf8b7ed0"
+    },
+    {
+      "path": "scripts/start-freighter-lifecycle.ps1",
+      "sha256": "8c690265f8d6dc81d486b9d5934a0cbd8de1bba68f200198ff7ed673c49063d5"
+    },
+    {
+      "path": "tests/scripts/freighter-lifecycle.test.ts",
+      "sha256": "4736e7604c5f5fe1ed8dbc73d684fd52101b8b7b35d98a7fc831cdd1a5388acc"
+    },
+    {
+      "path": "docs/freighter-testnet-proof.md",
+      "sha256": "327ba518395b2e803638de31fc8f29720b10684c50a51dd786a1ad81db0c435b"
+    },
+    {
+      "path": "src/lib/wallet/signing.ts",
+      "sha256": "048d9d5fe3dbce91e0307ea15707164f867dd5ab155dea096bb017e3f5687914"
+    },
+    {
+      "path": "src/lib/stellar/claim.ts",
+      "sha256": "4db2cf67cee9493f4ae152ca0f0daff06f66bab172e2e199600d174547cc1831"
+    },
+    {
+      "path": "src/lib/stellar/batch.ts",
+      "sha256": "2850c3eabf7f86976ee2bce2babe9336848638596fbeb61bbed1313b769afa4c"
+    },
+    {
+      "path": "src/lib/campaign/csv.ts",
+      "sha256": "1e200e8c94036fafc5f04e104b03617b1f1ef00de3cfdcbd077a215f871d3d87"
+    },
+    {
+      "path": "src/lib/campaign/keygen.ts",
+      "sha256": "4a65f83cc414f21a12a00717f19f46bf4ab3f593ebe34fe54e339cbda67f8ec4"
+    },
+    {
+      "path": "scripts/lib/freighter-bootstrap.ts",
+      "sha256": "a635a7e6c5d7bbd5141607b252c39912b385b7faf59800496943b8338e4dbb1a"
+    }
+  ],
+  "currentReportSha256": "893b563ae45b222f13c56af6640f86b3eeb91432b68f50fe89c17e1e4f72609d",
+  "priorPreparationChecksReused": true,
+  "externalPublication": false
+}

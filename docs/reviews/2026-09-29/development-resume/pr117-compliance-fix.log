@@ -1,0 +1,77 @@
+
+1. A configured callback is invoked before submission, with terms and references
+  PASS  the callback was called exactly once
+  PASS  with the documented version and the campaign terms
+  PASS  and the organisation
+  PASS  and one recipient per link with its reference fields
+  PASS  no recipient carries key material: no seed-shaped string, no ephemeral public key
+  PASS  the request is HMAC-signed over its exact bytes
+  PASS  an ALLOW lets prepareBatch past the gate (it went on to Horizon)
+  PASS  the ALLOW is recorded on the campaign, bound to a hash
+  PASS  and audited with the provider reference, not shown to anyone
+
+2. A hold or a block prevents submission; the reason reaches the sender
+  PASS  hold: prepareBatch hands over nothing
+  PASS  and the provider's reason is in the detail
+  PASS  but not its case reference
+  PASS  recorded as HOLD with the reason
+  PASS  submitBatch asks again after a hold and is refused too
+  PASS  the next attempt asks the provider again, and a hold lifts
+  PASS  block: refused with the reason
+  PASS  a block is final: not asked again, still refused
+  PASS  and submitBatch refuses without a call
+
+3. A callback that times out or errors fails CLOSED
+{"level":40,"time":1790677515109,"pid":17680,"hostname":"Adealix","campaignId":"cmumj5oxb000jn4kjjf475mhq","reason":"timeout","msg":"screening callback failed; holding"}
+  PASS  timeout: held, not allowed
+  PASS  within the configured budget, not the provider's
+  PASS  recorded as HOLD with no reason to show
+  PASS  the audit row says the provider did not decide
+{"level":40,"time":1790677515154,"pid":17680,"hostname":"Adealix","campaignId":"cmumj5oxb000jn4kjjf475mhq","status":500,"msg":"screening callback refused; holding"}
+  PASS  5xx: held
+{"level":40,"time":1790677515192,"pid":17680,"hostname":"Adealix","campaignId":"cmumj5oxb000jn4kjjf475mhq","msg":"screening callback answered with an unreadable body; holding"}
+  PASS  an unreadable answer: held
+{"level":40,"time":1790677515236,"pid":17680,"hostname":"Adealix","campaignId":"cmumj5oxb000jn4kjjf475mhq","reason":"fetch failed","msg":"screening callback failed; holding"}
+  PASS  connection refused: held
+  PASS  nothing in any of these went past the gate
+
+4. submitBatch honours an ALLOW only for exactly what was screened
+  PASS  submit after an ALLOW does not ask again
+  PASS  a changed recipient reference invalidates the ALLOW: asked again, and held
+  PASS  a different callback URL invalidates it too
+
+5. With no callback configured, behaviour is what it was
+  PASS  the gate itself answers null
+  PASS  prepareBatch went straight through to Horizon
+  PASS  no HTTP call other than Horizon was made — none from the gate
+  PASS  nothing was written to the campaign
+  PASS  and no audit row exists
+
+6. Attestation fields are stored, and absent from the claim path
+  PASS  registerLinks stored reference, category and note
+  PASS  resolveLink has the same keys for a link with and without attestation
+  PASS  and none of the attestation values appear in it
+  PASS  claims.ts selects none of the attestation columns
+
+7. The regulator export is scoped to one organisation, signed and verifiable
+  PASS  one row per link of the organisation's campaigns
+  PASS  and none from another organisation
+  PASS  who sent what, to whom, when, and the transaction
+  PASS  no delivery email column
+  PASS  json and csv are both signed and verify with the public key alone
+  PASS  one flipped byte fails verification
+  PASS  the JSON names its format and organisation
+  PASS  the CSV header is the documented column list
+  PASS  a date window applies
+
+8. Only a URL Kleym should call can be configured
+  PASS  https is accepted
+  PASS  null switches it off
+  PASS  loopback http is accepted for a local receiver
+  PASS  plain http elsewhere is refused
+  PASS  credentials in the URL are refused
+  PASS  other schemes are refused
+  PASS  in production, loopback http is refused
+  PASS  in production, https is still accepted and null still switches it off
+
+All checks passed.

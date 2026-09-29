@@ -1,0 +1,1062 @@
+{
+  "checkedAtUTC": "2026-09-29T10:05:46.672Z",
+  "network": "testnet",
+  "providerPassphraseVerified": true,
+  "sourceManifestMatchesAtExecution": true,
+  "passed": true,
+  "positiveLifecyclePassed": true,
+  "fullIssue97Complete": false,
+  "transaction": {
+    "_links": {
+      "self": {
+        "href": "https://horizon-testnet.stellar.org/transactions/af76a551510c6ed122d3729562650f4f0a974f0de4cbebe36fcc87df28a03a56"
+      },
+      "account": {
+        "href": "https://horizon-testnet.stellar.org/accounts/GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ"
+      },
+      "ledger": {
+        "href": "https://horizon-testnet.stellar.org/ledgers/4930516"
+      },
+      "operations": {
+        "href": "https://horizon-testnet.stellar.org/transactions/af76a551510c6ed122d3729562650f4f0a974f0de4cbebe36fcc87df28a03a56/operations{?cursor,limit,order}",
+        "templated": true
+      },
+      "effects": {
+        "href": "https://horizon-testnet.stellar.org/transactions/af76a551510c6ed122d3729562650f4f0a974f0de4cbebe36fcc87df28a03a56/effects{?cursor,limit,order}",
+        "templated": true
+      },
+      "precedes": {
+        "href": "https://horizon-testnet.stellar.org/transactions?order=asc&cursor=21176404972417024"
+      },
+      "succeeds": {
+        "href": "https://horizon-testnet.stellar.org/transactions?order=desc&cursor=21176404972417024"
+      },
+      "transaction": {
+        "href": "https://horizon-testnet.stellar.org/transactions/af76a551510c6ed122d3729562650f4f0a974f0de4cbebe36fcc87df28a03a56"
+      }
+    },
+    "id": "af76a551510c6ed122d3729562650f4f0a974f0de4cbebe36fcc87df28a03a56",
+    "paging_token": "21176404972417024",
+    "successful": true,
+    "hash": "af76a551510c6ed122d3729562650f4f0a974f0de4cbebe36fcc87df28a03a56",
+    "ledger": 4930516,
+    "created_at": "2026-09-29T10:02:47Z",
+    "source_account": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+    "source_account_sequence": "21175855216590852",
+    "fee_account": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+    "fee_charged": "100",
+    "max_fee": "1000",
+    "operation_count": 1,
+    "envelope_xdr": "AAAAAgAAAAA6ErBDEV2sObfxhJIFDd26o5vwT9NQrPVfAL1hmmVDqAAAA+gASztUAAAABAAAAAEAAAAAAAAAAAAAAABqu422AAAAAAAAAAEAAAABAAAAAGvnbZqfmEALndTKKKUQ+6gx7NTMd1vOsmE9ZcB3MV0IAAAADwAAAACrrP1znzB4mYdjHxhzWyFxnUTEn4Z11eCvotX/JZm4BwAAAAAAAAACmmVDqAAAAEA86Pn/vx2lUGg1Hdg7FvObhhpMfTBqYFanTlS9D7ZDbGSGOhsqTVGNLdd3ngC6Ol3mzVWGaPKQy6cVU9VLMUYKdzFdCAAAAEB7R8zLxTmu4ngS28jR8iWQJ4xqLAAUoHEq6O0dPFLgCMwPVW0WgWN4G9g8vmxbamkQ6jWtRORsuNvWQf4TGQgC",
+    "result_xdr": "AAAAAAAAAGQAAAAAAAAAAQAAAAAAAAAPAAAAAAAAAAA=",
+    "fee_meta_xdr": "AAAAAgAAAAMASzt1AAAAAAAAAAA6ErBDEV2sObfxhJIFDd26o5vwT9NQrPVfAL1hmmVDqAAAABdIduAwAEs7VAAAAAMAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAABQAAAAAAAAADAAAAAABLO3UAAAAAaruK7AAAAAAAAAABAEs71AAAAAAAAAAAOhKwQxFdrDm38YSSBQ3duqOb8E/TUKz1XwC9YZplQ6gAAAAXSHbfzABLO1QAAAADAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAUAAAAAAAAAAwAAAAAASzt1AAAAAGq7iuwAAAAA",
+    "memo_type": "none",
+    "signatures": [
+      "POj5/78dpVBoNR3YOxbzm4YaTH0wamBWp05UvQ+2Q2xkhjobKk1RjS3Xd54Aujpd5s1VhmjykMunFVPVSzFGCg==",
+      "e0fMy8U5ruJ4EtvI0fIlkCeMaiwAFKBxKujtHTxS4AjMD1VtFoFjeBvYPL5sW2ppEOo1rUTkbLjb1kH+ExkIAg=="
+    ],
+    "preconditions": {
+      "timebounds": {
+        "min_time": "0",
+        "max_time": "1790676406"
+      }
+    }
+  },
+  "exactSenderAndSponsorSignaturesVerified": true,
+  "operation": {
+    "_links": {
+      "self": {
+        "href": "https://horizon-testnet.stellar.org/operations/21176404972417025"
+      },
+      "transaction": {
+        "href": "https://horizon-testnet.stellar.org/transactions/af76a551510c6ed122d3729562650f4f0a974f0de4cbebe36fcc87df28a03a56"
+      },
+      "effects": {
+        "href": "https://horizon-testnet.stellar.org/operations/21176404972417025/effects"
+      },
+      "succeeds": {
+        "href": "https://horizon-testnet.stellar.org/effects?order=desc&cursor=21176404972417025"
+      },
+      "precedes": {
+        "href": "https://horizon-testnet.stellar.org/effects?order=asc&cursor=21176404972417025"
+      }
+    },
+    "id": "21176404972417025",
+    "paging_token": "21176404972417025",
+    "transaction_successful": true,
+    "source_account": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "type": "claim_claimable_balance",
+    "type_i": 15,
+    "created_at": "2026-09-29T10:02:47Z",
+    "transaction_hash": "af76a551510c6ed122d3729562650f4f0a974f0de4cbebe36fcc87df28a03a56",
+    "balance_id": "00000000abacfd739f30789987631f18735b21719d44c49f8675d5e0afa2d5ff2599b807",
+    "claimant": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+  },
+  "receipt": {
+    "stage": "reclaim",
+    "network": "testnet",
+    "hash": "af76a551510c6ed122d3729562650f4f0a974f0de4cbebe36fcc87df28a03a56",
+    "ledger": 4930516,
+    "successful": true,
+    "feeChargedStroops": "100",
+    "reviewed": {
+      "stage": "reclaim",
+      "network": "testnet",
+      "hash": "af76a551510c6ed122d3729562650f4f0a974f0de4cbebe36fcc87df28a03a56",
+      "source": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+      "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "feeBidStroops": "1000",
+      "requiredSigners": [
+        "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+      ],
+      "operationTypes": [
+        "claimClaimableBalance"
+      ],
+      "balanceId": "00000000abacfd739f30789987631f18735b21719d44c49f8675d5e0afa2d5ff2599b807",
+      "amount": "1.0000000",
+      "expiresAt": "2026-09-29T09:58:00.879Z"
+    },
+    "requiredSignersVerified": [
+      "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+      "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+    ],
+    "before": {
+      "sender": {
+        "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+        "native": "0.0000000",
+        "usdc": "18.0000000",
+        "baseReserve": "0.5000000",
+        "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+        "trustlineSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+        "numSponsoring": 0,
+        "numSponsored": 3,
+        "minimumReserve": "0.0000000",
+        "spendableNative": "0.0000000"
+      },
+      "sponsor": {
+        "address": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "native": "9999.9998000",
+        "usdc": "0.0000000",
+        "baseReserve": "0.5000000",
+        "accountSponsor": null,
+        "trustlineSponsor": null,
+        "numSponsoring": 5,
+        "numSponsored": 0,
+        "minimumReserve": "3.5000000",
+        "spendableNative": "9996.4998000"
+      }
+    },
+    "after": {
+      "sender": {
+        "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+        "native": "0.0000000",
+        "usdc": "19.0000000",
+        "baseReserve": "0.5000000",
+        "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+        "trustlineSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+        "numSponsoring": 0,
+        "numSponsored": 3,
+        "minimumReserve": "0.0000000",
+        "spendableNative": "0.0000000"
+      },
+      "sponsor": {
+        "address": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "native": "9999.9997900",
+        "usdc": "0.0000000",
+        "baseReserve": "0.5000000",
+        "accountSponsor": null,
+        "trustlineSponsor": null,
+        "numSponsoring": 3,
+        "numSponsored": 0,
+        "minimumReserve": "2.5000000",
+        "spendableNative": "9997.4997900"
+      }
+    },
+    "recipient": {
+      "address": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "native": "0.0000000",
+      "usdc": "1.0000000",
+      "baseReserve": "0.5000000",
+      "accountSponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+      "trustlineSponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+      "numSponsoring": 0,
+      "numSponsored": 3,
+      "minimumReserve": "0.0000000",
+      "spendableNative": "0.0000000"
+    },
+    "assertions": {
+      "senderStillHasZeroXlm": true,
+      "sponsorPaidExactFee": true,
+      "senderReceivedExactlyOneUsdc": true,
+      "balanceRemoved": true,
+      "twoClaimantReservesReleased": true
+    },
+    "acceptancePassed": true
+  },
+  "previousIndependentClaimProof": "independent-claim-proof-2026-09-29T09-58-46-188Z.json",
+  "receipts": {
+    "fund": {
+      "stage": "fund",
+      "network": "testnet",
+      "hash": "f5a830008f420adeeb05e6f405663931c6c6d2a2d2d0a4ec39b7f129661a608b",
+      "ledger": 4930393,
+      "successful": true,
+      "feeChargedStroops": "400",
+      "reviewed": {
+        "stage": "fund",
+        "network": "testnet",
+        "hash": "f5a830008f420adeeb05e6f405663931c6c6d2a2d2d0a4ec39b7f129661a608b",
+        "source": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+        "feeBidStroops": "4000",
+        "requiredSigners": [
+          "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+        ],
+        "operationTypes": [
+          "beginSponsoringFutureReserves",
+          "createClaimableBalance",
+          "createClaimableBalance",
+          "endSponsoringFutureReserves"
+        ],
+        "publicKeys": [
+          "GACKPIQSC5AXPEK6JA2TRHPXFQRKDHGBBVE5YIVJKKEFGEAVPJEBLVBR",
+          "GA4X56MN7L2DPER6P7WX4GUTVGHOMHMQ2BOSBBMKDP4KOGLTPRILIA3I"
+        ],
+        "balanceIds": [
+          "000000007ffb2d0418064b058e3220fbe36efc6bb7748910a1e39b76c6d2521f3388a712",
+          "00000000abacfd739f30789987631f18735b21719d44c49f8675d5e0afa2d5ff2599b807"
+        ],
+        "amounts": [
+          "1.0000000",
+          "1.0000000"
+        ],
+        "expiries": [
+          "2026-09-29T10:53:00.879Z",
+          "2026-09-29T09:58:00.879Z"
+        ],
+        "principalOwner": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+        "totalSenderUsdcDebit": "2.0000000",
+        "balanceReserveSponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ"
+      },
+      "requiredSignersVerified": [
+        "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+      ],
+      "before": {
+        "sender": {
+          "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "native": "0.0000000",
+          "usdc": "20.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "trustlineSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "numSponsoring": 0,
+          "numSponsored": 3,
+          "minimumReserve": "0.0000000",
+          "spendableNative": "0.0000000"
+        },
+        "sponsor": {
+          "address": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "native": "10000.0000000",
+          "usdc": "0.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": null,
+          "trustlineSponsor": null,
+          "numSponsoring": 0,
+          "numSponsored": 0,
+          "minimumReserve": "1.0000000",
+          "spendableNative": "9999.0000000"
+        }
+      },
+      "after": {
+        "sender": {
+          "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "native": "0.0000000",
+          "usdc": "18.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "trustlineSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "numSponsoring": 0,
+          "numSponsored": 3,
+          "minimumReserve": "0.0000000",
+          "spendableNative": "0.0000000"
+        },
+        "sponsor": {
+          "address": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "native": "9999.9999600",
+          "usdc": "0.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": null,
+          "trustlineSponsor": null,
+          "numSponsoring": 4,
+          "numSponsored": 0,
+          "minimumReserve": "3.0000000",
+          "spendableNative": "9996.9999600"
+        }
+      },
+      "balances": [
+        {
+          "_links": {
+            "self": {
+              "href": "https://horizon-testnet.stellar.org/claimable_balances/000000007ffb2d0418064b058e3220fbe36efc6bb7748910a1e39b76c6d2521f3388a712"
+            },
+            "transactions": {
+              "href": "https://horizon-testnet.stellar.org/claimable_balances/000000007ffb2d0418064b058e3220fbe36efc6bb7748910a1e39b76c6d2521f3388a712/transactions{?cursor,limit,order}",
+              "templated": true
+            },
+            "operations": {
+              "href": "https://horizon-testnet.stellar.org/claimable_balances/000000007ffb2d0418064b058e3220fbe36efc6bb7748910a1e39b76c6d2521f3388a712/operations{?cursor,limit,order}",
+              "templated": true
+            }
+          },
+          "id": "000000007ffb2d0418064b058e3220fbe36efc6bb7748910a1e39b76c6d2521f3388a712",
+          "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+          "amount": "1.0000000",
+          "sponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "last_modified_ledger": 4930393,
+          "last_modified_time": "2026-09-29T09:52:32Z",
+          "claimants": [
+            {
+              "destination": "GACKPIQSC5AXPEK6JA2TRHPXFQRKDHGBBVE5YIVJKKEFGEAVPJEBLVBR",
+              "predicate": {
+                "abs_before": "2026-09-29T10:53:00Z",
+                "abs_before_epoch": "1790679180"
+              }
+            },
+            {
+              "destination": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+              "predicate": {
+                "not": {
+                  "abs_before": "2026-09-29T10:53:00Z",
+                  "abs_before_epoch": "1790679180"
+                }
+              }
+            }
+          ],
+          "flags": {
+            "clawback_enabled": false
+          },
+          "paging_token": "4930393-000000007ffb2d0418064b058e3220fbe36efc6bb7748910a1e39b76c6d2521f3388a712"
+        },
+        {
+          "_links": {
+            "self": {
+              "href": "https://horizon-testnet.stellar.org/claimable_balances/00000000abacfd739f30789987631f18735b21719d44c49f8675d5e0afa2d5ff2599b807"
+            },
+            "transactions": {
+              "href": "https://horizon-testnet.stellar.org/claimable_balances/00000000abacfd739f30789987631f18735b21719d44c49f8675d5e0afa2d5ff2599b807/transactions{?cursor,limit,order}",
+              "templated": true
+            },
+            "operations": {
+              "href": "https://horizon-testnet.stellar.org/claimable_balances/00000000abacfd739f30789987631f18735b21719d44c49f8675d5e0afa2d5ff2599b807/operations{?cursor,limit,order}",
+              "templated": true
+            }
+          },
+          "id": "00000000abacfd739f30789987631f18735b21719d44c49f8675d5e0afa2d5ff2599b807",
+          "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+          "amount": "1.0000000",
+          "sponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "last_modified_ledger": 4930393,
+          "last_modified_time": "2026-09-29T09:52:32Z",
+          "claimants": [
+            {
+              "destination": "GA4X56MN7L2DPER6P7WX4GUTVGHOMHMQ2BOSBBMKDP4KOGLTPRILIA3I",
+              "predicate": {
+                "abs_before": "2026-09-29T09:58:00Z",
+                "abs_before_epoch": "1790675880"
+              }
+            },
+            {
+              "destination": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+              "predicate": {
+                "not": {
+                  "abs_before": "2026-09-29T09:58:00Z",
+                  "abs_before_epoch": "1790675880"
+                }
+              }
+            }
+          ],
+          "flags": {
+            "clawback_enabled": false
+          },
+          "paging_token": "4930393-00000000abacfd739f30789987631f18735b21719d44c49f8675d5e0afa2d5ff2599b807"
+        }
+      ],
+      "assertions": {
+        "senderStillHasZeroXlm": true,
+        "sponsorPaidExactFee": true,
+        "senderSuppliedExactlyTwoUsdc": true,
+        "balancesHaveExactAssetAmountAndSponsor": true,
+        "sponsorAddedFourClaimantReserves": true,
+        "recipientStillAbsent": true
+      },
+      "acceptancePassed": true
+    },
+    "materialise": {
+      "stage": "materialise",
+      "network": "testnet",
+      "hash": "743e98bab7aacabac41ae4eac23a5be6aa4d97e99b2cd9310f2e76e669b6187c",
+      "ledger": 4930414,
+      "successful": true,
+      "feeChargedStroops": "600",
+      "reviewed": {
+        "stage": "materialise",
+        "network": "testnet",
+        "hash": "743e98bab7aacabac41ae4eac23a5be6aa4d97e99b2cd9310f2e76e669b6187c",
+        "source": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+        "feeBidStroops": "6000",
+        "requiredSigners": [
+          "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "GACKPIQSC5AXPEK6JA2TRHPXFQRKDHGBBVE5YIVJKKEFGEAVPJEBLVBR"
+        ],
+        "operationTypes": [
+          "beginSponsoringFutureReserves",
+          "createAccount",
+          "endSponsoringFutureReserves",
+          "beginSponsoringFutureReserves",
+          "changeTrust",
+          "endSponsoringFutureReserves"
+        ],
+        "ephemeralPublicKey": "GACKPIQSC5AXPEK6JA2TRHPXFQRKDHGBBVE5YIVJKKEFGEAVPJEBLVBR",
+        "recipientStillAbsent": true
+      },
+      "requiredSignersVerified": [
+        "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "GACKPIQSC5AXPEK6JA2TRHPXFQRKDHGBBVE5YIVJKKEFGEAVPJEBLVBR"
+      ],
+      "before": {
+        "sender": {
+          "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "native": "0.0000000",
+          "usdc": "18.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "trustlineSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "numSponsoring": 0,
+          "numSponsored": 3,
+          "minimumReserve": "0.0000000",
+          "spendableNative": "0.0000000"
+        },
+        "sponsor": {
+          "address": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "native": "9999.9999600",
+          "usdc": "0.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": null,
+          "trustlineSponsor": null,
+          "numSponsoring": 4,
+          "numSponsored": 0,
+          "minimumReserve": "3.0000000",
+          "spendableNative": "9996.9999600"
+        }
+      },
+      "after": {
+        "sender": {
+          "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "native": "0.0000000",
+          "usdc": "18.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "trustlineSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "numSponsoring": 0,
+          "numSponsored": 3,
+          "minimumReserve": "0.0000000",
+          "spendableNative": "0.0000000"
+        },
+        "sponsor": {
+          "address": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "native": "9999.9999000",
+          "usdc": "0.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": null,
+          "trustlineSponsor": null,
+          "numSponsoring": 7,
+          "numSponsored": 0,
+          "minimumReserve": "4.5000000",
+          "spendableNative": "9995.4999000"
+        }
+      },
+      "ephemeral": {
+        "address": "GACKPIQSC5AXPEK6JA2TRHPXFQRKDHGBBVE5YIVJKKEFGEAVPJEBLVBR",
+        "native": "0.0000000",
+        "usdc": "0.0000000",
+        "baseReserve": "0.5000000",
+        "accountSponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "trustlineSponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "numSponsoring": 0,
+        "numSponsored": 3,
+        "minimumReserve": "0.0000000",
+        "spendableNative": "0.0000000"
+      },
+      "assertions": {
+        "senderStillHasZeroXlm": true,
+        "sponsorPaidExactFee": true,
+        "ephemeralIsZeroXlmAndSponsored": true,
+        "sponsorAddedThreeTemporaryReserves": true,
+        "recipientStillAbsent": true
+      },
+      "acceptancePassed": true
+    },
+    "claim": {
+      "stage": "claim",
+      "network": "testnet",
+      "hash": "90e0315c19778d20b36608529a55520079c23d43a59a484dbc234014623253af",
+      "ledger": 4930421,
+      "successful": true,
+      "feeChargedStroops": "1000",
+      "reviewed": {
+        "stage": "claim",
+        "network": "testnet",
+        "hash": "90e0315c19778d20b36608529a55520079c23d43a59a484dbc234014623253af",
+        "source": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+        "feeBidStroops": "10000",
+        "requiredSigners": [
+          "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "GACKPIQSC5AXPEK6JA2TRHPXFQRKDHGBBVE5YIVJKKEFGEAVPJEBLVBR",
+          "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW"
+        ],
+        "operationTypes": [
+          "claimClaimableBalance",
+          "beginSponsoringFutureReserves",
+          "createAccount",
+          "endSponsoringFutureReserves",
+          "beginSponsoringFutureReserves",
+          "changeTrust",
+          "endSponsoringFutureReserves",
+          "payment",
+          "changeTrust",
+          "accountMerge"
+        ],
+        "recipient": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+        "amount": "1.0000000",
+        "needsRecipientSignature": true,
+        "materialiseLedger": 4930414
+      },
+      "requiredSignersVerified": [
+        "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "GACKPIQSC5AXPEK6JA2TRHPXFQRKDHGBBVE5YIVJKKEFGEAVPJEBLVBR",
+        "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW"
+      ],
+      "before": {
+        "sender": {
+          "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "native": "0.0000000",
+          "usdc": "18.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "trustlineSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "numSponsoring": 0,
+          "numSponsored": 3,
+          "minimumReserve": "0.0000000",
+          "spendableNative": "0.0000000"
+        },
+        "sponsor": {
+          "address": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "native": "9999.9999000",
+          "usdc": "0.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": null,
+          "trustlineSponsor": null,
+          "numSponsoring": 7,
+          "numSponsored": 0,
+          "minimumReserve": "4.5000000",
+          "spendableNative": "9995.4999000"
+        }
+      },
+      "after": {
+        "sender": {
+          "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "native": "0.0000000",
+          "usdc": "18.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "trustlineSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "numSponsoring": 0,
+          "numSponsored": 3,
+          "minimumReserve": "0.0000000",
+          "spendableNative": "0.0000000"
+        },
+        "sponsor": {
+          "address": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "native": "9999.9998000",
+          "usdc": "0.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": null,
+          "trustlineSponsor": null,
+          "numSponsoring": 5,
+          "numSponsored": 0,
+          "minimumReserve": "3.5000000",
+          "spendableNative": "9996.4998000"
+        }
+      },
+      "recipient": {
+        "address": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+        "native": "0.0000000",
+        "usdc": "1.0000000",
+        "baseReserve": "0.5000000",
+        "accountSponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "trustlineSponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "numSponsoring": 0,
+        "numSponsored": 3,
+        "minimumReserve": "0.0000000",
+        "spendableNative": "0.0000000"
+      },
+      "assertions": {
+        "senderStillHasZeroXlm": true,
+        "sponsorPaidExactFee": true,
+        "recipientReceivedExactlyOneUsdc": true,
+        "recipientRemainsZeroXlmAndSponsored": true,
+        "tx2InStrictlyLaterLedger": true,
+        "ephemeralAccountRemoved": true,
+        "claimedBalanceRemoved": true,
+        "temporaryReservesReleased": true
+      },
+      "acceptancePassed": true
+    },
+    "reclaim": {
+      "stage": "reclaim",
+      "network": "testnet",
+      "hash": "af76a551510c6ed122d3729562650f4f0a974f0de4cbebe36fcc87df28a03a56",
+      "ledger": 4930516,
+      "successful": true,
+      "feeChargedStroops": "100",
+      "reviewed": {
+        "stage": "reclaim",
+        "network": "testnet",
+        "hash": "af76a551510c6ed122d3729562650f4f0a974f0de4cbebe36fcc87df28a03a56",
+        "source": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+        "feeBidStroops": "1000",
+        "requiredSigners": [
+          "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+        ],
+        "operationTypes": [
+          "claimClaimableBalance"
+        ],
+        "balanceId": "00000000abacfd739f30789987631f18735b21719d44c49f8675d5e0afa2d5ff2599b807",
+        "amount": "1.0000000",
+        "expiresAt": "2026-09-29T09:58:00.879Z"
+      },
+      "requiredSignersVerified": [
+        "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+      ],
+      "before": {
+        "sender": {
+          "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "native": "0.0000000",
+          "usdc": "18.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "trustlineSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "numSponsoring": 0,
+          "numSponsored": 3,
+          "minimumReserve": "0.0000000",
+          "spendableNative": "0.0000000"
+        },
+        "sponsor": {
+          "address": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "native": "9999.9998000",
+          "usdc": "0.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": null,
+          "trustlineSponsor": null,
+          "numSponsoring": 5,
+          "numSponsored": 0,
+          "minimumReserve": "3.5000000",
+          "spendableNative": "9996.4998000"
+        }
+      },
+      "after": {
+        "sender": {
+          "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "native": "0.0000000",
+          "usdc": "19.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "trustlineSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "numSponsoring": 0,
+          "numSponsored": 3,
+          "minimumReserve": "0.0000000",
+          "spendableNative": "0.0000000"
+        },
+        "sponsor": {
+          "address": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "native": "9999.9997900",
+          "usdc": "0.0000000",
+          "baseReserve": "0.5000000",
+          "accountSponsor": null,
+          "trustlineSponsor": null,
+          "numSponsoring": 3,
+          "numSponsored": 0,
+          "minimumReserve": "2.5000000",
+          "spendableNative": "9997.4997900"
+        }
+      },
+      "recipient": {
+        "address": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+        "native": "0.0000000",
+        "usdc": "1.0000000",
+        "baseReserve": "0.5000000",
+        "accountSponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "trustlineSponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+        "numSponsoring": 0,
+        "numSponsored": 3,
+        "minimumReserve": "0.0000000",
+        "spendableNative": "0.0000000"
+      },
+      "assertions": {
+        "senderStillHasZeroXlm": true,
+        "sponsorPaidExactFee": true,
+        "senderReceivedExactlyOneUsdc": true,
+        "balanceRemoved": true,
+        "twoClaimantReservesReleased": true
+      },
+      "acceptancePassed": true
+    }
+  },
+  "liveState": {
+    "sender": {
+      "_links": {
+        "self": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+        },
+        "transactions": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/transactions{?cursor,limit,order}",
+          "templated": true
+        },
+        "operations": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/operations{?cursor,limit,order}",
+          "templated": true
+        },
+        "payments": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/payments{?cursor,limit,order}",
+          "templated": true
+        },
+        "effects": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/effects{?cursor,limit,order}",
+          "templated": true
+        },
+        "offers": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/offers{?cursor,limit,order}",
+          "templated": true
+        },
+        "trades": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/trades{?cursor,limit,order}",
+          "templated": true
+        },
+        "data": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/data/{key}",
+          "templated": true
+        }
+      },
+      "id": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "account_id": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "sequence": "21174360567971840",
+      "subentry_count": 1,
+      "last_modified_ledger": 4930516,
+      "last_modified_time": "2026-09-29T10:02:47Z",
+      "thresholds": {
+        "low_threshold": 0,
+        "med_threshold": 0,
+        "high_threshold": 0
+      },
+      "flags": {
+        "auth_required": false,
+        "auth_revocable": false,
+        "auth_immutable": false,
+        "auth_clawback_enabled": false
+      },
+      "balances": [
+        {
+          "balance": "19.0000000",
+          "limit": "100.0000000",
+          "buying_liabilities": "0.0000000",
+          "selling_liabilities": "0.0000000",
+          "sponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "last_modified_ledger": 4930516,
+          "is_authorized": true,
+          "is_authorized_to_maintain_liabilities": true,
+          "asset_type": "credit_alphanum4",
+          "asset_code": "USDC",
+          "asset_issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+        },
+        {
+          "balance": "0.0000000",
+          "buying_liabilities": "0.0000000",
+          "selling_liabilities": "0.0000000",
+          "asset_type": "native"
+        }
+      ],
+      "signers": [
+        {
+          "weight": 1,
+          "key": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "type": "ed25519_public_key"
+        }
+      ],
+      "data": {},
+      "num_sponsoring": 0,
+      "num_sponsored": 3,
+      "sponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "paging_token": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+    },
+    "recipient": {
+      "_links": {
+        "self": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW"
+        },
+        "transactions": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/transactions{?cursor,limit,order}",
+          "templated": true
+        },
+        "operations": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/operations{?cursor,limit,order}",
+          "templated": true
+        },
+        "payments": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/payments{?cursor,limit,order}",
+          "templated": true
+        },
+        "effects": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/effects{?cursor,limit,order}",
+          "templated": true
+        },
+        "offers": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/offers{?cursor,limit,order}",
+          "templated": true
+        },
+        "trades": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/trades{?cursor,limit,order}",
+          "templated": true
+        },
+        "data": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/data/{key}",
+          "templated": true
+        }
+      },
+      "id": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "account_id": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "sequence": "21175996950511616",
+      "subentry_count": 1,
+      "last_modified_ledger": 4930421,
+      "last_modified_time": "2026-09-29T09:54:52Z",
+      "thresholds": {
+        "low_threshold": 0,
+        "med_threshold": 0,
+        "high_threshold": 0
+      },
+      "flags": {
+        "auth_required": false,
+        "auth_revocable": false,
+        "auth_immutable": false,
+        "auth_clawback_enabled": false
+      },
+      "balances": [
+        {
+          "balance": "1.0000000",
+          "limit": "922337203685.4775807",
+          "buying_liabilities": "0.0000000",
+          "selling_liabilities": "0.0000000",
+          "sponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "last_modified_ledger": 4930421,
+          "is_authorized": true,
+          "is_authorized_to_maintain_liabilities": true,
+          "asset_type": "credit_alphanum4",
+          "asset_code": "USDC",
+          "asset_issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+        },
+        {
+          "balance": "0.0000000",
+          "buying_liabilities": "0.0000000",
+          "selling_liabilities": "0.0000000",
+          "asset_type": "native"
+        }
+      ],
+      "signers": [
+        {
+          "weight": 1,
+          "key": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+          "type": "ed25519_public_key"
+        }
+      ],
+      "data": {},
+      "num_sponsoring": 0,
+      "num_sponsored": 3,
+      "sponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+      "paging_token": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW"
+    },
+    "sponsor": {
+      "_links": {
+        "self": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ"
+        },
+        "transactions": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ/transactions{?cursor,limit,order}",
+          "templated": true
+        },
+        "operations": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ/operations{?cursor,limit,order}",
+          "templated": true
+        },
+        "payments": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ/payments{?cursor,limit,order}",
+          "templated": true
+        },
+        "effects": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ/effects{?cursor,limit,order}",
+          "templated": true
+        },
+        "offers": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ/offers{?cursor,limit,order}",
+          "templated": true
+        },
+        "trades": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ/trades{?cursor,limit,order}",
+          "templated": true
+        },
+        "data": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ/data/{key}",
+          "templated": true
+        }
+      },
+      "id": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+      "account_id": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+      "sequence": "21175855216590852",
+      "sequence_ledger": 4930516,
+      "sequence_time": "1790676167",
+      "subentry_count": 0,
+      "last_modified_ledger": 4930516,
+      "last_modified_time": "2026-09-29T10:02:47Z",
+      "thresholds": {
+        "low_threshold": 0,
+        "med_threshold": 0,
+        "high_threshold": 0
+      },
+      "flags": {
+        "auth_required": false,
+        "auth_revocable": false,
+        "auth_immutable": false,
+        "auth_clawback_enabled": false
+      },
+      "balances": [
+        {
+          "balance": "9999.9997900",
+          "buying_liabilities": "0.0000000",
+          "selling_liabilities": "0.0000000",
+          "asset_type": "native"
+        }
+      ],
+      "signers": [
+        {
+          "weight": 1,
+          "key": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "type": "ed25519_public_key"
+        }
+      ],
+      "data": {},
+      "num_sponsoring": 3,
+      "num_sponsored": 0,
+      "paging_token": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ"
+    },
+    "bootstrapSponsor": {
+      "_links": {
+        "self": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M"
+        },
+        "transactions": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M/transactions{?cursor,limit,order}",
+          "templated": true
+        },
+        "operations": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M/operations{?cursor,limit,order}",
+          "templated": true
+        },
+        "payments": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M/payments{?cursor,limit,order}",
+          "templated": true
+        },
+        "effects": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M/effects{?cursor,limit,order}",
+          "templated": true
+        },
+        "offers": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M/offers{?cursor,limit,order}",
+          "templated": true
+        },
+        "trades": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M/trades{?cursor,limit,order}",
+          "templated": true
+        },
+        "data": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M/data/{key}",
+          "templated": true
+        }
+      },
+      "id": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "account_id": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "sequence": "21174107164901377",
+      "sequence_ledger": 4930040,
+      "sequence_time": "1790673787",
+      "subentry_count": 0,
+      "last_modified_ledger": 4930040,
+      "last_modified_time": "2026-09-29T09:23:07Z",
+      "thresholds": {
+        "low_threshold": 0,
+        "med_threshold": 0,
+        "high_threshold": 0
+      },
+      "flags": {
+        "auth_required": false,
+        "auth_revocable": false,
+        "auth_immutable": false,
+        "auth_clawback_enabled": false
+      },
+      "balances": [
+        {
+          "balance": "9999.9999600",
+          "buying_liabilities": "0.0000000",
+          "selling_liabilities": "0.0000000",
+          "asset_type": "native"
+        }
+      ],
+      "signers": [
+        {
+          "weight": 1,
+          "key": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "type": "ed25519_public_key"
+        }
+      ],
+      "data": {},
+      "num_sponsoring": 3,
+      "num_sponsored": 0,
+      "paging_token": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M"
+    },
+    "ephemeral": {
+      "status": 404
+    },
+    "claimedBalance": {
+      "status": 404
+    },
+    "reclaimedBalance": {
+      "status": 404
+    }
+  },
+  "feesStroops": {
+    "fund": "400",
+    "materialise": "600",
+    "claim": "1000",
+    "reclaim": "100"
+  },
+  "totalLifecycleFeeStroops": "2100",
+  "totalLifecycleFeeXlm": "0.0002100",
+  "reclaimReserveReleasedXlm": "1.0000000",
+  "remainingSenderReserveXlm": "1.5000000",
+  "remainingRecipientReserveXlm": "1.5000000",
+  "submittedByVerifier": false
+}

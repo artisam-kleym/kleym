@@ -14,6 +14,7 @@ import Decimal from 'decimal.js'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/client'
 import { env } from '@/lib/config/env'
+import { campaignContextProblem, stellarContextProblem } from '@/lib/stellar/context'
 import { logger } from '@/lib/config/logger'
 import { assetOf, hasTrustline, horizon, accountExists, loadClaimableBalance, sponsorSpendable } from '@/lib/stellar/horizon'
 import { buildClaim, buildMaterialise, deliveredAsset, signAsSponsor, type ClaimContext, type Conversion } from '@/lib/stellar/claim'
@@ -261,7 +262,7 @@ export async function loadClaimable(
     select: {
       id: true, status: true, balanceId: true, campaignId: true, amount: true, suspendedAt: true,
       campaign: {
-        select: { assetCode: true, assetIssuer: true, expiresAt: true, status: true, sponsorPublicKey: true, suspendedAt: true, receiveAsAssets: true, allowExchangeDeposit: true },
+        select: { network: true, assetCode: true, assetIssuer: true, expiresAt: true, status: true, sponsorPublicKey: true, suspendedAt: true, receiveAsAssets: true, allowExchangeDeposit: true },
       },
     },
   })
@@ -272,9 +273,15 @@ export async function loadClaimable(
   if (link.campaign.status === 'CANCELLED') return { kind: 'not-found' }
   if (link.suspendedAt || link.campaign.suspendedAt) return { kind: 'not-found' }
 
+  const networkProblem = campaignContextProblem(link.campaign)
+  if (networkProblem) return { kind: 'unavailable', detail: 'Claims are temporarily unavailable. Try again shortly.' }
+
   if (link.campaign.expiresAt.getTime() <= Date.now()) {
     return conflict('This link has expired. The funds return to the sender.', 'expired')
   }
+
+  const providerProblem = await stellarContextProblem(link.campaign)
+  if (providerProblem) return { kind: 'unavailable', detail: 'Claims are temporarily unavailable. Try again shortly.' }
 
   // THE LEDGER, not the row. AGENT.md §4.2.
   const onChain = await loadBalance(link.balanceId)
@@ -674,10 +681,13 @@ async function submitClaimUnobserved(
     where: { ephemeralPublicKey },
     select: {
       id: true, status: true, campaignId: true, claimTxHash: true, claimedBy: true, balanceId: true, suspendedAt: true,
-      campaign: { select: { sponsorPublicKey: true, suspendedAt: true, claimPolicy: true, organizationId: true } },
+      campaign: { select: { network: true, sponsorPublicKey: true, suspendedAt: true, claimPolicy: true, organizationId: true } },
     },
   })
   if (!link) return { kind: 'not-found' }
+
+  const networkProblem = campaignContextProblem(link.campaign)
+  if (networkProblem) return { kind: 'unavailable', detail: 'Claims are temporarily unavailable. Try again shortly.' }
 
   /*
    * Suspended (#72): Kleym has stopped participating, and that has to hold
@@ -757,6 +767,9 @@ async function submitClaimUnobserved(
    * flow. The ledger already answers the question honestly — if the ephemeral
    * account exists, TX1 landed.
    */
+  const providerProblem = await stellarContextProblem(link.campaign)
+  if (providerProblem) return { kind: 'unavailable', detail: 'Claims are temporarily unavailable. Try again shortly.' }
+
   if (phase === 'materialise' && (await accountExists(ephemeralPublicKey))) {
     return { kind: 'ok', value: { hash, phase, replay: true } }
   }

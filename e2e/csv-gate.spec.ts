@@ -1,5 +1,6 @@
 import { test, expect, type Page, type Request } from '@playwright/test'
 import { Keypair } from '@stellar/stellar-sdk'
+import { stellarMetadata } from '../src/lib/stellar/network'
 
 /**
  * The CSV hard gate, in a real browser. SPEC.md §5.3 step 3, §10.11.
@@ -29,7 +30,12 @@ const SENDER = Keypair.random().publicKey()
  * Everything downstream of these two responses is the real page: the real
  * build, the real CSP, the real components, the real download.
  */
-async function stubLookups(page: Page) {
+const ACCOUNT_BALANCES: { assetType: string; assetCode: string; assetIssuer: string | null; balance: string }[] = [
+  { assetType: 'native', assetCode: 'XLM', assetIssuer: null, balance: '10000.0000000' },
+  { assetType: 'credit_alphanum4', ...stellarMetadata('testnet').defaultAsset, balance: '10000.0000000' },
+]
+
+async function stubLookups(page: Page, balances = ACCOUNT_BALANCES) {
   await page.route('**/api/stellar/account*', async (route) =>
     route.fulfill({
       status: 200,
@@ -37,7 +43,7 @@ async function stubLookups(page: Page) {
       body: JSON.stringify({
         exists: true,
         subentryCount: 0,
-        balances: [{ assetType: 'native', assetCode: 'XLM', assetIssuer: null, balance: '10000.0000000' }],
+        balances,
       }),
     }),
   )
@@ -49,6 +55,46 @@ async function stubLookups(page: Page) {
     }),
   )
 }
+
+test.describe('deployment asset identity (#96)', () => {
+  test('locks the network and selects official USDC after hydration', async ({ page }) => {
+    await stubLookups(page, [...ACCOUNT_BALANCES,
+      { assetType: 'credit_alphanum4', assetCode: 'USDC', assetIssuer: Keypair.random().publicKey(), balance: '99999.0000000' },
+    ])
+    await page.goto('/campaigns/new')
+    await page.getByLabel('Campaign name').fill('USDC identity check')
+    await page.getByLabel('Funding account').fill(SENDER)
+    await page.getByLabel('Amount per link', { exact: true }).fill('1.5')
+    await expect(page.getByTestId('next-step')).toBeEnabled()
+    await expect(page.getByLabel('Network', { exact: true })).toBeDisabled()
+    await expect(page.getByLabel('Network', { exact: true })).toHaveValue('testnet')
+    await expect(page.getByLabel('Asset', { exact: true })).toHaveValue(`USDC:${stellarMetadata('testnet').defaultAsset.assetIssuer}`)
+    await expect(page.locator('#asset option')).toHaveCount(2)
+    await expect(page.getByText(stellarMetadata('testnet').valueNotice)).toBeVisible()
+    if (process.env.E2E_EVIDENCE_DIR) {
+      await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/usdc-desktop.png`, fullPage: true })
+      await page.setViewportSize({ width: 390, height: 844 })
+      await expect(page.getByLabel('Asset', { exact: true })).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+      await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/usdc-mobile.png`, fullPage: true })
+    }
+  })
+
+  test('keeps missing official USDC unavailable and allows explicit XLM', async ({ page }) => {
+    await stubLookups(page, [ACCOUNT_BALANCES[0]!,
+      { assetType: 'credit_alphanum4', assetCode: 'USDC', assetIssuer: Keypair.random().publicKey(), balance: '99999.0000000' },
+    ])
+    await page.goto('/campaigns/new')
+    await page.getByLabel('Campaign name').fill('Missing official USDC')
+    await page.getByLabel('Funding account').fill(SENDER)
+    await page.getByLabel('Amount per link', { exact: true }).fill('1.5')
+    await expect(page.getByRole('option', { name: /USDC — unavailable/ })).toHaveCount(1)
+    await expect(page.getByTestId('next-step')).toBeDisabled()
+    await expect(page.getByLabel('Asset', { exact: true })).toHaveValue(`USDC:${stellarMetadata('testnet').defaultAsset.assetIssuer}`)
+    await page.getByLabel('Asset', { exact: true }).selectOption('XLM:')
+    await expect(page.getByTestId('next-step')).toBeEnabled()
+  })
+})
 
 /** Everything the page sent anywhere, so criterion 2 can be checked against it. */
 function recordTraffic(page: Page): { requests: Request[] } {

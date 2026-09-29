@@ -15,6 +15,7 @@ import { randomUUID } from 'node:crypto'
 import { Account, Asset, Keypair, Networks, TransactionBuilder } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { startTestnetNetworkFixture } from '../tests/fixtures/horizon-network'
 import { personalOrg } from '../tests/fixtures/tenant'
 
 // A pool of two, and a real receiver, before the env is validated.
@@ -38,6 +39,7 @@ process.env.SPONSOR_WORKING_THRESHOLD = '50'
 process.env.SPONSOR_MIN_BALANCE_ALERT = '100'
 process.env.ALERT_WEBHOOK_URL = `http://127.0.0.1:${port}/alerts?token=hook-secret-token`
 applyEnvPlaceholders()
+const stopNetworkFixture = await startTestnetNetworkFixture()
 
 const { prisma } = await import('../src/lib/db/client')
 const { redis } = await import('../src/lib/redis/client')
@@ -216,6 +218,7 @@ async function main(): Promise<void> {
     secretsNeverLog()
   } finally {
     await prisma.$disconnect()
+    await stopNetworkFixture()
     await redis.quit().catch(() => undefined)
     receiver.close()
   }
