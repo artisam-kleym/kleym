@@ -36,6 +36,8 @@ export function Organisation({
   policy,
   screeningUrl,
   mfaPolicy,
+  reportingCurrency,
+  currencies,
 }: {
   name: string
   role: string
@@ -44,6 +46,9 @@ export function Organisation({
   policy: { approvalThreshold: string | null; approvalsRequired: number }
   screeningUrl: string | null
   mfaPolicy: 'OFF' | 'APPROVERS' | 'ALL'
+  /** Accounting export (#80): the currency journal lines are valued in, and what this deployment can price. */
+  reportingCurrency: string
+  currencies: string[]
 }) {
   const router = useRouter()
   const owner = role === 'OWNER'
@@ -95,6 +100,12 @@ export function Organisation({
     const form = new FormData(event.currentTarget)
     const url = String(form.get('screeningUrl') ?? '').trim()
     await call('/api/org', { method: 'PATCH', body: JSON.stringify({ screeningUrl: url || null }) })
+  }
+
+  async function saveReportingCurrency(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    await call('/api/org', { method: 'PATCH', body: JSON.stringify({ reportingCurrency: String(form.get('reportingCurrency') ?? 'USD') }) })
   }
 
   async function saveMfaPolicy(event: FormEvent<HTMLFormElement>) {
@@ -200,6 +211,35 @@ export function Organisation({
             <a className="underline" href="/api/org/compliance/export">Download the signed regulator export</a> for this organisation.
           </p>
         )}
+      </div>
+
+      <div className="mt-lg rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
+        <h3 className="text-body-md font-bold text-on-surface">Accounting</h3>
+        <p className="mt-xs text-body-md text-on-surface-variant">
+          Every settled claim is valued in <span className="font-mono">{reportingCurrency}</span> at its own claim
+          date — the rate is captured when the claim lands and never recomputed, so an export run twice is
+          identical. Reclaims appear as reversals and network fees as their own lines. Changing the currency
+          applies to claims settled from then on.
+        </p>
+        {owner && currencies.length > 1 && (
+          <form onSubmit={saveReportingCurrency} className="mt-md flex flex-wrap items-end gap-md">
+            <label className="flex flex-col gap-xs">
+              <span className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">Reporting currency</span>
+              <select name="reportingCurrency" defaultValue={reportingCurrency} className="min-h-11 rounded-lg border border-outline bg-surface px-3 font-mono text-label-md text-on-surface">
+                {currencies.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            <Button type="submit" variant="secondary" disabled={busy}>Save</Button>
+          </form>
+        )}
+        <p className="mt-sm text-label-md text-on-surface-variant">
+          <a className="underline" href="/api/org/accounting/export?format=csv" data-testid="accounting-export-csv">Download the journal export (CSV)</a>
+          {' · '}
+          <a className="underline" href="/api/org/accounting/export?format=json">JSON</a>
+          {' — signed; verify with '}<span className="font-mono">pnpm audit:verify-export</span>.
+        </p>
       </div>
 
       <Table className="mt-lg">

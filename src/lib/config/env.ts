@@ -86,6 +86,13 @@ const schema = z.object({
 
   // Stellar
   STELLAR_NETWORK: z.enum(['testnet', 'public']).default('testnet'),
+  /**
+   * Accounting export (#80): the anchor asset standing for each reporting
+   * currency, `USD=USDC:G…,EUR=EURC:G…`. Rates are read from the DEX's trade
+   * history for that pair at the claim's ledger time. The default is Circle's
+   * USDC on the public network; a testnet deployment names its own.
+   */
+  RATE_ANCHORS: z.string().default('USD=USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN'),
   HORIZON_URL: z.url(),
   NETWORK_PASSPHRASE: z.string().min(1),
   SPONSOR_PUBLIC_KEY: z.string().regex(PUBLIC_KEY, 'must be a Stellar public key (G…)'),

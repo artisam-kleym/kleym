@@ -25,6 +25,7 @@ import { RECONCILE_INTERVAL_MS } from '@/lib/queue/schedule'
 import { logger } from '@/lib/config/logger'
 import { horizon, loadClaimableBalance } from '@/lib/stellar/horizon'
 import { announceDueReclaims } from './suspend'
+import { recordClaimValuation } from './valuations'
 
 export type FindingKind =
   | 'claimed_on_chain'
@@ -38,6 +39,8 @@ export interface BalanceDisposal {
   /** Who took it, per the ledger. Whether that is the sender is the CALLER's call, against the campaign. */
   claimant: string
   transactionHash: string
+  /** Closing time of the ledger containing the disposal operation. */
+  claimedAt: Date
 }
 
 /**
@@ -73,7 +76,9 @@ export const readDisposal: DisposalReader = async (balanceId) => {
   const claimant = (claim as unknown as { claimant?: string }).claimant
   if (!claimant) return null
 
-  return { claimant, transactionHash: claim.transaction_hash }
+  const claimedAt = new Date(claim.created_at)
+  if (Number.isNaN(claimedAt.getTime())) return null
+  return { claimant, transactionHash: claim.transaction_hash, claimedAt }
 }
 
 export interface ReconcileDeps {
@@ -324,10 +329,15 @@ async function reconcileLink(
         status,
         claimedBy: disposal.claimant,
         claimTxHash: disposal.transactionHash,
-        claimedAt: new Date(),
+        claimedAt: disposal.claimedAt,
       },
     })
     report.corrected += 1
+    // The corrected movement reaches the journal too (#80): valued at its time, fee unknown so no fee line.
+    // Best-effort like the submit paths; the hourly pass creates the row if this fails.
+    await recordClaimValuation(link.id, null).catch((error: unknown) =>
+      logger.error({ linkId: link.id, reason: error instanceof Error ? error.message : 'unknown' }, 'valuation could not be recorded for a reconciled link'),
+    )
 
     /*
      * Close anything else open for this link BEFORE recording the outcome.

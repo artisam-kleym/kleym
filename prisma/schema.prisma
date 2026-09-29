@@ -106,19 +106,19 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  campaigns   Campaign[]
-  sessions    Session[]
-  apiKeys     ApiKey[]
+  campaigns     Campaign[]
+  sessions      Session[]
+  apiKeys       ApiKey[]
   ssoIdentities SsoIdentity[]
   scimGroups    ScimGroupMember[]
   totp          MfaTotp?
   passkeys      MfaPasskey[]
   recoveryCodes MfaRecoveryCode[]
-  auditLogs   AuditLog[]
-  invitations Invitation[] @relation("invitee")
-  invited     Invitation[] @relation("inviter")
-  memberships Membership[]
-  approvals   CampaignApproval[]
+  auditLogs     AuditLog[]
+  invitations   Invitation[]       @relation("invitee")
+  invited       Invitation[]       @relation("inviter")
+  memberships   Membership[]
+  approvals     CampaignApproval[]
 
   @@index([username])
 }
@@ -128,26 +128,31 @@ model User {
 /// migration gave every existing user a personal organisation, so a
 /// single-user deployment behaves exactly as before.
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
+  id                String    @id @default(cuid())
+  name              String
   /// Dual control (#45). A campaign whose total value — amountPerLink ×
   /// linkCount, in its own asset — reaches `approvalThreshold` needs
   /// `approvalsRequired` approvals from Approvers other than its creator
   /// before a batch can be signed. Null threshold: dual control is off.
-  approvalThreshold Decimal? @db.Decimal(23, 7)
-  approvalsRequired Int      @default(1)
+  approvalThreshold Decimal?  @db.Decimal(23, 7)
+  approvalsRequired Int       @default(1)
   /// Compliance screening callback (#52). When set, every batch is screened
   /// through this URL before an envelope is handed over, and a callback that
   /// holds, blocks, errors or times out stops submission. Null: no screening,
   /// and the signing path is untouched.
-  screeningUrl String?
+  screeningUrl      String?
   /// MFA policy (#47): OFF, APPROVERS (Approvers and Owners must have a
   /// second factor to sign in), or ALL members. Enforced at sign-in, server-side.
-  mfaPolicy MfaPolicy @default(OFF)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  mfaPolicy         MfaPolicy @default(OFF)
+  /// Accounting export (#80): the fiat currency every journal line is valued
+  /// in. ISO 4217. The rate is captured per claim when it settles, so
+  /// changing this later affects only claims settled after the change.
+  reportingCurrency String    @default("USD")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   memberships Membership[]
+  valuations  Valuation[]
   campaigns   Campaign[]
   apiKeys     ApiKey[]
   webhooks    WebhookEndpoint[]
@@ -220,9 +225,9 @@ model Invitation {
   organizationId String
   role           OrgRole   @default(OPERATOR)
   tokenHash      String    @unique // sha256 of the opaque URL token
-  expiresAt   DateTime
-  redeemedAt  DateTime?
-  createdAt   DateTime  @default(now())
+  expiresAt      DateTime
+  redeemedAt     DateTime?
+  createdAt      DateTime  @default(now())
 
   user         User         @relation("invitee", fields: [userId], references: [id], onDelete: Cascade)
   createdBy    User         @relation("inviter", fields: [createdById], references: [id])
@@ -233,9 +238,9 @@ model Invitation {
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  tokenHash String   @unique // sha256 of the opaque cookie value
+  id                   String    @id @default(cuid())
+  userId               String
+  tokenHash            String    @unique // sha256 of the opaque cookie value
   /// Which of the user's organisations this session is acting in. Resolved
   /// against their memberships on EVERY request, so a removed membership
   /// ends access at once — the session merely remembers a preference.
@@ -244,12 +249,12 @@ model Session {
   /// session at sign-in; null on a session whose user has a factor means
   /// the session is pending and unlocks nothing but verification. `stepUpAt`
   /// is the last FRESH factor, for the actions that move money.
-  mfaAt    DateTime?
-  stepUpAt DateTime?
-  expiresAt DateTime
-  ip        String?
-  userAgent String?
-  createdAt DateTime @default(now())
+  mfaAt                DateTime?
+  stepUpAt             DateTime?
+  expiresAt            DateTime
+  ip                   String?
+  userAgent            String?
+  createdAt            DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -274,27 +279,27 @@ enum SsoProtocol {
 }
 
 model SsoConnection {
-  id             String      @id @default(cuid())
-  organizationId String      @unique
+  id               String      @id @default(cuid())
+  organizationId   String      @unique
   /// What a user types on /login/sso to find their organisation's IdP.
-  handle         String      @unique
-  protocol       SsoProtocol @default(OIDC)
-  issuer         String
-  clientId       String
+  handle           String      @unique
+  protocol         SsoProtocol @default(OIDC)
+  issuer           String
+  clientId         String
   /// The OIDC client secret, AES-256-GCM under CREDENTIAL_ENCRYPTION_KEY. It is the
   /// IdP's credential for Kleym, never a Stellar key; it is still never in the clear.
   clientCiphertext String
-  scopes         String      @default("openid profile email")
+  scopes           String      @default("openid profile email")
   /// The ID-token claim that is the STABLE subject identities link on — `sub`
   /// for Okta and Google, `oid` for Entra ID. Never an email.
-  subjectClaim   String      @default("sub")
-  groupsClaim    String      @default("groups")
+  subjectClaim     String      @default("sub")
+  groupsClaim      String      @default("groups")
   /// Refuse password sign-in for this organisation's members, server-side.
-  ssoOnly        Boolean     @default(false)
+  ssoOnly          Boolean     @default(false)
   /// The role a provisioned member gets when no group mapping matches.
-  defaultRole    OrgRole     @default(VIEWER)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  defaultRole      OrgRole     @default(VIEWER)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   identities   SsoIdentity[]
@@ -388,17 +393,17 @@ enum MfaPolicy {
 /// from the environment) — never in the clear. Unconfirmed until the user
 /// proves the authenticator with one code.
 model MfaTotp {
-  userId      String    @id
+  userId       String    @id
   /// base64: iv(12) | tag(16) | ciphertext of the base32 key.
-  ciphertext  String
-  confirmedAt DateTime?
+  ciphertext   String
+  confirmedAt  DateTime?
   /// Wrong codes since the last success. Same bound and lockout as the recipient OTP.
-  attempts    Int       @default(0)
-  lockedUntil DateTime?
+  attempts     Int       @default(0)
+  lockedUntil  DateTime?
   /// The time step of the last accepted code (RFC 6238 §5.2): a code is
   /// accepted once, and never for a step at or before this one.
   lastUsedStep BigInt?
-  createdAt   DateTime  @default(now())
+  createdAt    DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -406,14 +411,14 @@ model MfaTotp {
 /// A WebAuthn credential (passkey) as a second factor. The public key is the
 /// authenticator's; the private half never leaves the device.
 model MfaPasskey {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  credentialId String   @unique
+  credentialId String    @unique
   publicKey    Bytes
-  counter      BigInt   @default(0)
+  counter      BigInt    @default(0)
   transports   String[]
   name         String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
   lastUsedAt   DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -434,16 +439,16 @@ model MfaRecoveryCode {
 }
 
 model ApiKey {
-  id             String    @id @default(cuid())
+  id             String      @id @default(cuid())
   userId         String // who issued it
   organizationId String // whose campaigns it reads
   name           String
   scope          ApiKeyScope @default(READ)
-  prefix     String    @unique // first 8 chars, shown in UI
-  keyHash    String // argon2id of the full key
-  lastUsedAt DateTime?
-  revokedAt  DateTime?
-  createdAt  DateTime  @default(now())
+  prefix         String      @unique // first 8 chars, shown in UI
+  keyHash        String // argon2id of the full key
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime    @default(now())
 
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -457,7 +462,7 @@ model ApiKey {
 /// here is ever a claim URL or a fragment, and `link.claimed` carries the
 /// ephemeral PUBLIC key.
 model WebhookEndpoint {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   url            String
   /// HMAC-SHA256 key for `x-kleym-signature`. Webhook signing material, NOT
@@ -487,19 +492,19 @@ enum WebhookDeliveryStatus {
 }
 
 model WebhookDelivery {
-  id         String                @id @default(cuid())
-  endpointId String
-  event      String
-  payload    Json
-  status     WebhookDeliveryStatus @default(PENDING)
-  attempts   Int                   @default(0)
+  id          String                @id @default(cuid())
+  endpointId  String
+  event       String
+  payload     Json
+  status      WebhookDeliveryStatus @default(PENDING)
+  attempts    Int                   @default(0)
   /// The receiver's last HTTP status, or null when it did not answer.
-  lastStatus Int?
+  lastStatus  Int?
   /// Why the last attempt failed — a status or a short transport reason, never the body.
   lastError   String?
   deliveredAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
 
   endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
 
@@ -508,88 +513,88 @@ model WebhookDelivery {
 }
 
 model Campaign {
-  id              String         @id @default(cuid())
+  id                   String             @id @default(cuid())
   /// Who created it. Ownership is the ORGANISATION; this is provenance.
-  userId          String
-  organizationId  String
+  userId               String
+  organizationId       String
   /// The dual-control policy as it stood when this campaign was created
   /// (#45). The gate reads the STRICTER of this and the organisation's
   /// current policy, so loosening the policy affects only campaigns created
   /// afterwards — an Owner cannot switch the gate off, sign, and switch it
   /// back on for a campaign they made.
-  approvalThreshold Decimal? @db.Decimal(23, 7)
-  approvalsRequired Int      @default(1)
+  approvalThreshold    Decimal?           @db.Decimal(23, 7)
+  approvalsRequired    Int                @default(1)
   /// The last screening result (#52), bound to `screeningHash` — a digest of
   /// the terms and recipient references that were screened, so an ALLOW
   /// does not outlive a change to what it allowed. BLOCK is durable: the
   /// callback is not asked again.
-  screeningDecision ScreeningDecision?
-  screeningReason   String?
-  screeningHash     String?
-  screenedAt        DateTime?
+  screeningDecision    ScreeningDecision?
+  screeningReason      String?
+  screeningHash        String?
+  screenedAt           DateTime?
   /// The sponsor account (G…) bound to this campaign at creation (#48).
   /// Reserves return to the sponsoring account on merge, so a campaign stays
   /// with the sponsor that funded it for its whole life; failover in the
   /// pool applies to NEW campaigns only. Null only on rows older than the
   /// pool, which read as the primary sponsor.
-  sponsorPublicKey String?
-  name            String
-  network         String // "testnet" | "public"
-  senderPublicKey String // G... that funded it
-  assetCode       String // "XLM" or e.g. "USDC"
-  assetIssuer     String? // null for native
+  sponsorPublicKey     String?
+  name                 String
+  network              String // "testnet" | "public"
+  senderPublicKey      String // G... that funded it
+  assetCode            String // "XLM" or e.g. "USDC"
+  assetIssuer          String? // null for native
   /// The DEFAULT amount, and the whole story for a uniform campaign. Each
   /// link carries its own `ClaimLink.amount` (#73); this is what a link gets
   /// when the sender did not say otherwise, and what the wizard shows first.
-  amountPerLink   Decimal        @db.Decimal(23, 7)
+  amountPerLink        Decimal            @db.Decimal(23, 7)
   /// True once any registered link's amount differs from `amountPerLink`
   /// (#73). Display reads this; money never does — money reads the link.
-  variableAmounts Boolean        @default(false)
-  linkCount       Int
+  variableAmounts      Boolean            @default(false)
+  linkCount            Int
   /// Claim policy (#79), chosen at creation and applied to every link.
-  claimPolicy     ClaimPolicy    @default(OPEN)
+  claimPolicy          ClaimPolicy        @default(OPEN)
   /// Receive-as (#74): assets the sender lets a recipient convert into at
   /// claim time, as "CODE:ISSUER" or "XLM". Empty: the recipient gets the
   /// campaign asset and TX2 is exactly what it was. The conversion is a
   /// `pathPaymentStrictSend` inside TX2, quoted and bounded server-side.
-  receiveAsAssets String[]       @default([])
+  receiveAsAssets      String[]           @default([])
   /// Exchange deposit (#75): whether a recipient may claim to an address plus
   /// a memo instead of connecting a wallet. Off by default — the sender
   /// decides whether that option is offered at all.
-  allowExchangeDeposit Boolean   @default(false)
+  allowExchangeDeposit Boolean            @default(false)
   /// Signed receipts (#81): email each recipient their receipt when they
   /// claim. Only email-delivered links have an address; the receipt carries
   /// nothing from the link — the claimant address and the transaction.
-  emailReceipts   Boolean        @default(false)
-  expiresAt       DateTime
-  status          CampaignStatus @default(DRAFT)
-  csvExportedAt   DateTime? // hard gate: null blocks activation
+  emailReceipts        Boolean            @default(false)
+  expiresAt            DateTime
+  status               CampaignStatus     @default(DRAFT)
+  csvExportedAt        DateTime? // hard gate: null blocks activation
   /// Regenerable links (#77). The campaign's index in the sender's
   /// derivation path `m/44'/148'/<index>'/<link>'`, and a fingerprint of a
   /// PUBLIC key derived from their recovery phrase so the regenerate flow can
   /// tell "wrong phrase" from "wrong campaign". Neither is secret; neither
   /// lets anyone derive a key. The phrase itself never reaches Kleym. Null on
   /// campaigns whose keys were random.
-  derivationIndex Int?
-  keyFingerprint  String?
+  derivationIndex      Int?
+  keyFingerprint       String?
   /// When the sender suspended Kleym's participation (#72). Not a revocation:
   /// every balance stays on the ledger with the recipient as a valid claimant
   /// until `expiresAt` — the claimant model in batch.ts gives the sender no
   /// earlier instant. Kleym stops serving the links, and the reclaim is
   /// scheduled for `expiresAt`, when the sweep marks it due for signing.
-  suspendedAt     DateTime?
+  suspendedAt          DateTime?
   /// When the expiry sweep announced the scheduled reclaim as due.
-  reclaimDueAt    DateTime?
+  reclaimDueAt         DateTime?
   /// Unclaimed-value management (#78). Days before `expiresAt` at which
   /// email-delivered, still-unclaimed recipients are reminded — sender-chosen,
   /// empty for none. Reminders never carry the claim URL: Kleym does not have
   /// it (SPEC.md §6.5), so they point the recipient at the original message.
-  reminderDaysBefore Int[]  @default([])
+  reminderDaysBefore   Int[]              @default([])
   /// When `campaign.expiring_soon` went out, once, to the organisation's webhooks.
-  expiringSoonAt  DateTime?
-  reserveEstimate Decimal?       @db.Decimal(23, 7)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  expiringSoonAt       DateTime?
+  reserveEstimate      Decimal?           @db.Decimal(23, 7)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
   user         User                    @relation(fields: [userId], references: [id])
   organization Organization            @relation(fields: [organizationId], references: [id])
@@ -620,7 +625,8 @@ model ReclaimBatch {
   amount          Decimal  @db.Decimal(23, 7)
   submittedAt     DateTime @default(now())
 
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaign  Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  valuation Valuation?
 
   @@index([campaignId])
 }
@@ -651,15 +657,15 @@ model ClaimLink {
   /// it exists only in the sender's browser and the CSV they download.
   ephemeralPublicKey String @unique
 
-  balanceId String?    @unique // set once the batch confirms
+  balanceId   String?    @unique // set once the batch confirms
   /// What THIS link pays (#73). Decimal(23,7), never Float (SPEC.md §4.1).
   /// Set at registration — from the sender's per-row amount, or the
   /// campaign's `amountPerLink` when none was given — and what the batch
   /// builder writes, the verifier checks position by position, and
   /// reconciliation compares the ledger against.
-  amount    Decimal    @db.Decimal(23, 7)
-  status    LinkStatus @default(PENDING)
-  label     String? // sender's own note: handle, email, etc.
+  amount      Decimal    @db.Decimal(23, 7)
+  status      LinkStatus @default(PENDING)
+  label       String? // sender's own note: handle, email, etc.
   /// Per-link suspension (#72), for the wrong-recipient case. Same meaning
   /// as Campaign.suspendedAt: Kleym stops serving this link, the balance is
   /// unchanged and claimable by its holder until the campaign expires.
@@ -679,36 +685,37 @@ model ClaimLink {
   /// exists only in the sender's CSV. Guesses are counted in Redis per link
   /// AND caller (five, then a fifteen-minute lock), never on this row: a
   /// per-link counter could be held shut by anyone reading the ledger.
-  codeHash        String?
+  codeHash String?
 
-  claimedBy   String? // recipient G... — the PAYMENT destination, read off the submitted envelope
-  claimedAt   DateTime?
-  claimTxHash String?
+  claimedBy       String? // recipient G... — the PAYMENT destination, read off the submitted envelope
+  claimedAt       DateTime?
+  claimTxHash     String?
   /// Deposit memo (#75) TX2 carried, when the recipient claimed to an
   /// exchange or custodian: how the omnibus account credited them. Read
   /// back off the envelope beside `claimedBy`, never from the request.
-  claimMemoType String?
-  claimMemo     String?
+  claimMemoType   String?
+  claimMemo       String?
   /// What the recipient actually received (#81, #74): for a receive-as claim
   /// TX2 is a pathPaymentStrictSend and this is the destination asset and the
   /// amount the ledger delivered; for a plain payment it equals the campaign
   /// asset and this link's amount. Read off the envelope and the result at
   /// submit, beside `claimedBy`; what a receipt attests.
   deliveredAsset  String?
-  deliveredAmount Decimal? @db.Decimal(23, 7)
+  deliveredAmount Decimal?     @db.Decimal(23, 7)
   /// The policy that was satisfied when this link was claimed (#79).
-  claimedUnder ClaimPolicy?
+  claimedUnder    ClaimPolicy?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  campaign Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  batch    Batch?    @relation(fields: [batchId], references: [id])
-  delivery Delivery?
-  passkey  ClaimLinkPasskey?
-  receipt  ClaimReceipt?
-  findings ReconciliationFinding[]
-  stranded StrandedAccount?
+  campaign  Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  batch     Batch?                  @relation(fields: [batchId], references: [id])
+  delivery  Delivery?
+  passkey   ClaimLinkPasskey?
+  valuation Valuation?
+  receipt   ClaimReceipt?
+  findings  ReconciliationFinding[]
+  stranded  StrandedAccount?
 
   @@index([campaignId, status])
   @@index([balanceId])
@@ -719,13 +726,13 @@ model ClaimLink {
 /// on the recipient's device, which is the whole point. One per link; a
 /// forwarded link is useless without the device that registered.
 model ClaimLinkPasskey {
-  id           String   @id @default(cuid())
-  linkId       String   @unique
-  credentialId String   @unique
+  id           String    @id @default(cuid())
+  linkId       String    @unique
+  credentialId String    @unique
   publicKey    Bytes
-  counter      BigInt   @default(0)
+  counter      BigInt    @default(0)
   transports   String[]
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
   lastUsedAt   DateTime?
 
   link ClaimLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
@@ -738,21 +745,21 @@ model ClaimLinkPasskey {
 /// survives redaction is the claim that a delivery happened (`sentAt`,
 /// `openedAt`); the money's record lives on ClaimLink and is untouched.
 model Delivery {
-  id          String    @id @default(cuid())
-  linkId      String    @unique
-  email       String? // null once redacted
-  redactedAt  DateTime?
-  sentAt      DateTime?
-  openedAt    DateTime?
-  otpHash     String? // argon2id, 6-digit
-  otpExpires  DateTime?
-  otpAttempts Int       @default(0)
+  id             String    @id @default(cuid())
+  linkId         String    @unique
+  email          String? // null once redacted
+  redactedAt     DateTime?
+  sentAt         DateTime?
+  openedAt       DateTime?
+  otpHash        String? // argon2id, 6-digit
+  otpExpires     DateTime?
+  otpAttempts    Int       @default(0)
   /// Reminder points (days before expiry) already sent to this address (#78),
   /// and when the last one went — the per-recipient floor, so a re-run
   /// campaign cannot mail one person daily.
   reminderPoints Int[]     @default([])
   remindedAt     DateTime?
-  createdAt   DateTime  @default(now())
+  createdAt      DateTime  @default(now())
 
   link ClaimLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
 
@@ -804,16 +811,16 @@ model StrandedAccount {
 }
 
 model ReconciliationFinding {
-  id         String   @id @default(cuid())
-  linkId     String
-  campaignId String
-  kind       String // "claimed_on_chain" | "reclaimed_on_chain" | "critical_still_on_ledger" | "amount_mismatch" | "unresolved"
-  severity   FindingSeverity
-  detail     String
+  id          String          @id @default(cuid())
+  linkId      String
+  campaignId  String
+  kind        String // "claimed_on_chain" | "reclaimed_on_chain" | "critical_still_on_ledger" | "amount_mismatch" | "unresolved"
+  severity    FindingSeverity
+  detail      String
   /// Set when the finding was acted on, or when a later run found it resolved.
-  resolvedAt DateTime?
-  firstSeenAt DateTime @default(now())
-  lastSeenAt  DateTime @updatedAt
+  resolvedAt  DateTime?
+  firstSeenAt DateTime        @default(now())
+  lastSeenAt  DateTime        @updatedAt
 
   link     ClaimLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
   campaign Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -843,11 +850,11 @@ model AuditLog {
   /// organisation (an admin acting on a user, a security event on a route).
   organizationId String?
   action         String // "campaign.create", "link.reclaim", ...
-  entityType String?
-  entityId   String?
-  metadata   Json?
-  ip         String?
-  createdAt  DateTime @default(now())
+  entityType     String?
+  entityId       String?
+  metadata       Json?
+  ip             String?
+  createdAt      DateTime @default(now())
 
   user         User?         @relation(fields: [userId], references: [id])
   organization Organization? @relation(fields: [organizationId], references: [id])
@@ -881,6 +888,64 @@ model IdempotencyKey {
 
   @@id([userId, key])
   @@index([createdAt])
+}
+
+/// What one settled movement was worth in the organisation's reporting
+/// currency AT ITS OWN LEDGER TIME (#80). Captured once when the claim (or
+/// reclaim) settles and stored, never recomputed: an export run twice must
+/// produce the same numbers, and a rate looked up at export time would make
+/// last month's report change every time someone opened it.
+///
+/// One row per claim (`linkId`) or per reclaim batch (`reclaimBatchId`);
+/// exactly one of the two is set. `rate` is null when no source could price
+/// the pair at that time — the line is exported with the reason, not dropped,
+/// and the hourly pass retries with the same historical window.
+model Valuation {
+  id              String        @id @default(cuid())
+  organizationId  String
+  campaignId      String
+  linkId          String?       @unique
+  reclaimBatchId  String?       @unique
+  kind            ValuationKind
+  /// The ledger instant the rate is for — the claim's or the reclaim's.
+  valuedAt        DateTime
+  assetCode       String
+  assetIssuer     String?
+  /// The asset amount that moved. Decimal (AGENT.md §4.1).
+  amount          Decimal       @db.Decimal(23, 7)
+  /// The network fee the sponsor paid for this movement, in XLM. Its own journal line.
+  feeXlm          Decimal       @default(0) @db.Decimal(23, 7)
+  currency        String
+  /// Units of `currency` per one unit of the asset, or null when unpriced.
+  rate            Decimal?      @db.Decimal(23, 7)
+  /// Units of `currency` per one XLM at the same instant, for the fee line —
+  /// its own lookup, so its own source and window.
+  xlmRate         Decimal?      @db.Decimal(23, 7)
+  xlmRateSource   String?
+  xlmRateWindow   String?
+  rateSource      String
+  /// The window the rate came from, so a line names where its number is from.
+  rateWindow      String?
+  /// Failed pricing attempts by the hourly pass. Ordered on, so a row no
+  /// window will ever price cannot hold the pass's slots against newer rows.
+  attempts        Int           @default(0)
+  transactionHash String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  link         ClaimLink?    @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  reclaimBatch ReclaimBatch? @relation(fields: [reclaimBatchId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, valuedAt])
+  @@index([campaignId, valuedAt])
+  @@index([rate, valuedAt])
+  @@index([attempts, valuedAt])
+}
+
+enum ValuationKind {
+  CLAIM
+  RECLAIM
 }
 
 /// A signed receipt for one settled claim (#81): evidence that a specific

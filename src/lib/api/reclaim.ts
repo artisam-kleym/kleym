@@ -26,6 +26,8 @@ import {
 } from '@/lib/stellar/reclaim'
 import { horizon } from '@/lib/stellar/horizon'
 import { horizonResultCode } from './batches'
+import { recordReclaimValuation } from './valuations'
+import { feeChargedOf } from '@/lib/stellar/fees'
 
 /** How long a prepared envelope stays valid for the sender to sign. */
 const SIGNING_WINDOW_SECONDS = 600
@@ -113,7 +115,8 @@ export interface ReclaimDeps {
    * reason whenever Horizon was unreachable, which is exactly the false pass
    * this codebase has already been bitten by once.
    */
-  submit: (transaction: Transaction) => Promise<void>
+  /** Submits and reports the fee charged in stroops (null when unknown), for the accounting fee line (#80). */
+  submit: (transaction: Transaction) => Promise<{ feeCharged: string | number | null } | void>
 }
 
 const liveAccount = async (publicKey: string): Promise<Account | null> => {
@@ -127,8 +130,9 @@ const liveAccount = async (publicKey: string): Promise<Account | null> => {
   }
 }
 
-const liveSubmit = async (transaction: Transaction): Promise<void> => {
-  await horizon().submitTransaction(transaction)
+const liveSubmit = async (transaction: Transaction): Promise<{ feeCharged: string | number | null }> => {
+  const response = await horizon().submitTransaction(transaction)
+  return { feeCharged: feeChargedOf(response.result_xdr) }
 }
 
 const LIVE: ReclaimDeps = {
@@ -355,8 +359,9 @@ export async function submitReclaim(
 
   const amount = claimed.reduce((sum, id) => sum.plus(onLedger.get(id)!), new Decimal(0))
 
+  let feeCharged: string | number | null = null
   try {
-    await deps.submit(verified.transaction)
+    feeCharged = (await deps.submit(verified.transaction))?.feeCharged ?? null
   } catch (error) {
     const code = horizonResultCode(error)
     logger.warn({ campaignId: campaign.id, code }, 'reclaim rejected by the network')
@@ -418,6 +423,14 @@ export async function submitReclaim(
   }
 
   const state = await settleReclaimStatus(campaign.id)
+
+  // The reversal, valued at THIS moment (#80). Never fails the reclaim, which has happened.
+  const recorded = await prisma.reclaimBatch.findUnique({ where: { transactionHash: hash }, select: { id: true } })
+  if (recorded) {
+    await recordReclaimValuation(recorded.id, feeCharged).catch((error: unknown) =>
+      logger.error({ campaignId: campaign.id, reason: error instanceof Error ? error.message : 'unknown' }, 'reclaim valuation could not be recorded'),
+    )
+  }
 
   logger.info(
     { campaignId: campaign.id, hash, balances: claimed.length, amount: amount.toFixed() },

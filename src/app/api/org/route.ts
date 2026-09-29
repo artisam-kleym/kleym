@@ -7,7 +7,7 @@ import { logger } from '@/lib/config/logger'
 import { clientIp } from '@/lib/auth/client-ip'
 import { requireUser } from '@/lib/api/session-guard'
 import { serverError, validationProblem } from '@/lib/api/problems'
-import { mfaPolicySchema, renameOrganization, renameSchema, setApprovalPolicy, setMfaPolicy, setScreeningUrl } from '@/lib/api/organizations'
+import { mfaPolicySchema, renameOrganization, renameSchema, reportingCurrencySchema, setApprovalPolicy, setMfaPolicy, setReportingCurrency, setScreeningUrl } from '@/lib/api/organizations'
 import { policySchema } from '@/lib/api/approvals'
 import { screeningUrlSchema } from '@/lib/api/screening'
 import { zodErrors } from '@/lib/api/campaigns'
@@ -19,7 +19,7 @@ export async function GET() {
   const { org, response } = await requireUser()
   if (!org) return response
   return Response.json({
-    organization: { id: org.id, name: org.name, approvalThreshold: org.approvalThreshold, approvalsRequired: org.approvalsRequired, screeningUrl: org.screeningUrl, mfaPolicy: org.mfaPolicy },
+    organization: { id: org.id, name: org.name, approvalThreshold: org.approvalThreshold, approvalsRequired: org.approvalsRequired, screeningUrl: org.screeningUrl, mfaPolicy: org.mfaPolicy, reportingCurrency: org.reportingCurrency },
     role: org.role,
   })
 }
@@ -33,11 +33,16 @@ export async function PATCH(request: Request) {
   const asRename = renameSchema.safeParse(body)
   const asScreening = screeningUrlSchema.safeParse(body)
   const asMfa = mfaPolicySchema.safeParse(body)
-  if (!asPolicy.success && !asRename.success && !asScreening.success && !asMfa.success) {
-    const shape = body && typeof body === 'object' && 'screeningUrl' in body ? asScreening.error : asRename.error
+  const asCurrency = reportingCurrencySchema.safeParse(body)
+  if (!asPolicy.success && !asRename.success && !asScreening.success && !asMfa.success && !asCurrency.success) {
+    const shape = body && typeof body === 'object' && 'reportingCurrency' in body ? asCurrency.error : body && typeof body === 'object' && 'screeningUrl' in body ? asScreening.error : asRename.error
     return validationProblem(zodErrors(shape))
   }
   try {
+    if (asCurrency.success) {
+      await setReportingCurrency(user.id, org, asCurrency.data.reportingCurrency, clientIp(request))
+      return Response.json({ organization: { id: org.id, name: org.name, reportingCurrency: asCurrency.data.reportingCurrency } })
+    }
     if (asMfa.success) {
       await setMfaPolicy(user.id, org, asMfa.data.mfaPolicy, clientIp(request))
       return Response.json({ organization: { id: org.id, name: org.name, mfaPolicy: asMfa.data.mfaPolicy } })

@@ -10,6 +10,7 @@
 import { z } from 'zod'
 import type { OrgRole, Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
+import { supportedCurrencies } from '@/lib/stellar/rates'
 import { logger } from '@/lib/config/logger'
 import { isUniqueViolation } from '@/lib/db/errors'
 import { isWriteConflict } from './links'
@@ -217,6 +218,21 @@ export async function setScreeningUrl(actorId: string, org: OrgScope, screeningU
     userId: actorId, organizationId: org.id, action: 'org.screening_url', entityType: 'organization', entityId: org.id,
     // The host only: a URL may carry a path that is itself a credential.
     metadata: { from: hostOf(org.screeningUrl), to: hostOf(screeningUrl) }, ip,
+  })
+}
+
+/** ISO 4217, upper-case, and one this deployment can price (a `RATE_ANCHORS` entry). */
+export const reportingCurrencySchema = z
+  .object({ reportingCurrency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/, 'a three-letter ISO 4217 code') })
+  .strict()
+  .refine((v) => supportedCurrencies().includes(v.reportingCurrency), { message: 'no rate source is configured for that currency', path: ['reportingCurrency'] })
+
+/** Applies to claims settled from now on: each valuation captures the currency at its own settle time (#80). */
+export async function setReportingCurrency(actorId: string, org: OrgScope, reportingCurrency: string, ip: string | null): Promise<void> {
+  await prisma.organization.update({ where: { id: org.id }, data: { reportingCurrency } })
+  await recordAudit({
+    userId: actorId, organizationId: org.id, action: 'org.reporting_currency', entityType: 'organization', entityId: org.id,
+    metadata: { from: org.reportingCurrency, to: reportingCurrency }, ip,
   })
 }
 

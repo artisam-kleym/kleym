@@ -26,6 +26,8 @@ import { observedClaim } from '@/lib/observability/claims'
 import { emitWebhook } from '@/lib/webhooks/emit'
 import { policyFromRow, type ClaimPolicy } from './claim-policy'
 import { recordAudit } from './audit'
+import { recordClaimValuation } from './valuations'
+import { feeChargedOf } from '@/lib/stellar/fees'
 import { issueReceipt } from './receipts'
 import { enqueueReceipt } from '@/lib/queue/email'
 
@@ -654,12 +656,12 @@ export interface Submitted {
  * itself also rejects a replayed sequence number, but that arrives as an error
  * the recipient would see — this returns the original result instead.
  */
-export type Submitter = (transaction: Transaction) => Promise<{ hash: string; successful: boolean; resultXdr?: string }>
+export type Submitter = (transaction: Transaction) => Promise<{ hash: string; successful: boolean; feeCharged?: string | number | null; resultXdr?: string }>
 
 /** The real one. Injectable for the same reason `loadClaimable`'s read is. */
 const submitToHorizon: Submitter = async (transaction) => {
   const response = await horizon().submitTransaction(transaction)
-  return { hash: response.hash, successful: response.successful !== false, resultXdr: response.result_xdr }
+  return { hash: response.hash, successful: response.successful !== false, feeCharged: feeChargedOf(response.result_xdr), resultXdr: response.result_xdr }
 }
 
 async function submitClaimUnobserved(
@@ -759,7 +761,7 @@ async function submitClaimUnobserved(
     return { kind: 'ok', value: { hash, phase, replay: true } }
   }
 
-  let result: { hash: string; successful: boolean; resultXdr?: string }
+  let result: Awaited<ReturnType<Submitter>>
   try {
     result = await submit(transaction)
   } catch (error) {
@@ -825,6 +827,10 @@ async function submitClaimUnobserved(
       },
     })
     logger.info({ linkId: link.id, campaignId: link.campaignId, hash: result.hash, policy: policyFromRow(link.campaign.claimPolicy) }, 'link claimed')
+    // What this claim was worth at THIS ledger time (#80), captured once. Never fails the claim.
+    await recordClaimValuation(link.id, result.feeCharged ?? null).catch((error: unknown) =>
+      logger.error({ linkId: link.id, reason: error instanceof Error ? error.message : 'unknown' }, 'claim valuation could not be recorded'),
+    )
     /*
      * The signed receipt (#81), issued now — while the inputs are exactly what
      * the ledger just did — and never regenerated. A failure here must not
