@@ -17,6 +17,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { href: '/campaigns', label: 'Campaigns', icon: 'campaign' },
+  { href: '/templates', label: 'Templates', icon: 'pending_actions' },
   { href: '/approvals', label: 'Approvals', icon: 'verified_user' },
   { href: '/history', label: 'History', icon: 'history' },
   { href: '/settings', label: 'Settings', icon: 'settings' },

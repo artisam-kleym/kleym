@@ -85,6 +85,26 @@ export interface Policy {
 }
 
 /**
+ * Whether `actorId` is a maker of this campaign and so may not be its
+ * checker: its creator, or the person who registered its links / prepared
+ * its batches (#82 — a prepared template run's author and its signer can
+ * differ, and dual control has to refuse both). Pure.
+ */
+export function selfApproving(campaign: { userId: string; signedById: string | null }, actorId: string): boolean {
+  return campaign.userId === actorId || campaign.signedById === actorId
+}
+
+/**
+ * Records who signs a campaign: the first person to register links to it or
+ * take an envelope for it, from the wizard or a WRITE API key alike. Set
+ * once and never overwritten, scoped to the organisation in the query
+ * (AGENT.md §5.4). A no-op when a signer is already on record.
+ */
+export async function recordSigner(campaignId: string, organizationId: string, actorId: string): Promise<void> {
+  await prisma.campaign.updateMany({ where: { ...owned(campaignId, organizationId), signedById: null }, data: { signedById: actorId } })
+}
+
+/**
  * The policy a campaign is gated by: the STRICTER of its own snapshot (taken
  * at creation) and the organisation's current policy. Tightening the
  * organisation's policy reaches campaigns in flight; loosening it does not —
@@ -130,7 +150,7 @@ export interface ApprovalStatus {
   /** Approvals given for terms that have since changed. */
   stale: string[]
   rejected: { username: string; note: string | null }[]
-  approvers: { username: string; decision: ApprovalDecision; note: string | null; at: Date; current: boolean }[]
+  approvers: { username: string; decision: ApprovalDecision; note: string | null; at: Date; current: boolean; voided: boolean }[]
   termsHash: string
   /** True when signing may proceed. */
   satisfied: boolean
@@ -139,7 +159,7 @@ export interface ApprovalStatus {
 }
 
 const CAMPAIGN_SELECT = {
-  id: true, userId: true, status: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true,
+  id: true, userId: true, signedById: true, status: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true,
   variableAmounts: true, approvalThreshold: true, approvalsRequired: true,
   organization: { select: { approvalThreshold: true, approvalsRequired: true } },
   approvals: {
@@ -184,7 +204,10 @@ export function statusOf(campaign: Loaded): ApprovalStatus {
   const required = policy.gatedBy(campaignValue(campaign))
   const needed = required ? Math.max(1, policy.approvalsRequired) : 0
   const current = campaign.approvals.filter((a) => a.termsHash === hash)
-  const granted = current.filter((a) => a.decision === 'APPROVED').length
+  // A maker's approval counts for nothing, whenever it was given: an approval
+  // recorded BEFORE its author became the signer (#82 — approve the prepared
+  // run, then continue and sign it) is voided the moment they do.
+  const granted = current.filter((a) => a.decision === 'APPROVED' && !selfApproving(campaign, a.approverId)).length
   const rejected = current.filter((a) => a.decision === 'REJECTED').map((a) => ({ username: a.approver.username, note: a.note }))
   const stale = campaign.approvals.filter((a) => a.termsHash !== hash && a.decision === 'APPROVED').map((a) => a.approver.username)
 
@@ -204,6 +227,7 @@ export function statusOf(campaign: Loaded): ApprovalStatus {
     rejected,
     approvers: campaign.approvals.map((a) => ({
       username: a.approver.username, decision: a.decision, note: a.note, at: a.createdAt, current: a.termsHash === hash,
+      voided: selfApproving(campaign, a.approverId),
     })),
     termsHash: hash,
     satisfied: !required || (rejected.length === 0 && granted >= needed),
@@ -289,8 +313,11 @@ export async function decide(
 ): Promise<DecideOutcome> {
   const campaign = await loadForApproval(campaignId, org.id)
   if (!campaign) return { kind: 'not-found' }
-  if (campaign.userId === actor.id) {
-    return { kind: 'conflict', detail: 'You created this campaign; a different approver has to sign it off.' }
+  if (selfApproving(campaign, actor.id)) {
+    return {
+      kind: 'conflict',
+      detail: campaign.userId === actor.id ? 'You created this campaign; a different approver has to sign it off.' : 'You are signing this campaign; a different approver has to sign it off.',
+    }
   }
   if (campaign.status !== 'DRAFT' && campaign.status !== 'CREATING' && campaign.status !== 'PARTIAL') {
     return { kind: 'conflict', detail: `This campaign is ${campaign.status}; approval applies before signing.` }

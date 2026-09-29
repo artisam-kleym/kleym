@@ -17,6 +17,7 @@ import {
 } from '@/lib/api/idempotency'
 import { conflict, notFound, serverError, validationProblem } from '@/lib/api/problems'
 import { registerLinks, isWriteConflict } from '@/lib/api/links'
+import { recordSigner } from '@/lib/api/approvals'
 import { listQuerySchema, registerLinksSchema, serialiseAmount, zodErrors } from '@/lib/api/campaigns'
 import { LINK_ORDER } from '@/lib/api/link-order'
 
@@ -112,6 +113,9 @@ export async function POST(request: Request, { params }: Params) {
         `This campaign declares ${outcome.declared} links; registering ${outcome.adding} more would make ${outcome.wouldTotal}.`,
       )
     }
+
+    // The first person to act on the draft is its signer (#45, #82): recorded once, never overwritten.
+    await recordSigner(id, org.id, user.id)
 
     const payload = { registered: outcome.registered, total: outcome.total }
     await storeIdempotentResult(request, context, { status: 201, body: payload })

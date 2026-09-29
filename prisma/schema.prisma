@@ -154,6 +154,7 @@ model Organization {
   memberships Membership[]
   valuations  Valuation[]
   campaigns   Campaign[]
+  templates   CampaignTemplate[]
   apiKeys     ApiKey[]
   webhooks    WebhookEndpoint[]
   sso         SsoConnection?
@@ -561,14 +562,20 @@ model Campaign {
   /// Exchange deposit (#75): whether a recipient may claim to an address plus
   /// a memo instead of connecting a wallet. Off by default — the sender
   /// decides whether that option is offered at all.
-  allowExchangeDeposit Boolean            @default(false)
-  /// Signed receipts (#81): email each recipient their receipt when they
-  /// claim. Only email-delivered links have an address; the receipt carries
-  /// nothing from the link — the claimant address and the transaction.
-  emailReceipts        Boolean            @default(false)
-  expiresAt            DateTime
-  status               CampaignStatus     @default(DRAFT)
-  csvExportedAt        DateTime? // hard gate: null blocks activation
+  allowExchangeDeposit Boolean   @default(false)
+  /// Templates (#82): the template this campaign was produced from, if any.
+  /// The terms were copied at creation; the template can change afterwards
+  /// without touching this row — an approval binds to THIS campaign's hash.
+  templateId      String?
+  /// Dual control (#45, #82): the user who first registered links to, or
+  /// prepared a batch for, this campaign — the one who exports the CSV and
+  /// signs. For a prepared template run that is not the template's author,
+  /// and neither may approve it: maker and checker must differ from BOTH.
+  signedById      String?
+  emailReceipts Boolean @default(false)
+  expiresAt       DateTime
+  status          CampaignStatus @default(DRAFT)
+  csvExportedAt   DateTime? // hard gate: null blocks activation
   /// Regenerable links (#77). The campaign's index in the sender's
   /// derivation path `m/44'/148'/<index>'/<link>'`, and a fingerprint of a
   /// PUBLIC key derived from their recovery phrase so the regenerate flow can
@@ -598,6 +605,8 @@ model Campaign {
 
   user         User                    @relation(fields: [userId], references: [id])
   organization Organization            @relation(fields: [organizationId], references: [id])
+  template     CampaignTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  templateRun  TemplateRun?
   approvals    CampaignApproval[]
   links        ClaimLink[]
   batches      Batch[]
@@ -888,6 +897,75 @@ model IdempotencyKey {
 
   @@id([userId, key])
   @@index([createdAt])
+}
+
+/// A campaign's terms, saved to run again (#82): everything the wizard asks
+/// for except the keys and the expiry date, which is an OFFSET here. The
+/// recipient list is the same CSV text the wizard accepts, so a template run
+/// starts at the point where only keys are missing.
+///
+/// A schedule PREPARES; a human still signs. A run creates the campaign in
+/// DRAFT with these terms and this list and tells the operator; keys are
+/// generated in their browser and batches signed by their wallet, as for any
+/// campaign (AGENT.md §1). Nothing here can move money on its own.
+model CampaignTemplate {
+  id             String   @id @default(cuid())
+  organizationId String
+  createdById    String
+  name           String
+  enabled        Boolean  @default(true)
+  /// The terms, as `templateTermsSchema` reads them.
+  terms          Json
+  /// The recipient list — label, amount, reference, category, note — as CSV text.
+  recipientsCsv  String   @default("")
+  /// `daily`, `weekly:<0-6>`, `monthly:<1-28>`, or null for a template run by hand.
+  cadence        String?
+  /// The UTC hour a scheduled run is prepared at.
+  runHour        Int      @default(9)
+  nextRunAt      DateTime?
+  lastRunAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  runs         TemplateRun[]
+  campaigns    Campaign[]
+
+  @@index([organizationId, name])
+  @@index([enabled, nextRunAt])
+}
+
+/// One campaign produced from a template (#82), by the schedule or by hand.
+model TemplateRun {
+  id           String    @id @default(cuid())
+  templateId   String
+  /// Null for a FAILED run: nothing was prepared, and the history says why.
+  campaignId   String?   @unique
+  kind         RunKind
+  status       RunStatus @default(PREPARED)
+  /// Why a FAILED run prepared nothing — the operator's message, not a stack.
+  failure      String?
+  /// For a scheduled run, the instant it was due; for a manual one, when it started.
+  scheduledFor DateTime
+  /// The recipient list AS PREPARED, so the draft is continued with the
+  /// list its link count was fixed for, whatever the template says by then.
+  recipientsCsv String   @default("")
+  createdAt    DateTime  @default(now())
+
+  template CampaignTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  campaign Campaign?        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([templateId, createdAt])
+}
+
+enum RunKind {
+  SCHEDULED
+  MANUAL
+}
+
+enum RunStatus {
+  PREPARED
+  FAILED
 }
 
 /// What one settled movement was worth in the organisation's reporting

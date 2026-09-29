@@ -30,6 +30,9 @@ separately (`x-ratelimit-write-remaining`). Errors are RFC 9457
 | Method | Path | Body | Returns |
 |---|---|---|---|
 | POST | `/api/v1/campaigns` | `{ name, network, senderPublicKey, assetCode, assetIssuer?, amountPerLink, linkCount, expiresAt, receiveAs?: [{ assetCode, assetIssuer? }], allowExchangeDeposit?: boolean, reminderDaysBefore?: number[], claimPolicy?: "open" \| "code" \| "email" \| "passkey" }` | 201, the campaign |
+| GET | `/api/v1/templates` | — | `{ templates: [{ id, name, enabled, cadence, runHour, nextRunAt, lastRunAt, terms }] }` (#82) |
+| PUT | `/api/v1/templates/{id}/recipients` | `{ recipientsCsv }` or `{ recipients: [{ label, amount?, reference?, category?, note? }] }` — replaces the template's list; labels, never keys | `{ id, recipients }` |
+| POST | `/api/v1/templates/{id}/run` | `{}` | 201 `{ campaignId, linkCount, totalAmount, approvalRequired }` — a DRAFT campaign with the terms and list; an operator generates keys and signs it |
 | POST | `/api/v1/campaigns/{id}/links` | `{ publicKeys: [G…], labels?: [], attestations?: [{reference?, category?, note?} \| null], amounts?: ["12.5" \| null], codes?: [13-char] }` — `codes` required, one per key, when the campaign's `claimPolicy` is `code`; hashed on arrival | 201 `{ registered, total }` |
 | POST | `/api/v1/campaigns/{id}/export` | `{}` | `{ csvExportedAt }` — the caller's **attestation** that the secrets file is saved (see below); refused before any link exists |
 | POST | `/api/v1/campaigns/{id}/batches/prepare` | `{ sequence? }` | `{ sequence, totalBatches, linkCount, xdr, networkPassphrase, reserve, … }` |
@@ -82,8 +85,18 @@ re-add.
 
 Events: `campaign.created`, `campaign.activated`, `batch.confirmed`,
 `link.claimed`, `campaign.expiring_soon`, `campaign.suspended`,
-`campaign.reclaim_due`, `campaign.reclaimed`, `sponsor.low` (platform-wide:
-every endpoint subscribed, once per dedupe window).
+`campaign.reclaim_due`, `campaign.reclaimed`, `template.run_prepared`,
+`template.run_failed`, `sponsor.low` (platform-wide: every endpoint subscribed,
+once per dedupe window).
+
+`template.run_prepared` (#82) fires from the hourly template pass when a
+scheduled run has created its DRAFT campaign: `{ templateId, templateName,
+campaignId, scheduledFor, linkCount, amountPerLink, assetCode, totalAmount,
+approvalRequired }`. Nothing has moved; an operator must generate keys and
+sign. `template.run_failed` fires instead when the run could not be prepared
+— an empty list, a list over the limit, terms the campaign refused —
+`{ templateId, templateName, scheduledFor, reason }`; the schedule has moved
+on and the template needs fixing.
 
 `campaign.expiring_soon` (#78) fires once per campaign, from the hourly
 reminder pass, when a campaign with unclaimed links is within seven days (or
