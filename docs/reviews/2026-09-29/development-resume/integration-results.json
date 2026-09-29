@@ -1,0 +1,37 @@
+[
+  {
+    "suite": "batches",
+    "exitCode": 0,
+    "seconds": 6.7,
+    "passes": 36,
+    "failures": 0
+  },
+  {
+    "suite": "claims",
+    "exitCode": 0,
+    "seconds": 2.89,
+    "passes": 30,
+    "failures": 0
+  },
+  {
+    "suite": "sponsors",
+    "exitCode": 0,
+    "seconds": 2.61,
+    "passes": 31,
+    "failures": 0
+  },
+  {
+    "suite": "reclaim",
+    "exitCode": 0,
+    "seconds": 4.14,
+    "passes": 57,
+    "failures": 0
+  },
+  {
+    "suite": "write-api",
+    "exitCode": 1,
+    "seconds": 9.44,
+    "passes": 54,
+    "failures": 1
+  }
+]

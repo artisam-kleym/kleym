@@ -10,6 +10,7 @@
  */
 import { useCallback, useState } from 'react'
 import type { EphemeralKey } from '@/lib/campaign/keygen'
+import type { stellarMetadata } from '@/lib/stellar/network'
 
 export type Phase =
   | 'editing'
@@ -20,6 +21,7 @@ export type Phase =
   | 'partial'
 
 export interface WizardConfig {
+  stellar: ReturnType<typeof stellarMetadata>
   appUrl: string
   maxOpsPerBatch: number
   maxLinksPerCampaign: number

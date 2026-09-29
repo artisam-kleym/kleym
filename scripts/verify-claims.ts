@@ -17,9 +17,11 @@
 import { randomUUID } from 'node:crypto'
 import { Keypair } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { startTestnetNetworkFixture } from '../tests/fixtures/horizon-network'
 import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
+const stopNetworkFixture = await startTestnetNetworkFixture({ missingAccounts: true })
 
 const { prisma } = await import('../src/lib/db/client')
 const { redis } = await import('../src/lib/redis/client')
@@ -409,6 +411,7 @@ async function main(): Promise<void> {
     await submitBindsToItsLink()
   } finally {
     await prisma.$disconnect()
+    await stopNetworkFixture()
     redis.disconnect()
   }
   console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)

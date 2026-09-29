@@ -41,6 +41,17 @@ export interface CampaignTerms {
   expiresAt: string
 }
 
+/** Public deployment identity; no operational keys or provider credentials. */
+export interface StellarMetadata {
+  network: 'testnet' | 'public'
+  networkPassphrase: string
+  networkLabel: string
+  defaultAsset: { assetCode: string; assetIssuer: string }
+  nativeAsset: { assetCode: string; assetIssuer: null }
+  isRealMoney: boolean
+  valueNotice: string
+}
+
 export interface Campaign {
   id: string
   name: string
@@ -99,6 +110,10 @@ export class KleymClient {
   listCampaigns(query: { status?: string; page?: number; perPage?: number } = {}): Promise<{ campaigns: Campaign[]; total: number }> {
     const q = new URLSearchParams(Object.entries(query).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]))
     return this.call('GET', `/api/v1/campaigns${q.size ? `?${q}` : ''}`)
+  }
+
+  getStellarMetadata(): Promise<StellarMetadata> {
+    return this.call('GET', '/api/stellar/network')
   }
 
   getCampaign(id: string): Promise<Campaign & { reserveEstimate: string | null; csvExportedAt: string | null }> {

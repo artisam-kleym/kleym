@@ -1,0 +1,99 @@
+{
+  "network": "testnet",
+  "hash": "48b50ccbbc951692c58ac8e6b1163b30d23cdd3201664146db62125be9ccf2ab",
+  "successful": true,
+  "feeChargedStroops": "400",
+  "confirmedAt": "2026-09-29T09:24:02.982Z",
+  "sender": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+  "recipient": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+  "sponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+  "requiredSignersVerified": [
+    "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M"
+  ],
+  "sponsorBefore": {
+    "address": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+    "sequence": "21174107164901376",
+    "nativeBalance": "10000.0000000",
+    "baseReserve": "0.5000000",
+    "minimumReserve": "1.0000000",
+    "nativeSellingLiabilities": "0.0000000",
+    "spendableNative": "9999.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 0,
+    "accountSponsor": null,
+    "balances": [
+      {
+        "assetType": "native",
+        "code": "XLM",
+        "issuer": null,
+        "balance": "10000.0000000",
+        "sponsor": null,
+        "limit": null
+      }
+    ]
+  },
+  "senderAfter": {
+    "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "sequence": "21174360567971840",
+    "nativeBalance": "0.0000000",
+    "baseReserve": "0.5000000",
+    "minimumReserve": "0.0000000",
+    "nativeSellingLiabilities": "0.0000000",
+    "spendableNative": "0.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 3,
+    "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+    "balances": [
+      {
+        "assetType": "credit_alphanum4",
+        "code": "USDC",
+        "issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+        "balance": "0.0000000",
+        "sponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+        "limit": "100.0000000"
+      },
+      {
+        "assetType": "native",
+        "code": "XLM",
+        "issuer": null,
+        "balance": "0.0000000",
+        "sponsor": null,
+        "limit": null
+      }
+    ]
+  },
+  "sponsorAfter": {
+    "address": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+    "sequence": "21174107164901377",
+    "nativeBalance": "9999.9999600",
+    "baseReserve": "0.5000000",
+    "minimumReserve": "2.5000000",
+    "nativeSellingLiabilities": "0.0000000",
+    "spendableNative": "9997.4999600",
+    "numSponsoring": 3,
+    "numSponsored": 0,
+    "accountSponsor": null,
+    "balances": [
+      {
+        "assetType": "native",
+        "code": "XLM",
+        "issuer": null,
+        "balance": "9999.9999600",
+        "sponsor": null,
+        "limit": null
+      }
+    ]
+  },
+  "assertions": {
+    "senderHasLiteralZeroXlm": true,
+    "senderAccountSponsored": true,
+    "officialTrustlineSponsored": true,
+    "senderHasThreeSponsoredReserves": true,
+    "sponsorAddedThreeReserves": true,
+    "sponsorPaidExactFee": true,
+    "recipientStillAbsent": true
+  },
+  "acceptancePassed": true,
+  "remaining": "Acquire official test USDC, then prove sponsored funding, claim and expiry reclaim. This is setup only."
+}

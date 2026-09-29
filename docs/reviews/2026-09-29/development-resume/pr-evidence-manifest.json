@@ -1,0 +1,158 @@
+{
+  "recordedAtUTC": "2026-09-29T10:15:51.637Z",
+  "evidenceCopies": [
+    {
+      "file": "implementation-report.md",
+      "bytes": 5354,
+      "sha256": "5e15b7498842bd41dfccdf008a5dd3544f4685c6bdd16b91fa7180f0aa8c2921"
+    },
+    {
+      "file": "source-manifest.json",
+      "bytes": 6700,
+      "sha256": "fe98b5cb3effaa48fe06a428f325add75022f3eb5b19e13082b5c3d6ae61782a"
+    },
+    {
+      "file": "verification-summary.json",
+      "bytes": 1066,
+      "sha256": "15a2b9e0175a223a02d358a14d985a305e87ba295cbef806c0bd667286313810"
+    },
+    {
+      "file": "production-build-result.json",
+      "bytes": 122,
+      "sha256": "35c6b779913a415792dcde663aa9a15c20d234bffb2165eccd2fdad204ff334c"
+    },
+    {
+      "file": "production-build.log",
+      "bytes": 4174,
+      "sha256": "8ba43e689bb04f4eb54aa656f933d56c875de1af6ccf147cacbfcf8724864dc1",
+      "trailingBlankLinesRemoved": true
+    },
+    {
+      "file": "integration-results.json",
+      "bytes": 586,
+      "sha256": "1be529f20cf2998045f8736ed231abab1d93ad403edf52b7c78c3d2e635cbae9"
+    },
+    {
+      "file": "integration-batches.log",
+      "bytes": 2059,
+      "sha256": "b4032074bac0ce72e748c0ac780ec95db8bce9955e835712634ff0b3439db540"
+    },
+    {
+      "file": "integration-claims.log",
+      "bytes": 2438,
+      "sha256": "9e0e20c6ffbf21fbe03b176588e9eacf58a394039964f2cb06bc928286f742b3"
+    },
+    {
+      "file": "integration-sponsors.log",
+      "bytes": 5448,
+      "sha256": "b01e6ecd08ebe1aaa319da048b37584d2310d4aac0bb94f1e9f760addb609f28"
+    },
+    {
+      "file": "integration-reclaim.log",
+      "bytes": 3889,
+      "sha256": "c63ef1dfeaaa22f59d50ca2b2ea0337130689b16e6d0027819c553317cbbef0b"
+    },
+    {
+      "file": "integration-write-api.log",
+      "bytes": 6063,
+      "sha256": "4b1cb66bf91ee5de70dfb207f6fde3d694b889efb94f2a61ee949a0a94daf1a1"
+    },
+    {
+      "file": "csv-posix-result.json",
+      "bytes": 256,
+      "sha256": "3dbd1420f9885ca4e21b757bbe934ab7a51f978ca23137bf57bf881e866136c2",
+      "encodingNormalizedFrom": "UTF-16LE"
+    },
+    {
+      "file": "verify-csv-posix.mjs",
+      "bytes": 1117,
+      "sha256": "e1c2a3c937f3ab411d5bcdf2926bd75168b74da9517d1e6d0524d9f064233094"
+    },
+    {
+      "file": "browser/result.json",
+      "bytes": 205,
+      "sha256": "728ba73177a054096913d9bc9106e9bd61433ea94f8e98cf66a17e31b65ba1f1"
+    },
+    {
+      "file": "browser/playwright.log",
+      "bytes": 3359,
+      "sha256": "504892ea7075626ed4b93f99a4d94aa4204c4a861c44c2c8ade4b519b2091761"
+    },
+    {
+      "file": "sender-test-usdc-faucet-proof.json",
+      "bytes": 1143,
+      "sha256": "b1cf12270716a5665e46d2c5fc493292691234736fb4fecb8b9c119706bb301c"
+    },
+    {
+      "file": "freighter-bootstrap-independent-ledger-proof.json",
+      "bytes": 3117,
+      "sha256": "b2ac596b3e01e3f99c630f9c6c41b2c72f05471b76618c569ad467ac697e94d7"
+    },
+    {
+      "file": "bootstrap-receipt-2026-09-29T09-17-54-131Z.json",
+      "bytes": 3170,
+      "sha256": "25b4ccd94bfd055281ae1125fc4bf6bc9cbc1b21ec77c566efc3f43ff54fb53f"
+    },
+    {
+      "file": "freighter-lifecycle/positive-lifecycle-report.md",
+      "bytes": 4546,
+      "sha256": "893b563ae45b222f13c56af6640f86b3eeb91432b68f50fe89c17e1e4f72609d"
+    },
+    {
+      "file": "freighter-lifecycle/browser-result.json",
+      "bytes": 747,
+      "sha256": "ca0bc4d68137fdd397d2ddb7d077fd4bc24ec817cb2755819b85a1376f93f4d2"
+    },
+    {
+      "file": "freighter-lifecycle/source-manifest.json",
+      "bytes": 1954,
+      "sha256": "9880205e95569166a72bbb944cbd19aadff2e6d16eba8c72c3262dc8527a0665"
+    },
+    {
+      "file": "freighter-lifecycle/verification-results.json",
+      "bytes": 1870,
+      "sha256": "ce079c022f27afa72640c8537a98a7b0a3970d2df628703a892b2f6e0233a8d1"
+    },
+    {
+      "file": "freighter-lifecycle/completion-manifest.json",
+      "bytes": 2287,
+      "sha256": "114a0f27eeb4df635083a34f4599e8631e6fae689cac2eed050582e5f180ac9c"
+    },
+    {
+      "file": "freighter-lifecycle/independent-claim-proof-2026-09-29T09-58-46-188Z.json",
+      "bytes": 71702,
+      "sha256": "de6d543114c73f2a02493137c8fcc3c2ef55e977c40f0e6012de0becb69d830d"
+    },
+    {
+      "file": "freighter-lifecycle/independent-reclaim-proof-2026-09-29T10-05-46-672Z.json",
+      "bytes": 42640,
+      "sha256": "34e51638c9e5b471d260b64784f9ed87782c5db2afd20e960825804aacd2a04d"
+    },
+    {
+      "file": "pr-unit.log",
+      "bytes": 851,
+      "sha256": "9e18a4f667a20a40f22b297dac02cad4489f0f446554d3dd71a9767b50915fc7",
+      "encodingNormalizedFrom": "UTF-16LE",
+      "trailingBlankLinesRemoved": true
+    },
+    {
+      "file": "pr-typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "pr-lint.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "originalArtifactsPreserved": true,
+  "knownLimitation": "Windows WRITE suite has one POSIX-mode assertion failure; separate Linux writer proof is not a passing Windows suite.",
+  "currentUnitTestsPassed": 446,
+  "currentUnitFilesPassed": 36,
+  "currentTypecheckExitCode": 0,
+  "currentLintExitCode": 0,
+  "productionBuild": "Historical matching production source; verification-only Turbopack filesystem-root override for shared dependencies, restored exactly.",
+  "positiveLifecyclePassed": true,
+  "fullIssue97Complete": false
+}

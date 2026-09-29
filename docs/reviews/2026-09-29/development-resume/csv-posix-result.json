@@ -1,0 +1,11 @@
+{
+  "platform": "linux",
+  "node": "v24.21.0",
+  "fileMode": "600",
+  "permissiveUmask": "000",
+  "rows": 5,
+  "overwriteRefused": true,
+  "existingContentPreserved": true,
+  "fixtures": "inert strings; no spending material",
+  "passed": true
+}

@@ -38,12 +38,17 @@ async function main(): Promise<void> {
     console.error('missing one of --name --amount --links --expires --out')
     process.exit(2)
   }
-  const [assetCode, assetIssuer] = (flag(args, 'asset') ?? 'XLM').split(':')
-  const network = (flag(args, 'network') ?? 'testnet') as 'testnet' | 'public'
   const labelsFile = flag(args, 'labels')
   const labels = labelsFile ? (await readFile(labelsFile, 'utf8')).split(/\r?\n/).map((l) => l.trim()).filter(Boolean) : []
 
   const client = new KleymClient({ baseUrl, apiKey })
+  const metadata = await client.getStellarMetadata()
+  const requestedNetwork = flag(args, 'network')
+  if (requestedNetwork !== undefined && requestedNetwork !== metadata.network) {
+    throw new Error('--network must match the Kleym deployment network')
+  }
+  const network = metadata.network
+  const [assetCode, assetIssuer] = (flag(args, 'asset') ?? `${metadata.defaultAsset.assetCode}:${metadata.defaultAsset.assetIssuer}`).split(':')
   const result = await createCampaignEndToEnd({
     client,
     terms: { name, network, senderPublicKey: Keypair.fromSecret(senderSecret).publicKey(), assetCode: assetCode!, ...(assetIssuer ? { assetIssuer } : {}), amountPerLink: amount, linkCount: links, expiresAt },

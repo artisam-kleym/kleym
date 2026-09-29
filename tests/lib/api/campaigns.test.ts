@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { Keypair } from '@stellar/stellar-sdk'
+import { stellarMetadata } from '@/lib/stellar/network'
 import { createCampaignSchema, registerLinksSchema, serialiseAmount, stellarAmount } from '@/lib/api/campaigns'
 
 const PUB = Keypair.random().publicKey()
 const SEED = Keypair.random().secret()
+const USDC_ISSUER = stellarMetadata('testnet').defaultAsset.assetIssuer
 const FUTURE = new Date(Date.now() + 7 * 86_400_000).toISOString()
 
 const valid = {
@@ -69,7 +71,7 @@ describe('createCampaignSchema', () => {
   it('requires an issuer for a non-native asset', () => {
     expect(createCampaignSchema.safeParse({ ...valid, assetCode: 'USDC' }).success).toBe(false)
     expect(
-      createCampaignSchema.safeParse({ ...valid, assetCode: 'USDC', assetIssuer: PUB }).success,
+      createCampaignSchema.safeParse({ ...valid, assetCode: 'USDC', assetIssuer: USDC_ISSUER }).success,
     ).toBe(true)
   })
 
@@ -135,7 +137,7 @@ describe('createCampaignSchema receiveAs', () => {
   })
 
   it('needs an issuer for a non-native asset and refuses one on XLM', () => {
-    const usdc = { ...valid, assetCode: 'USDC', assetIssuer: PUB }
+    const usdc = { ...valid, assetCode: 'USDC', assetIssuer: USDC_ISSUER }
     expect(createCampaignSchema.safeParse({ ...usdc, receiveAs: [{ assetCode: 'EURC' }] }).success).toBe(false)
     expect(createCampaignSchema.safeParse({ ...usdc, receiveAs: [{ assetCode: 'XLM', assetIssuer: PUB }] }).success).toBe(false)
     expect(createCampaignSchema.safeParse({ ...usdc, receiveAs: [{ assetCode: 'XLM' }] }).success).toBe(true)

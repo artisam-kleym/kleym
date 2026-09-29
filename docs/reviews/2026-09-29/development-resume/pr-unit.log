@@ -1,0 +1,12 @@
+
+ RUN  v4.1.11 D:/kleym/.worktrees/96-usdc-network
+
+{"level":50,"time":1790676892527,"pid":8824,"hostname":"Adealix","deliveryId":"d1","reason":"redis gone","msg":"could not queue a reminder; continuing"}
+{"level":50,"time":1790676892528,"pid":8824,"hostname":"Adealix","deliveryId":"d1","reason":"db gone","msg":"could not queue a reminder; continuing"}
+{"level":50,"time":1790676892529,"pid":8824,"hostname":"Adealix","deliveryId":"d1","reason":"connection dropped after the write","msg":"could not queue a reminder; continuing"}
+{"level":30,"time":1790676892530,"pid":8824,"hostname":"Adealix","actorId":"admin","redacted":1,"msg":"erasure request honoured"}
+
+ Test Files  36 passed (36)
+      Tests  446 passed (446)
+   Start at  18:14:27
+   Duration  36.53s (transform 1.47s, setup 13.79s, import 11.21s, tests 2.91s, environment 5ms)

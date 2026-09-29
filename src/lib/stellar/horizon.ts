@@ -20,6 +20,22 @@ export function horizon(): Horizon.Server {
   return (cached ??= new Horizon.Server(env.HORIZON_URL, { allowHttp: isLoopback(env.HORIZON_URL) }))
 }
 
+/** Read the provider's actual identity at every prepare/submit boundary.
+ * Only concurrent probes share a promise; a changed proxy is checked again.
+ * A missing identity is a refusal, never an assumption based on hostname.
+ */
+let networkProbe: Promise<void> | undefined
+export async function assertHorizonNetwork(): Promise<void> {
+  networkProbe ??= fetch(env.HORIZON_URL, { signal: AbortSignal.timeout(5_000), cache: 'no-store' }).then(async (response) => {
+    if (!response.ok) throw new Error('Horizon network identity could not be read')
+    const root = await response.json() as { network_passphrase?: unknown }
+    if (root.network_passphrase !== env.NETWORK_PASSPHRASE) {
+      throw new Error('Horizon network identity does not match deployment configuration')
+    }
+  }).finally(() => { networkProbe = undefined })
+  await networkProbe
+}
+
 function isLoopback(url: string): boolean {
   try {
     const { hostname } = new URL(url)

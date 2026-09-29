@@ -1,11 +1,12 @@
 /**
  * Startup configuration. SPEC.md §9.1.
  *
- * Every key is validated here, once, at import time. A missing or malformed
+ * Every key is validated here, once, at first runtime access. A missing or malformed
  * value fails the process with a readable list rather than surfacing as an
  * undefined deep inside a request.
  */
 import { z } from 'zod'
+import { stellarConfigurationProblem } from '@/lib/stellar/network'
 
 /**
  * Two regexes, deliberately. Do not collapse them.
@@ -153,6 +154,9 @@ const schema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+}).superRefine((value, context) => {
+  const problem = stellarConfigurationProblem(value)
+  if (problem) context.addIssue({ code: 'custom', path: ['STELLAR_NETWORK'], message: problem })
 })
 
 /**

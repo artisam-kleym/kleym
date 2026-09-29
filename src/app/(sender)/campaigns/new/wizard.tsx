@@ -46,10 +46,10 @@ export function CampaignWizard(config: WizardConfig) {
   const [draft, setDraft] = useState({
     // A reissue (#78) carries the source campaign's terms; only the expiry is new.
     name: reissue ? `${reissue.name} (reissue)` : '',
-    network: reissue?.network ?? ('testnet' as 'testnet' | 'public'),
+    network: reissue?.network ?? config.stellar.network,
     senderPublicKey: reissue?.senderPublicKey ?? '',
-    assetCode: reissue?.assetCode ?? 'XLM',
-    assetIssuer: reissue?.assetIssuer ?? '',
+    assetCode: reissue?.assetCode ?? config.stellar.defaultAsset.assetCode,
+    assetIssuer: reissue ? (reissue.assetIssuer ?? '') : config.stellar.defaultAsset.assetIssuer,
     amountPerLink: reissue?.amountPerLink ?? '',
     linkCount: reissue ? Math.max(1, reissue.outstanding) : 10,
     expiresAt: defaultExpiry(),
@@ -314,6 +314,7 @@ export function CampaignWizard(config: WizardConfig) {
         draft.name.trim().length > 0 &&
         draft.senderPublicKey.length === 56 &&
         accountExists === true &&
+        balances.some((balance) => balance.assetCode === draft.assetCode && (balance.assetIssuer ?? '') === draft.assetIssuer) &&
         draft.amountPerLink.trim().length > 0 &&
         receiveAsError === null
       )
@@ -328,7 +329,7 @@ export function CampaignWizard(config: WizardConfig) {
       )
     }
     return false
-  }, [wizard.step, draft, accountExists, config.maxLinksPerCampaign, labelError, cost, receiveAsError])
+  }, [wizard.step, draft, accountExists, balances, config.maxLinksPerCampaign, labelError, cost, receiveAsError])
 
   return (
     <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
@@ -348,6 +349,7 @@ export function CampaignWizard(config: WizardConfig) {
       <div>
         {wizard.step === 0 && (
           <AssetStep
+            stellar={config.stellar}
             draft={draft}
             onChange={patch}
             balances={balances}

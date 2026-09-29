@@ -1,0 +1,49 @@
+{
+  "checkedAtUTC": "2026-09-29T09:49:25.370Z",
+  "focusedTests": {
+    "passed": 53,
+    "files": 4,
+    "command": "vitest run tests/scripts/freighter-lifecycle.test.ts tests/scripts/freighter-bootstrap.test.ts tests/lib/wallet/signing.test.ts tests/lib/stellar/claim.test.ts",
+    "exitCode": 0
+  },
+  "typecheck": {
+    "command": "tsc --noEmit",
+    "exitCode": 0
+  },
+  "lint": {
+    "scope": "new lifecycle implementation TypeScript and test files",
+    "exitCode": 0
+  },
+  "browser": {
+    "checkedAtUTC": "2026-09-29T09:42:05.282Z",
+    "passed": true,
+    "results": [
+      "Hydrated page with correct addresses; funding/claim disabled initially; no POST on opening; 390px has no horizontal overflow.",
+      "Local key generation and private CSV download work; funding requires download plus explicit saved acknowledgment; no seeds in DOM/storage/requests. CSV not retained.",
+      "Foreign origin/Host/header, unexpected fields and submission without prepared work rejected. No faucet or ledger write invoked.",
+      "Freighter-only chooser loads without CSP or browser execution errors. Empty profile does not prove actual wallet signing."
+    ],
+    "actualFreighterSigning": false,
+    "lifecycleSettlement": false,
+    "retainedCsv": false
+  },
+  "readiness": {
+    "bootstrapStatus": 200,
+    "lifecycleStatus": 200,
+    "state": {
+      "sender": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "recipient": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "sponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+      "publicKeys": [],
+      "balanceIds": [],
+      "expiries": [],
+      "receipts": {},
+      "fatal": false
+    },
+    "bootstrapPid": 26432,
+    "lifecyclePid": 20772
+  },
+  "actualFreighterLifecycleSignature": false,
+  "lifecycleSettlement": false,
+  "issue97Complete": false
+}

@@ -3,9 +3,11 @@
 import Decimal from 'decimal.js'
 import { Input, MetricCard, SolidCard } from '@/components/ui'
 import type { CostBreakdown } from '@/lib/campaign/cost'
+import type { stellarMetadata } from '@/lib/stellar/network'
 
 /** Step 1 — asset and amount. SPEC.md §5.3. */
 export function AssetStep({
+  stellar,
   draft,
   onChange,
   balances,
@@ -19,6 +21,7 @@ export function AssetStep({
   emailReceipts,
   onEmailReceipts,
 }: {
+  stellar: ReturnType<typeof stellarMetadata>
   draft: { network: 'testnet' | 'public'; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; name: string }
   onChange: (patch: Partial<typeof draft>) => void
   balances: { assetCode: string; assetIssuer: string | null; balance: string }[]
@@ -36,6 +39,9 @@ export function AssetStep({
   onEmailReceipts: (send: boolean) => void
 }) {
   const native = balances.find((b) => b.assetIssuer === null)
+  const usdc = stellar.defaultAsset
+  const selectableBalances = balances.filter((b) => b.assetCode !== 'USDC' || b.assetIssuer === usdc.assetIssuer)
+  const holdsUsdc = selectableBalances.some((b) => b.assetCode === usdc.assetCode && b.assetIssuer === usdc.assetIssuer)
 
   return (
     <SolidCard>
@@ -63,12 +69,12 @@ export function AssetStep({
             id="network"
             name="network"
             value={draft.network}
-            onChange={(e) => onChange({ network: e.target.value as 'testnet' | 'public' })}
+            disabled
             className="min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface"
           >
-            <option value="testnet">Testnet</option>
-            <option value="public">Public</option>
+            <option value={stellar.network}>{stellar.networkLabel}</option>
           </select>
+          <p className="font-mono text-label-sm text-on-surface-variant">{stellar.valueNotice}</p>
         </div>
 
         <Input
@@ -103,13 +109,14 @@ export function AssetStep({
             name="asset"
             value={`${draft.assetCode}:${draft.assetIssuer}`}
             onChange={(e) => {
-              const [assetCode = 'XLM', assetIssuer = ''] = e.target.value.split(':')
+              const [assetCode, assetIssuer = ''] = e.target.value.split(':')
+              if (!assetCode) return
               onChange({ assetCode, assetIssuer })
             }}
             className="min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface"
           >
-            {balances.length === 0 && <option value="XLM:">XLM</option>}
-            {balances.map((balance) => (
+            {!holdsUsdc && <option value={`USDC:${usdc.assetIssuer}`}>USDC — unavailable in this account</option>}
+            {selectableBalances.map((balance) => (
               <option
                 key={`${balance.assetCode}:${balance.assetIssuer ?? ''}`}
                 value={`${balance.assetCode}:${balance.assetIssuer ?? ''}`}
@@ -119,7 +126,7 @@ export function AssetStep({
             ))}
           </select>
           <p className="font-mono text-label-sm text-on-surface-variant">
-            Only assets this account already holds. A trustline it does not have cannot be sent.
+            USDC uses the official Circle issuer for this network. Your account needs the selected asset to fund a campaign.
           </p>
         </div>
 

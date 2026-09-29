@@ -31,13 +31,17 @@ async function kit() {
   return { sdk, defaultModules }
 }
 
-async function ensureInitialised(network: Network) {
+async function ensureInitialised(network: Network, walletIds?: readonly string[]) {
   const { sdk, defaultModules } = await kit()
 
   const target = network === 'public' ? sdk.Networks.PUBLIC : sdk.Networks.TESTNET
 
-  if (!initialised) {
-    sdk.StellarWalletsKit.init({ modules: defaultModules(), network: target })
+  if (!initialised || walletIds) {
+    const modules = walletIds
+      ? defaultModules({ filterBy: (module) => walletIds.includes(module.productId) })
+      : defaultModules()
+    if (!modules.length) throw new Error('No supported wallet matches this connection request.')
+    sdk.StellarWalletsKit.init({ modules, network: target })
     initialised = true
   } else {
     // A sender who backs up and switches network mid-wizard must not sign for
@@ -49,8 +53,8 @@ async function ensureInitialised(network: Network) {
 }
 
 /** Opens the wallet chooser and returns the address the sender picked. */
-export async function connectWallet(network: Network): Promise<string> {
-  const sdk = await ensureInitialised(network)
+export async function connectWallet(network: Network, options?: { walletIds: readonly string[] }): Promise<string> {
+  const sdk = await ensureInitialised(network, options?.walletIds)
   const { address } = await sdk.StellarWalletsKit.authModal()
   return address
 }

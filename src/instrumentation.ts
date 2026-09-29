@@ -6,11 +6,14 @@
  * route handler, and the `withSpan` calls on the claim path nest under them.
  */
 export async function register(): Promise<void> {
-  if (process.env.NEXT_RUNTIME !== 'nodejs') return
-  const { startTelemetry } = await import('@/lib/observability/telemetry')
-  const { registerObservables } = await import('@/lib/observability/metrics')
-  const { dependencyReadings } = await import('@/lib/observability/status')
-  if (startTelemetry({ serviceName: 'kleym-web' })) {
-    registerObservables({ dependencies: dependencyReadings })
+  // Keep Node-only imports inside the positive runtime branch. The build's
+  // dependency analysis does not prune imports following an early return.
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { startTelemetry } = await import('@/lib/observability/telemetry')
+    const { registerObservables } = await import('@/lib/observability/metrics')
+    const { dependencyReadings } = await import('@/lib/observability/status')
+    if (startTelemetry({ serviceName: 'kleym-web' })) {
+      registerObservables({ dependencies: dependencyReadings })
+    }
   }
 }

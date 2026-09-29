@@ -1,0 +1,105 @@
+{
+  "checkedAtUTC": "2026-09-29T09:25:34.335Z",
+  "network": "testnet",
+  "networkPassphraseVerified": true,
+  "hash": "48b50ccbbc951692c58ac8e6b1163b30d23cdd3201664146db62125be9ccf2ab",
+  "ledger": 4930040,
+  "successful": true,
+  "feeChargedStroops": "400",
+  "sourceAccount": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+  "operationCount": 4,
+  "accounts": [
+    {
+      "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "status": 200,
+      "sponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "numSponsored": 3,
+      "numSponsoring": 0,
+      "balances": [
+        {
+          "type": "credit_alphanum4",
+          "code": "USDC",
+          "issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+          "balance": "0.0000000",
+          "sponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "limit": "100.0000000"
+        },
+        {
+          "type": "native",
+          "code": "XLM",
+          "issuer": null,
+          "balance": "0.0000000",
+          "sponsor": null,
+          "limit": null
+        }
+      ]
+    },
+    {
+      "address": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "status": 404,
+      "sponsor": null,
+      "numSponsored": null,
+      "numSponsoring": null,
+      "balances": []
+    },
+    {
+      "address": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "status": 200,
+      "sponsor": null,
+      "numSponsored": 0,
+      "numSponsoring": 3,
+      "balances": [
+        {
+          "type": "native",
+          "code": "XLM",
+          "issuer": null,
+          "balance": "9999.9999600",
+          "sponsor": null,
+          "limit": null
+        }
+      ]
+    }
+  ],
+  "operations": [
+    {
+      "type": "begin_sponsoring_future_reserves",
+      "sourceAccount": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "sponsoredId": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "account": null,
+      "assetCode": null,
+      "assetIssuer": null,
+      "limit": null,
+      "startingBalance": null
+    },
+    {
+      "type": "create_account",
+      "sourceAccount": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "sponsoredId": null,
+      "account": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "assetCode": null,
+      "assetIssuer": null,
+      "limit": null,
+      "startingBalance": "0.0000000"
+    },
+    {
+      "type": "change_trust",
+      "sourceAccount": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "sponsoredId": null,
+      "account": null,
+      "assetCode": "USDC",
+      "assetIssuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "limit": "100.0000000",
+      "startingBalance": null
+    },
+    {
+      "type": "end_sponsoring_future_reserves",
+      "sourceAccount": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "sponsoredId": null,
+      "account": null,
+      "assetCode": null,
+      "assetIssuer": null,
+      "limit": null,
+      "startingBalance": null
+    }
+  ]
+}

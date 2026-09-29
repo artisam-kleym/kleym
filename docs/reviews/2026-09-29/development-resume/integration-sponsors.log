@@ -1,0 +1,60 @@
+
+· The pool is the primary plus the extras, secrets never on the public shape
+  PASS  two sponsors, primary first
+  PASS  the public shape carries no secret
+  PASS  a null binding reads as the primary
+  PASS  an unknown binding is null — refused, not defaulted to another sponsor
+  PASS  the signing seed is looked up by public key
+
+1. With the primary below the working threshold, a new campaign goes to the second sponsor
+{"level":50,"time":1790669778748,"pid":24976,"hostname":"Adealix","alert":"sponsor.failover","chosen":"GB6QAF7GZJHGTZ4TRDVZE4M2CZDVFZP5AYVE3ESITHPSI3DGKXVUDYJ3","chosenSpendable":"500","primary":"GD2TUI7DBMRUCHBZOD2RF4NASPRKHPHDWV4JNAJEVOP5TMPAVGF3B3KH","primarySpendable":"20","threshold":"50","msg":"alert: sponsor.failover"}
+  PASS  the second sponsor is chosen
+  PASS  a failover alert reached the webhook
+  PASS  with the primary back above threshold it is chosen again
+{"level":50,"time":1790669778978,"pid":24976,"hostname":"Adealix","alert":"sponsor.failover","chosen":"GB6QAF7GZJHGTZ4TRDVZE4M2CZDVFZP5AYVE3ESITHPSI3DGKXVUDYJ3","chosenSpendable":"30","primary":"GD2TUI7DBMRUCHBZOD2RF4NASPRKHPHDWV4JNAJEVOP5TMPAVGF3B3KH","primarySpendable":"10","threshold":"50","msg":"alert: sponsor.failover"}
+  PASS  with every sponsor below threshold the richest is chosen
+{"level":40,"time":1790669778983,"pid":24976,"hostname":"Adealix","sponsor":"GB6QAF7GZJHGTZ4TRDVZE4M2CZDVFZP5AYVE3ESITHPSI3DGKXVUDYJ3","reason":"unreadable","msg":"sponsor balance unreadable during selection"}
+  PASS  an unreadable sponsor is skipped, not treated as empty
+  PASS  with no sponsor readable, a new campaign binds to the primary rather than failing
+
+2. A campaign stays with its sponsor: the claim path reads the binding, and an envelope from another sponsor is refused
+{"level":40,"time":1790669778983,"pid":24976,"hostname":"Adealix","sponsor":"GD2TUI7DBMRUCHBZOD2RF4NASPRKHPHDWV4JNAJEVOP5TMPAVGF3B3KH","reason":"unreadable","msg":"sponsor balance unreadable during selection"}
+{"level":40,"time":1790669778983,"pid":24976,"hostname":"Adealix","sponsor":"GB6QAF7GZJHGTZ4TRDVZE4M2CZDVFZP5AYVE3ESITHPSI3DGKXVUDYJ3","reason":"unreadable","msg":"sponsor balance unreadable during selection"}
+{"level":40,"time":1790669778983,"pid":24976,"hostname":"Adealix","pool":2,"msg":"no sponsor balance could be read; binding the new campaign to the primary"}
+  PASS  a campaign bound to the second sponsor loads with that sponsor
+  PASS  a pre-pool campaign (null) loads as the primary
+  PASS  an envelope sourced by the PRIMARY is refused for a campaign bound to the second
+{"level":30,"time":1790669779290,"pid":24976,"hostname":"Adealix","linkId":"cmumejwfw00039skj20di7vml","campaignId":"cmumejwfq00029skj3majlkfg","hash":"aa79f1e060bf29f17f92566292504885098c5ec2d763cc3894474cc4486803c8","policy":"open","msg":"link claimed"}
+{"level":30,"time":1790669779336,"pid":24976,"hostname":"Adealix","linkId":"cmumejwfw00039skj20di7vml","campaignId":"cmumejwfq00029skj3majlkfg","receiptId":"rcpt_cmumejwfw00039skj20di7vml","msg":"claim receipt issued"}
+  PASS  the bound sponsor's envelope is accepted
+  PASS  a campaign bound to a sponsor not in the pool is "temporarily unavailable", not an exception
+  PASS  and its submit is refused the same way
+
+3. The low-balance alert fires against a real receiver and deduplicates for an hour
+{"level":50,"time":1790669779396,"pid":24976,"hostname":"Adealix","alert":"sponsor.low_balance","sponsor":"dedupe-21db7d","spendable":"5","threshold":100,"msg":"alert: sponsor.low_balance"}
+{"level":50,"time":1790669779400,"pid":24976,"hostname":"Adealix","alert":"sponsor.low_balance","sponsor":"dedupe-21db7d","spendable":"4","threshold":100,"msg":"alert: sponsor.low_balance"}
+  PASS  the first alert is delivered
+  PASS  with the event in a header and a JSON body naming the sponsor
+  PASS  the second within the hour is deduplicated, not sent
+{"level":50,"time":1790669779606,"pid":24976,"hostname":"Adealix","alert":"sponsor.low_balance","sponsor":"dedupe-21db7d-b","spendable":"5","threshold":100,"msg":"alert: sponsor.low_balance"}
+  PASS  a different sponsor is its own alert
+{"level":50,"time":1790669779610,"pid":24976,"hostname":"Adealix","alert":"sponsor.failover","chosen":"x","msg":"alert: sponsor.failover"}
+{"level":50,"time":1790669779611,"pid":24976,"hostname":"Adealix","alert":"sponsor.failover","reason":"receiver down","msg":"alert webhook unreachable"}
+  PASS  an unreachable receiver does not throw — the claim goes on
+
+4. Per-sponsor float and runway for /admin
+  PASS  one row per sponsor, primary first
+  PASS  the second is flagged low against the alert threshold
+  PASS  fee per claim is 30 ops at the base fee
+  PASS  runway = spendable / (claims per day × fee per claim), rounded down
+  PASS  no claims means no runway figure, not infinity
+  PASS  the status carries the rate and runway as strings for the page
+
+5. No pool secret reaches a log line
+{"level":30,"time":1790669779630,"pid":24976,"hostname":"Adealix","SPONSOR_SECRET_KEYS_EXTRA":"[redacted]","ALERT_WEBHOOK_URL":"[redacted]","nested":{"SPONSOR_SECRET_KEY":"[redacted]"},"msg":"planted secrets"}
+  PASS  the extra pool seed is redacted
+  PASS  the primary seed is redacted
+  PASS  the webhook URL (which may carry a token) is redacted
+{"level":30,"time":1790669779630,"pid":24976,"hostname":"Adealix","env":"[redacted]","msg":"planted env"}
+
+All checks passed.

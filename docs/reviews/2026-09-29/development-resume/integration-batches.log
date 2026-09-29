@@ -1,0 +1,52 @@
+
+1. Planning assigns every link exactly once, and only once
+  PASS  200 links produce exactly 3 batches
+  PASS  batch sizes are 90 / 90 / 20
+  PASS  every link is assigned
+  PASS  re-planning is a no-op
+  PASS  batch ids are unchanged
+  PASS  concurrent planning from scratch does not throw
+  PASS  and still plans exactly one set of batches
+
+2. Batch 7 of 12 fails: 1–6 stay real, 7+ are FAILED, campaign is PARTIAL
+  PASS  twelve batches
+  PASS  batches 1–6 are confirmed
+  PASS  batches 7–12 are failed
+  PASS  confirmed links are ACTIVE
+  PASS  failed links are FAILED
+  PASS  the campaign is PARTIAL
+  PASS  only the confirmed links are claimable
+
+3. balanceId is null for every link whose batch is not CONFIRMED
+  PASS  no balance ID before confirmation
+  PASS  no balance ID while merely SUBMITTED
+  PASS  balance IDs appear on confirmation
+  PASS  no link carries a balance ID for an unconfirmed batch
+
+4. A fully confirmed campaign waits in CREATING until the CSV is exported
+  PASS  still CREATING with no CSV export
+  PASS  ACTIVE once the sender holds the seeds
+
+5. Retry rebuilds only the failed links
+  PASS  retry reports the failed sequence
+  PASS  the failed batch is PENDING again
+  PASS  its links are PENDING again
+  PASS  it holds exactly the previously failed links
+  PASS  confirmed batches are untouched
+  PASS  their links keep their balance IDs
+  PASS  the campaign is building again
+  PASS  the rebuilt transaction has one operation per failed link
+  PASS  and none of the already-confirmed links
+
+6. Re-submitting a batch returns the original result without touching the network
+  PASS  the replay succeeds
+  PASS  it returns the original hash
+  PASS  it is marked as a replay
+  PASS  no second batch was created
+
+7. Link order is stable across ordinary row rewrites
+  PASS  the premise holds — links registered together share a timestamp
+  PASS  createdAt alone does NOT survive it — the reason this check exists
+  PASS  LINK_ORDER does survive it
+
+All checks passed.

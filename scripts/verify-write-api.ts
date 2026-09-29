@@ -39,6 +39,9 @@ const horizon: Server = createServer((req, res) => {
     res.writeHead(status, { 'content-type': 'application/json' })
     res.end(JSON.stringify(body))
   }
+  if (req.method === 'GET' && url.pathname === '/') {
+    return json(200, { network_passphrase: Networks.TESTNET })
+  }
   if (req.method === 'GET' && /^\/accounts\/G[A-Z2-7]{55}$/.test(url.pathname)) {
     const id = url.pathname.slice('/accounts/'.length)
     return json(200, { _links: {}, id, account_id: id, sequence: '1000', subentry_count: 0, balances: [{ asset_type: 'native', balance: '10000.0000000' }], data: {} })

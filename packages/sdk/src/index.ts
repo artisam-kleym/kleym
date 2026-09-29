@@ -1,5 +1,5 @@
 export { KleymClient, KleymApiError, SeedInRequestError, signBatchXdr, Networks } from './client.js'
-export type { CampaignTerms, Campaign, PreparedBatch, SubmittedBatch, ClientOptions } from './client.js'
+export type { CampaignTerms, Campaign, PreparedBatch, SubmittedBatch, ClientOptions, StellarMetadata } from './client.js'
 export { generateLinkKeys, publicHalves, containsSecretSeed } from './keys.js'
 export type { LinkKey, LinkKeys, PublicLinks, Attestation } from './keys.js'
 export { buildSecretsCsv, writeSecretsCsv, claimUrl } from './csv.js'
