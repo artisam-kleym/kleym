@@ -341,7 +341,7 @@ export function journalLines(rows: ValuationRow[]): JournalLine[] {
   const out: JournalLine[] = []
   for (const r of rows) {
     const claim = r.kind === 'CLAIM'
-    const entryId = claim ? `claim:${r.linkId}` : `reclaim:${r.reclaimBatchId}`
+    const entryId = claim ? `claim:${r.linkId}` : r.reclaimBatchId ? `reclaim:${r.reclaimBatchId}` : `reclaim:link:${r.linkId}`
     const date = r.valuedAt.toISOString()
     const base = {
       entryId, date, campaignId: r.campaignId, campaignName: r.campaignName, linkId: r.linkId, reclaimBatchId: r.reclaimBatchId,
@@ -356,7 +356,9 @@ export function journalLines(rows: ValuationRow[]): JournalLine[] {
       fiatAmount: fiatOf(r.amount, r.rate),
       description: claim
         ? `Claim of ${fixed(r.amount)} ${r.assetCode}${r.link?.label ? ` — ${r.link.label}` : ''}${r.link?.reference ? ` (${r.link.reference})` : ''}`
-        : `Reclaim of ${fixed(r.amount)} ${r.assetCode} — ${r.reclaimBatch?.balanceCount ?? 0} unclaimed link(s) returned (reversal)`,
+        : r.reclaimBatch
+          ? `Reclaim of ${fixed(r.amount)} ${r.assetCode} — ${r.reclaimBatch.balanceCount} unclaimed link(s) returned (reversal)`
+          : `Reclaim of ${fixed(r.amount)} ${r.assetCode} — link ${r.linkId} returned (reversal)`,
     })
     const fee = new Decimal(r.feeXlm.toString())
     if (fee.greaterThan(0)) {

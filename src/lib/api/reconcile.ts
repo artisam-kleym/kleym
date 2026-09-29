@@ -39,6 +39,8 @@ export interface BalanceDisposal {
   /** Who took it, per the ledger. Whether that is the sender is the CALLER's call, against the campaign. */
   claimant: string
   transactionHash: string
+  /** Closing time of the ledger containing the disposal operation. */
+  claimedAt: Date
 }
 
 /**
@@ -74,7 +76,9 @@ export const readDisposal: DisposalReader = async (balanceId) => {
   const claimant = (claim as unknown as { claimant?: string }).claimant
   if (!claimant) return null
 
-  return { claimant, transactionHash: claim.transaction_hash }
+  const claimedAt = new Date(claim.created_at)
+  if (Number.isNaN(claimedAt.getTime())) return null
+  return { claimant, transactionHash: claim.transaction_hash, claimedAt }
 }
 
 export interface ReconcileDeps {
@@ -325,7 +329,7 @@ async function reconcileLink(
         status,
         claimedBy: disposal.claimant,
         claimTxHash: disposal.transactionHash,
-        claimedAt: new Date(),
+        claimedAt: disposal.claimedAt,
       },
     })
     report.corrected += 1

@@ -9,7 +9,7 @@
  * No seed arrives here. The client sends the ephemeral PUBLIC key, derived in
  * the browser from the URL fragment.
  */
-import { Account, Asset, Transaction, TransactionBuilder } from '@stellar/stellar-sdk'
+import { Account, Asset, Transaction, TransactionBuilder, xdr } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/client'
@@ -28,6 +28,8 @@ import { policyFromRow, type ClaimPolicy } from './claim-policy'
 import { recordAudit } from './audit'
 import { recordClaimValuation } from './valuations'
 import { feeChargedOf } from '@/lib/stellar/fees'
+import { issueReceipt } from './receipts'
+import { enqueueReceipt } from '@/lib/queue/email'
 
 const PUBLIC_KEY = /^G[A-Z2-7]{55}$/
 
@@ -654,12 +656,12 @@ export interface Submitted {
  * itself also rejects a replayed sequence number, but that arrives as an error
  * the recipient would see — this returns the original result instead.
  */
-export type Submitter = (transaction: Transaction) => Promise<{ hash: string; successful: boolean; feeCharged?: string | number | null }>
+export type Submitter = (transaction: Transaction) => Promise<{ hash: string; successful: boolean; feeCharged?: string | number | null; resultXdr?: string }>
 
 /** The real one. Injectable for the same reason `loadClaimable`'s read is. */
 const submitToHorizon: Submitter = async (transaction) => {
   const response = await horizon().submitTransaction(transaction)
-  return { hash: response.hash, successful: response.successful !== false, feeCharged: feeChargedOf(response.result_xdr) }
+  return { hash: response.hash, successful: response.successful !== false, feeCharged: feeChargedOf(response.result_xdr), resultXdr: response.result_xdr }
 }
 
 async function submitClaimUnobserved(
@@ -759,7 +761,7 @@ async function submitClaimUnobserved(
     return { kind: 'ok', value: { hash, phase, replay: true } }
   }
 
-  let result: { hash: string; successful: boolean; feeCharged?: string | number | null }
+  let result: Awaited<ReturnType<Submitter>>
   try {
     result = await submit(transaction)
   } catch (error) {
@@ -801,6 +803,7 @@ async function submitClaimUnobserved(
   if (phase === 'claim') {
     const recipient = recipientOf(transaction)
     const memo = memoOf(transaction.memo)
+    const delivered = deliveredOf(transaction, result.resultXdr)
     const claimedAt = new Date()
     const claimed = await prisma.claimLink.update({
       where: { id: link.id },
@@ -812,16 +815,41 @@ async function submitClaimUnobserved(
         // Beside the recipient, off the same envelope (#75).
         claimMemoType: memo?.type ?? null,
         claimMemo: memo?.value ?? null,
+        // What the recipient received (#81): the destination asset and the delivered amount, off the same envelope.
+        deliveredAsset: delivered?.asset ?? null,
+        deliveredAmount: delivered?.amount ?? null,
         // The policy the gate held this claim to (#79), beside the claim itself.
         claimedUnder: link.campaign.claimPolicy,
       },
-      select: { campaign: { select: { organizationId: true } } },
+      select: {
+        campaign: { select: { organizationId: true, emailReceipts: true, user: { select: { username: true } } } },
+        delivery: { select: { id: true, email: true } },
+      },
     })
     logger.info({ linkId: link.id, campaignId: link.campaignId, hash: result.hash, policy: policyFromRow(link.campaign.claimPolicy) }, 'link claimed')
     // What this claim was worth at THIS ledger time (#80), captured once. Never fails the claim.
     await recordClaimValuation(link.id, result.feeCharged ?? null).catch((error: unknown) =>
       logger.error({ linkId: link.id, reason: error instanceof Error ? error.message : 'unknown' }, 'claim valuation could not be recorded'),
     )
+    /*
+     * The signed receipt (#81), issued now — while the inputs are exactly what
+     * the ledger just did — and never regenerated. A failure here must not
+     * fail the claim, which has already happened: it is logged and the
+     * receipt is issued on the next fetch instead.
+     */
+    const receipt = await issueReceipt(link.id).catch((error: unknown) => {
+      logger.error({ linkId: link.id, reason: error instanceof Error ? error.message : 'unknown' }, 'receipt could not be issued at claim time')
+      return null
+    })
+    if (receipt && claimed.campaign.emailReceipts && claimed.delivery?.email && recipient) {
+      // The recipient's copy, only where an address exists. Nothing from the link in it.
+      await enqueueReceipt({
+        kind: 'receipt', deliveryId: claimed.delivery.id, linkId: link.id, email: claimed.delivery.email,
+        senderName: claimed.campaign.user.username, amount: receipt.contents.claim.amount, assetCode: receipt.contents.claim.assetCode,
+        recipient, claimedAt: claimedAt.toISOString(), transactionHash: result.hash,
+        receiptId: receipt.receiptId, canonical: receipt.canonical, signature: receipt.signature, publicKey: receipt.publicKey,
+      }).catch((error: unknown) => logger.error({ linkId: link.id, reason: error instanceof Error ? error.message : 'unknown' }, 'receipt email could not be queued'))
+    }
     // The audit trail names the policy (#79). No user: the recipient is anonymous by design.
     await recordAudit({
       userId: null,
@@ -836,6 +864,7 @@ async function submitClaimUnobserved(
     await emitWebhook(claimed.campaign.organizationId, 'link.claimed', {
       campaignId: link.campaignId, linkId: link.id, ephemeralPublicKey, claimedBy: recipient ?? '', claimTxHash: result.hash, claimedAt: claimedAt.toISOString(),
       claimMemoType: memo?.type ?? null, claimMemo: memo?.value ?? null,
+      receiptId: receipt?.receiptId ?? null,
     })
   }
 
@@ -908,6 +937,39 @@ export function recipientOf(transaction: Transaction): string | null {
   }
   for (const operation of transaction.operations) {
     if (operation.type === 'accountMerge') return operation.destination
+  }
+  return null
+}
+
+/**
+ * What TX2 delivered (#81): the asset and amount the recipient received.
+ * A plain payment says both on the envelope. A receive-as claim (#74) is a
+ * `pathPaymentStrictSend`: the envelope names the destination asset and only
+ * a floor for the amount — the amount actually delivered is in the RESULT,
+ * so it is read from there and left null when the result is not on hand
+ * rather than attested from the floor.
+ */
+export function deliveredOf(transaction: Transaction, resultXdr: string | undefined): { asset: string; amount: string | null } | null {
+  const ref = (asset: Asset) => (asset.isNative() ? 'XLM' : `${asset.getCode()}:${asset.getIssuer()}`)
+  for (const [index, operation] of transaction.operations.entries()) {
+    if (operation.type === 'payment') return { asset: ref(operation.asset), amount: new Decimal(operation.amount).toFixed() }
+    if (operation.type === 'pathPaymentStrictSend') {
+      let amount: string | null = null
+      if (resultXdr) {
+        try {
+          const results = xdr.TransactionResult.fromXDR(resultXdr, 'base64').result().results()
+          const op = results[index]?.tr()
+          if (op?.switch().name === 'pathPaymentStrictSend') {
+            const success = op.pathPaymentStrictSendResult().success()
+            // Stroops → units, in Decimal (AGENT.md §4.1).
+            amount = new Decimal(success.last().amount().toString()).div('10000000').toFixed()
+          }
+        } catch {
+          amount = null
+        }
+      }
+      return { asset: ref(operation.destAsset), amount }
+    }
   }
   return null
 }

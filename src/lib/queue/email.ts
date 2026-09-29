@@ -56,7 +56,30 @@ export interface ReminderJob {
   point: number
 }
 
-export type EmailJob = DeliveryJob | ReminderJob
+/**
+ * A signed receipt (#81) to the recipient who just claimed. Same queue, same
+ * retention; no claim URL, and the type again has no field for one. What it
+ * carries is what the ledger shows anyone — the claimant address and the
+ * transaction — plus the receipt's own bytes and signature.
+ */
+export interface ReceiptJob {
+  kind: 'receipt'
+  deliveryId: string
+  linkId: string
+  email: string
+  senderName: string
+  amount: string
+  assetCode: string
+  recipient: string
+  claimedAt: string
+  transactionHash: string
+  receiptId: string
+  canonical: string
+  signature: string
+  publicKey: string
+}
+
+export type EmailJob = DeliveryJob | ReminderJob | ReceiptJob
 
 let queue: Queue<EmailJob> | undefined
 
@@ -81,6 +104,13 @@ export async function enqueueDelivery(job: DeliveryJob): Promise<void> {
    */
   await deliveryJobs().add(QUEUE.emailDeliver, job, {
     deduplication: { id: `deliver:${job.deliveryId}` },
+  })
+}
+
+/** One receipt email per link: a retried submit cannot mail it twice. */
+export async function enqueueReceipt(job: ReceiptJob): Promise<void> {
+  await deliveryJobs().add(QUEUE.emailDeliver, job, {
+    deduplication: { id: `receipt:${job.linkId}` },
   })
 }
 

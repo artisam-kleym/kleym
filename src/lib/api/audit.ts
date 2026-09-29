@@ -34,6 +34,8 @@ export type AuditAction =
   | 'org.regulator_export'
   | 'org.accounting_export'
   | 'org.reporting_currency'
+  | 'org.receipts_export'
+  | 'campaign.receipts_export'
   | 'link.reclaim'
   | 'link.claim'
   | 'user.create'

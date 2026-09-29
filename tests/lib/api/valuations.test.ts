@@ -76,6 +76,23 @@ describe('buildAccountingExport', () => {
   const rows = [row(), row({ id: 'v2', linkId: 'l2', amount: new Decimal('0.5') as never, valuedAt: new Date('2026-09-15T00:00:00Z') })]
   const query = { organizationId: 'o1', organizationName: 'Acme', currency: 'USD' }
 
+  it('keeps separate reconciled link reclaims and stable batch IDs in CSV and JSON', () => {
+    const lines = journalLines([
+      row({ kind: 'RECLAIM', linkId: 'l1' }),
+      row({ kind: 'RECLAIM', linkId: 'l2', transactionHash: 'cd'.repeat(32) }),
+      row({ kind: 'RECLAIM', linkId: null, reclaimBatchId: 'r1', link: null, reclaimBatch: { balanceCount: 2 } }),
+    ])
+    expect(new Set(lines.map((line) => line.lineId)).size).toBe(6)
+    expect(lines.filter((line) => line.kind === 'reclaim').map((line) => line.entryId)).toEqual(['reclaim:link:l1', 'reclaim:link:l2', 'reclaim:r1'])
+    expect(lines[0]!.description).toContain('link l1 returned')
+    const doc = JSON.parse(buildAccountingExport(lines, query, 'json').body.toString('utf8'))
+    expect(doc.entries.map((entry: { entryId: string }) => entry.entryId)).toEqual(['reclaim:link:l1', 'reclaim:link:l2', 'reclaim:r1'])
+    expect(doc.entries.every((entry: { lines: unknown[] }) => entry.lines.length === 4)).toBe(true)
+    const csv = buildAccountingExport(lines, query, 'csv').body.toString('utf8').trim().split('\n')
+    expect(csv[0]).toBe(JOURNAL_COLUMNS.join(','))
+    expect(new Set(csv.slice(1).map((line) => line.split(',')[0])).size).toBe(6)
+  })
+
   it('is byte-identical across runs — no generation time inside the body — and signed', () => {
     const a = buildAccountingExport(journalLines(rows), query, 'json')
     const b = buildAccountingExport(journalLines(rows), query, 'json')

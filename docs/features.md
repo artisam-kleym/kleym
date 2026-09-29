@@ -53,6 +53,38 @@ the pass and never repriced, reclaim reversal, scoped and byte-identical export,
 summing to the claimed links — is `scripts/verify-valuations.ts`, NOT run here (no database in
 this environment). The DEX rate read (`trade_aggregations`) was not exercised against Horizon
 here. The migration was authored from the schema diff and not run against real data.
+## 2026-09-17 — Signed delivery receipts, per claim (#81)
+
+Every settled claim now produces a signed receipt: who received what, when, in which
+transaction — the recipient address read off the submitted envelope, **what was delivered**
+(for a receive-as claim the destination asset and the amount the ledger paid out, read off the
+envelope and the result, not the link's figure in the campaign asset), the ledger time, the
+transaction hash, the exchange memo where one applied, the delivery channel and the claim
+policy that applied, and the campaign's terms. The link is named by id only: the sender's
+label, reference, category and note are their own reference data and are never in a receipt
+or in a recipient's copy — the sender-facing CSV bundle carries them as unsigned columns beside
+each receipt. It is generated the
+moment the claim lands and never regenerated, so renaming a campaign later changes nothing a
+receipt already says. A sender downloads one from the links table, all of a campaign's from
+the campaign page (Operator and up, audited), or a claim-date range for the whole organisation; a
+settled claim the claim-time issue missed is issued when a bundle is built, so a bundle holds
+every claimed link the page counts; `link.claimed` carries the
+receipt id. A sender can also have each email-delivered recipient mailed their receipt on
+claim — the receipt's bytes, signature and public key in the message, and never the link.
+
+The receipt is signed with the audit-export key in the same envelope as the audit and regulator
+exports, so one verifier covers all three: `pnpm receipts:verify` checks a saved receipt or a
+whole bundle with the public key alone, no Kleym involved. Altering any field fails it. Nothing
+in a receipt derives from the link — no URL, no fragment, no seed.
+
+**Verified by:** `typecheck`, `lint`, `test` and `build` clean; 8 new unit tests — verifies
+with the public key (through the same `verifyBytes` the other exports use), deterministic,
+every altered field fails, memo/channel/policy recorded, no exponent, and a `verify-email`-style
+search of the receipt and the recipient email for `/claim`, `#s=`, a seed and any URL. The
+database side (issued exactly once per settled claim, never for an unsettled one,
+organisation-scoped, one per settled claim in the bundle) is `scripts/verify-receipts.ts`,
+which was NOT run here (no database in this environment). The migration was authored from the
+schema diff and not run against real data. Pages not opened in a browser.
 
 ## 2026-09-17 — Unclaimed-value management: reminders, outstanding view, scheduled reclaim (#78)
 
