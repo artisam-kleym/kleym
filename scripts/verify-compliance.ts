@@ -16,12 +16,14 @@ import { createHmac, randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { Keypair } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
+import { startTestnetNetworkFixture } from '../tests/fixtures/horizon-network'
 
 applyEnvPlaceholders()
 process.env.SCREENING_TIMEOUT_MS = '700'
 process.env.SCREENING_WEBHOOK_SECRET = 'verify-compliance-secret'
-// A Horizon nobody answers: reaching it is proof the gate let a call through.
-process.env.HORIZON_URL = 'http://127.0.0.1:9'
+// Pass the network identity gate locally; later ledger reads are refused.
+// A refused ledger read proves screening allowed the call to proceed.
+const closeNetworkFixture = await startTestnetNetworkFixture()
 
 const { prisma } = await import('../src/lib/db/client')
 const { registerLinks } = await import('../src/lib/api/links')
@@ -104,7 +106,7 @@ async function campaign(orgId: string, creator: string, withAttestation = true) 
 async function screening(campaignId: string) {
   return prisma.campaign.findUniqueOrThrow({ where: { id: campaignId }, select: { screeningDecision: true, screeningReason: true, screeningHash: true, screenedAt: true } })
 }
-/** Past the gate, prepareBatch tries Horizon — which here is a closed port. That throw IS the pass. */
+/** Past screening, prepareBatch attempts a ledger read the fixture refuses. */
 async function prepareOutcome(campaignId: string, orgId: string): Promise<{ kind: string; detail?: string }> {
   try {
     const out = await prepareBatch(campaignId, orgId, {})
@@ -349,6 +351,7 @@ async function main(): Promise<void> {
     urlSchema()
   } finally {
     await prisma.$disconnect()
+    await closeNetworkFixture()
     server.close()
   }
   console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)
