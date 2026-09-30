@@ -1,0 +1,70 @@
+{
+  "hash": "e91852b85a8939d2f317ed6800b1a277e74b1db916ea4635c6e492bd39ab9284",
+  "review": {
+    "stage": "materialise",
+    "network": "testnet",
+    "hash": "e91852b85a8939d2f317ed6800b1a277e74b1db916ea4635c6e492bd39ab9284",
+    "source": "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+    "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+    "feeBidStroops": "6000",
+    "requiredSigners": [
+      "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+      "GCFKAQEEPDEBDF47MW2VBSUPATAY7K5XBRBHTMPJXRIHLJF4PUW3OW7Y"
+    ],
+    "operationTypes": [
+      "beginSponsoringFutureReserves",
+      "createAccount",
+      "endSponsoringFutureReserves",
+      "beginSponsoringFutureReserves",
+      "changeTrust",
+      "endSponsoringFutureReserves"
+    ],
+    "ephemeralPublicKey": "GCFKAQEEPDEBDF47MW2VBSUPATAY7K5XBRBHTMPJXRIHLJF4PUW3OW7Y",
+    "recipientMode": "existing-no-trustline"
+  },
+  "before": {
+    "sender": {
+      "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "native": "0.0000000",
+      "usdc": "16.0000000",
+      "baseReserve": "0.5000000",
+      "hasUsdcTrustline": true,
+      "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "trustlineSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "numSponsoring": 0,
+      "numSponsored": 3,
+      "minimumReserve": "0.0000000",
+      "spendableNative": "0.0000000"
+    },
+    "sponsor": {
+      "address": "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+      "native": "9999.9999600",
+      "usdc": "0.0000000",
+      "baseReserve": "0.5000000",
+      "hasUsdcTrustline": false,
+      "accountSponsor": null,
+      "trustlineSponsor": null,
+      "numSponsoring": 4,
+      "numSponsored": 0,
+      "minimumReserve": "3.0000000",
+      "spendableNative": "9996.9999600"
+    },
+    "recipient": {
+      "exists": true,
+      "trusts": false,
+      "snapshot": {
+        "address": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+        "native": "0.0000000",
+        "usdc": "0.0000000",
+        "baseReserve": "0.5000000",
+        "hasUsdcTrustline": false,
+        "accountSponsor": "GAUKFGMOCJ6CW6MTQZZHRTKH6F2EAYHLJUZ6YWWKO3WHURVX35AHAGIX",
+        "trustlineSponsor": null,
+        "numSponsoring": 0,
+        "numSponsored": 2,
+        "minimumReserve": "0.0000000",
+        "spendableNative": "0.0000000"
+      }
+    }
+  }
+}
