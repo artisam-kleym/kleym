@@ -1,0 +1,8 @@
+﻿{
+    "startedAtUTC":  "2026-09-30T14:01:35.2854873Z",
+    "processId":  9428,
+    "url":  "http://127.0.0.1:3217",
+    "checkout":  "D:\\kleym\\.worktrees\\97-recipient-matrix",
+    "bootstrapMode":  "recipient-account-only",
+    "keyStorage":  "Disposable sponsor key in Node process memory only"
+}

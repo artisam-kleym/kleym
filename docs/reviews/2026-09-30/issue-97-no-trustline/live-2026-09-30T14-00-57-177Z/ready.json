@@ -1,0 +1,23 @@
+{
+  "checkedAtUTC": "2026-09-30T14:02:49.239Z",
+  "url": "http://127.0.0.1:3217",
+  "httpStatus": 200,
+  "state": {
+    "network": "testnet",
+    "sender": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "recipient": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+    "mode": "recipient-account-only",
+    "target": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+    "targetLabel": "recipient",
+    "walletLabel": "Kleym Recipient - No Trustline"
+  },
+  "desktopWidth": 1280,
+  "mobileWidth": 390,
+  "noOverflow": true,
+  "stepsGatedBeforeConnection": true,
+  "browserErrors": [],
+  "postRequests": [],
+  "receiptPresent": false,
+  "acceptancePassed": true,
+  "scope": "Actual public target and live server readiness only; no wallet signature, sponsor funding or ledger submission."
+}
