@@ -1,0 +1,23 @@
+{
+  "checkedAtUTC": "2026-09-30T00:41:10.485Z",
+  "desktop": {
+    "recipientStateShown": true,
+    "senderAddressShown": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "recipientAddressShown": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+    "fundDisabledBeforeLocalKeys": true,
+    "noHorizontalOverflow": true
+  },
+  "mobile": {
+    "noHorizontalOverflow": true,
+    "fundDisabledBeforeLocalKeys": true
+  },
+  "browserErrors": [],
+  "postRequestsBeforeUserAction": [],
+  "server": {
+    "recipientMode": "existing-trustline",
+    "fundedLinks": 0,
+    "balanceIds": 0,
+    "receipts": [],
+    "fatal": false
+  }
+}

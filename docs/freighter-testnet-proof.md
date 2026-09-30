@@ -14,6 +14,20 @@ Funding/claim/reclaim fees total **2,100 stroops / 0.0002100 XLM**, paid by the 
 
 Recipient: `GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW`. Historical absence proof is root `docs/reviews/2026-09-29/development-resume/recipient-preflight.json`; the funding/TX1 receipts also confirmed absence. This address is now activated by the successful sponsored claim and cannot be reused as an absent-recipient fixture.
 
+## Existing recipient continuation for #97 (2026-09-30)
+
+The same recipient now has **1.0000000 official test USDC, literal zero XLM and a sponsored official-USDC trustline**, as checked against Testnet Horizon. The sender still held 19.0000000 official test USDC and zero XLM at the earlier account read. The dated public preflight and browser checks are in `docs/reviews/2026-09-30/issue-97-recipient-matrix/`.
+
+The interactive spike now accepts `-RecipientMode existing-trustline` or `existing-no-trustline`; the default `absent` mode remains supported. The server reads the actual account, trustline and spendable XLM state before preparing every transaction. For an existing recipient with the correct trustline, TX2 has no recipient-sourced operation, so the page requires the selected Freighter account and deliberate approval but correctly omits an unnecessary recipient signature. For an existing account lacking the trustline, TX2 creates a sponsored trustline and requires the recipient's Freighter signature. The receipt checks exact USDC increase, unchanged native balance, new reserve obligations and temporary reserve release against the actual operations.
+
+To run the **existing-trustline** case with the selected sender and recipient, use the launcher with an existing evidence directory:
+
+```powershell
+.\scripts\start-freighter-lifecycle.ps1 -Sender GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A -Recipient GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW -RecipientMode existing-trustline -EvidenceDirectory <existing-evidence-directory>
+```
+
+The 2026-09-30 local session uses `http://127.0.0.1:3218`; check its process and `/state` before launching another. The page and tests are ready, but **no new funding, claim or reclaim transaction has been submitted for this existing-recipient case**. It remains an open #97 proof item until the user performs the Freighter steps and independent ledger checks pass. Do not reuse the earlier absent-recipient receipt as evidence for this case.
+
 Sender: `GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A`. The earlier absent-account observation is root `docs/reviews/2026-09-29/development-resume/wallet-address-preflight.json`. Current setup receipt is `bootstrap-receipt-2026-09-29T09-17-54-131Z.json`; independent canonical ledger proof is `freighter-bootstrap-independent-ledger-proof.json` in the same root evidence directory. The initial receipt omitted the ledger number because SDK 16.2.0 exposes it as `ledger_attr` (while `ledger` is a follow-up method); the independent raw Horizon proof supplies canonical ledger 4930040 without altering the historical receipt. Preserve running Windows PID 26432 and its memory-only sponsor key; it now sponsors the sender's persistent reserves.
 
 ## Acquire sender-owned official test USDC

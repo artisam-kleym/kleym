@@ -12,11 +12,14 @@ import { Account, Horizon, Keypair, Networks, StrKey, TransactionBuilder, type T
 import Decimal from 'decimal.js'
 import { buildMaterialise, buildClaim, type ClaimContext, type LedgerFacts } from '../src/lib/stellar/claim'
 import { bootstrapFeePerOperation, BOOTSTRAP_ASSET } from './lib/freighter-bootstrap'
-import { buildProofFunding, buildProofReclaim, verifyProofSignatures } from './lib/freighter-lifecycle'
+import { buildProofFunding, buildProofReclaim, recipientProofRequirements, verifyProofSignatures } from './lib/freighter-lifecycle'
 
-const [sender, recipient, evidenceDirectory] = process.argv.slice(2)
+const [sender, recipient, evidenceDirectory, recipientMode = 'absent'] = process.argv.slice(2)
 if (!sender || !recipient || !evidenceDirectory || sender === recipient || ![sender, recipient].every(key => StrKey.isValidEd25519PublicKey(key))) {
   throw new Error('Provide distinct sender/recipient G-addresses and an existing evidence directory.')
+}
+if (!['absent', 'existing-no-trustline', 'existing-trustline'].includes(recipientMode)) {
+  throw new Error('Recipient mode must be absent, existing-no-trustline or existing-trustline.')
 }
 const origin = 'http://127.0.0.1:3218'
 const horizon = new Horizon.Server('https://horizon-testnet.stellar.org')
@@ -57,9 +60,33 @@ async function snapshot(address: string) {
   const token: any = account.balances.find((b: any) => b.asset_code === 'USDC' && b.asset_issuer === BOOTSTRAP_ASSET.getIssuer())
   const minimum = baseReserve.mul(2 + account.subentry_count + account.num_sponsoring - account.num_sponsored)
   return { address, native: native.balance, usdc: token?.balance ?? '0.0000000', baseReserve: baseReserve.toFixed(7),
+    hasUsdcTrustline: Boolean(token),
     accountSponsor: account.sponsor ?? null, trustlineSponsor: token?.sponsor ?? null,
     numSponsoring: account.num_sponsoring, numSponsored: account.num_sponsored, minimumReserve: minimum.toFixed(7),
     spendableNative: new Decimal(native.balance).minus(minimum).minus(native.selling_liabilities).toFixed(7) }
+}
+async function recipientState(enforceMode = true) {
+  const exists = !(await absent(recipient))
+  if (!exists) {
+    if (enforceMode && recipientMode !== 'absent') throw new Error('The selected recipient must already exist for this proof mode.')
+    return { exists: false, trusts: false, snapshot: null }
+  }
+  const state = await snapshot(recipient)
+  if (enforceMode) {
+    if (recipientMode === 'absent') throw new Error('The selected recipient must be absent for this proof mode.')
+    if (new Decimal(state.spendableNative).gt(0)) throw new Error('The recipient has spendable XLM; this proof requires no spendable XLM.')
+    if (state.hasUsdcTrustline !== (recipientMode === 'existing-trustline')) {
+      throw new Error('The recipient trustline state does not match the selected proof mode.')
+    }
+  }
+  return { exists: true, trusts: state.hasUsdcTrustline, snapshot: state }
+}
+function recipientUnchanged(before: Awaited<ReturnType<typeof recipientState>>, after: Awaited<ReturnType<typeof recipientState>>) {
+  return before.exists === after.exists && before.trusts === after.trusts &&
+    (before.snapshot === null && after.snapshot === null ||
+      before.snapshot !== null && after.snapshot !== null &&
+      ['native', 'usdc', 'accountSponsor', 'trustlineSponsor', 'numSponsored', 'numSponsoring'].every(
+        key => before.snapshot![key as keyof typeof before.snapshot] === after.snapshot![key as keyof typeof after.snapshot]))
 }
 async function save(kind: string, value: unknown) {
   await writeFile(join(evidenceDirectory, `lifecycle-${session}-${++counter}-${kind}.json`), JSON.stringify(value, null, 2) + '\n', { flag: 'wx' })
@@ -93,7 +120,7 @@ async function prepare(stage: string, publicKeys?: unknown) {
     if (keys.length && !keys.every((key, i) => key === publicKeys[i])) throw new Error('Keep the original locally saved test keys for this session.')
     const s = await snapshot(sender)
     if (s.native !== '0.0000000' || new Decimal(s.usdc).lt(2) || s.numSponsored !== 3) throw new Error('Sender must own at least 2 official USDC, hold zero XLM and have three sponsored reserves.')
-    if (!(await absent(recipient))) throw new Error('Keep the recipient absent for this first claim proof.')
+    const destination = await recipientState()
     for (const key of publicKeys) if (!(await absent(key))) throw new Error('Test link addresses must be unactivated.')
     const baseFee = await fee()
     if (!funded) {
@@ -109,26 +136,35 @@ async function prepare(stage: string, publicKeys?: unknown) {
     balanceIds = plan.balanceIds
     required = [sponsor.publicKey(), sender]
     extra = { publicKeys: keys, balanceIds, amounts: ['1.0000000', '1.0000000'], expiries: expiries.map(d => d.toISOString()),
+      recipientMode, recipientBefore: destination.snapshot,
       principalOwner: sender, totalSenderUsdcDebit: '2.0000000', balanceReserveSponsor: sponsor.publicKey() }
   } else if (stage === 'materialise') {
     requireReceipt('fund')
     if (Date.now() >= expiries[0].getTime()) throw new Error('The claim test link expired; reclaim is required instead.')
-    if (!(await absent(keys[0])) || !(await absent(recipient))) throw new Error('Expected absent ephemeral and recipient accounts.')
+    if (!(await absent(keys[0]))) throw new Error('Expected an absent ephemeral account.')
+    await recipientState()
     const plan = buildMaterialise(await context(), { ephemeralTrusts: false })
     transaction = TransactionBuilder.fromXDR(plan.xdr, Networks.TESTNET) as Transaction
     required = [sponsor.publicKey(), keys[0]]
-    extra = { ephemeralPublicKey: keys[0], recipientStillAbsent: true }
+    extra = { ephemeralPublicKey: keys[0], recipientMode }
   } else if (stage === 'claim') {
     requireReceipt('materialise')
     const ledger = (await horizon.ledgers().order('desc').limit(1).call()).records[0].sequence
     if (ledger <= receipts.materialise.ledger) throw new Error('Wait for the next ledger before preparing claim TX2.')
     if (Date.now() >= expiries[0].getTime()) throw new Error('Claim expiry reached; stop and recover via sender reclaim.')
-    if (!(await absent(recipient))) throw new Error('Recipient activated outside this proof; inspect its state.')
-    const facts: LedgerFacts = { ephemeralExists: true, ephemeralTrusts: true, recipientExists: false, recipientTrusts: false }
+    const destination = await recipientState()
+    const facts: LedgerFacts = { ephemeralExists: true, ephemeralTrusts: true,
+      recipientExists: destination.exists, recipientTrusts: destination.trusts }
     const plan = buildClaim(await context(), facts)
     transaction = TransactionBuilder.fromXDR(plan.xdr, Networks.TESTNET) as Transaction
-    required = [sponsor.publicKey(), keys[0], recipient]
-    extra = { recipient, amount: '1.0000000', needsRecipientSignature: plan.needsRecipientSignature,
+    const requirements = recipientProofRequirements(transaction, recipient)
+    if (requirements.needsRecipientSignature !== plan.needsRecipientSignature) {
+      throw new Error('Claim signer flag disagrees with the prepared operations.')
+    }
+    required = [sponsor.publicKey(), keys[0], ...(requirements.needsRecipientSignature ? [recipient] : [])]
+    extra = { recipient, recipientMode, recipientBefore: destination.snapshot,
+      amount: '1.0000000', needsRecipientSignature: requirements.needsRecipientSignature,
+      newRecipientReserveUnits: requirements.newReserveUnits,
       materialiseLedger: receipts.materialise.ledger }
   } else if (stage === 'reclaim') {
     requireReceipt('claim')
@@ -140,7 +176,8 @@ async function prepare(stage: string, publicKeys?: unknown) {
     extra = { balanceId: balanceIds[1], amount: '1.0000000', expiresAt: expiries[1].toISOString() }
   } else throw new Error('Unknown proof step.')
   transaction.sign(sponsor)
-  const before = { sender: await snapshot(sender), sponsor: await snapshot(sponsor.publicKey()) }
+  const before = { sender: await snapshot(sender), sponsor: await snapshot(sponsor.publicKey()),
+    recipient: await recipientState(stage !== 'reclaim') }
   const review = { stage, network: 'testnet', hash: transaction.hash().toString('hex'), source: transaction.source,
     asset: BOOTSTRAP_ASSET.toString(), feeBidStroops: transaction.fee, requiredSigners: required,
     operationTypes: transaction.operations.map(op => op.type), ...extra }
@@ -177,7 +214,7 @@ async function submit(stage: string, signedXdr: string) {
     confirmed = await transactionByHash(hash)
   }
   if (!confirmed?.successful) throw new Error('No successful ledger confirmation yet; resolve this exact transaction hash.')
-  const after = { sender: await snapshot(sender), sponsor: await snapshot(sponsor.publicKey()) }
+  const after = { sender: await snapshot(sender), sponsor: await snapshot(sponsor.publicKey()), recipient: await recipientState(false) }
   const assertions: Record<string, boolean> = {
     senderStillHasZeroXlm: after.sender.native === '0.0000000',
     sponsorPaidExactFee: new Decimal(plan.before.sponsor.native).minus(after.sponsor.native).mul(10_000_000).equals(confirmed.fee_charged),
@@ -188,22 +225,30 @@ async function submit(stage: string, signedXdr: string) {
     assertions.senderSuppliedExactlyTwoUsdc = new Decimal(plan.before.sender.usdc).minus(after.sender.usdc).equals(2)
     assertions.balancesHaveExactAssetAmountAndSponsor = balances.every((b, i) => b.id === balanceIds[i] && b.asset === BOOTSTRAP_ASSET.toString() && b.amount === '1.0000000' && b.sponsor === sponsor.publicKey())
     assertions.sponsorAddedFourClaimantReserves = after.sponsor.numSponsoring === plan.before.sponsor.numSponsoring + 4
-    assertions.recipientStillAbsent = await absent(recipient)
+    assertions.recipientStatePreserved = recipientUnchanged(plan.before.recipient, after.recipient)
     detail = { balances }
   } else if (stage === 'materialise') {
     const ephemeral = await snapshot(keys[0])
     assertions.ephemeralIsZeroXlmAndSponsored = ephemeral.native === '0.0000000' && ephemeral.numSponsored === 3 && ephemeral.accountSponsor === sponsor.publicKey() && ephemeral.trustlineSponsor === sponsor.publicKey()
     assertions.sponsorAddedThreeTemporaryReserves = after.sponsor.numSponsoring === plan.before.sponsor.numSponsoring + 3
-    assertions.recipientStillAbsent = await absent(recipient)
+    assertions.recipientStatePreserved = recipientUnchanged(plan.before.recipient, after.recipient)
     detail = { ephemeral }
   } else if (stage === 'claim') {
-    const destination = await snapshot(recipient)
-    assertions.recipientReceivedExactlyOneUsdc = destination.usdc === '1.0000000'
-    assertions.recipientRemainsZeroXlmAndSponsored = destination.native === '0.0000000' && destination.numSponsored === 3 && destination.accountSponsor === sponsor.publicKey() && destination.trustlineSponsor === sponsor.publicKey()
+    const destination = after.recipient.snapshot
+    const prior = plan.before.recipient.snapshot
+    const newRecipientReserves = plan.review.newRecipientReserveUnits
+    assertions.recipientReceivedExactlyOneUsdc = Boolean(destination && new Decimal(destination.usdc).minus(prior?.usdc ?? '0').equals(1))
+    assertions.recipientNeededNoXlmTopUp = Boolean(destination && destination.native === (prior?.native ?? '0.0000000') &&
+      new Decimal(destination.spendableNative).lte(0))
+    assertions.recipientSponsorshipMatchesState = Boolean(destination &&
+      destination.accountSponsor === (prior ? prior.accountSponsor : sponsor.publicKey()) &&
+      destination.trustlineSponsor === (prior?.trustlineSponsor ?? sponsor.publicKey()) &&
+      destination.numSponsored === (prior?.numSponsored ?? 0) + newRecipientReserves)
+    assertions.recipientSignatureMatchesOperations = plan.review.needsRecipientSignature === (recipientMode !== 'existing-trustline')
     assertions.tx2InStrictlyLaterLedger = confirmed.ledger_attr > receipts.materialise.ledger
     assertions.ephemeralAccountRemoved = await absent(keys[0])
     assertions.claimedBalanceRemoved = await missingBalance(balanceIds[0])
-    assertions.temporaryReservesReleased = after.sponsor.numSponsoring === plan.before.sponsor.numSponsoring - 2 // -3 temporary, -2 claimants, +3 recipient
+    assertions.temporaryReservesReleased = after.sponsor.numSponsoring === plan.before.sponsor.numSponsoring - 5 + newRecipientReserves
     detail = { recipient: destination }
   } else if (stage === 'reclaim') {
     assertions.senderReceivedExactlyOneUsdc = new Decimal(after.sender.usdc).minus(plan.before.sender.usdc).equals(1)
@@ -225,7 +270,7 @@ async function body(request: IncomingMessage) {
   return JSON.parse(text)
 }
 const css = `:root{font-family:system-ui,sans-serif;background:#f3f6f4;color:#17242a}body{margin:0}main{max-width:900px;margin:2rem auto;background:white;padding:2rem;border-radius:16px}p{line-height:1.6}h1{letter-spacing:-.03em}.actions{display:flex;gap:.6rem;flex-wrap:wrap;margin:1rem 0}button{font:inherit;padding:.8rem;border-radius:8px;background:#1e6040;color:white;border:0;cursor:pointer}button:disabled{opacity:.4;cursor:default}button:focus-visible{outline:3px solid #de9d25;outline-offset:3px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem;line-height:1.5}label{display:block;margin:1rem 0}code{overflow-wrap:anywhere}section{border-top:1px solid #dce6df;padding-top:1rem;margin-top:1rem}@media(max-width:600px){main{margin:1rem;padding:1rem}.actions{flex-direction:column}}`
-const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kleym · Testnet lifecycle proof</title><link rel="stylesheet" href="/style.css"></head><body><main><p>KLEYM · TESTNET PROOF</p><h1>Fund, claim and reclaim</h1><p>Use 2 of your 20 test USDC to create two 1-USDC test links. Claim one into the empty recipient wallet and reclaim the other after expiry. Test tokens have no monetary value.</p><p>Sender: <code id="sender"></code><br>Recipient: <code id="recipient"></code></p><p>Keep this tab open. Save the test-key CSV before funding; it stays on your computer. Use the same tab for the recipient claim.</p><div class="actions"><button id="connect">Connect Freighter</button><button id="keys">Generate test keys</button><button id="download" disabled>Download test-key CSV</button></div><label><input id="saved" type="checkbox" disabled> I saved the test-key CSV privately</label><label>Restore saved test keys locally: <input id="restore" type="file" accept=".csv"></label><section><h2>1. Fund two test links</h2><p>Select Kleym Sender and Testnet in Freighter. The separate sponsor pays fees and reserves.</p><div class="actions"><button id="fund-prepare" disabled>Prepare 2-USDC funding</button><button id="fund-sign" disabled>Sign funding in Freighter</button><button id="fund-submit" disabled>Submit funding</button></div></section><section><h2>2. Claim one USDC</h2><p>After funding, select Kleym Recipient in Freighter and connect again. Begin claim creates the temporary account; the next transaction delivers 1 USDC and cleans it up in a later ledger.</p><div class="actions"><button id="materialise" disabled>Begin recipient claim (TX1)</button><button id="claim-prepare" disabled>Prepare claim (TX2)</button><button id="claim-sign" disabled>Sign claim in Freighter</button><button id="claim-submit" disabled>Submit claim</button></div></section><section><h2>3. Reclaim the expired link</h2><p>Select Kleym Sender again. The second link expires five minutes after preparation. Reclaim is available after expiry.</p><div class="actions"><button id="reclaim-prepare" disabled>Prepare expiry reclaim</button><button id="reclaim-sign" disabled>Sign reclaim in Freighter</button><button id="reclaim-submit" disabled>Submit reclaim</button></div></section><p id="status" role="status" aria-live="polite">Opening or connecting submits nothing. Generate and save test keys to begin.</p><pre id="review" aria-label="Transaction review"></pre></main><script type="module" src="/assets/freighter-lifecycle-browser.js"></script></body></html>`
+const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kleym · Testnet lifecycle proof</title><link rel="stylesheet" href="/style.css"></head><body><main><p>KLEYM · TESTNET PROOF</p><h1>Fund, claim and reclaim</h1><p>Use 2 test USDC to create two 1-USDC test links. Claim one into the selected recipient wallet and reclaim the other after expiry. Test tokens have no monetary value.</p><p>Sender: <code id="sender"></code><br>Recipient: <code id="recipient"></code><br>Recipient state: ${recipientMode}</p><p>Keep this tab open. Save the test-key CSV before funding; it stays on your computer. Use the same tab for the recipient claim.</p><div class="actions"><button id="connect">Connect Freighter</button><button id="keys">Generate test keys</button><button id="download" disabled>Download test-key CSV</button></div><label><input id="saved" type="checkbox" disabled> I saved the test-key CSV privately</label><label>Restore saved test keys locally: <input id="restore" type="file" accept=".csv"></label><section><h2>1. Fund two test links</h2><p>Select Kleym Sender and Testnet in Freighter. The separate sponsor pays fees and reserves.</p><div class="actions"><button id="fund-prepare" disabled>Prepare 2-USDC funding</button><button id="fund-sign" disabled>Sign funding in Freighter</button><button id="fund-submit" disabled>Submit funding</button></div></section><section><h2>2. Claim one USDC</h2><p>After funding, select Kleym Recipient in Freighter and connect again. Begin claim creates the temporary account; the next transaction delivers 1 USDC and cleans it up in a later ledger. If this recipient already has the official USDC trustline, their wallet has no operation to sign.</p><div class="actions"><button id="materialise" disabled>Begin recipient claim (TX1)</button><button id="claim-prepare" disabled>Prepare claim (TX2)</button><button id="claim-sign" disabled>Sign claim in Freighter</button><button id="claim-submit" disabled>Submit claim</button></div></section><section><h2>3. Reclaim the expired link</h2><p>Select Kleym Sender again. The second link expires five minutes after preparation. Reclaim is available after expiry.</p><div class="actions"><button id="reclaim-prepare" disabled>Prepare expiry reclaim</button><button id="reclaim-sign" disabled>Sign reclaim in Freighter</button><button id="reclaim-submit" disabled>Submit reclaim</button></div></section><p id="status" role="status" aria-live="polite">Opening or connecting submits nothing. Generate and save test keys to begin.</p><pre id="review" aria-label="Transaction review"></pre></main><script type="module" src="/assets/freighter-lifecycle-browser.js"></script></body></html>`
 await assertTestnet()
 const http = createServer(async (request, response) => {
   response.setHeader('cache-control', 'no-store')
@@ -242,7 +287,7 @@ const http = createServer(async (request, response) => {
       const content = await readFile(join(buildDirectory, path.slice('/assets/'.length)))
       response.writeHead(200, { 'content-type': 'application/javascript' }); response.end(content); return
     }
-    if (request.method === 'GET' && path === '/state') return send(200, { sender, recipient, sponsor: sponsor.publicKey(), publicKeys: keys, balanceIds, expiries: expiries.map(d => d.toISOString()), receipts, fatal })
+    if (request.method === 'GET' && path === '/state') return send(200, { sender, recipient, recipientMode, sponsor: sponsor.publicKey(), publicKeys: keys, balanceIds, expiries: expiries.map(d => d.toISOString()), receipts, fatal })
     const route = /^\/(fund|materialise|claim|reclaim)\/(prepare|submit)$/.exec(path)
     if (request.method !== 'POST' || !route) return send(404, { error: 'Not found.' })
     if (request.headers.origin !== origin || request.headers['x-kleym-proof'] !== 'lifecycle' || request.headers['content-type'] !== 'application/json') return send(403, { error: 'Use the local lifecycle page.' })
