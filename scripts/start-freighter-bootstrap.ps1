@@ -1,7 +1,8 @@
 param(
   [Parameter(Mandatory = $true)][string]$Sender,
   [Parameter(Mandatory = $true)][string]$Recipient,
-  [Parameter(Mandatory = $true)][string]$EvidenceDirectory
+  [Parameter(Mandatory = $true)][string]$EvidenceDirectory,
+  [ValidateSet('sender-usdc', 'recipient-account-only')][string]$BootstrapMode = 'sender-usdc'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,7 +24,7 @@ $processArguments = @(
   '--import', 'tsx',
   'scripts/spike-freighter-bootstrap.ts',
   $Sender, $Recipient,
-  ('"' + $resolvedEvidence + '"')
+  ('"' + $resolvedEvidence + '"'), $BootstrapMode
 )
 $serverProcess = Start-Process -FilePath $nodeExecutable -WorkingDirectory $checkoutDirectory `
   -ArgumentList $processArguments -WindowStyle Hidden -PassThru
@@ -32,6 +33,7 @@ $launchRecord = [ordered]@{
   processId = $serverProcess.Id
   url = 'http://127.0.0.1:3217'
   checkout = $checkoutDirectory
+  bootstrapMode = $BootstrapMode
   keyStorage = 'Disposable sponsor key in Node process memory only'
 }
 $recordName = 'freighter-server-launch-' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfff') + '.json'

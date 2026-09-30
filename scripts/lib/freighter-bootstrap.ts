@@ -4,6 +4,7 @@ import { stellarMetadata } from '../../src/lib/stellar/network'
 import Decimal from 'decimal.js'
 
 export const BOOTSTRAP_ASSET = new Asset('USDC', stellarMetadata('testnet').defaultAsset.assetIssuer)
+export type BootstrapMode = 'sender-usdc' | 'recipient-account-only'
 
 /** Classic fixture bid: live ledger base fee with headroom, bounded as before.
  * Historical charged-fee percentiles are observations, not required minima.
@@ -16,23 +17,28 @@ export function bootstrapFeePerOperation(lastLedgerBaseFee: string): string {
 }
 
 export function buildSponsoredSenderBootstrap(sponsor: ConstructorParameters<typeof TransactionBuilder>[0], sender: string, baseFee: string): Transaction {
-  return new TransactionBuilder(sponsor, { fee: baseFee, networkPassphrase: Networks.TESTNET })
-    .addOperation(Operation.beginSponsoringFutureReserves({ sponsoredId: sender }))
-    .addOperation(Operation.createAccount({ destination: sender, startingBalance: '0' }))
-    .addOperation(Operation.changeTrust({ asset: BOOTSTRAP_ASSET, limit: '100', source: sender }))
-    .addOperation(Operation.endSponsoringFutureReserves({ source: sender }))
+  return buildSponsoredBootstrap(sponsor, sender, baseFee, 'sender-usdc')
+}
+
+export function buildSponsoredBootstrap(sponsor: ConstructorParameters<typeof TransactionBuilder>[0], target: string, baseFee: string, mode: BootstrapMode): Transaction {
+  if (mode !== 'sender-usdc' && mode !== 'recipient-account-only') throw new Error('Invalid bootstrap mode.')
+  const builder = new TransactionBuilder(sponsor, { fee: baseFee, networkPassphrase: Networks.TESTNET })
+    .addOperation(Operation.beginSponsoringFutureReserves({ sponsoredId: target }))
+    .addOperation(Operation.createAccount({ destination: target, startingBalance: '0' }))
+  if (mode === 'sender-usdc') builder.addOperation(Operation.changeTrust({ asset: BOOTSTRAP_ASSET, limit: '100', source: target }))
+  return builder.addOperation(Operation.endSponsoringFutureReserves({ source: target }))
     .setTimeout(300)
     .build()
 }
 
-/** Require the reviewed body and exactly the sponsor/sender signatures. */
-export function verifyBootstrapSignature(original: Transaction, xdr: string, sender: string): Transaction {
+/** Require the reviewed body and exactly the sponsor/target wallet signatures. */
+export function verifyBootstrapSignature(original: Transaction, xdr: string, target: string): Transaction {
   const signed = TransactionBuilder.fromXDR(xdr, Networks.TESTNET)
   if (!(signed instanceof Transaction) || !signed.hash().equals(original.hash())) {
     throw new Error('The wallet changed the reviewed transaction.')
   }
-  if (signed.signatures.length !== 2) throw new Error('Expected exactly the sender and sponsor signatures.')
-  const expected = [sender, original.source]
+  if (signed.signatures.length !== 2) throw new Error('Expected exactly the target wallet and sponsor signatures.')
+  const expected = [target, original.source]
   const matched = new Set<string>()
   for (const signature of signed.signatures) {
     const key = expected.find((address) => {
@@ -43,6 +49,6 @@ export function verifyBootstrapSignature(original: Transaction, xdr: string, sen
     if (!key || matched.has(key)) throw new Error('Invalid, duplicate or unexpected transaction signature.')
     matched.add(key)
   }
-  if (matched.size !== 2) throw new Error('The sender must sign the transaction.')
+  if (matched.size !== 2) throw new Error('The target wallet must sign the transaction.')
   return signed
 }
