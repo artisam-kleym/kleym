@@ -1,4 +1,16 @@
-# Issue #97: account-only setup verified; funding pending
+# Issue #97: account-only setup and funding verified; claim pending
+
+## Latest stage: funding independently verified
+
+The user completed actual sender Freighter funding. Independent raw Testnet reads at `2026-09-30T14:36:42.814Z` passed all nine checks for **a3b7f0d1d07c953597db3c2cf3c08da134103da67059c115e7e60dc977697005**, ledger **4951045**. Sponsor and sender signatures, transaction source/fee payer, sponsorship bracket, exact two official-USDC principal operations, generated balance IDs and mutually complementary expiry predicates were verified from the confirmed envelope and public balances.
+
+Sender18->16USDC, literal native0, persistent sender sponsorship unchanged. Recipient remains native0, no trustline/subentries, and two sponsored account units with its original account sponsor. Lifecycle sponsor paid **400stroops / 0.0000400XLM**, sponsoring units0->4 and minimum reserve1->3XLM: **2XLM reserved**, not spent. The first1USDC balance is claimant-redeemable before `2026-09-30T15:33:40Z`; the other1USDC is sender-reclaimable from `2026-09-30T14:38:40Z`. The verifier uses the canonical ledger predicates, floored to whole seconds.
+
+Proof: [independent funding verification](lifecycle/independent-funding-proof-2026-09-30T14-36-42-814Z.json), [original funding receipt](lifecycle/lifecycle-2026-09-30T14-09-40-137Z-3-fund-receipt.json), [funding verifier](../verify-funding.mjs). The earlier ready-recipient verifier is preserved; this mode-specific adaptation explicitly proves the USDC trustline is absent and sender sponsorship is unchanged. This is public accounting verification, not a production envelope change. Preserve this funding snapshot; later claim/reclaim will change account/balance states.
+
+At `2026-09-30T14:37:52.638Z`, [claim readiness](lifecycle/claim-ready-2026-09-30T14-37-52-638Z.json) confirmed HTTP200, exact funded hash/recipient/mode, original public keys/balance IDs, no fatal state, no materialise/claim receipts, and unexpired claim window. Both operational sponsor PIDs9428/6868 remain alive; no process restart or agent ledger submission occurred.
+
+**User next:** use the same tab/local keys, select the new recipient/Testnet, connect, deliberately begin TX1, wait for its confirmation and a later ledger, prepare/review TX2, sign in Freighter and submit. TX2 must include this recipient's signature for its new sponsored trustline. Stop after claim and return with the public receipt before reclaim. Conservative user deadline:11:33PM Manila today. Actual TX1/TX2 claim and reclaim remain pending; no-trustline lifecycle and issue#97 are incomplete. The historical funding-pending section below is superseded by this result.
 
 ## Confirmed setup
 
