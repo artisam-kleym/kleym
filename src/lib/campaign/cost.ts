@@ -18,6 +18,7 @@ export interface CostInput {
   reservePerLink: string
   maxOpsPerBatch: number
   baseFeeStroops: string
+  sponsored?: boolean
 }
 
 export interface CostBreakdown {
@@ -29,20 +30,23 @@ export interface CostBreakdown {
   totalFee: string
   batches: number
   signatures: number
+  sponsored?: boolean
 }
 
 export function computeCost(input: CostInput): CostBreakdown {
   const links = new Decimal(input.linkCount)
-  const batches = batchCount(input.linkCount, input.maxOpsPerBatch)
+  const capacity = input.maxOpsPerBatch - (input.sponsored ? 2 : 0)
+  const batches = batchCount(input.linkCount, capacity)
 
   return {
     totalAmount: totalAmount(input).toFixed(),
     totalReserve: new Decimal(input.reservePerLink).times(links).toFixed(),
     // One operation per link, whatever the batching; fees are per operation.
-    totalFee: new Decimal(input.baseFeeStroops).times(links).div(1e7).toFixed(),
+    totalFee: new Decimal(input.baseFeeStroops).times(links.plus(input.sponsored ? batches * 2 : 0)).div(1e7).toFixed(),
     batches,
     // One wallet prompt per batch — the number the sender actually experiences.
     signatures: batches,
+    ...(input.sponsored ? { sponsored: true } : {}),
   }
 }
 
@@ -83,6 +87,6 @@ export function affordability(
 
   return {
     asset: assetIsNative ? true : asset !== null && asset.greaterThanOrEqualTo(cost.totalAmount),
-    reserve: xlm !== null && xlm.greaterThanOrEqualTo(xlmNeeded),
+    reserve: cost.sponsored === true || (xlm !== null && xlm.greaterThanOrEqualTo(xlmNeeded)),
   }
 }

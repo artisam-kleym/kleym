@@ -41,6 +41,7 @@ export function CampaignWizard(config: WizardConfig) {
   const router = useRouter()
   const wizard = useWizard()
   const stepUp = useStepUp()
+  const registeredCampaign = useRef<string | null>(null)
 
   const reissue = config.reissue ?? null
   /** Template (#82): terms and list prefilled; for a prepared run the campaign already exists. */
@@ -87,6 +88,8 @@ export function CampaignWizard(config: WizardConfig) {
     [complete, fresh, lookup.balances],
   )
   const [reservePerLink, setReservePerLink] = useState<string | null>(null)
+  const [sponsoredReservePerLink, setSponsoredReservePerLink] = useState<string | null>(null)
+  const sponsored = draft.assetCode === 'USDC' && !locked
   /* The template's recipient list (#82) is the labels field's initial text, parsed once as initial state. */
   const [labelsInitial] = useState(config.template?.recipientsCsv ?? '')
   const [recipientsCsv, setRecipientsCsv] = useState(labelsInitial)
@@ -143,7 +146,10 @@ export function CampaignWizard(config: WizardConfig) {
     void fetch('/api/stellar/reserve')
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => {
-        if (!cancelled && body) setReservePerLink(body.reservePerLink)
+        if (!cancelled && body) {
+          setReservePerLink(body.reservePerLink)
+          setSponsoredReservePerLink(body.sponsoredReservePerLink ?? null)
+        }
       })
       .catch(() => undefined)
     return () => {
@@ -180,7 +186,8 @@ export function CampaignWizard(config: WizardConfig) {
         amountPerLink: draft.amountPerLink,
         amounts: amounts.length > 0 ? amounts : undefined,
         linkCount: draft.linkCount,
-        reservePerLink,
+        reservePerLink: sponsored ? (sponsoredReservePerLink ?? reservePerLink) : reservePerLink,
+        sponsored,
         maxOpsPerBatch: config.maxOpsPerBatch,
         baseFeeStroops: config.baseFeeStroops,
       })
@@ -189,7 +196,7 @@ export function CampaignWizard(config: WizardConfig) {
       // the sender is still typing.
       return null
     }
-  }, [reservePerLink, draft.amountPerLink, draft.linkCount, amounts, config])
+  }, [reservePerLink, sponsoredReservePerLink, sponsored, draft.amountPerLink, draft.linkCount, amounts, config])
 
   const affordable = useMemo(() => {
     if (!cost || balances.length === 0) return null
@@ -294,11 +301,19 @@ export function CampaignWizard(config: WizardConfig) {
        * rather than to a new one. Otherwise a campaign from a template is a
        * MANUAL run, recorded as such.
        */
-      const campaignId = template?.draftCampaignId
+      const campaignId = wizard.campaignId ?? (template?.draftCampaignId
         ? template.draftCampaignId
         : await createCampaign(draft, wizard.keys.length, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template?.templateId ?? null, emailReceipts, recipientsCsv)
+      )
       wizard.setCampaignId(campaignId)
-      await registerLinks(campaignId, wizard.keys)
+      if (registeredCampaign.current !== campaignId) {
+        await registerLinks(campaignId, wizard.keys)
+        registeredCampaign.current = campaignId
+      }
+      // The download happened locally before this action. Record only that fact;
+      // neither the CSV nor its secrets cross this boundary.
+      const exported = await fetch(`/api/campaigns/${campaignId}/export`, { method: 'POST' })
+      if (!exported.ok) throw new PrepareRefused((await problemDetail(exported)) ?? 'The link backup could not be recorded. Funding has not started.')
 
       const total = cost?.signatures ?? 1
       wizard.setProgress({ signed: 0, total, failed: 0 })
@@ -312,8 +327,13 @@ export function CampaignWizard(config: WizardConfig) {
           const signedXdr = await signEnvelope(prepared.xdr, draft.network, draft.senderPublicKey)
           await submitBatch(campaignId, prepared.sequence, signedXdr)
           signed += 1
-        } catch {
+          wizard.setProgress({ signed, total, failed })
+          await waitForBatchConfirmation(campaignId, prepared.sequence)
+        } catch (error) {
           failed += 1
+          wizard.setError(await walletErrorMessage(error))
+          wizard.setProgress({ signed, total, failed })
+          break // Resolve this batch before requesting another wallet signature.
         }
         wizard.setProgress({ signed, total, failed })
       }
@@ -418,9 +438,9 @@ export function CampaignWizard(config: WizardConfig) {
             reminderDays={reminderDays}
             onReminderDays={setReminderDays}
             cost={cost}
-            reserveSource={reservePerLink}
+            reserveSource={sponsored ? sponsoredReservePerLink : reservePerLink}
             maxLinks={config.maxLinksPerCampaign}
-            maxOpsPerBatch={config.maxOpsPerBatch}
+            maxOpsPerBatch={config.maxOpsPerBatch - (sponsored ? 2 : 0)}
             affordable={affordable}
           />
         )}
@@ -562,7 +582,7 @@ async function prepareBatch(campaignId: string): Promise<{ sequence: number; xdr
     body: JSON.stringify({}),
   })
   if (response.status === 409) throw new PrepareRefused((await problemDetail(response)) ?? 'This campaign cannot be signed right now.')
-  if (!response.ok) return null
+  if (!response.ok) throw new PrepareRefused((await problemDetail(response)) ?? 'The batch could not be prepared. No new signing request was made.')
   const body = await response.json()
   return { sequence: body.sequence, xdr: body.xdr }
 }
@@ -574,6 +594,21 @@ async function submitBatch(campaignId: string, sequence: number, signedXdr: stri
     body: JSON.stringify({ sequence, signedXdr }),
   })
   if (!response.ok) throw new Error((await problemDetail(response)) ?? 'The batch was rejected.')
+}
+
+/** Do not request another sequence while the preceding payment is uncertain. */
+async function waitForBatchConfirmation(campaignId: string, sequence: number): Promise<void> {
+  const deadline = Date.now() + 45_000
+  while (Date.now() < deadline) {
+    const response = await fetch(`/api/campaigns/${campaignId}/batches`, { cache: 'no-store' })
+    if (!response.ok) throw new Error('The batch was submitted, but its status could not be checked. Keep your CSV and check the campaign before retrying.')
+    const body = await response.json() as { batches: { sequence: number; status: string; errorCode: string | null }[] }
+    const batch = body.batches.find((b) => b.sequence === sequence)
+    if (batch?.status === 'CONFIRMED') return
+    if (batch?.status === 'FAILED') throw new Error(`The network rejected batch ${sequence}: ${batch.errorCode ?? 'transaction failed'}. Earlier funded links are preserved.`)
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+  }
+  throw new Error('The batch is still awaiting ledger confirmation. Keep your CSV and check the campaign before retrying or sharing links.')
 }
 
 async function problemDetail(response: Response): Promise<string | null> {

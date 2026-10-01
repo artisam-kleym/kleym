@@ -20,7 +20,6 @@ import { PhrasePanel } from './phrase-panel'
 import type { CostBreakdown } from '@/lib/campaign/cost'
 import type { EphemeralKey } from '@/lib/campaign/keygen'
 import type { BatchProgress, Phase } from './use-wizard'
-import { DeliveryChoice } from './delivery-choice'
 
 export function ExportStep({
   phase,
@@ -34,8 +33,6 @@ export function ExportStep({
   onDownload,
   onSign,
   onFinish,
-  campaignId,
-  appUrl,
   screening,
   phraseConfirmed,
   onPhrase,
@@ -98,8 +95,12 @@ export function ExportStep({
             <dd className="text-on-surface">{cost.totalAmount}</dd>
           </div>
           <div>
-            <dt className="text-on-surface-variant">Reserve locked</dt>
+            <dt className="text-on-surface-variant">{cost.sponsored ? 'Kleym reserve locked' : 'Reserve locked'}</dt>
             <dd className="text-on-surface">{cost.totalReserve} XLM</dd>
+          </div>
+          <div>
+            <dt className="text-on-surface-variant">{cost.sponsored ? 'Kleym fee bid' : 'Network fee bid'}</dt>
+            <dd className="text-on-surface">{cost.totalFee} XLM</dd>
           </div>
         </dl>
       )}
@@ -180,7 +181,7 @@ export function ExportStep({
           <>
             <p role="status" className="font-mono text-label-md text-on-surface">
               {phase === 'complete'
-                ? `All ${progress.total} batches confirmed on the network.`
+                ? `All ${progress.total} batches submitted. Check the campaign for ledger confirmation before sharing links.`
                 : `${progress.signed} of ${progress.total} batches went through. The rest can be retried from the campaign.`}
             </p>
             <WarningPanel
@@ -189,7 +190,9 @@ export function ExportStep({
             >
               They exist in this tab and in the file you downloaded. Nowhere else.
             </WarningPanel>
-            {campaignId && <DeliveryChoice campaignId={campaignId} keys={keys} appUrl={appUrl} />}
+            <p className="text-body-md text-on-surface-variant">
+              After the campaign shows funded links, send each recipient only their own claim URL from your saved CSV. Keep the complete CSV private.
+            </p>
             <div className="flex gap-md">
               <Button type="button" variant="secondary" icon="download" onClick={onDownload}>
                 Download again

@@ -19,6 +19,9 @@ import { confirmBatch, markBatchFailed } from '@/lib/api/batches'
 import { LINK_ORDER } from '@/lib/api/link-order'
 import { balanceIdsFromResultXdr } from '@/lib/stellar/batch'
 import { horizon } from '@/lib/stellar/horizon'
+import { Transaction, TransactionBuilder } from '@stellar/stellar-sdk'
+import { env } from '@/lib/config/env'
+import { stellarContextProblem } from '@/lib/stellar/context'
 
 /**
  * Processes one batch.
@@ -33,15 +36,33 @@ export async function confirmOne(batchId: string): Promise<'confirmed' | 'failed
   const batch = await prisma.batch.findUnique({
     where: { id: batchId },
     select: {
-      id: true, campaignId: true, sequence: true, status: true, transactionHash: true,
+      id: true, campaignId: true, sequence: true, status: true, transactionHash: true, submittedXdr: true,
+      campaign: { select: { network: true, sponsorPublicKey: true } },
       links: { select: { id: true, ephemeralPublicKey: true }, orderBy: LINK_ORDER },
     },
   })
   if (!batch) throw new Error(`batch ${batchId} no longer exists`)
   if (batch.status === 'CONFIRMED' || batch.status === 'FAILED') return 'already-settled'
   if (!batch.transactionHash) throw new Error(`batch ${batchId} is ${batch.status} with no transaction hash`)
+  const contextProblem = await stellarContextProblem(batch.campaign)
+  if (contextProblem) throw new Error(contextProblem)
 
-  const transaction = await horizon().transactions().transaction(batch.transactionHash).call()
+  let transaction
+  try {
+    transaction = await horizon().transactions().transaction(batch.transactionHash).call()
+  } catch (error) {
+    const status = (error as { response?: { status?: number } }).response?.status
+    if (status === 404 && batch.submittedXdr) {
+      // Resending the identical signed envelope cannot create a second funding.
+      // Do not replace it with a new sequence when the first response was lost.
+      const saved = TransactionBuilder.fromXDR(batch.submittedXdr, env.NETWORK_PASSPHRASE)
+      if (!(saved instanceof Transaction) || saved.hash().toString('hex') !== batch.transactionHash) {
+        throw new Error('The stored funding envelope does not match its recorded hash.')
+      }
+      await horizon().submitTransaction(saved)
+    }
+    throw error // Confirmation still requires a closed-ledger read on the next attempt.
+  }
 
   if (!transaction.successful) {
     // In a closed ledger and rejected. This one is settled, not pending.

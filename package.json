@@ -22,6 +22,7 @@
     "verify:concurrency": "tsx scripts/verify-concurrency.ts",
     "verify:api-keys": "tsx scripts/verify-api-keys.ts",
     "verify:batches": "tsx scripts/verify-batches.ts",
+    "verify:sponsored-funding": "tsx scripts/verify-sponsored-funding.ts",
     "verify:claims": "tsx scripts/verify-claims.ts",
     "verify:campaign-list": "tsx scripts/verify-campaign-list.ts",
     "verify:confirm": "tsx scripts/verify-confirm-worker.ts",

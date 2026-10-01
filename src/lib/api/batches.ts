@@ -6,7 +6,7 @@
  * transaction Horizon reports in a closed ledger, whose balances are then read
  * back off the ledger.
  */
-import { Account } from '@stellar/stellar-sdk'
+import { Account, Keypair, Transaction, TransactionBuilder } from '@stellar/stellar-sdk'
 import { z } from 'zod'
 import Decimal from 'decimal.js'
 import { prisma } from '@/lib/db/client'
@@ -24,7 +24,8 @@ import {
   totalReserve,
   verifyBatchTransaction,
 } from '@/lib/stellar/batch'
-import { assetOf, baseReserve, horizon, reservePerLink } from '@/lib/stellar/horizon'
+import { assetOf, baseReserve, horizon, reservePerLink, sponsorSpendable } from '@/lib/stellar/horizon'
+import { sponsorFor, sponsorSecret } from '@/lib/stellar/sponsors'
 import { campaignContextProblem, stellarContextProblem } from '@/lib/stellar/context'
 
 /** Kleym always writes two claimants per link — SPEC.md §3.2. */
@@ -72,6 +73,7 @@ async function loadCampaign(campaignId: string, organizationId: string) {
       assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true,
       expiresAt: true, csvExportedAt: true,
       sponsorPublicKey: true,
+      fundingMode: true,
     },
   })
 }
@@ -115,7 +117,10 @@ async function planOnce(campaignId: string): Promise<void> {
       })
       if (links.length === 0) return
 
-      for (const plan of planBatches(links, env.MAX_OPS_PER_BATCH)) {
+      const campaign = await tx.campaign.findUniqueOrThrow({ where: { id: campaignId }, select: { fundingMode: true } })
+      const capacity = env.MAX_OPS_PER_BATCH - (campaign.fundingMode === 'SPONSORED' ? 2 : 0)
+      if (capacity < 1) throw new Error('The operation limit must allow sponsorship and at least one link.')
+      for (const plan of planBatches(links, capacity)) {
         const batch = await tx.batch.create({
           data: { campaignId, sequence: plan.sequence, status: 'PENDING' },
           select: { id: true },
@@ -141,6 +146,8 @@ export interface PreparedBatch {
   reservePerLink: string
   baseReserve: string
   expiresAt: string
+  feePayer: string
+  reservePayer: string
 }
 
 /**
@@ -166,6 +173,10 @@ export async function prepareBatch(
 
   const blocked = notReadyToSign(campaign)
   if (blocked) return blocked
+  if (campaign.fundingMode === 'SPONSORED' && campaign.csvExportedAt === null) {
+    return conflict('Save the link backup and record its export before funding this campaign.')
+  }
+  if (campaign.expiresAt.getTime() <= Date.now()) return conflict('This campaign has expired. Create a campaign with a future expiry before funding.')
 
   if (actorId) await recordSigner(campaign.id, organizationId, actorId)
 
@@ -186,7 +197,7 @@ export async function prepareBatch(
   const batches = await prisma.batch.findMany({
     where: { campaignId: campaign.id },
     orderBy: { sequence: 'asc' },
-    select: { id: true, sequence: true, status: true, links: { select: { id: true, ephemeralPublicKey: true, amount: true }, orderBy: LINK_ORDER } },
+    select: { id: true, sequence: true, status: true, preparedXdr: true, links: { select: { id: true, ephemeralPublicKey: true, amount: true }, orderBy: LINK_ORDER } },
   })
   if (batches.length === 0) {
     return conflict('This campaign has no registered links to batch.')
@@ -214,10 +225,31 @@ export async function prepareBatch(
   }
 
   const base = await baseReserve()
-  const perLink = reservePerLink(base, CLAIMANTS_PER_LINK)
+  const sponsored = campaign.fundingMode === 'SPONSORED'
+  const sponsor = sponsored ? sponsorFor(campaign.sponsorPublicKey) : null
+  if (sponsored && !sponsor) return conflict('The campaign sponsor is unavailable. Contact the operator.')
+  const perLink = sponsored ? base.times(CLAIMANTS_PER_LINK) : reservePerLink(base, CLAIMANTS_PER_LINK)
+  if (sponsor) {
+    const required = totalReserve(perLink, target.links.length).plus(new Decimal(env.BASE_FEE_STROOPS).times(target.links.length + 2).div(1e7))
+    if ((await sponsorSpendable(sponsor.publicKey)).lessThan(required)) {
+      return conflict('Kleym does not have enough available XLM to sponsor this batch. No USDC was sent.')
+    }
+    const asset = assetOf(campaign)
+    const account = await horizon().loadAccount(campaign.senderPublicKey)
+    const balance = account.balances.find((b) => 'asset_code' in b && b.asset_code === asset.getCode() && b.asset_issuer === asset.getIssuer())
+    const available = balance ? new Decimal(balance.balance).minus('selling_liabilities' in balance ? balance.selling_liabilities : '0') : new Decimal(0)
+    const principal = target.links.reduce((sum, link) => sum.plus(link.amount.toString()), new Decimal(0))
+    if (available.lessThan(principal)) return conflict('The sender does not have enough available USDC for this batch.')
+  }
+  if (batches.some((b) => b.status === 'SUBMITTED')) {
+    return conflict('A previous batch is awaiting ledger confirmation. Check its status before preparing another transaction.')
+  }
+  const sponsorAccount = sponsor ? await loadSenderAccount(sponsor.publicKey) : null
+  if (sponsor && !sponsorAccount) return conflict('The campaign sponsor account is unavailable on this network.')
 
-  const { xdr } = buildBatchTransaction({
+  const built = buildBatchTransaction({
     senderAccount,
+    ...(sponsorAccount ? { sponsorAccount } : {}),
     senderPublicKey: campaign.senderPublicKey,
     asset: assetOf(campaign),
     amountPerLink: campaign.amountPerLink.toString(),
@@ -229,6 +261,17 @@ export async function prepareBatch(
     baseFee: env.BASE_FEE_STROOPS,
     timeoutSeconds: SIGNING_WINDOW_SECONDS,
   })
+  let xdr = built.xdr
+  if (target.preparedXdr && target.status === 'PENDING') {
+    const existing = TransactionBuilder.fromXDR(target.preparedXdr, env.NETWORK_PASSPHRASE) as Transaction
+    if (Number(existing.timeBounds?.maxTime ?? 0) > Math.floor(Date.now() / 1000)) xdr = target.preparedXdr
+  }
+  // Compare-and-swap: simultaneous preparations return the same persisted body.
+  const saved = await prisma.batch.updateMany({
+    where: { id: target.id, status: target.status, preparedXdr: target.preparedXdr },
+    data: { preparedXdr: xdr, status: 'PENDING', errorCode: null },
+  })
+  if (saved.count !== 1) return conflict('This batch changed while preparing. Refresh its state before signing.')
 
   // The campaign is being built the moment the first envelope is handed over.
   if (campaign.status === 'DRAFT') {
@@ -250,6 +293,8 @@ export async function prepareBatch(
       reservePerLink: perLink.toString(),
       baseReserve: base.toString(),
       expiresAt: campaign.expiresAt.toISOString(),
+      feePayer: sponsor?.publicKey ?? campaign.senderPublicKey,
+      reservePayer: sponsor?.publicKey ?? campaign.senderPublicKey,
     },
   }
 }
@@ -293,7 +338,7 @@ export async function submitBatch(
   const batch = await prisma.batch.findFirst({
     where: { campaignId: campaign.id, sequence: input.sequence },
     select: {
-      id: true, sequence: true, status: true, transactionHash: true,
+      id: true, sequence: true, status: true, transactionHash: true, preparedXdr: true,
       links: { select: { id: true, ephemeralPublicKey: true, amount: true }, orderBy: LINK_ORDER },
     },
   })
@@ -316,8 +361,15 @@ export async function submitBatch(
   const providerProblem = await stellarContextProblem(campaign)
   if (providerProblem) return conflict(providerProblem)
 
+  const sponsor = campaign.fundingMode === 'SPONSORED' ? sponsorFor(campaign.sponsorPublicKey) : null
+  if (campaign.fundingMode === 'SPONSORED' && (!sponsor || !batch.preparedXdr)) {
+    return conflict('Prepare this batch with its configured sponsor before signing.')
+  }
+
   const verified = verifyBatchTransaction(input.signedXdr, {
     senderPublicKey: campaign.senderPublicKey,
+    ...(sponsor ? { sponsorPublicKey: sponsor.publicKey } : {}),
+    ...(batch.preparedXdr ? { preparedHash: TransactionBuilder.fromXDR(batch.preparedXdr, env.NETWORK_PASSPHRASE).hash().toString('hex') } : {}),
     asset: assetOf(campaign),
     amountPerLink: campaign.amountPerLink.toString(),
     expiresAt: campaign.expiresAt,
@@ -330,20 +382,25 @@ export async function submitBatch(
     return conflict(`The signed transaction is not the batch that was prepared (${verified.reason}).`)
   }
 
-  let hash: string
+  // Only the exact server-prepared body receives a sponsor signature.
+  if (sponsor) verified.transaction.sign(Keypair.fromSecret(sponsorSecret(sponsor.publicKey)))
+  const hash = verified.transaction.hash().toString('hex')
+  const recorded = await prisma.batch.updateMany({
+    where: { id: batch.id, status: batch.status, transactionHash: batch.transactionHash, preparedXdr: batch.preparedXdr },
+    data: { status: 'SUBMITTED', transactionHash: hash, submittedXdr: verified.transaction.toXDR(), submittedAt: new Date(), errorCode: null },
+  })
+  if (recorded.count !== 1) return conflict('This batch changed during submission. Refresh before retrying.')
   try {
-    const response = await horizon().submitTransaction(verified.transaction)
-    hash = response.hash
+    await horizon().submitTransaction(verified.transaction)
   } catch (error) {
     const code = horizonResultCode(error)
-    await markBatchFailed(batch.id, campaign.id, code)
-    return conflict(`Stellar rejected batch ${batch.sequence}: ${code}.`)
+    // A missing response or bad sequence can follow an accepted transaction.
+    // Keep its hash and exact envelope; confirmation can safely resend it.
+    if (code !== 'submission_failed' && code !== 'tx_bad_seq') {
+      await markBatchFailed(batch.id, campaign.id, code)
+      return conflict(`Stellar rejected batch ${batch.sequence}: ${code}.`)
+    }
   }
-
-  await prisma.batch.update({
-    where: { id: batch.id },
-    data: { status: 'SUBMITTED', transactionHash: hash, submittedAt: new Date(), errorCode: null },
-  })
 
   return {
     kind: 'ok',
@@ -377,7 +434,7 @@ export async function retryFailedBatches(
   await prisma.$transaction([
     prisma.batch.updateMany({
       where: { id: { in: ids } },
-      data: { status: 'PENDING', errorCode: null, transactionHash: null, submittedAt: null },
+      data: { status: 'PENDING', errorCode: null, transactionHash: null, submittedAt: null, preparedXdr: null, submittedXdr: null },
     }),
     prisma.claimLink.updateMany({
       where: { batchId: { in: ids } },

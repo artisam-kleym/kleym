@@ -539,6 +539,8 @@ model Campaign {
   /// pool applies to NEW campaigns only. Null only on rows older than the
   /// pool, which read as the primary sponsor.
   sponsorPublicKey     String?
+  /// Existing campaigns retain sender-paid funding; new USDC campaigns use the bound sponsor.
+  fundingMode          String             @default("SENDER")
   name                 String
   network              String // "testnet" | "public"
   senderPublicKey      String // G... that funded it
@@ -645,6 +647,10 @@ model Batch {
   campaignId      String
   sequence        Int // 1-based batch index
   transactionHash String?     @unique
+  /// Public transaction body, bound before the wallet signs. Never contains link seeds.
+  preparedXdr     String?
+  /// Exact fully signed envelope retained for safe resend after an uncertain response.
+  submittedXdr    String?
   status          BatchStatus @default(PENDING)
   errorCode       String?
   submittedAt     DateTime?

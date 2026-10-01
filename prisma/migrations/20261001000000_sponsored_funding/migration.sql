@@ -1,0 +1,3 @@
+ALTER TABLE "Campaign" ADD COLUMN "fundingMode" TEXT NOT NULL DEFAULT 'SENDER';
+ALTER TABLE "Batch" ADD COLUMN "preparedXdr" TEXT;
+ALTER TABLE "Batch" ADD COLUMN "submittedXdr" TEXT;

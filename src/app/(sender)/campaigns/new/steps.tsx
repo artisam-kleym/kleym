@@ -388,7 +388,7 @@ export function RecipientsStep({
       {reserveSource && (
         <p className="mt-md font-mono text-label-sm text-on-surface-variant">
           Reserve is {reserveSource} XLM per link, read from the network just now — it is a
-          protocol value and can change. It returns to you when a link is claimed or reclaimed.
+          protocol value and can change. {cost?.sponsored ? 'Kleym pays this reserve and the network fees. You supply only the USDC.' : 'It returns to you when a link is claimed or reclaimed.'}
         </p>
       )}
 

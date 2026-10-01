@@ -277,6 +277,7 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
       userId: creator.userId,
       organizationId: creator.organizationId,
       sponsorPublicKey: sponsor.publicKey,
+      fundingMode: input.assetCode === 'USDC' ? 'SPONSORED' : 'SENDER',
       approvalThreshold: org.approvalThreshold,
       approvalsRequired: org.approvalsRequired,
       name: input.name,

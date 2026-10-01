@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const baseURL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:3210'
+
 /**
  * End-to-end tests. AGENT.md §7.1.
  *
@@ -20,7 +22,7 @@ export default defineConfig({
   workers: 1,
   reporter: process.env.CI ? 'list' : 'html',
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? 'http://127.0.0.1:3210',
+    baseURL,
     trace: 'retain-on-failure',
   },
   projects: [
@@ -43,7 +45,7 @@ export default defineConfig({
      * looks like a bug in the app and is a build run against the wrong React.
      */
     command: 'NODE_ENV=production pnpm build && NODE_ENV=production pnpm start -p 3210 -H 127.0.0.1',
-    url: 'http://127.0.0.1:3210/api/health',
+    url: `${baseURL}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
   },
