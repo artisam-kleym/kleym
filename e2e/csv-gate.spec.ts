@@ -57,6 +57,16 @@ async function stubLookups(page: Page, balances = ACCOUNT_BALANCES) {
 }
 
 test.describe('deployment asset identity (#96)', () => {
+  test('refuses email-only policy during private CSV distribution', async ({ page }) => {
+    await stubLookups(page)
+    await page.goto('/campaigns/new')
+    await page.getByLabel('Campaign name').fill('CSV pilot')
+    await page.getByLabel('Funding account').fill(SENDER)
+    await page.getByLabel('Amount per link').fill('1')
+    await page.getByTestId('next-step').click()
+    await expect(page.getByRole('radio', { name: /Email verification/ })).toBeDisabled()
+    await expect(page.locator('input[name="claimPolicy"][value="open"]')).toBeChecked()
+  })
   test('prices sponsor-paid USDC correctly for a zero-XLM sender', async ({ page }) => {
     await stubLookups(page, ACCOUNT_BALANCES.map((b) => ({ ...b, balance: b.assetCode === 'XLM' ? '0.0000000' : b.balance })))
     await page.goto('/campaigns/new')

@@ -326,7 +326,7 @@ export function RecipientsStep({
             [
               ['open', 'Anyone with the link', 'The link is the credential. Right for most distributions; a leaked link is claimable by whoever holds it.'],
               ['code', 'Anyone with the link AND a claim code', 'Each link gets a 13-character code, written into your secrets file. Hand it over through a second channel — chat, a call, a card — and a forwarded link is useless without it. The file then holds link and code together, so guard it accordingly.'],
-              ['email', 'Only the email address you send it to', 'Links must be delivered by Kleym email; the recipient enters the six-digit code sent to that address. A link you distribute yourself under this policy cannot be claimed.'],
+              ['email', 'Email verification (unavailable)', 'This requires Kleym email delivery. The current app uses your private CSV for distribution; choose another claim policy.'],
               ['passkey', 'Only the first device that claims', 'The first person to open the link registers a passkey on their device, and only that device can finish the claim. A copy made afterwards is useless.'],
             ] as const
           ).map(([value, title, detail]) => (
@@ -336,6 +336,7 @@ export function RecipientsStep({
                 name="claimPolicy"
                 value={value}
                 checked={claimPolicy === value}
+                disabled={value === 'email'}
                 onChange={() => onClaimPolicy(value)}
                 className="mt-1 h-5 w-5"
               />

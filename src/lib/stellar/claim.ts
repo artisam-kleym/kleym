@@ -38,6 +38,8 @@ export interface LedgerFacts {
 }
 
 export interface ClaimContext {
+  /** Earliest ledger for TX2, after ephemeral account creation. */
+  minimumClaimLedger?: number
   sponsorAccount: Account
   sponsorPublicKey: string
   ephemeralPublicKey: string
@@ -182,6 +184,7 @@ export function buildClaim(context: ClaimContext, facts: LedgerFacts): ClaimPlan
     fee: context.baseFee,
     networkPassphrase: context.networkPassphrase,
   })
+  if (context.minimumClaimLedger) builder.setLedgerbounds(context.minimumClaimLedger, 0)
 
   builder.addOperation(
     Operation.claimClaimableBalance({

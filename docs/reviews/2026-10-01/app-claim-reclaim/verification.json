@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-01",
+  "branch": "codex/app-sending-pilot",
+  "previousFundingCommit": "99587129d18e0ebda3dc16c237af764b6b37c956",
+  "network": "testnet",
+  "newChainWrites": false,
+  "githubChanges": false,
+  "deployment": false,
+  "lifecycle": {
+    "passed": 94,
+    "horizon": "local simulation",
+    "database": "real PostgreSQL",
+    "queue": "real Redis",
+    "signatures": "real SDK signatures with generated fixture keys"
+  },
+  "unit": {
+    "passed": 117,
+    "files": 4
+  },
+  "claimsCompatibility": {
+    "passed": 30
+  },
+  "reclaimCompatibility": {
+    "passed": 57
+  },
+  "browser": {
+    "passed": 25,
+    "includesAuthenticationSetup": true,
+    "productionBuild": true,
+    "traces": false,
+    "realWalletSigning": false
+  },
+  "build": {
+    "passed": true,
+    "bundler": "webpack",
+    "typescript": true,
+    "existingWarnings": [
+      "middleware deprecation",
+      "optional BullMQ Valkey dependency",
+      "dynamic dependency expression"
+    ]
+  },
+  "eslint": {
+    "changedFilesPassed": true
+  },
+  "whitespace": {
+    "passed": true
+  },
+  "migration": {
+    "name": "20261001010000_claim_reclaim_attempts",
+    "appliedTo": [
+      "kleym_verify_96",
+      "kleym_app_pilot"
+    ]
+  },
+  "readOnlyTestnetPreflight": {
+    "passed": true,
+    "checkedAt": "2026-10-01T07:49:52.466Z"
+  },
+  "appAvailability": {
+    "url": "http://127.0.0.1:3220",
+    "health": 200,
+    "ready": 200,
+    "checkedAt": "2026-10-01T08:08:05.241Z"
+  },
+  "next": "Reviewed actual-app Freighter test: fund 2 test USDC, claim 1, reclaim the unused 1 after expiry",
+  "publicPilotQualified": false
+}

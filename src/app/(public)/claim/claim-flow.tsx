@@ -96,6 +96,8 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
   const [passkeyError, setPasskeyError] = useState<string | null>(null)
   const materialised = useRef(false)
   const recipient = useRef<string | null>(null)
+  // Public signed bytes only, retained in memory for a lost HTTP response.
+  const pendingClaim = useRef<{ signedXdr: string; recipient: string; delivered: { assetCode: string; destAmount: string; destMin: string } | null } | null>(null)
 
   /*
    * Read the fragment, remove it, then resolve the link. SPEC.md §3.6.
@@ -243,6 +245,28 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
     setError(null)
 
     try {
+      if (pendingClaim.current) {
+        setState('submitting')
+        const pending = pendingClaim.current
+        const response = await fetch('/api/claims/submit', {
+          method: 'POST', headers: claimHeaders(otpToken.current),
+          body: JSON.stringify({ ephemeralPublicKey, signedXdr: pending.signedXdr, phase: 'claim' }),
+        })
+        if (!response.ok) {
+          const p = await problem(response)
+          if (response.status !== 503) pendingClaim.current = null
+          setError(p.detail)
+          return setState(stateFromProblem(p.status, p.type))
+        }
+        const result = await response.json()
+        setTxHash(result.hash)
+        setClaimedAt(new Date().toISOString())
+        setClaimedBy(pending.recipient)
+        setDelivered(pending.delivered)
+        setDepositMade(deposit.current)
+        pendingClaim.current = null
+        return setState('claimed_success')
+      }
       const { connectWallet, signBatch } = await import('./wallet')
       let recipientKey = recipient.current
 
@@ -373,6 +397,8 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       }
 
       setState('submitting')
+      pendingClaim.current = { signedXdr, recipient: recipientKey,
+        delivered: plan.conversion ? { assetCode: plan.conversion.assetCode, destAmount: plan.conversion.destAmount, destMin: plan.conversion.destMin } : null }
       const submitted = await fetch('/api/claims/submit', {
         method: 'POST',
         headers: claimHeaders(otpToken.current),
@@ -380,6 +406,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       })
       if (!submitted.ok) {
         const p = await problem(submitted)
+        if (submitted.status !== 503) pendingClaim.current = null
         // The price moved past the bound (#74): refused rather than filled.
         // Retry claims the asset as sent.
         if (isConversionRefused(p.status, p.type)) {
@@ -391,6 +418,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       }
 
       const result = await submitted.json()
+      pendingClaim.current = null
       setTxHash(result.hash)
       setClaimedAt(new Date().toISOString())
       setClaimedBy(recipientKey)

@@ -259,6 +259,7 @@ export function CampaignWizard(config: WizardConfig) {
     wizard.setError(null)
     wizard.setPhase('generating')
     try {
+      if (claimPolicy === 'email') throw new Error('This email-policy template requires built-in delivery. Choose a supported policy in a new campaign for CSV distribution.')
       if (!phrase.current || !derivation) throw new Error('Confirm your recovery phrase first.')
       // CODE policy: a claim code is derived beside each key — from the phrase too, so a regenerated CSV carries it (#79).
       wizard.replaceKeys(deriveEphemeralKeys(phrase.current, derivation.index, draft.linkCount, labels, attestations, amounts, { withCodes: claimPolicy === 'code' }))

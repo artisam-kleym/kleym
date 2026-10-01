@@ -1,5 +1,6 @@
 node_modules/
 .next/
+.runtime/
 out/
 build/
 next-env.d.ts

@@ -16,6 +16,7 @@ import { env } from '@/lib/config/env'
 import { revalueUnpriced } from '@/lib/api/valuations'
 import { retainAudit } from '@/lib/api/audit-chain'
 import { recoverSubmittedFunding } from '@/lib/queue/batch-confirm'
+import { recoverLedgerAttempts } from './ledger-attempts'
 
 interface ReconcileJob {
   campaignId?: string
@@ -27,6 +28,7 @@ export function startReconcileWorker(): Worker<ReconcileJob> {
     QUEUE.reconcile,
     async (job: Job<ReconcileJob>) => {
       await recoverSubmittedFunding(job.data.campaignId)
+      await recoverLedgerAttempts(job.data.campaignId)
       const report = job.data.campaignId
         ? await reconcileCampaign(job.data.campaignId)
         : await reconcileAll()

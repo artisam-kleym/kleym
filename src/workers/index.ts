@@ -23,6 +23,7 @@ import { startTelemetry } from '@/lib/observability/telemetry'
 import { registerObservables } from '@/lib/observability/metrics'
 import { observeWorker } from '@/lib/observability/workers'
 import { recoverSubmittedFunding } from '@/lib/queue/batch-confirm'
+import { recoverLedgerAttempts } from './ledger-attempts'
 import { dependencyReadings, passReadings, queueReadings, sponsorReadings, strandedReading } from '@/lib/observability/status'
 
 async function main() {
@@ -52,6 +53,7 @@ async function main() {
    */
   await scheduleMaintenance()
   await recoverSubmittedFunding()
+  await recoverLedgerAttempts()
 
   logger.info(
     {

@@ -4,6 +4,13 @@
 **Status:** Ready for implementation
 **Audience:** Code-generation agent + human reviewers
 
+**October 1 app update:** New campaign API-created USDC uses sponsor-paid
+funding and expiry reclaim. Historical campaigns and automatic template drafts
+retain sender-paid funding. The two-transaction claim is preserved. The
+[app sending guide](docs/app-sending.md) documents these implemented changes,
+public-envelope recovery, and the current private-CSV delivery scope; older
+fee and delivery descriptions below are the original specification.
+
 ---
 
 ## 1. Overview

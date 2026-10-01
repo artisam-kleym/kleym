@@ -613,6 +613,7 @@ model Campaign {
   links        ClaimLink[]
   batches      Batch[]
   reclaims     ReclaimBatch[]
+  ledgerAttempts LedgerAttempt[]
   findings     ReconciliationFinding[]
   stranded     StrandedAccount[]
 
@@ -627,6 +628,26 @@ model Campaign {
 /// balances are reclaimable is a question only the ledger can answer, and the
 /// answer changes while the sender is signing, so each reclaim is built from a
 /// live Horizon query and recorded here once it is on its way.
+/// Public transaction bodies and signed envelopes only; no spending keys.
+/// One current attempt per link phase or campaign reclaim. Settled refunds
+/// remain in ReclaimBatch when the next reclaim replaces this current attempt.
+model LedgerAttempt {
+  scope           String   @id
+  campaignId      String
+  kind            String
+  transactionHash String   @unique
+  preparedXdr     String
+  submittedXdr    String?
+  status          String   @default("PREPARED")
+  metadata        Json
+  ledger          Int?
+  resultXdr       String?
+  feeCharged      String?
+  updatedAt       DateTime @updatedAt
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  @@index([status, kind])
+}
+
 model ReclaimBatch {
   id              String   @id @default(cuid())
   campaignId      String

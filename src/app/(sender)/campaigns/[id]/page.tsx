@@ -179,6 +179,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       )}
 
       <ReclaimPanel
+        sponsored={campaign.fundingMode === 'SPONSORED'}
         campaignId={campaign.id}
         network={campaign.network === 'public' ? 'public' : 'testnet'}
         senderPublicKey={campaign.senderPublicKey}
