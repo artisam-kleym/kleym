@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { federationServerOf, isPublicHost, memoFromRecord } from '@/app/api/claims/federation/route'
+import { federationServerOf, isPublicHost, memoFromRecord } from '@/lib/stellar/federation'
 
 /* #75 review: the federation lookup is a server-side fetch to a caller-named host. */
 describe('isPublicHost', () => {

@@ -1,0 +1,110 @@
+{
+  "checkedAt": "2026-10-06T13:48:18.403Z",
+  "all": {
+    "project": {
+      "environments": {
+        "edges": [
+          {
+            "node": {
+              "id": "c7351164-d56e-4479-8de4-cf66de8e15e7",
+              "name": "production",
+              "serviceInstances": {
+                "edges": []
+              }
+            }
+          },
+          {
+            "node": {
+              "id": "cbca2958-d44a-4ca8-8d4e-746a61584d02",
+              "name": "testnet",
+              "serviceInstances": {
+                "edges": [
+                  {
+                    "node": {
+                      "activeDeployments": [],
+                      "latestDeployment": null,
+                      "serviceId": "37702f7c-d942-4b00-96aa-16b5c4a8b58e"
+                    }
+                  },
+                  {
+                    "node": {
+                      "activeDeployments": [],
+                      "latestDeployment": null,
+                      "serviceId": "45121e0c-a4e7-4961-8004-102e6dfa6d03"
+                    }
+                  },
+                  {
+                    "node": {
+                      "activeDeployments": [],
+                      "latestDeployment": null,
+                      "serviceId": "4d547645-da9f-4e1e-aec3-2511f6239fc3"
+                    }
+                  },
+                  {
+                    "node": {
+                      "activeDeployments": [],
+                      "latestDeployment": null,
+                      "serviceId": "2490753a-e4ba-471c-87c9-a6dd7d74d567"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "id": "48614d0d-2e58-4848-af96-2184e3044c47",
+      "name": "kleym-testnet"
+    }
+  },
+  "statuses": {
+    "postgres": {
+      "id": "e30d0532-dbb9-4964-89f3-46c214853754",
+      "status": "REMOVED"
+    },
+    "redis": {
+      "id": "829424a6-4c5f-436f-a330-131566d3f730",
+      "status": "REMOVED"
+    },
+    "web": {
+      "id": "7f8d8f84-36c5-4234-8d27-24a17292c5e4",
+      "status": "REMOVED"
+    },
+    "worker": {
+      "id": "d4a6a2f6-951d-4f9a-b5f8-b5303a1ea981",
+      "status": "REMOVED"
+    }
+  },
+  "volumes": {
+    "environment": "testnet",
+    "project": "kleym-testnet",
+    "volumes": [
+      {
+        "currentSizeMB": 44.146688000000005,
+        "deletedAt": null,
+        "id": "38b09453-d0b2-4446-8e9c-e795a874bcca",
+        "isPendingDeletion": false,
+        "mountPath": "/data",
+        "name": "redis-volume",
+        "serviceName": "Redis",
+        "sizeMB": 500,
+        "status": "Ready"
+      },
+      {
+        "currentSizeMB": 112.132096,
+        "deletedAt": null,
+        "id": "73798d01-f324-42dc-bee7-5d08a3648688",
+        "isPendingDeletion": false,
+        "mountPath": "/var/lib/postgresql/data",
+        "name": "postgres-volume",
+        "serviceName": "Postgres",
+        "sizeMB": 500,
+        "status": "Ready"
+      }
+    ]
+  },
+  "publicReadiness": {
+    "url": "https://kleym-web-testnet.up.railway.app/api/ready",
+    "status": 404
+  }
+}

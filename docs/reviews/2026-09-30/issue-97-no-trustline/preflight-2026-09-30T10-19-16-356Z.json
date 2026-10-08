@@ -1,0 +1,259 @@
+{
+  "checkedAtUTC": "2026-09-30T10:19:16.356Z",
+  "network": "Test SDF Network ; September 2015",
+  "latestLedger": 4947982,
+  "accounts": {
+    "sender": {
+      "_links": {
+        "self": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+        },
+        "transactions": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/transactions{?cursor,limit,order}",
+          "templated": true
+        },
+        "operations": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/operations{?cursor,limit,order}",
+          "templated": true
+        },
+        "payments": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/payments{?cursor,limit,order}",
+          "templated": true
+        },
+        "effects": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/effects{?cursor,limit,order}",
+          "templated": true
+        },
+        "offers": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/offers{?cursor,limit,order}",
+          "templated": true
+        },
+        "trades": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/trades{?cursor,limit,order}",
+          "templated": true
+        },
+        "data": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/data/{key}",
+          "templated": true
+        }
+      },
+      "id": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "account_id": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "sequence": "21174360567971840",
+      "subentry_count": 1,
+      "last_modified_ledger": 4942388,
+      "last_modified_time": "2026-09-30T02:32:07Z",
+      "thresholds": {
+        "low_threshold": 0,
+        "med_threshold": 0,
+        "high_threshold": 0
+      },
+      "flags": {
+        "auth_required": false,
+        "auth_revocable": false,
+        "auth_immutable": false,
+        "auth_clawback_enabled": false
+      },
+      "balances": [
+        {
+          "balance": "18.0000000",
+          "limit": "100.0000000",
+          "buying_liabilities": "0.0000000",
+          "selling_liabilities": "0.0000000",
+          "sponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "last_modified_ledger": 4942388,
+          "is_authorized": true,
+          "is_authorized_to_maintain_liabilities": true,
+          "asset_type": "credit_alphanum4",
+          "asset_code": "USDC",
+          "asset_issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+        },
+        {
+          "balance": "0.0000000",
+          "buying_liabilities": "0.0000000",
+          "selling_liabilities": "0.0000000",
+          "asset_type": "native"
+        }
+      ],
+      "signers": [
+        {
+          "weight": 1,
+          "key": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "type": "ed25519_public_key"
+        }
+      ],
+      "data": {},
+      "num_sponsoring": 0,
+      "num_sponsored": 3,
+      "sponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "paging_token": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+    },
+    "existingRecipient": {
+      "_links": {
+        "self": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW"
+        },
+        "transactions": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/transactions{?cursor,limit,order}",
+          "templated": true
+        },
+        "operations": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/operations{?cursor,limit,order}",
+          "templated": true
+        },
+        "payments": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/payments{?cursor,limit,order}",
+          "templated": true
+        },
+        "effects": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/effects{?cursor,limit,order}",
+          "templated": true
+        },
+        "offers": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/offers{?cursor,limit,order}",
+          "templated": true
+        },
+        "trades": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/trades{?cursor,limit,order}",
+          "templated": true
+        },
+        "data": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW/data/{key}",
+          "templated": true
+        }
+      },
+      "id": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "account_id": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "sequence": "21175996950511616",
+      "subentry_count": 1,
+      "last_modified_ledger": 4942119,
+      "last_modified_time": "2026-09-30T02:09:42Z",
+      "thresholds": {
+        "low_threshold": 0,
+        "med_threshold": 0,
+        "high_threshold": 0
+      },
+      "flags": {
+        "auth_required": false,
+        "auth_revocable": false,
+        "auth_immutable": false,
+        "auth_clawback_enabled": false
+      },
+      "balances": [
+        {
+          "balance": "2.0000000",
+          "limit": "922337203685.4775807",
+          "buying_liabilities": "0.0000000",
+          "selling_liabilities": "0.0000000",
+          "sponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+          "last_modified_ledger": 4942119,
+          "is_authorized": true,
+          "is_authorized_to_maintain_liabilities": true,
+          "asset_type": "credit_alphanum4",
+          "asset_code": "USDC",
+          "asset_issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+        },
+        {
+          "balance": "0.0000000",
+          "buying_liabilities": "0.0000000",
+          "selling_liabilities": "0.0000000",
+          "asset_type": "native"
+        }
+      ],
+      "signers": [
+        {
+          "weight": 1,
+          "key": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+          "type": "ed25519_public_key"
+        }
+      ],
+      "data": {},
+      "num_sponsoring": 0,
+      "num_sponsored": 3,
+      "sponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+      "paging_token": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW"
+    },
+    "completedLifecycleSponsor": {
+      "_links": {
+        "self": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GDX6LUUM4XP5SS4L2OM6MZKPV6YXNJEOGEQ6GDAIXK4A5ZMQDK5IDPOB"
+        },
+        "transactions": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GDX6LUUM4XP5SS4L2OM6MZKPV6YXNJEOGEQ6GDAIXK4A5ZMQDK5IDPOB/transactions{?cursor,limit,order}",
+          "templated": true
+        },
+        "operations": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GDX6LUUM4XP5SS4L2OM6MZKPV6YXNJEOGEQ6GDAIXK4A5ZMQDK5IDPOB/operations{?cursor,limit,order}",
+          "templated": true
+        },
+        "payments": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GDX6LUUM4XP5SS4L2OM6MZKPV6YXNJEOGEQ6GDAIXK4A5ZMQDK5IDPOB/payments{?cursor,limit,order}",
+          "templated": true
+        },
+        "effects": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GDX6LUUM4XP5SS4L2OM6MZKPV6YXNJEOGEQ6GDAIXK4A5ZMQDK5IDPOB/effects{?cursor,limit,order}",
+          "templated": true
+        },
+        "offers": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GDX6LUUM4XP5SS4L2OM6MZKPV6YXNJEOGEQ6GDAIXK4A5ZMQDK5IDPOB/offers{?cursor,limit,order}",
+          "templated": true
+        },
+        "trades": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GDX6LUUM4XP5SS4L2OM6MZKPV6YXNJEOGEQ6GDAIXK4A5ZMQDK5IDPOB/trades{?cursor,limit,order}",
+          "templated": true
+        },
+        "data": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GDX6LUUM4XP5SS4L2OM6MZKPV6YXNJEOGEQ6GDAIXK4A5ZMQDK5IDPOB/data/{key}",
+          "templated": true
+        }
+      },
+      "id": "GDX6LUUM4XP5SS4L2OM6MZKPV6YXNJEOGEQ6GDAIXK4A5ZMQDK5IDPOB",
+      "account_id": "GDX6LUUM4XP5SS4L2OM6MZKPV6YXNJEOGEQ6GDAIXK4A5ZMQDK5IDPOB",
+      "sequence": "21225573758009348",
+      "sequence_ledger": 4942388,
+      "sequence_time": "1790735527",
+      "subentry_count": 0,
+      "last_modified_ledger": 4942388,
+      "last_modified_time": "2026-09-30T02:32:07Z",
+      "thresholds": {
+        "low_threshold": 0,
+        "med_threshold": 0,
+        "high_threshold": 0
+      },
+      "flags": {
+        "auth_required": false,
+        "auth_revocable": false,
+        "auth_immutable": false,
+        "auth_clawback_enabled": false
+      },
+      "balances": [
+        {
+          "balance": "9999.9998500",
+          "buying_liabilities": "0.0000000",
+          "selling_liabilities": "0.0000000",
+          "asset_type": "native"
+        }
+      ],
+      "signers": [
+        {
+          "weight": 1,
+          "key": "GDX6LUUM4XP5SS4L2OM6MZKPV6YXNJEOGEQ6GDAIXK4A5ZMQDK5IDPOB",
+          "type": "ed25519_public_key"
+        }
+      ],
+      "data": {},
+      "num_sponsoring": 0,
+      "num_sponsored": 0,
+      "paging_token": "GDX6LUUM4XP5SS4L2OM6MZKPV6YXNJEOGEQ6GDAIXK4A5ZMQDK5IDPOB"
+    }
+  },
+  "assertions": {
+    "testnetIdentity": true,
+    "senderZeroXlm": true,
+    "senderOwns18OfficialUsdc": true,
+    "existingRecipientOwns2UsdcAndZeroXlm": true,
+    "completedSponsorNoRemainingUnits": true
+  },
+  "acceptancePassed": true,
+  "scope": "Read-only baseline for next issue #97 case; no new recipient prepared."
+}

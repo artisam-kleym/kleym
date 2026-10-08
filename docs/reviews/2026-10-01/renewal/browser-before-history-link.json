@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-01T10:58:37.493Z",
+  "originalCampaignId": "cmupcw5ey0004y8kjq7oryzzk",
+  "expiredUnrefundedHttpStatus": 409,
+  "refusedPagesHaveNoFundingWizard": true,
+  "noLiveReissueFundingAction": true,
+  "noSuccessorCreated": true,
+  "originalReturnedBudgetShown": "2 USDC",
+  "renewalTermsLocked": true,
+  "explicitExpiryRequired": true,
+  "originalExpiryPreserved": true,
+  "fixtureRemoved": true,
+  "chainWrites": 0,
+  "health": {
+    "status": "ok"
+  },
+  "ready": {
+    "ready": true
+  }
+}

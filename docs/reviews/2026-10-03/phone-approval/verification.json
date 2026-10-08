@@ -1,0 +1,61 @@
+{
+  "recordedAt": "2026-10-03T15:54:10.543Z",
+  "origin": "https://kleym-web-testnet.up.railway.app",
+  "network": "testnet",
+  "sourceDigest": "a79f36e9189265e924989b9d7370077830e17eb66aff8f2443d7ce7d6718d0cd",
+  "fileCount": 370,
+  "changedReleaseFiles": [
+    "src/app/(public)/claim/claim-flow.tsx",
+    "src/app/(public)/claim/screens.tsx",
+    "src/app/(public)/claim/wallet.ts",
+    "src/lib/wallet/mobile.ts",
+    "src/lib/wallet/phone.ts"
+  ],
+  "unitTests": {
+    "passed": 54,
+    "suites": 4
+  },
+  "typecheck": "passed",
+  "targetedLint": "passed",
+  "windowsWebpackBuild": "passed",
+  "linuxBuild": {
+    "passed": true,
+    "manifestFilesVerified": 369,
+    "reusedQualifiedV2Dependencies": true,
+    "network": "none"
+  },
+  "localProductionBrowserTests": {
+    "passed": 20,
+    "initialHarnessFailure": "Start-Process failed on duplicate Path/PATH; offline run interrupted; hidden Node spawn started production preview, health200 confirmed before passing rerun"
+  },
+  "publicBrowserTests": {
+    "passed": 2,
+    "syntheticWalletFixtures": true,
+    "desktopPhoneOptionAbsent": true,
+    "phoneLaunchAndCancellation": "passed",
+    "hardwareSigningNotCovered": true
+  },
+  "webDeployment": {
+    "id": "197465e3-afaf-4e54-9eb4-28316963f324",
+    "status": "SUCCESS"
+  },
+  "workerRedeploymentRequired": false,
+  "agentLedgerWrites": 0,
+  "physicalPhoneConnection": "user-reported successful app opening and approval",
+  "physicalSigningHandoff": "pending",
+  "mainnetQualified": false,
+  "completedAt": "2026-10-03T16:01:43.676Z",
+  "publicReadiness": {
+    "checkedAt": "2026-10-03T15:58:22.013Z",
+    "ready": true,
+    "claimPrivacyHeadersPassed": true
+  },
+  "actualAccounting": "current-accounting.json",
+  "nextAccountingStep": {
+    "campaignId": "cmusjy67f00020dp4imc8q054",
+    "unusedExpiredUsdc": "1.0000000",
+    "senderBefore": "11.0000000",
+    "expectedSenderAfter": "12.0000000",
+    "earlierTwoUsdcAlreadyRefunded": true
+  }
+}

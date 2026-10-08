@@ -1,0 +1,94 @@
+
+1. Prepare before expiresAt is refused
+  PASS  it is refused
+  PASS  as not-expired, which the panel must NOT read as nothing-left
+  PASS  and says why, naming the date
+
+2. The op list comes from the ledger, not the rows
+  PASS  it prepares
+  PASS  one operation, not three
+  PASS  and it is the one the ledger still holds
+
+3. 200 unclaimed links produce exactly 3 batches, walked by re-preparing
+  PASS  it prepares
+  PASS  exactly 3 batches remain
+  PASS  the first holds 90
+  PASS  after batch 1 lands, 2 remain
+  PASS  and the next holds 90 — links 91–180, not 181–200
+  PASS  the third holds the remaining 20
+  PASS  then nothing is left, and it says so by reason, not only by prose
+  PASS  a `sequence` in the body is rejected
+
+4. A balance claimed while the sender signs does not fail the batch
+  PASS  the stale envelope is refused
+  PASS  and the sender is told to prepare again
+  PASS  nothing was sent to the network
+  PASS  and no row was marked reclaimed
+  PASS  the rebuilt batch drops the claimed one
+{"level":40,"time":1790841065821,"pid":5480,"hostname":"Adealix","reason":"Not Found","window":"1h","msg":"trade aggregation read failed"}
+{"level":40,"time":1790841065848,"pid":5480,"hostname":"Adealix","reason":"Not Found","window":"24h","msg":"trade aggregation read failed"}
+  PASS  and the rest are returned
+{"level":30,"time":1790841065897,"pid":5480,"hostname":"Adealix","campaignId":"cmup8j5pc006088kj6e3fa8vp","hash":"1b6c9b62f81baf997ee535d96f81d76abb9f640997a263eb8cde6692a775b463","balances":2,"amount":"5","msg":"reclaim submitted"}
+  PASS  two balances
+
+5. Rows and amounts come from the ledger, exactly
+  PASS  the quoted total is the ledger sum
+  PASS  and not the float answer
+{"level":40,"time":1790841066197,"pid":5480,"hostname":"Adealix","reason":"Not Found","window":"1h","msg":"trade aggregation read failed"}
+{"level":40,"time":1790841066203,"pid":5480,"hostname":"Adealix","reason":"Not Found","window":"24h","msg":"trade aggregation read failed"}
+{"level":30,"time":1790841066234,"pid":5480,"hostname":"Adealix","campaignId":"cmup8j65c006888kjdp585kk9","hash":"b3c7a3e5b9bf134147c24d66beec5043b0b0530d5ebc6452363de54ca7323984","balances":2,"amount":"0.3","msg":"reclaim submitted"}
+  PASS  it submits
+  PASS  one transaction was sent
+  PASS  recorded under the hash that was sent
+  PASS  every link is RECLAIMED
+  PASS  each carries the transaction hash
+  PASS  and records the sender as the recipient
+  PASS  the reclaim total is exact
+  PASS  over two balances
+  PASS  one stroop is quoted as 0.0000001, not 1e-7
+{"level":40,"time":1790841066549,"pid":5480,"hostname":"Adealix","reason":"Not Found","window":"1h","msg":"trade aggregation read failed"}
+{"level":40,"time":1790841066555,"pid":5480,"hostname":"Adealix","reason":"Not Found","window":"24h","msg":"trade aggregation read failed"}
+{"level":30,"time":1790841066587,"pid":5480,"hostname":"Adealix","campaignId":"cmup8j6fc006f88kjwfwb35mp","hash":"0bb365261fd27863d42cee08ba522f4d0e71752ae7ffb03d97c2ddec98e6ad97","balances":1,"amount":"0.0000001","msg":"reclaim submitted"}
+  PASS  and submitted the same way
+  PASS  the campaign is RECLAIMED
+  PASS  and the response agrees
+  PASS  with nothing remaining
+
+6. An envelope reaching for another campaign's funds
+  PASS  it is refused
+  PASS  as not belonging to this campaign
+  PASS  nothing was sent
+  PASS  and the victim's link is untouched
+
+7. An envelope carrying an extra operation
+  PASS  it is refused
+  PASS  nothing was sent
+
+8. The same signed envelope arriving twice
+{"level":40,"time":1790841066970,"pid":5480,"hostname":"Adealix","reason":"Not Found","window":"1h","msg":"trade aggregation read failed"}
+{"level":40,"time":1790841066976,"pid":5480,"hostname":"Adealix","reason":"Not Found","window":"24h","msg":"trade aggregation read failed"}
+{"level":30,"time":1790841067008,"pid":5480,"hostname":"Adealix","campaignId":"cmup8j6tt006x88kj1edhdfn3","hash":"d907ee24d7f02e7f8465ad04f5365620f931d2ee986becbb4282e7c5db223bc8","balances":2,"amount":"5","msg":"reclaim submitted"}
+  PASS  the first submits
+  PASS  the second is a replay
+  PASS  reporting the same hash
+  PASS  and the same amount
+  PASS  the network saw it once
+  PASS  one reclaim was recorded, not two
+
+9. The same envelope submitted twice at once
+{"level":40,"time":1790841067754,"pid":5480,"hostname":"Adealix","reason":"Not Found","window":"1h","msg":"trade aggregation read failed"}
+{"level":40,"time":1790841067767,"pid":5480,"hostname":"Adealix","reason":"Not Found","window":"24h","msg":"trade aggregation read failed"}
+  PASS  both reached the write
+  PASS  both callers get an answer
+  PASS  reporting the same hash
+{"level":30,"time":1790841067813,"pid":5480,"hostname":"Adealix","campaignId":"cmup8j73d007488kj2q5i6qus","hash":"db6859501846826824811e6cb20747c3b73145b0222946cf5f813c6dd4851845","balances":2,"amount":"5","msg":"reclaim submitted"}
+  PASS  and the same amount
+  PASS  exactly one reclaim was recorded
+  PASS  every link is RECLAIMED once
+
+10. A campaign whose links were all claimed by recipients
+  PASS  there is nothing to reclaim
+  PASS  and it says so plainly
+  PASS  the campaign does NOT become RECLAIMED
+
+All checks passed.

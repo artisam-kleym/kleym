@@ -10,7 +10,7 @@
  * in the batch. So a database row is never authorisation to build an op.
  */
 import { emitWebhook } from '@/lib/webhooks/emit'
-import { Account, type Transaction } from '@stellar/stellar-sdk'
+import { Account, Keypair, type Transaction } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/client'
@@ -29,6 +29,11 @@ import { stellarContextProblem } from '@/lib/stellar/context'
 import { horizonResultCode } from './batches'
 import { recordReclaimValuation } from './valuations'
 import { feeChargedOf } from '@/lib/stellar/fees'
+import { ledgerSettlementTime } from '@/lib/stellar/settlement-time'
+import { executeAttempt, lookupAttempt, prepareAttempt, type AttemptLookup } from '@/lib/stellar/attempts'
+import { sponsorFor, sponsorSecret } from '@/lib/stellar/sponsors'
+import { sponsorSpendable } from '@/lib/stellar/horizon'
+import { SourceCoordinationError } from '@/lib/stellar/source-coordination'
 
 /** How long a prepared envelope stays valid for the sender to sign. */
 const SIGNING_WINDOW_SECONDS = 600
@@ -117,7 +122,8 @@ export interface ReclaimDeps {
    * this codebase has already been bitten by once.
    */
   /** Submits and reports the fee charged in stroops (null when unknown), for the accounting fee line (#80). */
-  submit: (transaction: Transaction) => Promise<{ feeCharged: string | number | null } | void>
+  submit: (transaction: Transaction) => Promise<{ feeCharged: string | number | null; settledAt?: string; ledger?: number; resultXdr?: string } | void>
+  lookup?: AttemptLookup
 }
 
 const liveAccount = async (publicKey: string): Promise<Account | null> => {
@@ -131,9 +137,12 @@ const liveAccount = async (publicKey: string): Promise<Account | null> => {
   }
 }
 
-const liveSubmit = async (transaction: Transaction): Promise<{ feeCharged: string | number | null }> => {
+const liveSubmit: ReclaimDeps['submit'] = async (transaction) => {
   const response = await horizon().submitTransaction(transaction)
-  return { feeCharged: feeChargedOf(response.result_xdr) }
+  if (response.successful !== true || !Number.isInteger(response.ledger) || response.hash !== transaction.hash().toString('hex')) {
+    throw new Error('Reclaim ledger inclusion is not confirmed')
+  }
+  return { feeCharged: feeChargedOf(response.result_xdr), ledger: response.ledger, resultXdr: response.result_xdr }
 }
 
 const LIVE: ReclaimDeps = {
@@ -147,7 +156,7 @@ async function loadCampaign(campaignId: string, organizationId: string) {
     where: owned(campaignId, organizationId),
     select: {
       id: true, name: true, status: true, senderPublicKey: true, network: true, sponsorPublicKey: true,
-      assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true,
+      assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true, fundingMode: true,
     },
   })
 }
@@ -185,6 +194,7 @@ export interface PreparedReclaim {
   amount: string
   xdr: string
   networkPassphrase: string
+  feePayer: string
 }
 
 /**
@@ -205,6 +215,13 @@ export async function prepareReclaim(
 
   const networkProblem = await stellarContextProblem(campaign)
   if (networkProblem) return conflict(networkProblem)
+
+  const scope = `reclaim:${campaign.id}`
+  const pending = await prisma.ledgerAttempt.findUnique({ where: { scope } })
+  if (pending?.submittedXdr && (pending.status === 'SUBMITTED' || pending.status === 'CONFIRMED')) {
+    const recovered = await submitReclaim(campaignId, organizationId, { signedXdr: pending.submittedXdr }, deps)
+    if (recovered.kind !== 'ok') return recovered
+  }
 
   if (Date.now() < campaign.expiresAt.getTime()) {
     return conflict(
@@ -233,24 +250,49 @@ export async function prepareReclaim(
     )
   }
 
+  const sponsor = campaign.fundingMode === 'SPONSORED' ? sponsorFor(campaign.sponsorPublicKey) : null
+  if (campaign.fundingMode === 'SPONSORED' && !sponsor) return conflict('The campaign sponsor is unavailable.')
+  const sponsorAccount = sponsor ? await deps.loadAccount(sponsor.publicKey) : null
+  if (sponsor && !sponsorAccount) return conflict('The sponsor account is unavailable on this network.')
+  if (sponsor && deps === LIVE && (await sponsorSpendable(sponsor.publicKey)).lessThan(
+    new Decimal(env.BASE_FEE_STROOPS).times(target.length).div('10000000'),
+  )) return conflict('The sponsor cannot cover the reclaim fee right now. Try again shortly.')
+
   const { xdr } = buildReclaimTransaction({
     senderAccount,
     senderPublicKey: campaign.senderPublicKey,
+    ...(sponsorAccount ? { sponsorAccount } : {}),
     balanceIds: target.map((b) => b.balanceId),
     networkPassphrase: env.NETWORK_PASSPHRASE,
     baseFee: env.BASE_FEE_STROOPS,
     timeoutSeconds: SIGNING_WINDOW_SECONDS,
   })
 
+  const value = {
+    batchesRemaining: batches.length, balanceCount: target.length,
+    amount: target.reduce((sum, b) => sum.plus(b.amount), new Decimal(0)).toFixed(),
+    networkPassphrase: env.NETWORK_PASSPHRASE,
+    feePayer: sponsor?.publicKey ?? campaign.senderPublicKey,
+  }
+  if (pending?.status === 'PREPARED') {
+    const priorIds = claimedBalanceIds(pending.preparedXdr, env.NETWORK_PASSPHRASE) ?? []
+    if (priorIds.length !== target.length || priorIds.some((id, index) => id !== target[index]?.balanceId) ||
+      (pending.metadata as { amount: string }).amount !== value.amount) {
+      await prisma.ledgerAttempt.updateMany({ where: { scope, status: 'PREPARED', transactionHash: pending.transactionHash },
+        data: { status: 'FAILED' } })
+    }
+  }
+  let attempt
+  try { attempt = await prepareAttempt(scope, campaign.id, 'RECLAIM', xdr, value) }
+  catch (error) {
+    if (error instanceof SourceCoordinationError) return conflict(error.message)
+    throw error
+  }
   return {
     kind: 'ok',
     value: {
-      batchesRemaining: batches.length,
-      balanceCount: target.length,
-      // toFixed, not toString: one stroop is "0.0000001", never "1e-7". AGENT.md §4.1.
-      amount: target.reduce((sum, b) => sum.plus(b.amount), new Decimal(0)).toFixed(),
-      xdr,
-      networkPassphrase: env.NETWORK_PASSPHRASE,
+      ...attempt.metadata as unknown as Omit<PreparedReclaim, 'xdr'>,
+      xdr: attempt.preparedXdr,
     },
   }
 }
@@ -312,16 +354,14 @@ export async function submitReclaim(
     return conflict('That transaction includes balances that do not belong to this campaign.')
   }
 
-  const onLedger = await deps.readBalances(campaign.senderPublicKey)
-  const gone = claimed.filter((id) => !onLedger.has(id))
-  if (gone.length > 0) {
-    return conflict(
-      `${gone.length} of these ${gone.length === 1 ? 'balances was' : 'balances were'} claimed while you were signing. Prepare the reclaim again to return the rest.`,
-    )
+  const attempt = await prisma.ledgerAttempt.findUnique({ where: { scope: `reclaim:${campaign.id}` } })
+  const sponsor = campaign.fundingMode === 'SPONSORED' ? sponsorFor(campaign.sponsorPublicKey) : null
+  if (campaign.fundingMode === 'SPONSORED' && (!sponsor || !attempt)) {
+    return conflict('Prepare the reclaim with its campaign sponsor before signing.')
   }
-
   const verified = verifyReclaimTransaction(input.signedXdr, {
     senderPublicKey: campaign.senderPublicKey,
+    ...(sponsor ? { sponsorPublicKey: sponsor.publicKey, preparedHash: attempt!.transactionHash } : {}),
     balanceIds: claimed,
     networkPassphrase: env.NETWORK_PASSPHRASE,
     baseFee: env.BASE_FEE_STROOPS,
@@ -350,6 +390,7 @@ export async function submitReclaim(
     return conflict('That transaction has already been recorded against another campaign.')
   }
   if (already) {
+    if (attempt?.transactionHash === hash) await prisma.ledgerAttempt.updateMany({ where: { scope: attempt.scope, transactionHash: hash, status: 'CONFIRMED' }, data: { status: 'SETTLED' } })
     const state = await settleReclaimStatus(campaign.id)
     return {
       kind: 'ok',
@@ -364,15 +405,49 @@ export async function submitReclaim(
     }
   }
 
-  const amount = claimed.reduce((sum, id) => sum.plus(onLedger.get(id)!), new Decimal(0))
+  // Historical settled receipts still replay above. New legacy sender-paid
+  // refunds use the same durable journal/source admission as sponsored ones;
+  // an old unsigned tab must prepare again before moving money.
+  if (!attempt || attempt.transactionHash !== hash) {
+    return conflict('Prepare this refund again before signing. Resolve any transaction awaiting confirmation first.')
+  }
+
+  let amount: Decimal
+  if (attempt && attempt.transactionHash === hash && attempt.status !== 'PREPARED') {
+    // The balance can already be gone when a response was lost. Its exact
+    // amount was bound from the ledger before the original submission.
+    amount = new Decimal((attempt.metadata as { amount: string }).amount)
+  } else {
+    const onLedger = await deps.readBalances(campaign.senderPublicKey)
+    const gone = claimed.filter((id) => !onLedger.has(id))
+    if (gone.length > 0) {
+      if (attempt?.status === 'PREPARED') await prisma.ledgerAttempt.updateMany({
+        where: { scope: attempt.scope, status: 'PREPARED', transactionHash: hash }, data: { status: 'FAILED' },
+      })
+      return conflict(`${gone.length} balances were claimed while you were signing. Prepare the reclaim again.`)
+    }
+    amount = claimed.reduce((sum, id) => sum.plus(onLedger.get(id)!), new Decimal(0))
+  }
+  if (attempt?.status === 'FAILED') return conflict('The previous reclaim failed. Prepare it again before signing.')
 
   let feeCharged: string | number | null = null
+  let settledAt: Date | null = null
   try {
-    feeCharged = (await deps.submit(verified.transaction))?.feeCharged ?? null
+    if (sponsor) verified.transaction.sign(Keypair.fromSecret(sponsorSecret(sponsor.publicKey)))
+    const result = await executeAttempt(attempt, verified.transaction, async (transaction) => {
+      const response = await deps.submit(transaction)
+      // liveSubmit waits for ledger inclusion, not merely HTTP acceptance.
+      return { hash: transaction.hash().toString('hex'), successful: true, feeCharged: response?.feeCharged,
+        settledAt: response?.settledAt, ledger: response?.ledger, resultXdr: response?.resultXdr }
+    }, deps.lookup ?? (deps === LIVE ? lookupAttempt : async () => null))
+    if (!result.successful) return conflict('The reclaim failed on ledger. Prepare it again.')
+    feeCharged = result.feeCharged ?? null
+    settledAt = ledgerSettlementTime(result.settledAt)
   } catch (error) {
+    if (error instanceof SourceCoordinationError) return conflict(error.message)
     const code = horizonResultCode(error)
     logger.warn({ campaignId: campaign.id, code }, 'reclaim rejected by the network')
-    return conflict(`Stellar rejected the reclaim: ${code}.`)
+    return conflict('The reclaim is awaiting confirmation. Retry to check the same transaction; do not send another refund.')
   }
 
   /*
@@ -396,6 +471,8 @@ export async function submitReclaim(
           transactionHash: hash,
           balanceCount: claimed.length,
           amount: amount.toFixed(),
+          ledgerSettledAt: settledAt,
+          observedAt: new Date(),
         },
       }),
       prisma.claimLink.updateMany({
@@ -403,10 +480,15 @@ export async function submitReclaim(
         data: {
           status: 'RECLAIMED',
           claimedBy: campaign.senderPublicKey,
-          claimedAt: new Date(),
+          claimedAt: settledAt,
+          ledgerSettledAt: settledAt,
+          observedAt: new Date(),
           claimTxHash: hash,
         },
       }),
+      ...(attempt?.transactionHash === hash ? [prisma.ledgerAttempt.updateMany({
+        where: { scope: attempt.scope, transactionHash: hash, status: 'CONFIRMED' }, data: { status: 'SETTLED' },
+      })] : []),
     ])
   } catch (error) {
     if (!isUniqueViolation(error)) throw error

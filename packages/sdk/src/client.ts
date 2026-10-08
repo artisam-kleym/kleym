@@ -84,6 +84,13 @@ export interface SubmittedBatch {
   replay: boolean
 }
 
+export interface CampaignDetail extends Campaign {
+  senderPublicKey: string
+  reserveEstimate: string | null
+  csvExportedAt: string | null
+  batches: { sequence: number; status: string; transactionHash: string | null }[]
+}
+
 export class KleymClient {
   private readonly base: string
   private readonly fetchImpl: typeof fetch
@@ -116,7 +123,7 @@ export class KleymClient {
     return this.call('GET', '/api/stellar/network')
   }
 
-  getCampaign(id: string): Promise<Campaign & { reserveEstimate: string | null; csvExportedAt: string | null }> {
+  getCampaign(id: string): Promise<CampaignDetail> {
     return this.call('GET', `/api/v1/campaigns/${id}`)
   }
 

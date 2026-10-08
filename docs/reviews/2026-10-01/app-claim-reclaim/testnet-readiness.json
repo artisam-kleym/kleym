@@ -1,0 +1,34 @@
+{
+  "checkedAt": "2026-10-01T07:49:52.466Z",
+  "network": "testnet",
+  "readOnly": true,
+  "noChainWrites": true,
+  "officialUsdcIssuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+  "accounts": {
+    "sender": {
+      "publicKey": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "native": "0.0000000",
+      "usdc": "17.0000000",
+      "hasOfficialUsdcTrustline": true,
+      "minimumReserve": "0.0000000",
+      "spendableNative": "0.0000000"
+    },
+    "recipient": {
+      "publicKey": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+      "native": "0.0000000",
+      "usdc": "1.0000000",
+      "hasOfficialUsdcTrustline": true,
+      "minimumReserve": "0.0000000",
+      "spendableNative": "0.0000000"
+    },
+    "sponsor": {
+      "publicKey": "GA6ALOBUNXQVFCDGXXMUAL7DJY4CUY7BUNGAPWXTJ633PYNEKZNUJ6J5",
+      "native": "10000.0000000",
+      "usdc": "0",
+      "hasOfficialUsdcTrustline": false,
+      "minimumReserve": "1.0000000",
+      "spendableNative": "9999.0000000"
+    }
+  },
+  "passed": true
+}

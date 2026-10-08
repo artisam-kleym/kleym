@@ -91,6 +91,8 @@ export function planBatches(links: BatchLink[], size: number): BatchPlan[] {
 export interface BuildBatchInput {
   /** The sender's account, loaded from Horizon — its sequence number is used. */
   senderAccount: Account
+  /** Present only for sponsor-paid funding: this account owns the sequence and fee. */
+  sponsorAccount?: Account
   senderPublicKey: string
   asset: Asset
   /** The default for links that carry no `amount` of their own. */
@@ -120,14 +122,19 @@ export function buildBatchTransaction(input: BuildBatchInput): {
 } {
   if (input.links.length === 0) throw new Error('cannot build a batch with no links')
 
-  const builder = new TransactionBuilder(input.senderAccount, {
+  const builder = new TransactionBuilder(input.sponsorAccount ?? input.senderAccount, {
     fee: input.baseFee,
     networkPassphrase: input.networkPassphrase,
   })
 
+  if (input.sponsorAccount) {
+    builder.addOperation(Operation.beginSponsoringFutureReserves({ sponsoredId: input.senderPublicKey }))
+  }
+
   for (const link of input.links) {
     builder.addOperation(
       Operation.createClaimableBalance({
+        ...(input.sponsorAccount ? { source: input.senderPublicKey } : {}),
         asset: input.asset,
         amount: linkAmount(link, input.amountPerLink),
         claimants: claimantsFor(link.ephemeralPublicKey, input.senderPublicKey, input.expiresAt),
@@ -135,11 +142,15 @@ export function buildBatchTransaction(input: BuildBatchInput): {
     )
   }
 
+  if (input.sponsorAccount) {
+    builder.addOperation(Operation.endSponsoringFutureReserves({ source: input.senderPublicKey }))
+  }
+
   const transaction = builder.setTimeout(input.timeoutSeconds).build()
 
   const balanceIds = input.links.map((link, index) => ({
     linkId: link.id,
-    balanceId: transaction.getClaimableBalanceId(index),
+    balanceId: transaction.getClaimableBalanceId(index + (input.sponsorAccount ? 1 : 0)),
   }))
 
   return { xdr: transaction.toXDR(), balanceIds }
@@ -163,6 +174,9 @@ export function batchFee(baseFee: string, ops: number): Decimal {
 
 export interface ExpectedBatch {
   senderPublicKey: string
+  sponsorPublicKey?: string
+  /** Server-stored body hash, not a value supplied by the browser. */
+  preparedHash?: string
   asset: Asset
   amountPerLink: string
   expiresAt: Date
@@ -193,6 +207,7 @@ export type VerifyFailure =
   | 'wrong-claimants'
   | 'wrong-fee'
   | 'not-signed-by-sender'
+  | 'wrong-prepared-transaction'
 
 /**
  * Checks that a signed envelope is the batch Kleym prepared, and nothing else.
@@ -222,8 +237,12 @@ export function verifyBatchTransaction(
     return { ok: false, reason: 'unparseable' }
   }
 
-  if (transaction.source !== expected.senderPublicKey) {
+  if (transaction.source !== (expected.sponsorPublicKey ?? expected.senderPublicKey)) {
     return { ok: false, reason: 'wrong-source' }
+  }
+
+  if (expected.preparedHash && transaction.hash().toString('hex') !== expected.preparedHash) {
+    return { ok: false, reason: 'wrong-prepared-transaction' }
   }
 
   /*
@@ -242,7 +261,8 @@ export function verifyBatchTransaction(
     return { ok: false, reason: 'not-signed-by-sender' }
   }
 
-  if (transaction.operations.length !== expected.links.length) {
+  const overhead = expected.sponsorPublicKey ? 2 : 0
+  if (transaction.operations.length !== expected.links.length + overhead) {
     return { ok: false, reason: 'wrong-operation-count' }
   }
 
@@ -251,7 +271,7 @@ export function verifyBatchTransaction(
    * builder's fee by the operation count. Comparing it against the
    * per-operation figure would reject every batch of more than one.
    */
-  const preparedTotalFee = new Decimal(expected.baseFee).times(expected.links.length)
+  const preparedTotalFee = new Decimal(expected.baseFee).times(expected.links.length + overhead)
   if (new Decimal(transaction.fee).greaterThan(preparedTotalFee.times(MAX_FEE_MULTIPLE))) {
     return { ok: false, reason: 'wrong-fee' }
   }
@@ -259,9 +279,23 @@ export function verifyBatchTransaction(
   const expectedAsset = expected.asset
   const expiry = Math.floor(expected.expiresAt.getTime() / 1000).toString()
 
-  for (const [index, operation] of transaction.operations.entries()) {
+  if (expected.sponsorPublicKey) {
+    const first = transaction.operations[0]!
+    const last = transaction.operations.at(-1)!
+    if (first.type !== 'beginSponsoringFutureReserves' || last.type !== 'endSponsoringFutureReserves') {
+      return { ok: false, reason: 'wrong-operation-type' }
+    }
+    if (first.sponsoredId !== expected.senderPublicKey || (first.source ?? transaction.source) !== expected.sponsorPublicKey || last.source !== expected.senderPublicKey) {
+      return { ok: false, reason: 'wrong-source' }
+    }
+  }
+  const operations = overhead ? transaction.operations.slice(1, -1) : transaction.operations
+  for (const [index, operation] of operations.entries()) {
     if (operation.type !== 'createClaimableBalance') {
       return { ok: false, reason: 'wrong-operation-type' }
+    }
+    if ((operation.source ?? transaction.source) !== expected.senderPublicKey) {
+      return { ok: false, reason: 'wrong-source' }
     }
     if (!operation.asset.equals(expectedAsset)) {
       return { ok: false, reason: 'wrong-asset' }
@@ -327,7 +361,8 @@ function claimantsMatch(
 
 /** Balance IDs the operations of a submitted envelope will produce, by index. */
 export function balanceIdsOf(transaction: Transaction, links: BatchLink[]): { linkId: string; balanceId: string }[] {
-  return links.map((link, index) => ({ linkId: link.id, balanceId: transaction.getClaimableBalanceId(index) }))
+  const offset = transaction.operations[0]?.type === 'beginSponsoringFutureReserves' ? 1 : 0
+  return links.map((link, index) => ({ linkId: link.id, balanceId: transaction.getClaimableBalanceId(index + offset) }))
 }
 
 /**
@@ -344,5 +379,6 @@ export function balanceIdsFromResultXdr(resultXdr: string): string[] {
   return result
     .result()
     .results()
+    .filter((operation) => operation.tr().switch().name === 'createClaimableBalance')
     .map((operation) => operation.tr().createClaimableBalanceResult().balanceId().toXDR('hex'))
 }

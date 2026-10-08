@@ -1,0 +1,206 @@
+{
+  "network": "testnet",
+  "mode": "recipient-account-only",
+  "target": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+  "hash": "c383fdd719e141f4f2ad12abb4a85ec4f68618595eb8ad8700236ae1b1f800cf",
+  "ledger": 4950698,
+  "successful": true,
+  "feeChargedStroops": "300",
+  "confirmedAt": "2026-09-30T14:05:34.497Z",
+  "sender": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+  "recipient": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+  "sponsor": "GAUKFGMOCJ6CW6MTQZZHRTKH6F2EAYHLJUZ6YWWKO3WHURVX35AHAGIX",
+  "requiredSignersVerified": [
+    "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+    "GAUKFGMOCJ6CW6MTQZZHRTKH6F2EAYHLJUZ6YWWKO3WHURVX35AHAGIX"
+  ],
+  "sponsorBefore": {
+    "address": "GAUKFGMOCJ6CW6MTQZZHRTKH6F2EAYHLJUZ6YWWKO3WHURVX35AHAGIX",
+    "sequence": "21263055937601536",
+    "nativeBalance": "10000.0000000",
+    "baseReserve": "0.5000000",
+    "minimumReserve": "1.0000000",
+    "nativeSellingLiabilities": "0.0000000",
+    "spendableNative": "9999.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 0,
+    "accountSponsor": null,
+    "balances": [
+      {
+        "assetType": "native",
+        "code": "XLM",
+        "issuer": null,
+        "balance": "10000.0000000",
+        "sponsor": null,
+        "limit": null
+      }
+    ]
+  },
+  "targetAfter": {
+    "address": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+    "sequence": "21263086002372608",
+    "nativeBalance": "0.0000000",
+    "baseReserve": "0.5000000",
+    "minimumReserve": "0.0000000",
+    "nativeSellingLiabilities": "0.0000000",
+    "spendableNative": "0.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 2,
+    "accountSponsor": "GAUKFGMOCJ6CW6MTQZZHRTKH6F2EAYHLJUZ6YWWKO3WHURVX35AHAGIX",
+    "balances": [
+      {
+        "assetType": "native",
+        "code": "XLM",
+        "issuer": null,
+        "balance": "0.0000000",
+        "sponsor": null,
+        "limit": null
+      }
+    ]
+  },
+  "senderAfter": {
+    "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "sequence": "21174360567971840",
+    "nativeBalance": "0.0000000",
+    "baseReserve": "0.5000000",
+    "minimumReserve": "0.0000000",
+    "nativeSellingLiabilities": "0.0000000",
+    "spendableNative": "0.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 3,
+    "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+    "balances": [
+      {
+        "assetType": "credit_alphanum4",
+        "code": "USDC",
+        "issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+        "balance": "18.0000000",
+        "sponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+        "limit": "100.0000000"
+      },
+      {
+        "assetType": "native",
+        "code": "XLM",
+        "issuer": null,
+        "balance": "0.0000000",
+        "sponsor": null,
+        "limit": null
+      }
+    ]
+  },
+  "recipientAfter": {
+    "address": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+    "sequence": "21263086002372608",
+    "nativeBalance": "0.0000000",
+    "baseReserve": "0.5000000",
+    "minimumReserve": "0.0000000",
+    "nativeSellingLiabilities": "0.0000000",
+    "spendableNative": "0.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 2,
+    "accountSponsor": "GAUKFGMOCJ6CW6MTQZZHRTKH6F2EAYHLJUZ6YWWKO3WHURVX35AHAGIX",
+    "balances": [
+      {
+        "assetType": "native",
+        "code": "XLM",
+        "issuer": null,
+        "balance": "0.0000000",
+        "sponsor": null,
+        "limit": null
+      }
+    ]
+  },
+  "referenceBefore": {
+    "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "sequence": "21174360567971840",
+    "nativeBalance": "0.0000000",
+    "baseReserve": "0.5000000",
+    "minimumReserve": "0.0000000",
+    "nativeSellingLiabilities": "0.0000000",
+    "spendableNative": "0.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 3,
+    "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+    "balances": [
+      {
+        "assetType": "credit_alphanum4",
+        "code": "USDC",
+        "issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+        "balance": "18.0000000",
+        "sponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+        "limit": "100.0000000"
+      },
+      {
+        "assetType": "native",
+        "code": "XLM",
+        "issuer": null,
+        "balance": "0.0000000",
+        "sponsor": null,
+        "limit": null
+      }
+    ]
+  },
+  "referenceAfter": {
+    "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "sequence": "21174360567971840",
+    "nativeBalance": "0.0000000",
+    "baseReserve": "0.5000000",
+    "minimumReserve": "0.0000000",
+    "nativeSellingLiabilities": "0.0000000",
+    "spendableNative": "0.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 3,
+    "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+    "balances": [
+      {
+        "assetType": "credit_alphanum4",
+        "code": "USDC",
+        "issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+        "balance": "18.0000000",
+        "sponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+        "limit": "100.0000000"
+      },
+      {
+        "assetType": "native",
+        "code": "XLM",
+        "issuer": null,
+        "balance": "0.0000000",
+        "sponsor": null,
+        "limit": null
+      }
+    ]
+  },
+  "sponsorAfter": {
+    "address": "GAUKFGMOCJ6CW6MTQZZHRTKH6F2EAYHLJUZ6YWWKO3WHURVX35AHAGIX",
+    "sequence": "21263055937601537",
+    "nativeBalance": "9999.9999700",
+    "baseReserve": "0.5000000",
+    "minimumReserve": "2.0000000",
+    "nativeSellingLiabilities": "0.0000000",
+    "spendableNative": "9997.9999700",
+    "numSponsoring": 2,
+    "numSponsored": 0,
+    "accountSponsor": null,
+    "balances": [
+      {
+        "assetType": "native",
+        "code": "XLM",
+        "issuer": null,
+        "balance": "9999.9999700",
+        "sponsor": null,
+        "limit": null
+      }
+    ]
+  },
+  "assertions": {
+    "targetHasLiteralZeroXlm": true,
+    "targetAccountSponsored": true,
+    "trustlineMatchesMode": true,
+    "exactSponsoredReserveCount": true,
+    "sponsorAddedExactReserves": true,
+    "sponsorPaidExactFee": true,
+    "referenceStatePreserved": true
+  },
+  "acceptancePassed": true,
+  "remaining": "Recipient account exists with zero XLM and no trustline. Return to Codex before sponsored funding/claim/reclaim. Its account reserves remain sponsored."
+}

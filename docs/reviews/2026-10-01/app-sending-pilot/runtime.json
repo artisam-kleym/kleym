@@ -1,0 +1,8 @@
+﻿{
+    "appPID":  19228,
+    "workerWrapperPID":  3128,
+    "url":  "http://127.0.0.1:3220",
+    "database":  "kleym_app_pilot",
+    "network":  "testnet",
+    "localOnly":  true
+}

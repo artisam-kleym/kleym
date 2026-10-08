@@ -1,0 +1,50 @@
+{
+  "checkedAt": "2026-10-06T11:33:49.406Z",
+  "network": "testnet",
+  "accounts": [
+    {
+      "role": "sender",
+      "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "xlm": "0.0000000",
+      "usdc": "11.0000000"
+    },
+    {
+      "role": "desktopRecipient",
+      "address": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "xlm": "0.0000000",
+      "usdc": "4.0000000"
+    },
+    {
+      "role": "secondRecipient",
+      "address": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+      "xlm": "0.0000000",
+      "usdc": "3.0000000"
+    }
+  ],
+  "unusedBalance": {
+    "id": "00000000994080e58ae9a9e6e4445f9e05444f39a60e301b035c229bb949f027005f6f74",
+    "httpStatus": 200,
+    "amount": "1.0000000",
+    "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+    "sponsor": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+    "claimants": [
+      {
+        "destination": "GDANDPFBW6NB3KRKAYJKKAS3DEM27XFWRC7DQRBB5WNJSXORZZ42DXDH",
+        "predicate": {
+          "abs_before": "2026-10-03T15:50:00Z",
+          "abs_before_epoch": "1791042600"
+        }
+      },
+      {
+        "destination": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+        "predicate": {
+          "not": {
+            "abs_before": "2026-10-03T15:50:00Z",
+            "abs_before_epoch": "1791042600"
+          }
+        }
+      }
+    ]
+  },
+  "agentLedgerWrites": 0
+}

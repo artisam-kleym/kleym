@@ -13,6 +13,7 @@ import { applyEnvPlaceholders } from '../tests/env-placeholders'
 import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
+process.env.LEGACY_BEARER_EMAIL_ENABLED = 'true' // Test historical queued-payload erasure; never production.
 
 const { prisma } = await import('../src/lib/db/client')
 const { redis } = await import('../src/lib/redis/client')

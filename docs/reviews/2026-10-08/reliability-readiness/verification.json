@@ -1,0 +1,162 @@
+{
+  "capturedAtUtc": "2026-10-08T13:28:27.9381868Z",
+  "checkout": "D:/kleym/.worktrees/app-sending-pilot",
+  "branch": "codex/app-sending-pilot",
+  "baseCommit": "4163d7954bff9c1582c0c405174cddbe6951da33",
+  "sourceState": "Local uncommitted candidate; prior work preserved",
+  "checks": {
+    "unit": {
+      "status": "PASS",
+      "files": 58,
+      "tests": 734,
+      "log": "unit-qualified.log"
+    },
+    "lanternBrowser": {
+      "status": "PASS",
+      "checks": 5,
+      "evidence": "evidences/lantern-browser/browser-verification.json",
+      "scope": "Production Chromium with mocked parent and resolve API; no actual wallet signing",
+      "log": "lantern-browser.log"
+    },
+    "build": {
+      "status": "PASS",
+      "warning": "Existing middleware convention deprecation remains",
+      "log": "build-qualified.log"
+    },
+    "typecheck": {
+      "log": "typecheck-qualified.log",
+      "status": "PASS"
+    },
+    "focusedLint": {
+      "log": "lint-qualified.log",
+      "status": "PASS"
+    },
+    "nativeBullmqImport": {
+      "connectionsCreated": 0,
+      "status": "PASS",
+      "log": "queue-native-import.log"
+    },
+    "diffCheck": {
+      "status": "PASS",
+      "note": "Git reports an existing LF/CRLF normalization warning",
+      "log": "diff-check.log"
+    }
+  },
+  "providerReads": {
+    "baselineMethod": "Static analysis of preceding source, not a timed benchmark",
+    "previousSourceCallGraph": 10,
+    "qualifiedFixture": 5,
+    "productionLatencyMeasured": false,
+    "excludes": "Network identity probes"
+  },
+  "gates": {
+    "actualLantern": "BLOCKED: curated directory entry/rebuild required",
+    "mainnet": "NOT QUALIFIED",
+    "deployedTestnet": "NOT RUN: services remain paused",
+    "testPlanDrafting": "READY",
+    "fullPostgresRedis": "BLOCKED: local Docker engine unavailable"
+  },
+  "issueProgress": [
+    107,
+    102,
+    103,
+    111,
+    114,
+    115
+  ],
+  "issueStatesChanged": false,
+  "dnsRebindingProtectionQualified": false,
+  "deploymentChanged": false,
+  "walletSignaturesRequested": 0,
+  "chainWrites": 0,
+  "sourceHashes": [
+    {
+      "path": "next.config.ts",
+      "sha256": "1c2f979b41b8b3658028baa4ed3ad4b665b244884c41fb5ecf5ff5dbf59cb993"
+    },
+    {
+      "path": "src/lib/stellar/horizon.ts",
+      "sha256": "0f7695bb876c30b988a569517c42a7c307656ba42a2dbf198d913c6a05ddc216"
+    },
+    {
+      "path": "src/lib/stellar/source-coordination.ts",
+      "sha256": "309027d2f263bbc3fef4f94c30c6c98fcad7b5d4ef36313d200de7749e4fc9fb"
+    },
+    {
+      "path": "src/lib/api/batches.ts",
+      "sha256": "3c308b268ca2a7bb995f53455994302a369c7ef45e02d6a3c841b852b049fd63"
+    },
+    {
+      "path": "src/lib/validation/public-host.ts",
+      "sha256": "1e71ff4216da02cce272cffb7e4ed61cb95dc2eef710d7adf3acedd7cb23b7ae"
+    },
+    {
+      "path": "src/lib/validation/outbound-url.ts",
+      "sha256": "b75381a6a7e46a04fe6c412eea5b6bee09fe7d117094f439b3d3423715823b80"
+    },
+    {
+      "path": "src/lib/validation/outbound-fetch.ts",
+      "sha256": "356ed10350ef13b33d72d61df259268f482192e4826b52f4360ba6ae4a9e6435"
+    },
+    {
+      "path": "src/lib/webhooks/deliver.ts",
+      "sha256": "d2431256531ec47c938b0bb3add097b478292f3cd41898158317b5c24a7a17ed"
+    },
+    {
+      "path": "src/lib/api/screening.ts",
+      "sha256": "7ca3d179d3eb7933b1491efd1f2391cd500dddb55e92faf10774bfc4678a3243"
+    },
+    {
+      "path": "src/lib/auth/sso/oidc.ts",
+      "sha256": "f780d1f4bd5692ad36e454cea62079c5ce6607642e691817593285b1d682efba"
+    },
+    {
+      "path": "src/lib/stellar/federation.ts",
+      "sha256": "29d60152905b1941e5134a0f6d817de3da923b62a52c4832a3e9e3072dafde06"
+    },
+    {
+      "path": "src/app/api/claims/federation/route.ts",
+      "sha256": "2cb6ee8ed7db8278db02e38f7cab79ebd25648264dd7a5e0af56097ee3d90db4"
+    },
+    {
+      "path": "tests/lib/stellar/source-admission.test.ts",
+      "sha256": "8c028d18ccfeab4b0b3af4f4ffe5cb72841443c1cb9b3a608902ec84ecc93734"
+    },
+    {
+      "path": "tests/lib/validation/outbound-url.test.ts",
+      "sha256": "dfae95e56d387e781bb566d238a11bda63cabeffeeb94753a8a1548ff1ee882c"
+    },
+    {
+      "path": "tests/lib/api/outbound-consumers.test.ts",
+      "sha256": "15c5f75b83e6a9cbd09e0ecf5f34e1a42aa2dd6d52090634a8eab6ca9af6b24e"
+    },
+    {
+      "path": "tests/lib/api/prize-funding.test.ts",
+      "sha256": "b39595d35b8d090407f26977ca15b7d4c8be9f6c3cc8dd0ce9d6e70f28b97741"
+    },
+    {
+      "path": "scripts/verify-lantern-browser.mjs",
+      "sha256": "bd419ed786bd9d46e9a0d4bc9f6c197e33d2d89273b0242a1492e643f2a5ce2b"
+    },
+    {
+      "path": "docs/compliance.md",
+      "sha256": "728c4d091f5ed374e4a4f79af940b02bc513d85e6e8798553f90fb9cd6a2fd79"
+    },
+    {
+      "path": "docs/sso.md",
+      "sha256": "5302c63921f28b817ae6b677299a1f79ac0c804faa31980aa9141bdd8b8d9841"
+    },
+    {
+      "path": "docs/mainnet-pilot.md",
+      "sha256": "5f485b08ace51720d74821dcdba7260d8b52255659270ddfbd9636e93a3ac174"
+    },
+    {
+      "path": "docs/app-sending.md",
+      "sha256": "247327280e3b070a7e919dd6ca9197adb6adee3e6b47b423b4f2e52c5164d19c"
+    },
+    {
+      "path": "docs/reviews/2026-10-08/reliability-readiness/README.md",
+      "sha256": "38627adcfca2d44fa27468bbb5a72be44a93d643b68518083400b42181e58c13"
+    }
+  ]
+}

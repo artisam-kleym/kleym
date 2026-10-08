@@ -10,6 +10,7 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db/client'
 import { env } from '@/lib/config/env'
 import { policyReaches } from './mfa/policy'
+import { parseLanternOrigins } from '@/lib/wallet/lantern-config'
 
 /**
  * `__Host-` is not decoration: it forbids a Domain attribute and requires
@@ -170,10 +171,12 @@ export async function revokeOtherSessions(userId: string, keepToken: string): Pr
 }
 
 export function sessionCookieOptions(expiresAt: Date) {
+  const embedded = parseLanternOrigins(process.env.LANTERN_ORIGINS).length > 0
   return {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax' as const,
+    sameSite: embedded ? 'none' as const : 'lax' as const,
+    ...(embedded ? { partitioned: true } : {}),
     path: '/',
     expires: expiresAt,
   }

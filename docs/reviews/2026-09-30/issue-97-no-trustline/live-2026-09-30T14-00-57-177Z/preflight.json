@@ -1,0 +1,115 @@
+{
+  "checkedAtUTC": "2026-09-30T14:00:57.177Z",
+  "directory": "docs/reviews/2026-09-30/issue-97-no-trustline/live-2026-09-30T14-00-57-177Z",
+  "sender": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+  "recipient": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+  "mode": "recipient-account-only",
+  "network": "Test SDF Network ; September 2015",
+  "latestLedger": 4950642,
+  "senderAccount": {
+    "httpStatus": 200,
+    "body": {
+      "_links": {
+        "self": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+        },
+        "transactions": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/transactions{?cursor,limit,order}",
+          "templated": true
+        },
+        "operations": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/operations{?cursor,limit,order}",
+          "templated": true
+        },
+        "payments": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/payments{?cursor,limit,order}",
+          "templated": true
+        },
+        "effects": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/effects{?cursor,limit,order}",
+          "templated": true
+        },
+        "offers": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/offers{?cursor,limit,order}",
+          "templated": true
+        },
+        "trades": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/trades{?cursor,limit,order}",
+          "templated": true
+        },
+        "data": {
+          "href": "https://horizon-testnet.stellar.org/accounts/GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A/data/{key}",
+          "templated": true
+        }
+      },
+      "id": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "account_id": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "sequence": "21174360567971840",
+      "subentry_count": 1,
+      "last_modified_ledger": 4942388,
+      "last_modified_time": "2026-09-30T02:32:07Z",
+      "thresholds": {
+        "low_threshold": 0,
+        "med_threshold": 0,
+        "high_threshold": 0
+      },
+      "flags": {
+        "auth_required": false,
+        "auth_revocable": false,
+        "auth_immutable": false,
+        "auth_clawback_enabled": false
+      },
+      "balances": [
+        {
+          "balance": "18.0000000",
+          "limit": "100.0000000",
+          "buying_liabilities": "0.0000000",
+          "selling_liabilities": "0.0000000",
+          "sponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+          "last_modified_ledger": 4942388,
+          "is_authorized": true,
+          "is_authorized_to_maintain_liabilities": true,
+          "asset_type": "credit_alphanum4",
+          "asset_code": "USDC",
+          "asset_issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+        },
+        {
+          "balance": "0.0000000",
+          "buying_liabilities": "0.0000000",
+          "selling_liabilities": "0.0000000",
+          "asset_type": "native"
+        }
+      ],
+      "signers": [
+        {
+          "weight": 1,
+          "key": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "type": "ed25519_public_key"
+        }
+      ],
+      "data": {},
+      "num_sponsoring": 0,
+      "num_sponsored": 3,
+      "sponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "paging_token": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+    }
+  },
+  "targetAccount": {
+    "httpStatus": 404,
+    "body": {
+      "type": "https://stellar.org/horizon-errors/not_found",
+      "title": "Resource Missing",
+      "status": 404,
+      "detail": "The resource at the url requested was not found.  This usually occurs for one of two reasons:  The url requested is not valid, or no data in our database could be found with the parameters provided."
+    }
+  },
+  "assertions": {
+    "testnetIdentity": true,
+    "targetAbsent": true,
+    "senderZeroXlm": true,
+    "senderEnoughOfficialUsdc": true,
+    "senderReserveState": true
+  },
+  "acceptancePassed": true,
+  "ledgerMutation": false
+}

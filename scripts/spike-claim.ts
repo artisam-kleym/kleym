@@ -27,6 +27,8 @@ import {
   TransactionBuilder,
 } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
+import { writeFileSync } from 'node:fs'
+import { assertLiveTestnet, testnetProtocolSettings } from './lib/testnet-protocol-gate'
 
 const HORIZON_URL = process.env.HORIZON_URL ?? 'https://horizon-testnet.stellar.org'
 const FRIENDBOT_URL = process.env.FRIENDBOT_URL ?? 'https://friendbot.stellar.org'
@@ -34,6 +36,26 @@ const NETWORK_PASSPHRASE = Networks.TESTNET
 
 const server = new Horizon.Server(HORIZON_URL)
 const FEE_PER_OP = String(Number(BASE_FEE) * 10)
+const transactionEvidence: { hash: string; ledger: number; successful: boolean }[] = []
+let issuerPublicKey: string | null = null
+let actionsStarted = false
+
+function saveVerdict(status: 'PASS' | 'FAIL' | 'NOT_RUN', reason: string, results: Result[] = []): void {
+  if (!process.env.TESTNET_RESULT_FILE) return
+  writeFileSync(process.env.TESTNET_RESULT_FILE, JSON.stringify({
+    status, reason, checkedAt: new Date().toISOString(), commit: process.env.GITHUB_SHA ?? null,
+    network: 'testnet', horizon: 'https://horizon-testnet.stellar.org', issuer: issuerPublicKey,
+    assetQualification: 'disposable custom issuer; not official Circle USDC',
+    wallet: 'disposable Node signers; not Freighter/Lantern wallet acceptance',
+    transactions: transactionEvidence, results,
+  }, null, 2) + '\n')
+}
+
+async function recordedSubmit(transaction: Transaction) {
+  const result = await server.submitTransaction(transaction)
+  transactionEvidence.push({ hash: result.hash, ledger: result.ledger, successful: result.successful })
+  return result
+}
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -168,7 +190,7 @@ async function setUpWorld(): Promise<World> {
     .setTimeout(60)
     .build()
   trustTx.sign(sender)
-  await server.submitTransaction(trustTx)
+  await recordedSubmit(trustTx)
 
   const issuerAcct = await server.loadAccount(issuer.publicKey())
   const fundTx = new TransactionBuilder(issuerAcct, {
@@ -181,7 +203,7 @@ async function setUpWorld(): Promise<World> {
     .setTimeout(60)
     .build()
   fundTx.sign(issuer)
-  await server.submitTransaction(fundTx)
+  await recordedSubmit(fundTx)
   log('sender holds 10000 USDC')
 
   return { sponsor, sender, issuer, usdc }
@@ -234,7 +256,7 @@ async function createClaimableBalance(
   // SPEC §7.2: use the SDK helper, not manual XDR walking.
   const extractedId = tx.getClaimableBalanceId(0)
 
-  await server.submitTransaction(tx)
+  await recordedSubmit(tx)
 
   // Confirm the locally-derived ID matches what the ledger actually recorded.
   const onChain: any = await server.claimableBalances().claimableBalance(extractedId).call()
@@ -299,7 +321,7 @@ async function materialiseEphemeral(
   const tx = b.setTimeout(180).build()
   tx.sign(w.sponsor)
   tx.sign(ephemeralKp)
-  const res: any = await server.submitTransaction(tx)
+  const res: any = await recordedSubmit(tx)
   return { hash: res.hash, opCount: tx.operations.length }
 }
 
@@ -418,7 +440,7 @@ async function runPermutation(
           .setTimeout(60)
           .build()
         t.sign(recipient)
-        await server.submitTransaction(t)
+        await recordedSubmit(t)
       }
     }
 
@@ -461,7 +483,7 @@ async function runPermutation(
     tx.sign(ephemeral)
     if (plan.needsRecipientSignature) tx.sign(recipient)
 
-    const res: any = await server.submitTransaction(tx)
+    const res: any = await recordedSubmit(tx)
     detail.push(`TX2 ${plan.opCount} ops, ${res.hash.slice(0, 16)}…`)
 
     // ── assertions ───────────────────────────────────────────────────────────
@@ -566,7 +588,7 @@ async function runPredicateChecks(w: World): Promise<Result[]> {
       let claimed = false
       let codes: ReturnType<typeof resultCodes> = null
       try {
-        await server.submitTransaction(tx)
+        await recordedSubmit(tx)
         claimed = true
       } catch (e) {
         codes = resultCodes(e)
@@ -590,7 +612,7 @@ async function runPredicateChecks(w: World): Promise<Result[]> {
         .setTimeout(60)
         .build()
       reclaim.sign(w.sender)
-      await server.submitTransaction(reclaim)
+      await recordedSubmit(reclaim)
       detail.push('sender reclaim after expiry succeeded')
 
       out.push({ name: 'Predicate — after expiry', passed: true, detail })
@@ -620,7 +642,7 @@ async function runPredicateChecks(w: World): Promise<Result[]> {
       let claimed = false
       let codes: ReturnType<typeof resultCodes> = null
       try {
-        await server.submitTransaction(early)
+        await recordedSubmit(early)
         claimed = true
       } catch (e) {
         codes = resultCodes(e)
@@ -673,7 +695,7 @@ async function runSignatureDisciplineCheck(w: World): Promise<Result> {
     let accepted = false
     let codes: ReturnType<typeof resultCodes> = null
     try {
-      await server.submitTransaction(overSigned)
+      await recordedSubmit(overSigned)
       accepted = true
     } catch (e) {
       codes = resultCodes(e)
@@ -686,7 +708,7 @@ async function runSignatureDisciplineCheck(w: World): Promise<Result> {
 
     const correct = new Transaction(plan.xdr, NETWORK_PASSPHRASE)
     correct.sign(eph)
-    await server.submitTransaction(correct)
+    await recordedSubmit(correct)
     detail.push('same transaction succeeds without it — rejection was the signature, not the ops')
 
     return { name: 'Signature discipline — over-signed transaction', passed: true, detail }
@@ -703,10 +725,25 @@ async function runSignatureDisciplineCheck(w: World): Promise<Result> {
 // ── main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
+  // Before logging configured URLs, creating wallets or calling Friendbot.
+  testnetProtocolSettings(HORIZON_URL, FRIENDBOT_URL, process.env.NETWORK_PASSPHRASE)
+  if (process.env.CI === 'true' && process.env.TESTNET_PROTOCOL_ENABLED !== 'true') {
+    saveVerdict('NOT_RUN', 'Live Testnet cadence is not explicitly enabled')
+    console.log('NOT_RUN: live Testnet cadence requires explicit enablement')
+    return
+  }
+  try { await assertLiveTestnet() } catch {
+    saveVerdict('NOT_RUN', 'Official Testnet provider unavailable or identity not verified; no actions started')
+    console.error('NOT_RUN: official Testnet provider unavailable or identity not verified')
+    process.exitCode = 2
+    return
+  }
   log('Kleym — claim transaction spike (two-transaction design)')
   log(`horizon: ${HORIZON_URL}`)
 
+  actionsStarted = true
   const w = await setUpWorld()
+  issuerPublicKey = w.usdc.getIssuer() ?? null
   const reserve = await baseReserve()
   log(`base reserve read from live protocol: ${reserve} XLM`)
 
@@ -748,13 +785,16 @@ async function main() {
   const failed = results.filter((r) => !r.passed)
   log(`\n${results.length - failed.length}/${results.length} passed`)
   if (failed.length) {
+    saveVerdict('FAIL', 'One or more protocol assertions failed; inspect public-only results', results)
     log('\nSPIKE FAILED. Per AGENT.md §2, stop and report — do not build on this design.')
     process.exit(1)
   }
   log('\nSpike passed. The two-transaction claim design is verified on testnet.')
+  saveVerdict('PASS', 'Disposable protocol spike passed; not full application/official-USDC qualification', results)
 }
 
 main().catch((e) => {
+  saveVerdict('FAIL', actionsStarted ? 'Live spike aborted after actions started; inspect recorded hashes' : 'Configuration/preflight refused; no actions started')
   console.error('\nspike aborted:', describeError(e))
   process.exit(1)
 })

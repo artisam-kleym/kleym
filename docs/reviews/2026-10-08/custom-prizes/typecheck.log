@@ -1,0 +1,366 @@
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(admin)/admin/audit/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(admin)/admin/campaigns/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(admin)/admin/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(admin)/admin/privacy/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(admin)/admin/reconciliation/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(admin)/admin/users/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(admin)/layout.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(mfa)/settings/security/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(public)/claim/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(public)/invite/[token]/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(public)/login/mfa/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(public)/login/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(public)/login/sso/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(public)/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(public)/status/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(sender)/approvals/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(sender)/campaigns/[id]/links/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(sender)/campaigns/[id]/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(sender)/campaigns/new/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(sender)/campaigns/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(sender)/dashboard/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(sender)/history/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(sender)/layout.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(sender)/settings/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(sender)/templates/[id]/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/(sender)/templates/page.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/admin/audit/export/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/admin/audit/verify/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/admin/privacy/erase/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/admin/reconcile/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/admin/users/[id]/invitation/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/admin/users/[id]/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/admin/users/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/login/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/logout/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/mfa/passkey/[id]/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/mfa/passkey/authenticate/options/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/mfa/passkey/authenticate/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/mfa/passkey/register/options/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/mfa/passkey/register/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/mfa/status/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/mfa/totp/confirm/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/mfa/totp/enrol/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/mfa/totp/remove/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/mfa/verify/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/password/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/session/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/sso/callback/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/auth/sso/start/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/approvals/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/batches/prepare/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/batches/retry/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/batches/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/batches/submit/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/deliver/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/export/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/links/[linkId]/receipt/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/links/[linkId]/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/links/[linkId]/suspend/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/links/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/outstanding/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/receipts/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/reclaim/prepare/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/reclaim/submit/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/suspend/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/[id]/template/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/campaigns/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/claims/code/verify/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/claims/federation/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/claims/otp/request/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/claims/otp/verify/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/claims/passkey/authenticate/options/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/claims/passkey/authenticate/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/claims/passkey/register/options/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/claims/passkey/register/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/claims/prepare/claim/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/claims/prepare/materialise/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/claims/quote/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/claims/resolve/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/claims/submit/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/health/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/invite/redeem/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/accounting/export/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/audit/export/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/compliance/export/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/members/[userId]/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/members/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/receipts/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/sso/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/sso/scim-tokens/[id]/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/sso/scim-tokens/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/switch/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/webhooks/[id]/deliveries/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/webhooks/[id]/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/org/webhooks/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/ready/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/scim/v2/Groups/[id]/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/scim/v2/Groups/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/scim/v2/ServiceProviderConfig/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/scim/v2/Users/[id]/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/scim/v2/Users/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/settings/api-keys/[id]/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/settings/api-keys/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/status/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/stellar/account/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/stellar/network/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/stellar/reserve/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/templates/[id]/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/templates/[id]/run/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/templates/[id]/runs/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/templates/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/v1/campaigns/[id]/batches/prepare/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/v1/campaigns/[id]/batches/submit/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/v1/campaigns/[id]/export/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/v1/campaigns/[id]/links/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/v1/campaigns/[id]/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/v1/campaigns/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/v1/templates/[id]/recipients/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/v1/templates/[id]/run/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'
+error TS6053: File 'D:/kleym/.worktrees/app-sending-pilot/.next/types/app/api/v1/templates/route.ts' not found.
+  The file is in the program because:
+    Matched by include pattern '.next/types/**/*.ts' in 'D:/kleym/.worktrees/app-sending-pilot/tsconfig.json'

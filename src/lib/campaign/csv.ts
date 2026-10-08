@@ -7,6 +7,8 @@
  * not do.
  */
 import { StrKey } from '@stellar/stellar-sdk'
+import { isStellarAmount } from '@/lib/stellar/amount'
+export { isStellarAmount } from '@/lib/stellar/amount'
 import type { Attestation, EphemeralKey } from './keygen'
 
 /**
@@ -73,6 +75,23 @@ export function buildCsv(rows: CsvRow[]): string {
 export function csvFilename(campaignName: string): string {
   const slug = campaignName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
   return `kleym-${slug || 'campaign'}-secrets.csv`
+}
+
+/** Public terms snapshot for templates/draft recovery; never includes keys or URLs. */
+export function buildRecipientListCsv(count: number, labels: string[], attestations: (Attestation | null)[], amounts: (string | null)[]): string {
+  if (labels.length === 0 && !attestations.some(Boolean) && !amounts.some((amount) => amount !== null)) return ''
+  const rows = Array.from({ length: count }, (_, index) => [
+    labels[index] ?? '', attestations[index]?.reference ?? '', attestations[index]?.category ?? '',
+    attestations[index]?.note ?? '', amounts[index] ?? '',
+  ].map(quote).join(','))
+  return ['label,reference,category,note,amount', ...rows].join('\n')
+}
+
+/** An explicit CSV amount column takes precedence over earlier manual edits. */
+export function hasPrizeAmountColumn(input: string): boolean {
+  const first = input.split(/\r?\n/).find((line) => line.trim() !== '') ?? ''
+  const header = splitCsvLine(first).map((cell) => cell.toLowerCase())
+  return header[0] === 'label' && header.includes('amount')
 }
 
 export type LabelParseResult =
@@ -194,15 +213,6 @@ export function parseLabels(input: string, allowed: number): LabelParseResult {
     // Present only when some row said something: an all-blank column is the default everywhere.
     ...(amounts.some((a) => a !== null) ? { amounts } : {}),
   }
-}
-
-/**
- * The same shape `stellarAmount` accepts on the server (lib/api/campaigns.ts):
- * digits, at most seven decimal places, greater than zero. Checked as a
- * string — no `Number`, which would take '1e3' and lose the seventh place.
- */
-export function isStellarAmount(value: string): boolean {
-  return /^\d+(\.\d{1,7})?$/.test(value) && /[1-9]/.test(value)
 }
 
 function refuseKeyMaterial(value: string, line: number): LabelParseResult | null {

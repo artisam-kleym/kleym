@@ -1,0 +1,85 @@
+{
+  "completedAt": "2026-10-06T11:55:57.540Z",
+  "origin": "https://kleym-web-testnet.up.railway.app",
+  "network": "testnet",
+  "sourceDigest": "b27d11ba4338a019c13ac9191cd6f19ee68851fafa6d6a604f5caca28329f609",
+  "fileCount": 371,
+  "changedReleaseFiles": [
+    "src/app/(sender)/campaigns/new/expiry-picker.tsx",
+    "src/app/(sender)/campaigns/new/steps.tsx",
+    "src/app/(sender)/campaigns/new/wizard.tsx",
+    "src/lib/campaign/expiry.ts"
+  ],
+  "expiryUnitTests": {
+    "passed": 8
+  },
+  "typecheck": "passed",
+  "targetedLint": "passed",
+  "windowsWebpackBuild": "passed",
+  "linuxBuild": {
+    "passed": true,
+    "verifiedImageFiles": 370,
+    "reusedQualifiedDependencies": true,
+    "network": "none"
+  },
+  "localProductionBrowser": {
+    "passed": 2,
+    "channel": "chromium"
+  },
+  "publicBrowser": {
+    "expiryChecksPassed": 3,
+    "loginPassed": true,
+    "daylightSavingRegressionPassed": true,
+    "physicalPhoneNotCovered": true
+  },
+  "initialFailures": {
+    "headlessShell": "intermittent local sign-in/navigation failures before expiry controls; exact cause unestablished",
+    "daylightSaving": "v5 repeated-hour regression failed: expected 2026-11-01T06:30Z, got 05:30Z; offset-preserving v6 passed"
+  },
+  "services": [
+    {
+      "id": "37702f7c-d942-4b00-96aa-16b5c4a8b58e",
+      "deployment": "e30d0532-dbb9-4964-89f3-46c214853754",
+      "status": "SUCCESS",
+      "imageDigest": "sha256:4b89e3c89d9262f02f23e927ff9f1390a19f7c03e2483321bc05c30872a333a3",
+      "preDeployCommand": null
+    },
+    {
+      "id": "45121e0c-a4e7-4961-8004-102e6dfa6d03",
+      "deployment": "829424a6-4c5f-436f-a330-131566d3f730",
+      "status": "SUCCESS",
+      "imageDigest": "sha256:164c759a0c342ee69d08fc99219382b0fd682181465c0df2e0e6911f4c85d73c",
+      "preDeployCommand": null
+    },
+    {
+      "id": "4d547645-da9f-4e1e-aec3-2511f6239fc3",
+      "deployment": "7f8d8f84-36c5-4234-8d27-24a17292c5e4",
+      "status": "SUCCESS",
+      "imageDigest": "sha256:009ced293699bbcf95c25d6dc7ca6d4046701fe010a769d1b2740380fcd8e2cf",
+      "preDeployCommand": [
+        "pnpm db:deploy"
+      ]
+    },
+    {
+      "id": "2490753a-e4ba-471c-87c9-a6dd7d74d567",
+      "deployment": "d4a6a2f6-951d-4f9a-b5f8-b5303a1ea981",
+      "status": "SUCCESS",
+      "imageDigest": "sha256:d43b6b298febd35a9f36a1d3596c0c6fe24bb1000498994d32188d5254726b8a",
+      "preDeployCommand": []
+    }
+  ],
+  "publicReadiness": {
+    "ready": true
+  },
+  "retainedCampaignProof": "v6/public-resume.json",
+  "retainedDatabaseEvidence": [
+    "database-resume.json",
+    "database-recovery.json",
+    "volumes-after-resume.json"
+  ],
+  "freshLedgerEvidence": "current-ledger.json",
+  "localVerificationServicesStopped": true,
+  "agentLedgerWrites": 0,
+  "newCampaignsCreated": 0,
+  "mainnetQualified": false
+}

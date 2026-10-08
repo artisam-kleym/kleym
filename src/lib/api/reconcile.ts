@@ -26,6 +26,7 @@ import { logger } from '@/lib/config/logger'
 import { horizon, loadClaimableBalance } from '@/lib/stellar/horizon'
 import { announceDueReclaims } from './suspend'
 import { recordClaimValuation } from './valuations'
+import { ledgerSettlementTime } from '@/lib/stellar/settlement-time'
 
 export type FindingKind =
   | 'claimed_on_chain'
@@ -76,8 +77,8 @@ export const readDisposal: DisposalReader = async (balanceId) => {
   const claimant = (claim as unknown as { claimant?: string }).claimant
   if (!claimant) return null
 
-  const claimedAt = new Date(claim.created_at)
-  if (Number.isNaN(claimedAt.getTime())) return null
+  const claimedAt = ledgerSettlementTime(claim.created_at)
+  if (!claimedAt) return null
   return { claimant, transactionHash: claim.transaction_hash, claimedAt }
 }
 
@@ -330,6 +331,8 @@ async function reconcileLink(
         claimedBy: disposal.claimant,
         claimTxHash: disposal.transactionHash,
         claimedAt: disposal.claimedAt,
+        ledgerSettledAt: disposal.claimedAt,
+        observedAt: new Date(),
       },
     })
     report.corrected += 1

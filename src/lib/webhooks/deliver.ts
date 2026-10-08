@@ -9,6 +9,7 @@
  */
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
+import { outboundFetch } from '@/lib/validation/outbound-fetch'
 import { DELIVERY_HEADER, EVENT_HEADER, SIGNATURE_HEADER, TIMESTAMP_HEADER, signDelivery } from './signing'
 
 export const DELIVERY_TIMEOUT_MS = 10_000
@@ -48,9 +49,9 @@ export async function attemptDelivery(deliveryId: string, attempt: number, isLas
   let status: number | null = null
   let reason: string | null = null
   try {
-    const response = await (deps.fetch ?? fetch)(delivery.endpoint.url, {
+    const response = await outboundFetch(delivery.endpoint.url, {
       method: 'POST', headers, body, redirect: 'error', signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
-    })
+    }, deps.fetch ?? fetch)
     status = response.status
     if (response.ok) {
       await prisma.$transaction([
@@ -61,7 +62,7 @@ export async function attemptDelivery(deliveryId: string, attempt: number, isLas
     }
     reason = `HTTP ${status}`
   } catch (error) {
-    reason = error instanceof Error && error.name === 'TimeoutError' ? 'timeout' : error instanceof Error ? error.message.slice(0, 120) : 'unknown'
+    reason = error instanceof Error && error.name === 'TimeoutError' ? 'timeout' : 'destination or transport failure'
   }
 
   if (isLast) {

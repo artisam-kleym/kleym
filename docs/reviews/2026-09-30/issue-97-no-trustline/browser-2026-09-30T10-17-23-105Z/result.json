@@ -1,0 +1,35 @@
+{
+  "checkedAtUTC": "2026-09-30T10:17:36.913Z",
+  "cases": [
+    {
+      "mode": "sender-usdc",
+      "network": "testnet",
+      "targetLabel": "sender",
+      "desktopWidth": 1280,
+      "mobileWidth": 390,
+      "initialSigningStepsDisabled": true,
+      "noHorizontalOverflow": true,
+      "freighterChooserVisible": true,
+      "browserErrors": [],
+      "postRequests": [],
+      "actualFreighterSignature": false,
+      "ledgerMutation": false
+    },
+    {
+      "mode": "recipient-account-only",
+      "network": "testnet",
+      "targetLabel": "recipient",
+      "desktopWidth": 1280,
+      "mobileWidth": 390,
+      "initialSigningStepsDisabled": true,
+      "noHorizontalOverflow": true,
+      "freighterChooserVisible": true,
+      "browserErrors": [],
+      "postRequests": [],
+      "actualFreighterSignature": false,
+      "ledgerMutation": false
+    }
+  ],
+  "acceptancePassed": true,
+  "limitation": "Read-only Chromium proof using an offline public placeholder, not an installed Freighter signature or live account setup."
+}

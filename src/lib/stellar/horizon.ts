@@ -128,7 +128,12 @@ export async function hasTrustline(publicKey: string, asset: Asset): Promise<boo
  * `(2 + subentry_count + num_sponsoring − num_sponsored) × base_reserve`.
  */
 export async function sponsorSpendable(publicKey: string): Promise<Decimal> {
-  const account = await horizon().loadAccount(publicKey)
+  const [account, reserve] = await Promise.all([horizon().loadAccount(publicKey), baseReserve()])
+  return spendableNative(account, reserve)
+}
+
+/** Request-local calculation; callers must obtain fresh ledger/account observations. */
+export function spendableNative(account: Pick<Horizon.AccountResponse, 'balances' | 'subentry_count' | 'num_sponsoring' | 'num_sponsored'>, reserve: Decimal): Decimal {
   const native = account.balances.find((balance) => balance.asset_type === 'native')
   const total = new Decimal(native?.balance ?? 0)
 
@@ -142,7 +147,7 @@ export async function sponsorSpendable(publicKey: string): Promise<Decimal> {
     .plus(record.num_sponsoring ?? 0)
     .minus(record.num_sponsored ?? 0)
 
-  return total.minus(entries.times(await baseReserve()))
+  return total.minus(entries.times(reserve)).minus(native?.selling_liabilities ?? 0)
 }
 
 /**

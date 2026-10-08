@@ -31,6 +31,19 @@ export function buildProofReclaim(sponsorAccount: ConstructorParameters<typeof T
     .setTimeout(300).build()
 }
 
+/** Derive the recipient's new reserve obligation and signature from the actual TX2 operations. */
+export function recipientProofRequirements(transaction: Transaction, recipient: string) {
+  const operations = transaction.operations
+  return {
+    needsRecipientSignature: operations.some(op => op.source === recipient),
+    newReserveUnits: operations.reduce((units, op) => {
+      if (op.type === 'createAccount' && op.destination === recipient) return units + 2
+      if (op.type === 'changeTrust' && op.source === recipient) return units + 1
+      return units
+    }, 0),
+  }
+}
+
 export function verifyProofSignatures(original: Transaction, signedXdr: string, expectedSigners: string[]): Transaction {
   const parsed = TransactionBuilder.fromXDR(signedXdr, Networks.TESTNET)
   if (!(parsed instanceof Transaction) || !parsed.hash().equals(original.hash())) throw new Error('The signed body differs from the reviewed transaction.')

@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-03T14:28:43.725Z",
+  "origin": "https://kleym-web-testnet.up.railway.app",
+  "network": "testnet",
+  "networkIdentityVerified": true,
+  "sender": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+  "senderUsdc": "15.0000000",
+  "senderXlm": "0.0000000",
+  "observedHorizonLatestLedger": 5002825,
+  "publicOrganizationCampaignCount": 0,
+  "noPublicCampaignRegistered": true,
+  "readinessHttp": 200,
+  "userBrowserEvidence": {
+    "freshTabFreighterDetection": true,
+    "originalTabProbe": "No Freighter response",
+    "originalTabRetry": "Same availability error"
+  },
+  "writes": "Operator login/session only; no campaign creation, wallet access, signing or ledger submissions",
+  "qualification": "Current organization campaign list and sender balance plus user-reported tab-specific detection. Does not assert absence of unrelated historical local claimable balances."
+}

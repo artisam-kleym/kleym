@@ -1,5 +1,6 @@
 import { test, expect, type Page, type Request } from '@playwright/test'
 import { Keypair } from '@stellar/stellar-sdk'
+import { prepareProofMessage } from '../src/lib/claim/prepare-proof'
 
 /**
  * `/claim` — the hardened surface. SPEC.md §3.6, §5.1, §10 (7, 8, 12).
@@ -43,6 +44,171 @@ const UNAVAILABLE = {
   assetCode: null, assetIssuer: null, amount: null,
   senderName: null, expiresAt: null, network: null,
 }
+
+test.describe('Android wallet connection UI', () => {
+  test.skip(!process.env.MOBILE_WALLET_E2E, 'Requires the configured mobile production fixture server')
+  test.use({ userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36' })
+
+  test('pairs through the bundled SDK at phone width, without committing funds, and cancels safely', async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 851 })
+    const posts: string[] = []
+    const requests = record(page)
+    page.on('request', (r) => { if (r.method() === 'POST' && new URL(r.url()).pathname.startsWith('/api/claims/')) posts.push(r.url()) })
+    // Local relay fixture: no external relay, real wallet or ledger traffic.
+    await page.routeWebSocket(/relay\.walletconnect\.org/, (socket) => {
+      socket.onMessage((raw) => {
+        const message = JSON.parse(String(raw))
+        if (!message.id) return
+        const result = message.method === 'irn_subscribe' ? 'fixture-subscription'
+          : message.method === 'irn_batchSubscribe' ? message.params.topics.map(() => 'fixture-subscription') : true
+        socket.send(JSON.stringify({ jsonrpc: '2.0', id: message.id, result }))
+      })
+    })
+    await page.route('https://verify.walletconnect.org/**', (route) => {
+      const id = new URL(route.request().url()).searchParams.get('id')
+      const jwt = `${Buffer.from('{}').toString('base64url')}.${Buffer.from(JSON.stringify({ id })).toString('base64url')}.fixture`
+      return route.fulfill({ contentType: 'text/html', body: `<script>parent.postMessage(JSON.stringify({type:'verify_attestation',attestation:${JSON.stringify(jwt)}}),'*')</script>` })
+    })
+    await stubResolve(page, CLAIMABLE)
+    await page.goto(`/claim#s=${SEED}`)
+    await expect(page.getByTestId('claim-connect-mobile')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Connect wallet', exact: true })).toHaveCount(0)
+    expect(requests.filter((r) => !r.url().startsWith(new URL(page.url()).origin))).toEqual([])
+    const navigation = await page.context().newCDPSession(page)
+    await navigation.send('Page.enable')
+    const launchAttempts: string[] = []
+    navigation.on('Page.frameRequestedNavigation', ({ url }) => { if (url.startsWith('freighterwallet:')) launchAttempts.push(url) })
+    await page.getByTestId('claim-connect-mobile').click()
+    const open = page.getByTestId('open-freighter')
+    await expect(open).toBeVisible({ timeout: 20_000 })
+    const appLink = new URL((await open.getAttribute('href'))!)
+    expect(appLink.protocol).toBe('freighterwallet:')
+    expect(appLink.host).toBe('wc-redirect')
+    expect(appLink.searchParams.get('uri')).toMatch(/^wc:/)
+    expect(appLink.href).not.toContain(SEED)
+    await expect.poll(() => launchAttempts.length).toBe(1)
+    expect(new URL(launchAttempts[0]).searchParams.get('uri')).toBe(appLink.searchParams.get('uri'))
+    await open.click()
+    await expect.poll(() => launchAttempts.length).toBe(2)
+    expect(launchAttempts[1]).toBe(launchAttempts[0])
+    await expect(page.getByLabel('Wallet connection code')).toBeHidden()
+    await page.getByText('Freighter did not open?', { exact: true }).click()
+    await expect(page.getByLabel('Wallet connection code')).toBeVisible()
+    expect(await page.getByLabel('Wallet connection code').inputValue()).toMatch(/^wc:/)
+    await expect(page.getByText('Select Testnet in Freighter', { exact: false })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    expect(posts).toEqual([])
+    for (const request of requests) {
+      expect(request.url()).not.toContain(SEED)
+      expect(request.postData() ?? '').not.toContain(SEED)
+    }
+    await page.getByRole('button', { name: 'Cancel connection' }).click()
+    await expect(page.getByTestId('claim-connect-mobile')).toBeVisible()
+    await expect(page.getByLabel('Wallet connection code')).toHaveCount(0)
+    expect(posts).toEqual([])
+  })
+})
+
+test('a narrow desktop keeps extension connection available', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 851 })
+  await stubResolve(page, CLAIMABLE)
+  await page.goto(`/claim#s=${SEED}`)
+  await expect(page.getByRole('button', { name: 'Connect wallet', exact: true })).toBeVisible()
+  await expect(page.getByTestId('claim-connect-mobile')).toHaveCount(0)
+})
+
+/** Browser bridge fixture for the installed Freighter API. It never signs. */
+async function stubWallet(page: Page, address: string) {
+  await page.addInitScript(({ address }) => {
+    const fixture = window as unknown as { freighter: boolean; walletFixtureAddress: string }
+    fixture.freighter = true
+    fixture.walletFixtureAddress = address
+    window.addEventListener('message', (event) => {
+      if (event.source !== window || event.data?.source !== 'FREIGHTER_EXTERNAL_MSG_REQUEST') return
+      const data = event.data
+      window.postMessage({ source: 'FREIGHTER_EXTERNAL_MSG_RESPONSE', messagedId: data.messageId,
+        isConnected: true, publicKey: fixture.walletFixtureAddress,
+        networkDetails: { network: 'TESTNET', networkPassphrase: 'Test SDF Network ; September 2015' },
+      }, window.location.origin)
+    })
+  }, { address })
+}
+
+test.describe('deliberate claim commitment', () => {
+  test('opening and connecting submit nothing; a separate claim starts preparation', async ({ page }) => {
+    const address = Keypair.random().publicKey()
+    await stubWallet(page, address)
+    await stubResolve(page, CLAIMABLE)
+    const posts: string[] = []
+    page.on('request', (r) => { if (r.method() === 'POST') posts.push(new URL(r.url()).pathname) })
+    await page.route('**/api/claims/prepare/materialise', (route) => {
+      const request = route.request(), headers = request.headers(), expires = Number(headers['x-kleym-proof-expires'])
+      const bytes = Buffer.from(prepareProofMessage(new URL(request.url()).origin, 'testnet', 'materialise', expires, request.postDataJSON()))
+      expect(Keypair.fromPublicKey(PUBLIC_KEY).verify(bytes, Buffer.from(headers['x-kleym-link-proof'], 'base64'))).toBe(true)
+      expect(request.postData()).not.toContain(SEED)
+      return route.fulfill({ status: 409, contentType: 'application/problem+json', body: JSON.stringify({ detail: 'Fixture stops before signing', status: 409 }) })
+    })
+    await page.goto(`/claim#s=${SEED}`)
+    await page.getByTestId('claim-connect').click()
+    await expect(page.getByTestId('claim-connect')).toHaveText('Claim 500 USDC')
+    await expect(page.getByText(`Destination: ${address}`)).toBeVisible()
+    await expect(page.getByTestId('claim-connect-mobile')).toHaveCount(0)
+    expect(posts).toEqual([])
+    await page.getByTestId('claim-connect').click()
+    await expect.poll(() => posts).toEqual(['/api/claims/prepare/materialise'])
+  })
+
+  test('a wallet change after destination review refuses before materialisation', async ({ page }) => {
+    await stubWallet(page, Keypair.random().publicKey())
+    await stubResolve(page, CLAIMABLE)
+    const posts: string[] = []
+    page.on('request', (r) => { if (r.method() === 'POST') posts.push(r.url()) })
+    await page.goto(`/claim#s=${SEED}`)
+    await page.getByTestId('claim-connect').click()
+    await expect(page.getByTestId('claim-connect')).toHaveText('Claim 500 USDC')
+    await page.evaluate((address) => { (window as unknown as { walletFixtureAddress: string }).walletFixtureAddress = address }, Keypair.random().publicKey())
+    await page.getByTestId('claim-connect').click()
+    await expect(page.getByTestId('ready-error')).toContainText('wallet account changed')
+    expect(posts).toEqual([])
+    await expect(page.getByTestId('claim-connect')).toHaveText('Connect wallet')
+  })
+
+  test('claim preparation carries a holder signature bound to its reviewed destination', async ({ page }) => {
+    const address = Keypair.random().publicKey()
+    await stubWallet(page, address)
+    await stubResolve(page, CLAIMABLE)
+    await page.route('**/api/claims/prepare/materialise', (route) => route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ alreadyExists: true, xdr: null, operations: 0 }) }))
+    let verified = false
+    await page.route('**/api/claims/prepare/claim', (route) => {
+      const request = route.request(), input = request.postDataJSON(), headers = request.headers()
+      expect(input.recipientPublicKey).toBe(address)
+      const message = prepareProofMessage(new URL(request.url()).origin, 'testnet', 'claim', Number(headers['x-kleym-proof-expires']), input)
+      verified = Keypair.fromPublicKey(PUBLIC_KEY).verify(Buffer.from(message), Buffer.from(headers['x-kleym-link-proof'], 'base64'))
+      expect(verified).toBe(true)
+      expect(request.postData()).not.toContain(SEED)
+      return route.fulfill({ status: 409, contentType: 'application/problem+json', body: JSON.stringify({ detail: 'Fixture stops before signing', status: 409 }) })
+    })
+    await page.goto(`/claim#s=${SEED}`)
+    await page.getByTestId('claim-connect').click()
+    await expect(page.getByTestId('claim-connect')).toHaveText('Claim 500 USDC')
+    await page.getByTestId('claim-connect').click()
+    await expect.poll(() => verified).toBe(true)
+  })
+
+  test('real preparation endpoints refuse public-key-only requests before lookup or reservation', async ({ page }) => {
+    await page.goto('/claim')
+    const results = await page.evaluate(async ({ ephemeralPublicKey, recipientPublicKey }) => {
+      return Promise.all(['materialise', 'claim'].map(async (phase) => {
+        const response = await fetch(`/api/claims/prepare/${phase}`, { method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ephemeralPublicKey, ...(phase === 'claim' ? { recipientPublicKey } : {}) }) })
+        return { status: response.status, detail: (await response.json()).detail }
+      }))
+    }, { ephemeralPublicKey: PUBLIC_KEY, recipientPublicKey: Keypair.random().publicKey() })
+    expect(results).toEqual([{ status: 409, detail: expect.stringContaining('Reopen your saved claim link') },
+      { status: 409, detail: expect.stringContaining('Reopen your saved claim link') }])
+  })
+})
 
 test.describe('hardened surface', () => {
   test('loads zero third-party requests', async ({ page }) => {

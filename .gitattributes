@@ -1,0 +1,4 @@
+# Artifact bytes must survive Windows checkout without line-ending conversion.
+*.pdf binary
+*.xlsx binary
+*.png binary

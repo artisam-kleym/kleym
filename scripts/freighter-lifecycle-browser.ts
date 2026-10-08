@@ -14,6 +14,7 @@ let localKeys: EphemeralKey[] = []
 let state: { sender: string; recipient: string; publicKeys: string[]; receipts: Record<string, { acceptancePassed: boolean }>; fatal: boolean } | undefined
 let csvDownloaded = false
 let signedWorkRemains = false
+let claimNeedsRecipientSignature: boolean | undefined
 const unsigned: Record<string, string> = {}
 const signed: Record<string, string> = {}
 
@@ -26,6 +27,8 @@ async function api(path: string, body?: object) {
 function ready() {
   allButtons.forEach(b => { b.disabled = true })
   if (!state || state.fatal) return
+  button('claim-sign').textContent = claimNeedsRecipientSignature === false
+    ? 'Approve claim without a wallet signature' : 'Sign claim in Freighter'
   button('connect').disabled = false
   if (!state.receipts.fund) {
     button('keys').disabled = localKeys.length > 0 || state.publicKeys.length > 0
@@ -124,20 +127,28 @@ for (const stage of ['fund', 'claim', 'reclaim']) {
     status.textContent = 'Preparing the exact Testnet transaction for review…'
     const result = await api(`/${stage}/prepare`, stage === 'fund' ? { publicKeys: localKeys.map(key => key.publicKey) } : {})
     unsigned[stage] = result.xdr
+    if (stage === 'claim') claimNeedsRecipientSignature = result.review.needsRecipientSignature
     signed[stage] = ''
     await refresh()
     review.textContent = JSON.stringify(result.review, null, 2)
-    status.textContent = 'Prepared. Review the public transaction details, then sign in Freighter.'
+    status.textContent = stage === 'claim' && claimNeedsRecipientSignature === false
+      ? 'Prepared. Review the public transaction details, then approve the claim.'
+      : 'Prepared. Review the public transaction details, then sign in Freighter.'
   }))
   button(`${stage}-sign`).addEventListener('click', () => void action(async () => {
     const role = stage === 'claim' ? 'recipient' : 'sender'
     await checkWallet(role)
-    status.textContent = 'Review and confirm this Testnet transaction in Freighter.'
+    status.textContent = stage === 'claim' && claimNeedsRecipientSignature === false
+      ? 'Review this claim. The existing recipient signs no operation in this transaction.'
+      : 'Review and confirm this Testnet transaction in Freighter.'
     const xdr = stage === 'claim' ? ephemeralSign(unsigned[stage]) : unsigned[stage]
-    signed[stage] = await signEnvelope(xdr, 'testnet', state![role])
+    signed[stage] = stage === 'claim' && claimNeedsRecipientSignature === false
+      ? xdr : await signEnvelope(xdr, 'testnet', state![role])
     await checkWallet(role)
     signedWorkRemains = true
-    status.textContent = 'Wallet signature received. Click Submit for this step to send the exact transaction to Testnet.'
+    status.textContent = stage === 'claim' && claimNeedsRecipientSignature === false
+      ? 'Claim approved locally. Click Submit to send the exact transaction to Testnet.'
+      : 'Wallet signature received. Click Submit for this step to send the exact transaction to Testnet.'
   }))
   button(`${stage}-submit`).addEventListener('click', () => void action(async () => {
     await checkWallet(stage === 'claim' ? 'recipient' : 'sender')
@@ -148,7 +159,7 @@ for (const stage of ['fund', 'claim', 'reclaim']) {
     review.textContent = JSON.stringify(result, null, 2)
     status.textContent = stage === 'fund'
       ? 'Funding confirmed. Keep this tab open. Return to Codex before switching to the recipient claim.'
-      : stage === 'claim' ? 'Recipient received exactly 1 USDC with zero XLM; temporary account removed. Return to Codex for expiry reclaim.'
+      : stage === 'claim' ? 'Recipient received exactly 1 USDC without an XLM top-up; temporary account removed. Return to Codex for expiry reclaim.'
       : 'Expiry reclaim confirmed: 1 USDC returned to the sender. Return to Codex to review the ledger evidence.'
   }))
 }
@@ -160,7 +171,7 @@ button('materialise').addEventListener('click', () => void action(async () => {
   const submitted = await api('/materialise/submit', { xdr: ephemeralSign(result.xdr) })
   if (!submitted.acceptancePassed) throw new Error('TX1 assertion failed. Return to Codex.')
   review.textContent = JSON.stringify(submitted, null, 2)
-  status.textContent = 'Claim TX1 confirmed. Wait for the next ledger, then prepare claim TX2 and approve it in Freighter.'
+  status.textContent = 'Claim TX1 confirmed. Wait for the next ledger, then prepare and approve claim TX2.'
 }))
 window.addEventListener('beforeunload', (event) => {
   if (signedWorkRemains || (state?.receipts.fund && !state.receipts.reclaim)) { event.preventDefault(); event.returnValue = '' }

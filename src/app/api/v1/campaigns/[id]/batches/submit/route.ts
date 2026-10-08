@@ -32,11 +32,11 @@ export async function POST(request: Request, { params }: Params) {
     if (outcome.kind === 'not-found') return apiNotFound()
     if (outcome.kind === 'conflict') return apiConflict(outcome.detail)
 
-    if (!outcome.value.replay) {
+    if (outcome.value.status === 'SUBMITTED') {
       const batch = await prisma.batch.findFirst({ where: { campaignId: id, sequence: outcome.value.sequence }, select: { id: true } })
       if (batch) {
         try {
-          await enqueueBatchConfirm(batch.id)
+          await enqueueBatchConfirm(batch.id, outcome.value.transactionHash)
         } catch (error) {
           logger.error({ campaignId: id, sequence: outcome.value.sequence, reason: error instanceof Error ? error.message : 'unknown' }, 'batch submitted but confirmation could not be queued')
         }

@@ -1,0 +1,12 @@
+{
+  "preparedAt": "2026-10-03T13:08:22.817Z",
+  "projectId": "48614d0d-2e58-4848-af96-2184e3044c47",
+  "environmentId": "cbca2958-d44a-4ca8-8d4e-746a61584d02",
+  "origin": "https://kleym-web-testnet.up.railway.app",
+  "sponsorPublicKey": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+  "sponsorNative": "10000.0000000",
+  "friendbotHash": "becee7ae614f13b97d46435e952d57fbaff0ee794b70aed19da6c166e0978e44",
+  "credentialsBackup": "Windows CurrentUser DPAPI; not portable; keep private",
+  "emailDelivery": "not configured; manual OPEN links only",
+  "userAssetsMoved": false
+}

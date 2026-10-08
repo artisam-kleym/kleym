@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-10-01T10:58:33.850Z",
+  "network": "testnet",
+  "hash": "84874377481e48be0fdd11712f2adf949ea3af69f7a6425a4af3a369ac0cc141",
+  "ledger": 4965208,
+  "successful": true,
+  "senderRefund": "2 USDC",
+  "feeChargedStroops": "200",
+  "senderUsdc": "15.0000000",
+  "senderXlm": "0.0000000",
+  "recipientUsdc": "2.0000000",
+  "recipientXlm": "0.0000000",
+  "originalBalancesRemoved": true,
+  "requiredSignaturesVerified": true,
+  "remainingSponsorUnits": 2,
+  "remainingEarlierReissue": "1 USDC until 2026-10-31T02:02:00Z",
+  "chainWrites": 0
+}

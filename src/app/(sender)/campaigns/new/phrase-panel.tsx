@@ -13,7 +13,7 @@
  */
 import { useState } from 'react'
 import { Button, WarningPanel } from '@/components/ui'
-import { generatePhrase, isValidPhrase, normalisePhrase } from '@/lib/campaign/derive'
+import { generatePhrase, normalisePhrase, phraseInputStatus } from '@/lib/campaign/derive'
 
 type Mode = 'choose' | 'new' | 'existing'
 
@@ -37,7 +37,8 @@ export function PhrasePanel({ onConfirmed, confirmed }: { onConfirmed: (phrase: 
   }
 
   const words = phrase ? phrase.split(' ') : []
-  const existingValid = mode === 'existing' && typed.trim().length > 0 && isValidPhrase(typed)
+  const inputStatus = phraseInputStatus(typed)
+  const existingValid = mode === 'existing' && typed.trim().length > 0 && inputStatus.valid
   const canConfirm = mode === 'new' ? phrase !== null && stored && understood : existingValid && understood
 
   function confirm() {
@@ -100,12 +101,27 @@ export function PhrasePanel({ onConfirmed, confirmed }: { onConfirmed: (phrase: 
               onChange={(e) => setTyped(e.target.value)}
               spellCheck={false}
               autoComplete="off"
+              autoCapitalize="none"
+              aria-describedby="phrase-input-help phrase-input-status"
+              aria-invalid={typed.trim().length > 0 && !existingValid}
               data-testid="phrase-input"
               className="rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface"
             />
           </label>
+          <p id="phrase-input-help" className="text-body-md text-on-surface-variant">
+            Paste your saved Kleym campaign words in their original numbered order. Spaces, new lines and numbered lists are accepted.
+          </p>
+          <p id="phrase-input-status" aria-live="polite" className="font-mono text-label-sm text-on-surface-variant">
+            {typed.trim().length > 0 ? `${inputStatus.wordCount} words detected${existingValid ? ' · Valid recovery phrase' : ''}` : 'Enter your saved recovery phrase.'}
+          </p>
           {typed.trim().length > 0 && !existingValid && (
-            <p role="alert" className="font-mono text-label-sm text-error">That is not a valid twelve, fifteen, eighteen, twenty-one or twenty-four word phrase.</p>
+            <p role="alert" className="font-mono text-label-sm text-error">
+              {inputStatus.reason === 'count'
+                ? 'A recovery phrase must have 12, 15, 18, 21 or 24 words. Check that every word was copied.'
+                : inputStatus.reason === 'words'
+                  ? 'Some entries are not English recovery words. Check spelling and keep any numbering in order from 1.'
+                  : 'All words are recognized, but the phrase fails its recovery check. Check the exact words and their numbered order against your saved copy.'}
+            </p>
           )}
         </>
       )}

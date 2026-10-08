@@ -109,6 +109,7 @@ export async function POST(request: Request, { params }: Params) {
         )
       }
       if (outcome.kind === 'codes') return conflict(outcome.detail)
+      if (outcome.kind === 'budget') return conflict(outcome.detail, 'renewal-budget')
       return conflict(
         `This campaign declares ${outcome.declared} links; registering ${outcome.adding} more would make ${outcome.wouldTotal}.`,
       )

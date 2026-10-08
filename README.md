@@ -4,6 +4,10 @@ Kleym turns Stellar assets into one-time claim links. A sender generates a batch
 
 Recipients need no XLM: Kleym sponsors account creation and trustlines.
 
+The current app also sponsors new USDC campaigns: the sender supplies USDC,
+and Kleym pays funding, claim and expiry-reclaim fees and reserves. See the
+[app sending guide](docs/app-sending.md) for the implementation and Testnet test.
+
 ## The one rule
 
 **Kleym never stores, logs, transmits, or persists a Stellar secret seed.**
@@ -17,6 +21,7 @@ Read [`AGENT.md`](AGENT.md) §1 before writing any line that touches a keypair.
 | Document | Purpose |
 |---|---|
 | [`SPEC.md`](SPEC.md) | Technical specification — protocol, data model, API, jobs, acceptance criteria |
+| [`docs/app-sending.md`](docs/app-sending.md) | Current sponsored USDC app flow, recovery and Testnet testing |
 | [`BRAND.md`](BRAND.md) | Design system — tokens, components, voice, accessibility floor |
 | [`AGENT.md`](AGENT.md) | Engineering rules and working practice |
 | [`docs/features.md`](docs/features.md) | Running log of shipped features |

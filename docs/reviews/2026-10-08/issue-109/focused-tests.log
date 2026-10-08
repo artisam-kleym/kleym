@@ -1,0 +1,28 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies", "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v4.1.11 D:/kleym/.worktrees/app-sending-pilot
+
+ ❯ tests/lib/config/secret-classification.test.ts (6 tests | 1 failed) 15ms
+     × still verifies a fixed historical Ed25519 signature with its public key alone 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/lib/config/secret-classification.test.ts > environment classification and emitted log redaction (#109) > still verifies a fixed historical Ed25519 signature with its public key alone
+Error: Failed to read asymmetric key
+ ❯ verifyBytes src/lib/api/audit-chain.ts:287:15
+    285|
+    286| export function verifyBytes(bytes: Buffer, signature: string, publicKe…
+    287|   const key = createPublicKey({ key: Buffer.from(publicKeyBase64, 'bas…
+       |               ^
+    288|   return edVerify(null, bytes, key, Buffer.from(signature, 'base64'))
+    289| }
+ ❯ tests/lib/config/secret-classification.test.ts:51:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 16 passed (17)
+   Start at  21:41:13
+   Duration  1.60s (transform 511ms, setup 684ms, import 1.28s, tests 51ms, environment 0ms)
+

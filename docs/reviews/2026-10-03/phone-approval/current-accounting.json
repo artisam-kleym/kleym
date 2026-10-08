@@ -1,0 +1,115 @@
+{
+  "checkedAt": "2026-10-03T15:58:24.421Z",
+  "network": "testnet",
+  "origin": "https://kleym-web-testnet.up.railway.app",
+  "previousCampaignId": "cmushrocg00040dodb0ev2end",
+  "previousRefund": {
+    "hash": "3c2a5e9f4cced936ebe5714ac8946a9ddafcb32de2a2137db7ce0f70467589e9",
+    "ledger": 5003587,
+    "returnedUsdc": "2.0000000",
+    "feeChargedStroops": "200",
+    "senderSponsorSignaturesVerified": true
+  },
+  "campaignId": "cmusjy67f00020dp4imc8q054",
+  "expiresAt": "2026-10-03T15:50:00.000Z",
+  "expiredNow": true,
+  "funding": {
+    "hash": "b41d0e63d16c13ed1b895f495a23ff0464085d659b5d25b250da2e79e6b0bdf0",
+    "ledger": 5003613,
+    "amount": "3.0000000",
+    "feeChargedStroops": "500",
+    "senderSponsorSignaturesVerified": true
+  },
+  "links": [
+    {
+      "status": "CLAIMED",
+      "balanceId": "00000000b77821ef2d2045e9b936de54be9dec3bb1018d5ec67bf87bbfe561b0d0ebf760",
+      "ledgerBalanceExists": false,
+      "claim": {
+        "hash": "0616c193a2f4c76c89b4b8cb24951a79015e6ab33a14b0e2a1e0463aa69f006d",
+        "ledger": 5003624,
+        "destination": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+        "amount": "1.0000000",
+        "sponsorPaidFee": "400",
+        "exactBalanceClaimed": true,
+        "cleanupMergePresent": true,
+        "operationTypes": [
+          "claim_claimable_balance",
+          "payment",
+          "change_trust",
+          "account_merge"
+        ]
+      }
+    },
+    {
+      "status": "CLAIMED",
+      "balanceId": "00000000621a62247a0f6e16e0916b5a59d26c8e971a30efbf08116c03ae6b783a73ed78",
+      "ledgerBalanceExists": false,
+      "claim": {
+        "hash": "08b0d23b3e1517d35e95738875723c9096a1757a76f3d5cc27d80c7c9ada55a1",
+        "ledger": 5003650,
+        "destination": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+        "amount": "1.0000000",
+        "sponsorPaidFee": "400",
+        "exactBalanceClaimed": true,
+        "cleanupMergePresent": true,
+        "operationTypes": [
+          "claim_claimable_balance",
+          "payment",
+          "change_trust",
+          "account_merge"
+        ]
+      }
+    },
+    {
+      "status": "ACTIVE",
+      "balanceId": "00000000994080e58ae9a9e6e4445f9e05444f39a60e301b035c229bb949f027005f6f74",
+      "ledgerBalanceExists": true,
+      "amount": "1.0000000",
+      "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "sponsor": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+      "claimants": [
+        {
+          "destination": "GDANDPFBW6NB3KRKAYJKKAS3DEM27XFWRC7DQRBB5WNJSXORZZ42DXDH",
+          "predicate": {
+            "abs_before": "2026-10-03T15:50:00Z",
+            "abs_before_epoch": "1791042600"
+          }
+        },
+        {
+          "destination": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "predicate": {
+            "not": {
+              "abs_before": "2026-10-03T15:50:00Z",
+              "abs_before_epoch": "1791042600"
+            }
+          }
+        }
+      ],
+      "claim": null
+    }
+  ],
+  "sender": {
+    "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "native": "0.0000000",
+    "usdc": "11.0000000"
+  },
+  "writes": "Operator login/session only; no campaign mutation, signing or ledger writes",
+  "qualification": "Confirmed refund/new funding/identified payments; no inference of Android device from a payment address.",
+  "recipients": [
+    {
+      "address": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "native": "0.0000000",
+      "usdc": "4.0000000",
+      "trustlineSponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ",
+      "accountSponsor": "GA5BFMCDCFO2YONX6GCJEBIN3W5KHG7QJ7JVBLHVL4AL2YM2MVB2QTZZ"
+    },
+    {
+      "address": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+      "native": "0.0000000",
+      "usdc": "3.0000000",
+      "trustlineSponsor": "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+      "accountSponsor": "GAUKFGMOCJ6CW6MTQZZHRTKH6F2EAYHLJUZ6YWWKO3WHURVX35AHAGIX"
+    }
+  ]
+}

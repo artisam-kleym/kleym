@@ -86,19 +86,19 @@ export async function recordClaimValuation(linkId: string, feeCharged: string | 
   const link = await db.claimLink.findUnique({
     where: { id: linkId },
     select: {
-      id: true, amount: true, status: true, claimedAt: true, claimTxHash: true,
+      id: true, amount: true, status: true, ledgerSettledAt: true, claimTxHash: true,
       campaign: { select: { id: true, assetCode: true, assetIssuer: true, organization: { select: { id: true, reportingCurrency: true } } } },
     },
   })
-  if (!link || (link.status !== 'CLAIMED' && link.status !== 'RECLAIMED') || !link.claimedAt || !link.claimTxHash) return
+  if (!link || (link.status !== 'CLAIMED' && link.status !== 'RECLAIMED') || !link.ledgerSettledAt || !link.claimTxHash) return
   const asset = link.campaign.assetIssuer ? new Asset(link.campaign.assetCode, link.campaign.assetIssuer) : Asset.native()
   const currency = link.campaign.organization.reportingCurrency
-  const priced = await price(asset, currency, link.claimedAt, rates)
+  const priced = await price(asset, currency, link.ledgerSettledAt, rates)
   await db.valuation.upsert({
     where: { linkId: link.id },
     create: {
       organizationId: link.campaign.organization.id, campaignId: link.campaign.id, linkId: link.id, kind: link.status === 'CLAIMED' ? 'CLAIM' : 'RECLAIM',
-      valuedAt: link.claimedAt, assetCode: link.campaign.assetCode, assetIssuer: link.campaign.assetIssuer,
+      valuedAt: link.ledgerSettledAt, timeSource: 'ledger', feeKnown: feeCharged != null, assetCode: link.campaign.assetCode, assetIssuer: link.campaign.assetIssuer,
       amount: new Decimal(link.amount.toString()).toFixed(), feeXlm: feeToXlm(feeCharged).toFixed(), currency,
       rate: priced.rate, xlmRate: priced.xlmRate, rateSource: priced.rateSource, rateWindow: priced.rateWindow,
       xlmRateSource: priced.xlmRateSource, xlmRateWindow: priced.xlmRateWindow, transactionHash: link.claimTxHash,
@@ -113,19 +113,19 @@ export async function recordReclaimValuation(reclaimBatchId: string, feeCharged:
   const reclaim = await db.reclaimBatch.findUnique({
     where: { id: reclaimBatchId },
     select: {
-      id: true, amount: true, submittedAt: true, transactionHash: true,
+      id: true, amount: true, ledgerSettledAt: true, transactionHash: true,
       campaign: { select: { id: true, assetCode: true, assetIssuer: true, organization: { select: { id: true, reportingCurrency: true } } } },
     },
   })
-  if (!reclaim) return
+  if (!reclaim?.ledgerSettledAt) return
   const asset = reclaim.campaign.assetIssuer ? new Asset(reclaim.campaign.assetCode, reclaim.campaign.assetIssuer) : Asset.native()
   const currency = reclaim.campaign.organization.reportingCurrency
-  const priced = await price(asset, currency, reclaim.submittedAt, rates)
+  const priced = await price(asset, currency, reclaim.ledgerSettledAt, rates)
   await db.valuation.upsert({
     where: { reclaimBatchId: reclaim.id },
     create: {
       organizationId: reclaim.campaign.organization.id, campaignId: reclaim.campaign.id, reclaimBatchId: reclaim.id, kind: 'RECLAIM',
-      valuedAt: reclaim.submittedAt, assetCode: reclaim.campaign.assetCode, assetIssuer: reclaim.campaign.assetIssuer,
+      valuedAt: reclaim.ledgerSettledAt, timeSource: 'ledger', feeKnown: feeCharged != null, assetCode: reclaim.campaign.assetCode, assetIssuer: reclaim.campaign.assetIssuer,
       amount: new Decimal(reclaim.amount.toString()).toFixed(), feeXlm: feeToXlm(feeCharged).toFixed(), currency,
       rate: priced.rate, xlmRate: priced.xlmRate, rateSource: priced.rateSource, rateWindow: priced.rateWindow,
       xlmRateSource: priced.xlmRateSource, xlmRateWindow: priced.xlmRateWindow, transactionHash: reclaim.transactionHash,
@@ -163,7 +163,7 @@ export async function revalueUnpriced(rates: RateSource = dexRates, limit = REVA
   const report: RevalueReport = { created: 0, checked: 0, priced: 0 }
 
   const claims = await db.claimLink.findMany({
-    where: { status: 'CLAIMED', claimTxHash: { not: null }, valuation: null },
+    where: { status: 'CLAIMED', claimTxHash: { not: null }, ledgerSettledAt: { not: null }, valuation: null },
     orderBy: [{ claimedAt: 'asc' }, { id: 'asc' }],
     take: limit,
     select: { id: true },
@@ -173,7 +173,7 @@ export async function revalueUnpriced(rates: RateSource = dexRates, limit = REVA
     report.created += 1
   }
   const batches = await db.reclaimBatch.findMany({
-    where: { valuation: null },
+    where: { valuation: null, ledgerSettledAt: { not: null } },
     orderBy: [{ submittedAt: 'asc' }, { id: 'asc' }],
     take: limit,
     select: { id: true },
@@ -201,6 +201,7 @@ export async function revalueUnpriced(rates: RateSource = dexRates, limit = REVA
       FROM "ClaimLink" l
       WHERE l."status" = 'RECLAIMED'
         AND l."claimTxHash" IS NOT NULL
+        AND l."ledgerSettledAt" IS NOT NULL
         AND NOT EXISTS (SELECT 1 FROM "Valuation" v WHERE v."linkId" = l."id")
         AND NOT EXISTS (SELECT 1 FROM "ReclaimBatch" b WHERE b."transactionHash" = l."claimTxHash")
       ORDER BY l."claimedAt" ASC, l."id" ASC
@@ -213,7 +214,7 @@ export async function revalueUnpriced(rates: RateSource = dexRates, limit = REVA
   }
 
   const rows = await db.valuation.findMany({
-    where: { OR: [{ rate: null }, { xlmRate: null, feeXlm: { gt: 0 } }] },
+    where: { timeSource: 'ledger', OR: [{ rate: null }, { xlmRate: null, feeXlm: { gt: 0 } }] },
     orderBy: [{ attempts: 'asc' }, { valuedAt: 'asc' }, { id: 'asc' }],
     take: limit,
     select: { id: true, assetCode: true, assetIssuer: true, currency: true, valuedAt: true, rate: true, xlmRate: true, feeXlm: true },
@@ -281,7 +282,7 @@ export interface AccountingQuery {
 }
 
 const VALUATION_SELECT = {
-  id: true, kind: true, valuedAt: true, assetCode: true, assetIssuer: true, amount: true, feeXlm: true, currency: true,
+  id: true, kind: true, valuedAt: true, timeSource: true, feeKnown: true, assetCode: true, assetIssuer: true, amount: true, feeXlm: true, currency: true,
   rate: true, xlmRate: true, rateSource: true, rateWindow: true, xlmRateSource: true, xlmRateWindow: true, transactionHash: true, campaignId: true, linkId: true, reclaimBatchId: true,
   link: { select: { label: true, reference: true, claimedBy: true } },
   reclaimBatch: { select: { balanceCount: true } },
@@ -318,6 +319,7 @@ export const ACCOUNTS = {
 export const JOURNAL_COLUMNS = [
   'lineId', 'entryId', 'date', 'kind', 'campaignId', 'campaignName', 'linkId', 'reclaimBatchId', 'counterparty', 'transactionHash',
   'debitAccount', 'creditAccount', 'assetCode', 'assetAmount', 'currency', 'rate', 'rateSource', 'rateWindow', 'fiatAmount', 'description',
+  'timeSource', 'feeEvidence',
 ] as const
 
 export type JournalLine = Record<(typeof JOURNAL_COLUMNS)[number], string | null>
@@ -346,6 +348,7 @@ export function journalLines(rows: ValuationRow[]): JournalLine[] {
     const base = {
       entryId, date, campaignId: r.campaignId, campaignName: r.campaignName, linkId: r.linkId, reclaimBatchId: r.reclaimBatchId,
       counterparty: r.link?.claimedBy ?? null, transactionHash: r.transactionHash, currency: r.currency,
+      timeSource: r.timeSource, feeEvidence: r.feeKnown ? 'confirmed' : 'unavailable',
     }
     out.push({
       ...base,
@@ -361,7 +364,7 @@ export function journalLines(rows: ValuationRow[]): JournalLine[] {
           : `Reclaim of ${fixed(r.amount)} ${r.assetCode} — link ${r.linkId} returned (reversal)`,
     })
     const fee = new Decimal(r.feeXlm.toString())
-    if (fee.greaterThan(0)) {
+    if (r.feeKnown && fee.greaterThan(0)) {
       out.push({
         ...base,
         lineId: `${entryId}:fee`, kind: 'fee',
@@ -399,15 +402,15 @@ export function buildAccountingExport(
   let body: Buffer
   let contentType: string
   if (format === 'json') {
-    const entries = new Map<string, { entryId: string; date: string; description: string; transactionHash: string | null; lines: { account: string; debit: string | null; credit: string | null; currency: string; assetCode: string | null; assetAmount: string | null; rate: string | null; rateSource: string | null }[] }>()
+    const entries = new Map<string, { entryId: string; date: string; timeSource: string | null; feeEvidence: string | null; description: string; transactionHash: string | null; lines: { account: string; debit: string | null; credit: string | null; currency: string; assetCode: string | null; assetAmount: string | null; rate: string | null; rateSource: string | null }[] }>()
     for (const l of lines) {
-      const entry = entries.get(l.entryId!) ?? { entryId: l.entryId!, date: l.date!, description: l.description!, transactionHash: l.transactionHash, lines: [] }
+      const entry = entries.get(l.entryId!) ?? { entryId: l.entryId!, date: l.date!, timeSource: l.timeSource, feeEvidence: l.feeEvidence, description: l.description!, transactionHash: l.transactionHash, lines: [] }
       entry.lines.push({ account: l.debitAccount!, debit: l.fiatAmount, credit: null, currency: l.currency!, assetCode: l.assetCode, assetAmount: l.assetAmount, rate: l.rate, rateSource: l.rateSource })
       entry.lines.push({ account: l.creditAccount!, debit: null, credit: l.fiatAmount, currency: l.currency!, assetCode: l.assetCode, assetAmount: l.assetAmount, rate: l.rate, rateSource: l.rateSource })
       entries.set(l.entryId!, entry)
     }
     body = Buffer.from(canonicalJson({
-      format: 'kleym-accounting-export', version: 1,
+      format: 'kleym-accounting-export', version: 2,
       organization: { id: query.organizationId, name: query.organizationName },
       currency: query.currency, campaignId: query.campaignId ?? null,
       from: query.from?.toISOString() ?? null, to: query.to?.toISOString() ?? null,

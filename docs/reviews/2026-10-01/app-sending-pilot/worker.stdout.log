@@ -1,0 +1,4 @@
+{"level":30,"time":1790836993425,"pid":29004,"hostname":"Adealix","service":"kleym-worker","queues":["batch-confirm","email-deliver","webhook-deliver","reconcile","expiry-sweep","ephemeral-watch","delivery-retention","reminders","templates","valuations"],"msg":"worker started"}
+{"level":30,"time":1790837101251,"pid":29004,"hostname":"Adealix","campaignsChecked":0,"linksChecked":0,"corrected":0,"critical":0,"unresolved":0,"remaining":0,"manual":false,"msg":"reconciliation completed"}
+{"level":30,"time":1790837102738,"pid":29004,"hostname":"Adealix","checked":0,"stranded":0,"critical":0,"resolved":0,"handedOff":0,"lockedXlm":"0","remaining":0,"msg":"ephemeral watch completed"}
+{"level":30,"time":1790837400102,"pid":29004,"hostname":"Adealix","campaignsChecked":0,"linksChecked":0,"corrected":0,"critical":0,"unresolved":0,"remaining":0,"manual":false,"msg":"reconciliation completed"}

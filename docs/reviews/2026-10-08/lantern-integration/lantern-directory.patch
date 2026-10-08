@@ -1,0 +1,20 @@
+--- a/src/core/miniapps/directory.ts
++++ b/src/core/miniapps/directory.ts
+@@ -100,6 +100,17 @@
+   // session so its login survives (#260). Testnet-only for now, so on mainnet
+   // it shows a "Testnet" chip rather than disappearing. `verified` flips to
+   // true once the device QA in slice 8 (#266) passes.
++  {
++    id: 'kleym',
++    name: 'Kleym',
++    tagline: 'Distribute USDC through claim links.',
++    category: 'Payments',
++    icon: 'link',
++    url: 'https://kleym-web-testnet.up.railway.app/dashboard',
++    session: true,
++    verified: false,
++    networks: ['TESTNET'],
++  },
+   {
+     id: 'centient',
+     name: 'Centient',

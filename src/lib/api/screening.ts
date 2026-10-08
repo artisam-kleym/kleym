@@ -25,6 +25,7 @@ import { recordAudit } from './audit'
 import { canonicalJson } from './audit-chain'
 import { LINK_ORDER } from './link-order'
 import { outboundUrlFor } from '@/lib/validation/outbound-url'
+import { outboundFetch } from '@/lib/validation/outbound-fetch'
 
 export const SCREENING_REQUEST_VERSION = 1
 
@@ -186,7 +187,7 @@ async function callScreening(url: string, request: ScreeningRequest, deps: Scree
   const timer = setTimeout(() => controller.abort(), env.SCREENING_TIMEOUT_MS)
   const doFetch = deps.fetch ?? fetch
   try {
-    const response = await doFetch(url, { method: 'POST', headers, body, signal: controller.signal, redirect: 'error' })
+    const response = await outboundFetch(url, { method: 'POST', headers, body, signal: controller.signal }, doFetch)
     if (!response.ok) {
       logger.warn({ campaignId: request.campaign.id, status: response.status }, 'screening callback refused; holding')
       return { decision: 'hold', reason: null, source: 'status' }
@@ -204,9 +205,9 @@ async function callScreening(url: string, request: ScreeningRequest, deps: Scree
       return { decision: 'hold', reason: null, source: 'invalid' }
     }
     return { decision: parsed.data.decision, reason: senderReason(parsed.data.reason), reference: parsed.data.reference, source: 'callback' }
-  } catch (error) {
+  } catch {
     const timedOut = controller.signal.aborted
-    logger.warn({ campaignId: request.campaign.id, reason: timedOut ? 'timeout' : error instanceof Error ? error.message : 'unknown' }, 'screening callback failed; holding')
+    logger.warn({ campaignId: request.campaign.id, reason: timedOut ? 'timeout' : 'destination or transport failure' }, 'screening callback failed; holding')
     return { decision: 'hold', reason: null, source: timedOut ? 'timeout' : 'error' }
   } finally {
     clearTimeout(timer)

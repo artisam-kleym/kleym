@@ -9,7 +9,7 @@ import { loadClaimable, prepareMaterialise, prepareClaim, submitClaim } from '@/
 import { GET } from '@/app/api/stellar/network/route'
 import { KleymClient } from '../../../packages/sdk/src/client'
 
-const db = vi.hoisted(() => ({ campaign: { findFirst: vi.fn(), findUnique: vi.fn() }, batch: { findFirst: vi.fn() }, claimLink: { findUnique: vi.fn() } }))
+const db = vi.hoisted(() => ({ campaign: { findFirst: vi.fn(), findUnique: vi.fn() }, batch: { findFirst: vi.fn() }, claimLink: { findUnique: vi.fn() }, ledgerAttempt: { findUnique: vi.fn(), updateMany: vi.fn() } }))
 vi.mock('@/lib/db/client', () => ({ prisma: db }))
 
 const ephemeral = Keypair.random().publicKey()
@@ -26,6 +26,9 @@ function claimEnvelope(phase: 'claim' | 'materialise') {
   }
   const tx = builder.build()
   tx.sign(Keypair.fromSecret(env.SPONSOR_SECRET_KEY))
+  // Current submission requires durable preparation before probing/submitting.
+  // These synthetic create/claim operations are sponsor-signed fixture bodies.
+  db.ledgerAttempt.findUnique.mockResolvedValue({ scope: `${phase}:link`, transactionHash: tx.hash().toString('hex'), status: 'PREPARED', metadata: { requiredSigners: [env.SPONSOR_PUBLIC_KEY] } })
   return tx
 }
 
@@ -38,6 +41,8 @@ function rows(network: string, sponsorPublicKey: string | null = null) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  db.ledgerAttempt.findUnique.mockResolvedValue(null)
+  db.ledgerAttempt.updateMany.mockResolvedValue({ count: 1 })
   db.campaign.findUnique.mockResolvedValue(null)
   db.batch.findFirst.mockResolvedValue({ id: 'batch', sequence: 1, status: 'PENDING', transactionHash: null, links: [] })
   vi.stubGlobal('fetch', fetchMock)
@@ -97,9 +102,18 @@ describe('every monetary API entry point', () => {
     const campaign = rows('testnet')
     const tx = claimEnvelope('claim')
     const hash = tx.hash().toString('hex')
+    db.ledgerAttempt.findUnique.mockResolvedValue({ scope: 'claim:link', transactionHash: hash, status: 'CONFIRMED', metadata: { requiredSigners: [env.SPONSOR_PUBLIC_KEY] } })
     db.claimLink.findUnique.mockResolvedValue({ id: 'link', campaignId: 'campaign', status: 'CLAIMED', balanceId, claimTxHash: hash, campaign })
     fetchMock.mockRejectedValue(new Error('offline'))
     expect(await submitClaim(ephemeral, tx.toXDR(), 'claim')).toMatchObject({ kind: 'ok', value: { hash, replay: true } })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('refuses a signed claim with no durable prepared envelope before provider access', async () => {
+    rows('testnet')
+    const tx = claimEnvelope('claim')
+    db.ledgerAttempt.findUnique.mockResolvedValue(null)
+    expect(await submitClaim(ephemeral, tx.toXDR(), 'claim')).toMatchObject({ kind: 'conflict', detail: 'That transaction was not the prepared envelope for this link.' })
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

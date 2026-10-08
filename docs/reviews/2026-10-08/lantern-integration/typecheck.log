@@ -1,0 +1,2 @@
+tests/lib/wallet/sender-mobile.test.ts(19,50): error TS6133: 'network' is declared but its value is never read.
+tests/lib/wallet/sender-mobile.test.ts(19,58): error TS6133: 'address' is declared but its value is never read.

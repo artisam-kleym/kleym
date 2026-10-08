@@ -1,0 +1,25 @@
+{
+  "checkedAtUTC": "2026-09-30T14:10:45.728Z",
+  "url": "http://127.0.0.1:3218",
+  "httpStatus": 200,
+  "state": {
+    "sender": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "recipient": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+    "recipientMode": "existing-no-trustline",
+    "sponsor": "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+    "publicKeys": [],
+    "balanceIds": [],
+    "expiries": [],
+    "receipts": {},
+    "fatal": false
+  },
+  "bootstrapStillReachable": true,
+  "desktopWidth": 1280,
+  "mobileWidth": 390,
+  "noOverflow": true,
+  "fundingGatedOnSavedLocalKeys": true,
+  "browserErrors": [],
+  "postRequests": [],
+  "acceptancePassed": true,
+  "scope": "Live lifecycle page readiness; no private key generation, wallet signing, sponsor funding or ledger submission."
+}

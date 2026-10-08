@@ -1,96 +1,81 @@
 'use client'
 
-/**
- * Wallet signing for envelopes the SENDER must approve. SPEC.md §8.
- *
- * Used by campaign creation (#8) and by reclaim (#13). It lives here rather
- * than beside the wizard because both flows hand the sender's own wallet an
- * unsigned envelope and get one back — the same operation, whatever the
- * transaction turns out to contain.
- *
- * Goes through `@creit.tech/stellar-wallets-kit` rather than Freighter's API
- * directly: the kit gives xBull, Albedo, Rabet, Lobstr and Hana for the same
- * work, and which wallet the sender uses is not Kleym's choice to make.
- *
- * The kit is v2, whose surface is entirely STATIC — `StellarWalletsKit.init`,
- * `.authModal`, `.signTransaction`. Earlier versions were instance-based with
- * `openModal`/`setWallet`/`getAddress`; that API no longer exists, and code
- * written from memory against it does not compile (AGENT.md §3.1).
- *
- * Imported lazily. The kit carries every wallet adapter it supports, and the
- * wizard's first two steps need none of them — nor does a sender who abandons
- * at step 1.
- */
+/** Campaign wallet routing: embedded Lantern, phone Freighter, desktop Freighter. */
 type Network = 'testnet' | 'public'
+import { connectLantern, lanternParentOrigin, signLantern } from './lantern'
+import { FREIGHTER_APP_LINK, freighterPairingLink, phoneBrowserSnapshot } from './phone'
 
-let initialised = false
+let mobileProjectId = ''
+let senderTransport: 'desktop' | 'mobile' = 'desktop'
+let mobileLink = ''
+let connecting: AbortController | null = null
+const mobileListeners = new Set<() => void>()
+export function subscribeSenderMobile(notify: () => void) { mobileListeners.add(notify); return () => { mobileListeners.delete(notify) } }
+export function senderMobileSnapshot() { return mobileLink }
+function showMobileLink(link: string) { mobileLink = link; mobileListeners.forEach((notify) => notify()) }
+export function cancelSenderConnection() { connecting?.abort() }
+export function configureSenderMobile(projectId: string) { mobileProjectId = projectId }
 
-async function kit() {
-  const sdk = await import('@creit.tech/stellar-wallets-kit')
-  const { defaultModules } = await import('@creit.tech/stellar-wallets-kit/modules/utils')
-  return { sdk, defaultModules }
+async function adapter(network: Network) {
+  const { FreighterModule } = await import('@creit.tech/stellar-wallets-kit/modules/freighter')
+  const { Networks } = await import('@creit.tech/stellar-wallets-kit/types')
+  const wallet = new FreighterModule()
+  const passphrase = network === 'public' ? Networks.PUBLIC : Networks.TESTNET
+  if (!(await wallet.isAvailable())) throw new Error('Open Freighter in this desktop browser, unlock it, then try again.')
+  return { wallet, passphrase }
 }
 
-async function ensureInitialised(network: Network, walletIds?: readonly string[]) {
-  const { sdk, defaultModules } = await kit()
-
-  const target = network === 'public' ? sdk.Networks.PUBLIC : sdk.Networks.TESTNET
-
-  if (!initialised || walletIds) {
-    const modules = walletIds
-      ? defaultModules({ filterBy: (module) => walletIds.includes(module.productId) })
-      : defaultModules()
-    if (!modules.length) throw new Error('No supported wallet matches this connection request.')
-    sdk.StellarWalletsKit.init({ modules, network: target })
-    initialised = true
-  } else {
-    // A sender who backs up and switches network mid-wizard must not sign for
-    // the one they started on.
-    sdk.StellarWalletsKit.setNetwork(target)
+async function checkNetwork(wallet: Awaited<ReturnType<typeof adapter>>['wallet'], passphrase: string, network: Network) {
+  if ((await wallet.getNetwork()).networkPassphrase !== passphrase) {
+    throw new Error(`Switch Freighter to ${network === 'testnet' ? 'Testnet' : 'Mainnet'}, then try again.`)
   }
-
-  return sdk
 }
 
-/** Opens the wallet chooser and returns the address the sender picked. */
+/** Connecting is an explicit access request, never a signature or submission. */
 export async function connectWallet(network: Network, options?: { walletIds: readonly string[] }): Promise<string> {
-  const sdk = await ensureInitialised(network, options?.walletIds)
-  const { address } = await sdk.StellarWalletsKit.authModal()
+  if (lanternParentOrigin()) return connectLantern(network)
+  if (options && !options.walletIds.includes('freighter')) throw new Error('No supported wallet matches this connection request. This pilot uses Freighter.')
+  if (phoneBrowserSnapshot()) {
+    if (!/^[a-f0-9]{32}$/i.test(mobileProjectId)) throw new Error('Phone wallet connections are not configured. Open Kleym in Lantern or ask the sender to enable phone connections.')
+    if (connecting) throw new Error('Finish or cancel the current phone connection first.')
+    connecting = new AbortController()
+    try {
+      const { connectMobile } = await import('./mobile')
+      const address = await connectMobile(network, { projectId: mobileProjectId }, (uri) => {
+        const link = freighterPairingLink(uri); showMobileLink(link); window.location.href = link
+      }, connecting.signal)
+      senderTransport = 'mobile'
+      return address
+    } finally { connecting = null; showMobileLink('') }
+  }
+  senderTransport = 'desktop'
+  const { wallet, passphrase } = await adapter(network)
+  const { address } = await wallet.getAddress({})
+  await checkNetwork(wallet, passphrase, network)
   return address
 }
 
-/**
- * Signs one envelope.
- *
- * Kleym holds no key that could sign this. The signed result is re-derived
- * against the campaign row server-side before submission
- * (lib/stellar/batch.ts) — a wallet can return a different transaction than
- * the one it was handed, and being the sender's own wallet does not change
- * that.
- */
-export async function signEnvelope(
-  xdr: string,
-  network: Network,
-  senderPublicKey: string,
-): Promise<string> {
-  const sdk = await ensureInitialised(network)
-
-  const { signedTxXdr } = await sdk.StellarWalletsKit.signTransaction(xdr, {
-    address: senderPublicKey,
-    networkPassphrase:
-      network === 'public' ? sdk.Networks.PUBLIC : sdk.Networks.TESTNET,
+/** Server verification still binds the exact envelope, signer and network. */
+export async function signEnvelope(xdr: string, network: Network, senderPublicKey: string): Promise<string> {
+  if (lanternParentOrigin()) return signLantern(xdr, network, senderPublicKey)
+  if (senderTransport === 'mobile') {
+    try {
+      return await (await import('./mobile')).signMobile(xdr, network, senderPublicKey, () => { showMobileLink(FREIGHTER_APP_LINK); window.location.href = FREIGHTER_APP_LINK })
+    } finally { showMobileLink('') }
+  }
+  const { wallet, passphrase } = await adapter(network)
+  await checkNetwork(wallet, passphrase, network)
+  const { signedTxXdr, signerAddress } = await wallet.signTransaction(xdr, {
+    address: senderPublicKey, networkPassphrase: passphrase,
   })
-
+  if (!signedTxXdr) throw new Error('Freighter did not return a signed transaction.')
+  if (signerAddress && signerAddress !== senderPublicKey) throw new Error('Freighter signed with a different account. Select the funding account and try again.')
   return signedTxXdr
 }
 
-/** Human-readable reason from whatever the wallet threw. */
+/** Parse adapter errors without loading the modal and masking the original error. */
 export async function walletErrorMessage(error: unknown): Promise<string> {
-  try {
-    const { parseError } = await import('@creit.tech/stellar-wallets-kit')
-    const parsed = parseError(error)
-    return parsed.message ?? 'The wallet did not complete the request.'
-  } catch {
-    return error instanceof Error ? error.message : 'The wallet did not complete the request.'
-  }
+  if (error instanceof Error) return error.message
+  if (typeof error === 'object' && error && 'message' in error && typeof error.message === 'string') return error.message
+  return 'The wallet did not complete the request.'
 }

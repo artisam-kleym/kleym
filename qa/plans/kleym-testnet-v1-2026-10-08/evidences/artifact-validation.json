@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "plan_version": "v1",
+    "prepared": "2026-10-08",
+    "source_base": "4163d7954bff9c1582c0c405174cddbe6951da33",
+    "candidate": "Fill final PR head commit before execution; local accumulated candidate plus issue #109 fix",
+    "access": "Kleym source; Lantern reference packaged artifacts only",
+    "case_count": 118,
+    "counts": {
+      "D1": 48,
+      "D2": 28,
+      "D3": 25,
+      "D4": 17
+    },
+    "statuses": {
+      "Not Run": 118
+    }
+  },
+  "pdf_pages": 38,
+  "validation": "Unique IDs, row counts, initial status, formulas and all PDF case IDs checked; no formula evaluator used"
+}

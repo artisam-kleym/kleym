@@ -12,7 +12,7 @@ Ephemeral seeds are generated in the sender's browser, placed in URL fragments, 
 
 Before writing any line that touches a keypair, ask: *could this value reach the server, a log, a database, or a third party?* If yes, the design is wrong — stop and reconsider rather than adding a mitigation.
 
-The one deliberate exception is email delivery (SPEC §6.5), where a full link URL transits the server in memory to reach the mail provider. It is never persisted or logged, and the job payload is deleted on completion. Do not extend this exception anywhere else.
+Current deployments use local-link distribution only (#108). Bearer-link email ingress is disabled, and new email-only campaigns are refused. Historical email code persists full URLs in Redis job payloads and may have copied them into backups/provider systems; it did not provide the browser-only guarantee. A development-only Testnet flag qualifies that historical path, and cannot enable it in production or on the public network. Existing legacy jobs are held for explicit operator review, not silently deleted. Receipt/reminder messages contain no claim URL. See `docs/data-handling.md`; do not extend the historical exception.
 
 **Self-check before every commit:**
 ```bash
@@ -123,7 +123,7 @@ Structured JSON via `pino`. Redact by allowlist, not denylist — log named fiel
 
 - argon2id with sensible memory and time costs. Never bcrypt, never SHA-anything.
 - Sessions are opaque random tokens stored hashed (SHA-256) in Postgres. Not JWTs — JWTs cannot be revoked, and this application needs revocation.
-- Cookie: `__Host-kleym_session`, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`.
+- Cookie: `__Host-kleym_session`, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`. With explicitly configured Lantern origins, Chromium embedded sender sessions use `SameSite=None; Partitioned` plus exact-origin mutation checks. See `docs/lantern-integration.md`.
 - Rotate the session ID on login and on password change.
 - Rate limit login to 5 attempts per 15 minutes per IP, with per-account lockout after 10.
 - Identical error text and comparable response time for unknown username and wrong password.
@@ -145,7 +145,7 @@ Verify by loading the page with devtools open and confirming the network tab sho
 
 ### 5.3 Headers
 
-Set globally in `middleware.ts`: `Content-Security-Policy` (nonce-based), `Strict-Transport-Security` with preload, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` (overridden to `no-referrer` on `/claim`), and a restrictive `Permissions-Policy`.
+Set globally in `middleware.ts`: `Content-Security-Policy` (nonce-based), `Strict-Transport-Security` with preload, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` (overridden to `no-referrer` on `/claim`), and a restrictive `Permissions-Policy`. Explicit Lantern integration permits only designated sender/public routes to be framed by exact configured wallet origins; those pages omit X-Frame-Options. Administration stays unframeable. See `docs/lantern-integration.md`.
 
 ### 5.4 Input handling
 

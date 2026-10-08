@@ -1,0 +1,88 @@
+{
+  "checkedAt": "2026-10-03T16:18:51.815Z",
+  "project": "48614d0d-2e58-4848-af96-2184e3044c47",
+  "environment": "cbca2958-d44a-4ca8-8d4e-746a61584d02",
+  "services": [
+    {
+      "name": "web",
+      "id": "4d547645-da9f-4e1e-aec3-2511f6239fc3",
+      "deploymentId": "197465e3-afaf-4e54-9eb4-28316963f324",
+      "status": "REMOVED",
+      "createdAt": "2026-10-03T15:52:52.640Z"
+    },
+    {
+      "name": "worker",
+      "id": "2490753a-e4ba-471c-87c9-a6dd7d74d567",
+      "deploymentId": "395027b9-21f2-4d15-ab4a-e3d03bb05b97",
+      "status": "REMOVED",
+      "createdAt": "2026-10-03T13:12:33.715Z"
+    },
+    {
+      "name": "postgres",
+      "id": "37702f7c-d942-4b00-96aa-16b5c4a8b58e",
+      "deploymentId": "cccf3fa0-8d9d-4462-a645-c62e2c6c03be",
+      "status": "REMOVED",
+      "createdAt": "2026-10-03T12:56:31.566Z"
+    },
+    {
+      "name": "redis",
+      "id": "45121e0c-a4e7-4961-8004-102e6dfa6d03",
+      "deploymentId": "fc39ac58-68f2-445d-b91e-4abcfada660d",
+      "status": "REMOVED",
+      "createdAt": "2026-10-03T12:56:41.024Z",
+      "deploymentMetaKeys": [
+        "image",
+        "imageDigest",
+        "logsV2",
+        "patchId",
+        "reason",
+        "runtime",
+        "serviceManifest",
+        "volumeMounts"
+      ],
+      "persistenceVerification": "pending runtime CONFIG GET; no inference from missing command metadata"
+    }
+  ],
+  "volumesRetained": [
+    {
+      "currentSizeMB": 32.178176,
+      "deletedAt": null,
+      "id": "38b09453-d0b2-4446-8e9c-e795a874bcca",
+      "isPendingDeletion": false,
+      "mountPath": "/data",
+      "name": "redis-volume",
+      "serviceName": "Redis",
+      "sizeMB": 500,
+      "status": "Ready"
+    },
+    {
+      "currentSizeMB": 83.42732799999999,
+      "deletedAt": null,
+      "id": "73798d01-f324-42dc-bee7-5d08a3648688",
+      "isPendingDeletion": false,
+      "mountPath": "/var/lib/postgresql/data",
+      "name": "postgres-volume",
+      "serviceName": "Postgres",
+      "sizeMB": 500,
+      "status": "Ready"
+    }
+  ],
+  "publicReadyHttpStatus": 404,
+  "walletConnect": "Project and allowed origins retained; no dashboard mutation needed for unused core connections",
+  "deletedServices": 0,
+  "deletedVolumes": 0,
+  "changedVariables": 0,
+  "agentLedgerWrites": 0,
+  "trialDeadlinePaused": false,
+  "storageCostsContinue": true,
+  "redisSaveConfiguration": "--save 60 1, retained /data volume; successful RDB saves observed",
+  "redisShutdownSaveObserved": true,
+  "postgresCleanShutdownObserved": true,
+  "resumeOrder": [
+    "Postgres",
+    "Redis",
+    "kleym-worker",
+    "kleym-web"
+  ],
+  "inspectionLimitation": "SSH CONFIG GET unavailable because no registered/local SSH key; no key created. Configuration metadata and database shutdown logs used instead."
+}

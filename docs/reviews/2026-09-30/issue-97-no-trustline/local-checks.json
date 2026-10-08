@@ -1,0 +1,31 @@
+{
+  "date": "2026-09-30",
+  "checkout": "D:/kleym/.worktrees/97-recipient-matrix",
+  "checks": [
+    {
+      "command": "node_modules/.bin/vitest.cmd run tests/scripts/freighter-bootstrap.test.ts tests/scripts/freighter-lifecycle.test.ts tests/lib/stellar/claim.test.ts",
+      "exitCode": 0,
+      "output": "RUN v4.1.11 D:/kleym/.worktrees/97-recipient-matrix\nTest Files 3 passed (3)\nTests 56 passed (56)\nStart at 18:13:28\nDuration 2.63s (transform 431ms, setup 5.75s, import 392ms, tests 383ms, environment 0ms)",
+      "scope": "16 bootstrap tests, including three new account-only cases, plus 40 existing lifecycle/claim tests."
+    },
+    {
+      "command": "node_modules/.bin/tsc.cmd --noEmit",
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "command": "node_modules/.bin/eslint.cmd scripts/lib/freighter-bootstrap.ts scripts/spike-freighter-bootstrap.ts scripts/freighter-bootstrap-browser.ts tests/scripts/freighter-bootstrap.test.ts",
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0,
+      "output": "No whitespace errors. Git reported its existing Windows LF-to-CRLF normalisation notices."
+    }
+  ],
+  "acceptancePassed": true,
+  "hostedCiPassed": false,
+  "liveRecipientWithoutTrustlineCasePassed": false,
+  "provenance": "Recorded from the actual tool results of this preparation. Outputs are whitespace-normalised; not a rerun."
+}

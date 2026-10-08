@@ -4,6 +4,13 @@
 **Status:** Ready for implementation
 **Audience:** Code-generation agent + human reviewers
 
+**October 1 app update:** New campaign API-created USDC uses sponsor-paid
+funding and expiry reclaim. Historical campaigns and automatic template drafts
+retain sender-paid funding. The two-transaction claim is preserved. The
+[app sending guide](docs/app-sending.md) documents these implemented changes,
+public-envelope recovery, and the current private-CSV delivery scope; older
+fee and delivery descriptions below are the original specification.
+
 ---
 
 ## 1. Overview
@@ -637,7 +644,7 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 
 ### 6.1 Conventions
 
-- **Auth:** session cookie (`__Host-kleym_session`, `HttpOnly`, `Secure`, `SameSite=Lax`) for the app; `Authorization: Bearer <api_key>` for the public API.
+- **Auth:** session cookie (`__Host-kleym_session`, `HttpOnly`, `Secure`, `SameSite=Lax`) for the app; `Authorization: Bearer <api_key>` for the public API. Explicitly enabled Lantern deployments use `SameSite=None; Partitioned` with exact-origin mutation checks for embedded sender sessions; see `docs/lantern-integration.md`.
 - **Validation:** every input parsed with Zod. Reject unknown keys.
 - **Idempotency:** all `POST` that touch chain state require an `Idempotency-Key` header.
   The key is scoped to the user — `@@id([userId, key])`, amended from `key @id`.
@@ -702,7 +709,7 @@ Both `prepare` endpoints must re-verify against the ledger — not the database 
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/campaigns/[id]/deliver` | Queue email sends. Body: `[{ publicKey, email }]`. **The server does not know the link URLs** — the client sends the full URL per recipient, the server queues it for immediate send, and it is never persisted. |
+| POST | `/api/campaigns/[id]/deliver` | Disabled for current deployments (#108): distribute individual links privately from the saved CSV. Historical bearer email persisted full URLs in Redis; only development Testnet harnesses may exercise it. Existing jobs are held for operator review. See `docs/data-handling.md`. |
 
 This is the one place a full link transits the server. Mitigations, all mandatory: the URL is passed to the mail provider and discarded, never written to the database, never logged, and the job payload is deleted from Redis on completion. Document this trade-off prominently. If the sender prefers zero exposure, they distribute the CSV themselves.
 
@@ -747,7 +754,7 @@ BullMQ on Redis, consumed by `kleym-worker`.
 | Queue | Trigger | Work |
 |---|---|---|
 | `batch-confirm` | After submit | Poll Horizon until the tx is in a closed ledger; extract balance IDs from the result XDR; mark links `ACTIVE` |
-| `email-deliver` | Sender action | Send one link email; discard the URL immediately |
+| `email-deliver` | Worker | Hold historical bearer jobs for operator review; process URL-free receipts/reminders. Bearer ingress is disabled in current deployments. |
 | `reconcile` | Cron, every 5 min | §7.2 |
 | `expiry-sweep` | Cron, hourly | Mark past-expiry links `EXPIRED`, campaigns `EXPIRED`; mark every expired campaign with unclaimed links reclaim-due once and emit `campaign.reclaim_due` (#72, #78) |
 | `ephemeral-watch` | Cron, every 15 min | Detect and report stranded ephemeral accounts — see §7.3 |

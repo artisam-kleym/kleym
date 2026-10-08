@@ -50,7 +50,7 @@ async function fixture() {
     prisma.claimLink.create({
       data: {
         campaignId: campaign.id, ephemeralPublicKey: Keypair.random().publicKey(), amount, status: 'CLAIMED',
-        claimedBy: Keypair.random().publicKey(), claimedAt: at, claimTxHash: randomUUID().replace(/-/g, '').repeat(2),
+        claimedBy: Keypair.random().publicKey(), claimedAt: at, ledgerSettledAt: at, claimTxHash: randomUUID().replace(/-/g, '').repeat(2),
       },
       select: { id: true },
     })
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
   check('a priced row is not repriced', (await prisma.valuation.findUnique({ where: { linkId: f.b.id } }))?.rate?.toFixed() === '0.25')
 
   console.log('\n3. A reclaim is a reversal at its own time')
-  const reclaim = await prisma.reclaimBatch.create({ data: { campaignId: f.campaignId, transactionHash: randomUUID().replace(/-/g, '').repeat(2), balanceCount: 1, amount: '1.0000000' }, select: { id: true } })
+  const reclaim = await prisma.reclaimBatch.create({ data: { campaignId: f.campaignId, transactionHash: randomUUID().replace(/-/g, '').repeat(2), balanceCount: 1, amount: '1.0000000', ledgerSettledAt: new Date('2026-10-01T12:00:00Z') }, select: { id: true } })
   await recordReclaimValuation(reclaim.id, '100', rates({ XLM: '0.3' }))
   const rows = await valuationRows({ organizationId: f.organizationId, campaignId: f.campaignId })
   const lines = journalLines(rows)
@@ -100,7 +100,7 @@ async function main(): Promise<void> {
   console.log('\n5. The pass creates the row a failed claim-time write left missing — never one for a batch-reclaimed link')
   const g = await fixture()
   const missingClaim = g.a // CLAIMED, hash set, no valuation: the claim-time write never happened.
-  const batch = await prisma.reclaimBatch.create({ data: { campaignId: g.campaignId, transactionHash: randomUUID().replace(/-/g, '').repeat(2), balanceCount: 1, amount: '1.0000000' }, select: { id: true, transactionHash: true } })
+  const batch = await prisma.reclaimBatch.create({ data: { campaignId: g.campaignId, transactionHash: randomUUID().replace(/-/g, '').repeat(2), balanceCount: 1, amount: '1.0000000', ledgerSettledAt: new Date('2026-10-01T12:00:00Z') }, select: { id: true, transactionHash: true } })
   // A link the batch returned: carries the batch's hash, valued by the batch row, never per link.
   const batched = await prisma.claimLink.create({
     data: { campaignId: g.campaignId, ephemeralPublicKey: Keypair.random().publicKey(), amount: '1', status: 'RECLAIMED', claimedAt: new Date('2026-08-01T00:00:00Z'), claimTxHash: batch.transactionHash },
@@ -108,7 +108,7 @@ async function main(): Promise<void> {
   })
   // A link reconcile corrected to RECLAIMED from the ledger: its hash is no batch's.
   const corrected = await prisma.claimLink.create({
-    data: { campaignId: g.campaignId, ephemeralPublicKey: Keypair.random().publicKey(), amount: '1', status: 'RECLAIMED', claimedAt: new Date('2026-09-02T00:00:00Z'), claimTxHash: randomUUID().replace(/-/g, '').repeat(2) },
+    data: { campaignId: g.campaignId, ephemeralPublicKey: Keypair.random().publicKey(), amount: '1', status: 'RECLAIMED', ledgerSettledAt: new Date('2026-09-02T00:00:00Z'), claimedAt: new Date('2026-09-02T00:00:00Z'), claimTxHash: randomUUID().replace(/-/g, '').repeat(2) },
     select: { id: true },
   })
   const created = await revalueUnpriced(rates({ XLM: '0.4' }), 50)

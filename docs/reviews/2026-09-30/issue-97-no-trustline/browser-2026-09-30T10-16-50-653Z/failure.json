@@ -1,0 +1,8 @@
+{
+  "startedAtUTC": "2026-09-30T10:16:50.653Z",
+  "acceptancePassed": false,
+  "error": "ERR_MODULE_NOT_FOUND: initial browser harness resolved the checkout one parent directory too high, so the proof server exited before readiness.",
+  "ledgerMutation": false,
+  "source": "Observed command exit 1; retrospective public failure record. No result file was emitted by the initial harness.",
+  "resolution": "Corrected checkout resolution from five to four parent directories. Subsequent browser-2026-09-30T10-17-23-105Z run passed."
+}

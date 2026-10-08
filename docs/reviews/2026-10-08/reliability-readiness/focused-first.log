@@ -1,0 +1,28 @@
+
+ RUN  v4.1.11 D:/kleym/.worktrees/app-sending-pilot
+
+ ❯ tests/lib/validation/outbound-url.test.ts (51 tests | 1 failed) 67ms
+     × rejects credentials, alternate schemes and malformed/parser inputs with safe errors 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/lib/validation/outbound-url.test.ts > production outbound canonical URL policy (#107) > rejects credentials, alternate schemes and malformed/parser inputs with safe errors
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/lib/validation/outbound-url.test.ts:26:43
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  1 failed | 74 passed (75)
+   Start at  21:18:21
+   Duration  1.81s (transform 664ms, setup 1.80s, import 1.83s, tests 438ms, environment 0ms)
+

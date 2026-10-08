@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-01",
+  "checkout": "D:\\kleym\\.worktrees\\app-sending-pilot",
+  "branch": "codex/app-sending-pilot",
+  "baseCommit": "4163d7954bff9c1582c0c405174cddbe6951da33",
+  "changes": "local uncommitted work; previous product fixes preserved",
+  "unit": { "passed": 241, "files": 12, "newProofAndCapacityTests": 17 },
+  "lifecycle": { "passed": 122, "database": "isolated PostgreSQL", "redis": "verification DB0", "horizon": "simulated", "evidence": "lifecycle.json" },
+  "concurrency": { "passed": 26, "independentNodeProcesses": 2, "database": "isolated PostgreSQL", "horizon": "simulated", "evidence": "concurrency.json" },
+  "browser": { "passed": 18, "project": "Chromium", "spec": "e2e/claim-page.spec.ts", "runtime": "production build", "wallet": "Freighter bridge fixture; no extension signing", "includes": ["proof signatures in both prepare requests", "real HTTP public-key-only refusals", "deliberate claim", "wallet change", "fragment privacy", "CSP", "accessibility"] },
+  "static": { "typescript": "passed", "targetedEslint": "passed", "whitespace": "passed", "webpackBuild": "passed", "buildWarnings": ["Next middleware convention deprecated", "BullMQ optional Valkey dependency", "BullMQ dynamic child-processor dependency"] },
+  "runtime": { "url": "http://127.0.0.1:3220", "network": "testnet", "appPid": 29472, "workerWrapperPid": 17316, "workerChildPid": 13184, "health": "ok", "ready": true, "journalSnapshot": "runtime.json" },
+  "schema": "No new migration; existing journals provide durable reservations",
+  "agentBlockchainWrites": 0,
+  "publicDeployment": false,
+  "mainnetQualification": "Not complete: operating limits, capital, owners, restore evidence and separately authorised real-wallet validation remain"
+}

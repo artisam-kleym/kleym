@@ -515,6 +515,11 @@ model WebhookDelivery {
 
 model Campaign {
   id                   String             @id @default(cuid())
+  /// A renewal spends only confirmed refunds from this previous round. One successor per round.
+  renewalOfId          String?            @unique
+  renewalBudget        Decimal?           @db.Decimal(23, 7)
+  renewalOf            Campaign?          @relation("CampaignRenewal", fields: [renewalOfId], references: [id], onDelete: Restrict)
+  renewal              Campaign?          @relation("CampaignRenewal")
   /// Who created it. Ownership is the ORGANISATION; this is provenance.
   userId               String
   organizationId       String
@@ -539,6 +544,8 @@ model Campaign {
   /// pool applies to NEW campaigns only. Null only on rows older than the
   /// pool, which read as the primary sponsor.
   sponsorPublicKey     String?
+  /// Existing campaigns retain sender-paid funding; new USDC campaigns use the bound sponsor.
+  fundingMode          String             @default("SENDER")
   name                 String
   network              String // "testnet" | "public"
   senderPublicKey      String // G... that funded it
@@ -611,6 +618,7 @@ model Campaign {
   links        ClaimLink[]
   batches      Batch[]
   reclaims     ReclaimBatch[]
+  ledgerAttempts LedgerAttempt[]
   findings     ReconciliationFinding[]
   stranded     StrandedAccount[]
 
@@ -625,6 +633,29 @@ model Campaign {
 /// balances are reclaimable is a question only the ledger can answer, and the
 /// answer changes while the sender is signing, so each reclaim is built from a
 /// live Horizon query and recorded here once it is on its way.
+/// Public transaction bodies and signed envelopes only; no spending keys.
+/// One current attempt per link phase or campaign reclaim. Settled refunds
+/// remain in ReclaimBatch when the next reclaim replaces this current attempt.
+model LedgerAttempt {
+  scope           String   @id
+  campaignId      String
+  kind            String
+  transactionHash String   @unique
+  preparedXdr     String
+  submittedXdr    String?
+  status          String   @default("PREPARED")
+  metadata        Json
+  ledger          Int?
+  resultXdr       String?
+  feeCharged      String?
+  /// Confirmed Horizon transaction time; never inferred from the application clock.
+  ledgerSettledAt DateTime?
+  observedAt      DateTime?
+  updatedAt       DateTime @updatedAt
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  @@index([status, kind])
+}
+
 model ReclaimBatch {
   id              String   @id @default(cuid())
   campaignId      String
@@ -633,6 +664,8 @@ model ReclaimBatch {
   /// Summed from the LEDGER's amounts, not from amountPerLink.
   amount          Decimal  @db.Decimal(23, 7)
   submittedAt     DateTime @default(now())
+  ledgerSettledAt DateTime?
+  observedAt      DateTime?
 
   campaign  Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   valuation Valuation?
@@ -645,6 +678,10 @@ model Batch {
   campaignId      String
   sequence        Int // 1-based batch index
   transactionHash String?     @unique
+  /// Public transaction body, bound before the wallet signs. Never contains link seeds.
+  preparedXdr     String?
+  /// Exact fully signed envelope retained for safe resend after an uncertain response.
+  submittedXdr    String?
   status          BatchStatus @default(PENDING)
   errorCode       String?
   submittedAt     DateTime?
@@ -698,6 +735,9 @@ model ClaimLink {
 
   claimedBy       String? // recipient G... — the PAYMENT destination, read off the submitted envelope
   claimedAt       DateTime?
+  /// Separate authoritative settlement time from legacy claimedAt observations.
+  ledgerSettledAt DateTime?
+  observedAt      DateTime?
   claimTxHash     String?
   /// Deposit memo (#75) TX2 carried, when the recipient claimed to an
   /// exchange or custodian: how the omnibus account credited them. Read
@@ -987,12 +1027,16 @@ model Valuation {
   kind            ValuationKind
   /// The ledger instant the rate is for — the claim's or the reclaim's.
   valuedAt        DateTime
+  /// Existing rows remain unverified until explicitly reconciled with history.
+  timeSource      String        @default("legacy-unverified")
   assetCode       String
   assetIssuer     String?
   /// The asset amount that moved. Decimal (AGENT.md §4.1).
   amount          Decimal       @db.Decimal(23, 7)
   /// The network fee the sponsor paid for this movement, in XLM. Its own journal line.
   feeXlm          Decimal       @default(0) @db.Decimal(23, 7)
+  /// Zero with false means unavailable evidence, not a confirmed zero fee.
+  feeKnown        Boolean       @default(false)
   currency        String
   /// Units of `currency` per one unit of the asset, or null when unpriced.
   rate            Decimal?      @db.Decimal(23, 7)

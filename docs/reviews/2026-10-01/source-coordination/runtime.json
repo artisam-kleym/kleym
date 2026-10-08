@@ -1,0 +1,22 @@
+{
+  "checkedAt": "2026-10-01T11:58:29.039Z",
+  "network": "testnet",
+  "batches": [
+    {
+      "_count": 2,
+      "status": "CONFIRMED"
+    }
+  ],
+  "attempts": [
+    {
+      "_count": 3,
+      "status": "SETTLED"
+    }
+  ],
+  "health": {
+    "status": "ok"
+  },
+  "ready": {
+    "ready": true
+  }
+}

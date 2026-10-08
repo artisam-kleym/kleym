@@ -7,6 +7,7 @@
  */
 import { z } from 'zod'
 import { stellarConfigurationProblem, stellarMetadata } from '@/lib/stellar/network'
+import { workspaceOrigin } from '@/lib/stellar/network-workspaces'
 
 /**
  * Two regexes, deliberately. Do not collapse them.
@@ -24,10 +25,15 @@ const SECRET_SEED = /^S[A-Z2-7]{55}$/
 const SECRET_SEED_ANYWHERE = /S[A-Z2-7]{55}/
 const PUBLIC_KEY = /^G[A-Z2-7]{55}$/
 
-const schema = z.object({
+const configurationSchema = z.object({
   // Core
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_URL: z.url(),
+  // Public navigation only; each deployment keeps its own database/queues/sponsor keys.
+  TESTNET_APP_URL: z.string().default('').refine((v) => v === '' || workspaceOrigin(v) !== null, 'must be a public HTTPS origin without a path, credentials or query'),
+  MAINNET_APP_URL: z.string().default('').refine((v) => v === '' || workspaceOrigin(v) !== null, 'must be a public HTTPS origin without a path, credentials or query'),
+  // Public WalletConnect identifier; optional until a project/domain is configured.
+  WALLETCONNECT_PROJECT_ID: z.union([z.string().regex(/^[a-f0-9]{32}$/i), z.literal('')]).default(''),
 
   // Database
   DATABASE_URL: z.string().min(1),
@@ -87,6 +93,8 @@ const schema = z.object({
 
   // Stellar
   STELLAR_NETWORK: z.enum(['testnet', 'public']).default('testnet'),
+  SPONSORED_FUNDING_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  MAINNET_DISTRIBUTION_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   /**
    * Accounting export (#80): the anchor asset standing for each reporting
    * currency, `USD=USDC:G…,EUR=EURC:G…`. Rates are read from the DEX's trade
@@ -153,6 +161,8 @@ const schema = z.object({
   // Email
   RESEND_API_KEY: z.string().min(1),
   EMAIL_FROM: z.email(),
+  // Off for the pilot. A disposable Testnet harness may inspect legacy behaviour.
+  LEGACY_BEARER_EMAIL_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 
   // Seed (dev only)
   SEED_ADMIN_USERNAME: z.string().optional(),
@@ -161,7 +171,12 @@ const schema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
-}).superRefine((value, context) => {
+})
+
+/** CI reads actual schema keys without accessing runtime configuration. */
+export const ENV_SCHEMA_KEYS = Object.keys(configurationSchema.shape)
+
+const schema = configurationSchema.superRefine((value, context) => {
   const problem = stellarConfigurationProblem(value)
   if (problem) context.addIssue({ code: 'custom', path: ['STELLAR_NETWORK'], message: problem })
 }).transform((value) => ({
@@ -175,7 +190,7 @@ const schema = z.object({
  * SINGLE SOURCE OF TRUTH. `src/lib/config/logger.ts` derives its redaction
  * paths from this list, and CI fails if a secret-shaped key is added to the
  * schema above without being classified here (or explicitly marked non-secret
- * in the workflow). Adding a secret and forgetting to redact it was a real
+ * in secret-classification.ts). Adding a secret and forgetting to redact it was a real
  * leak, not a hypothetical one — see the DATABASE_URL entry.
  */
 export const SECRET_ENV_KEYS = [
@@ -185,6 +200,7 @@ export const SECRET_ENV_KEYS = [
   'SCREENING_WEBHOOK_SECRET',
   'OTEL_EXPORTER_OTLP_HEADERS',
   'SESSION_SECRET',
+  'AUDIT_SIGNING_SEED',
   'CREDENTIAL_ENCRYPTION_KEY',
   'RESEND_API_KEY',
   'SEED_ADMIN_PASSWORD',
