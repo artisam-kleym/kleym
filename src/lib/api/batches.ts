@@ -12,6 +12,7 @@ import Decimal from 'decimal.js'
 import { prisma } from '@/lib/db/client'
 import { env } from '@/lib/config/env'
 import { coordinateSource, SourceCoordinationError } from '@/lib/stellar/source-coordination'
+import { newFundingProblem } from '@/lib/stellar/funding-rollout'
 import { owned } from './session-guard'
 import { LINK_ORDER } from './link-order'
 import { isWriteConflict } from './links'
@@ -175,6 +176,9 @@ export async function prepareBatch(
 
   const networkProblem = await stellarContextProblem(campaign)
   if (networkProblem) return conflict(networkProblem)
+
+  const rolloutProblem = newFundingProblem(campaign.network, campaign.fundingMode)
+  if (rolloutProblem) return conflict(rolloutProblem)
 
   const blocked = notReadyToSign(campaign)
   if (blocked) return blocked
@@ -391,6 +395,9 @@ export async function submitBatch(
       value: { sequence: batch.sequence, status: batch.status, transactionHash: batch.transactionHash, replay: true },
     }
   }
+
+  const rolloutProblem = newFundingProblem(campaign.network, campaign.fundingMode)
+  if (rolloutProblem) return conflict(rolloutProblem)
 
   const providerProblem = await stellarContextProblem(campaign)
   if (providerProblem) return conflict(providerProblem)

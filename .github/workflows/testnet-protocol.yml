@@ -1,0 +1,53 @@
+name: Testnet protocol cadence
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 3 * * 2' # Weekly, Tuesday 03:23 UTC, after explicit repository opt-in.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kleym-testnet-protocol
+  cancel-in-progress: false # Do not interrupt a run that might have confirmed transactions.
+
+jobs:
+  protocol:
+    name: Disposable Testnet protocol verdict
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TESTNET_PROTOCOL_ENABLED: ${{ vars.TESTNET_PROTOCOL_ENABLED }}
+      TESTNET_RESULT_FILE: testnet-protocol-result.json
+      HORIZON_URL: https://horizon-testnet.stellar.org
+      FRIENDBOT_URL: https://friendbot.stellar.org
+      NETWORK_PASSPHRASE: Test SDF Network ; September 2015
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Write explicit verdict or run the enabled Testnet spike
+        run: pnpm spike
+      - name: Publish the actual verdict
+        if: always()
+        run: |
+          node --input-type=module -e "
+            import {existsSync,readFileSync,writeFileSync,appendFileSync} from 'node:fs';
+            const path=process.env.TESTNET_RESULT_FILE;
+            if(!existsSync(path)) writeFileSync(path,JSON.stringify({status:'NOT_RUN',reason:'Runner stopped before a verdict; review job outcome',commit:process.env.GITHUB_SHA,network:'testnet',transactions:[]}));
+            const result=JSON.parse(readFileSync(path,'utf8'));
+            appendFileSync(process.env.GITHUB_STEP_SUMMARY,'## Testnet verdict: '+result.status+'\n\n'+result.reason+'\n\nThis is not full application, official-USDC or wallet release qualification.\n');
+          "
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: testnet-protocol-${{ github.run_id }}-${{ github.run_attempt }}
+          path: testnet-protocol-result.json
+          if-no-files-found: error
+          retention-days: 30

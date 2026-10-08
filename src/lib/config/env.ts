@@ -89,6 +89,8 @@ const configurationSchema = z.object({
 
   // Stellar
   STELLAR_NETWORK: z.enum(['testnet', 'public']).default('testnet'),
+  SPONSORED_FUNDING_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  MAINNET_DISTRIBUTION_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   /**
    * Accounting export (#80): the anchor asset standing for each reporting
    * currency, `USD=USDC:G…,EUR=EURC:G…`. Rates are read from the DEX's trade

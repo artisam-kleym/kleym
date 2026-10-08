@@ -32,6 +32,7 @@ import { emitWebhook } from '@/lib/webhooks/emit'
 import { isClaimCode, policyFromRow, policyToRow } from './claim-policy'
 import { assertRenewalTerms, renewalSource, RenewalRefused } from './renewal'
 import { legacyBearerEmailAllowed } from '@/lib/email/delivery-policy'
+import { newFundingProblem } from '@/lib/stellar/funding-rollout'
 
 /**
  * Money crosses the API boundary as a STRING. AGENT.md §4.1.
@@ -131,6 +132,10 @@ export const campaignBodySchema = z
   .strict()
 
 export const createCampaignSchema = campaignBodySchema
+  .superRefine((v, ctx) => {
+    const problem = newFundingProblem(v.network, v.assetCode === 'USDC' ? 'SPONSORED' : 'SENDER')
+    if (problem) ctx.addIssue({ code: 'custom', path: ['network'], message: problem })
+  })
   .refine((v) => v.claimPolicy !== 'email' || legacyBearerEmailAllowed(), {
     message: 'Email-only claims are disabled. Choose open, code or passkey and distribute links privately from your saved CSV.',
     path: ['claimPolicy'],

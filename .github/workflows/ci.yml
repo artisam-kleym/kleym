@@ -274,6 +274,8 @@ jobs:
       DATABASE_URL: postgresql://kleym:kleym@localhost:5432/kleym
       REDIS_URL: redis://localhost:6379
       STELLAR_NETWORK: testnet
+      SPONSORED_FUNDING_ENABLED: 'true' # Explicit opt-in for isolated browser fixtures.
+      MAINNET_DISTRIBUTION_ENABLED: 'false'
       HORIZON_URL: https://horizon-testnet.stellar.org
       NETWORK_PASSPHRASE: 'Test SDF Network ; September 2015'
       EMAIL_FROM: noreply@kleym.test

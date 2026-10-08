@@ -33,6 +33,8 @@ export function applyEnvPlaceholders(): void {
     AUDIT_SIGNING_SEED: Buffer.alloc(32, 9).toString('base64'),
     CREDENTIAL_ENCRYPTION_KEY: Buffer.alloc(32, 13).toString('base64'),
     STELLAR_NETWORK: 'testnet',
+    SPONSORED_FUNDING_ENABLED: 'true', // Explicit isolated-fixture opt-in; never enables public distributions.
+    MAINNET_DISTRIBUTION_ENABLED: 'false',
     HORIZON_URL: 'https://horizon-testnet.stellar.org',
     NETWORK_PASSPHRASE: 'Test SDF Network ; September 2015',
     SPONSOR_PUBLIC_KEY: sponsor.publicKey(),
