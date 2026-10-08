@@ -143,12 +143,21 @@ export async function signMobile(xdr: string, network: Network, address: string,
   }
   if (onRequestSent) current.client.on('session_request_sent', onSent)
   let result: { signedXDR: string }
+  let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    result = await current.client.request<{ signedXDR: string }>({
+    const request = current.client.request<{ signedXDR: string }>({
       topic: current.topic, chainId: chain(network),
       request: { method: 'stellar_signXDR', params: { xdr } },
     })
+    result = await Promise.race([request, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        // A late wallet approval must never resume submission after a retry.
+        current.valid = false
+        reject(new Error('Wallet approval timed out. Return here, reconnect your wallet, and review the transaction again.'))
+      }, 120_000)
+    })])
   } finally {
+    if (timer) clearTimeout(timer)
     if (onRequestSent) current.client.off('session_request_sent', onSent)
   }
   if (active !== current || mobileAddress(network) !== address) throw new Error('The wallet session changed. Reconnect before claiming.')

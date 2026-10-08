@@ -1,0 +1,101 @@
+{
+  "checkedAt": "2026-10-08T16:47:43.762Z",
+  "network": "testnet",
+  "campaignId": "cmuzrnf7200020dnzr49itmq6",
+  "hash": "b0e3c9f8f74244c456e7f04dd4a3e67ab2ca9a1e28c500c35da5af537d27459d",
+  "ledger": 5090854,
+  "successful": true,
+  "feeChargedStroops": "500",
+  "requiredSignersVerified": [
+    "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK"
+  ],
+  "operationTypes": [
+    "begin_sponsoring_future_reserves",
+    "create_claimable_balance",
+    "create_claimable_balance",
+    "create_claimable_balance",
+    "end_sponsoring_future_reserves"
+  ],
+  "balances": [
+    {
+      "id": "0000000016901cc74584db5dac1c31de61f2ed9e2bdd3d0fec81d3c57f544f671d85fffe",
+      "amount": "1.0000000",
+      "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "sponsor": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+      "claimants": [
+        {
+          "destination": "GCJKAZIZXXGTXL2RFFNA6KJNMLTCIJY7MIEERNB3AVU3NW5ZTN2SS5GD",
+          "predicate": {
+            "abs_before": "2026-10-08T17:39:00Z",
+            "abs_before_epoch": "1791481140"
+          }
+        },
+        {
+          "destination": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "predicate": {
+            "not": {
+              "abs_before": "2026-10-08T17:39:00Z",
+              "abs_before_epoch": "1791481140"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "0000000090d4a64ef3cf79e716e10137d1812308ed6e13817106a800c4acec40d049385c",
+      "amount": "1.0000000",
+      "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "sponsor": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+      "claimants": [
+        {
+          "destination": "GBE4KFWQ7MSEIPZMM73MAZ4U5RH3NER6I2CUTRTVGUHIFGJ7R3PJ5QPE",
+          "predicate": {
+            "abs_before": "2026-10-08T17:39:00Z",
+            "abs_before_epoch": "1791481140"
+          }
+        },
+        {
+          "destination": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "predicate": {
+            "not": {
+              "abs_before": "2026-10-08T17:39:00Z",
+              "abs_before_epoch": "1791481140"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "00000000b0de5120a1d05a73554398ce521a2803c92188aec2273f0b7ff49a0a43ae7ca0",
+      "amount": "1.0000000",
+      "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "sponsor": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+      "claimants": [
+        {
+          "destination": "GASXTWZOWNGK45WR54GHKLDG6Q7TWFUN53RKTSTVXB5LLGVO2QEL74MK",
+          "predicate": {
+            "abs_before": "2026-10-08T17:39:00Z",
+            "abs_before_epoch": "1791481140"
+          }
+        },
+        {
+          "destination": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+          "predicate": {
+            "not": {
+              "abs_before": "2026-10-08T17:39:00Z",
+              "abs_before_epoch": "1791481140"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "senderAfter": {
+    "native": "0.0000000",
+    "usdc": "8.0000000"
+  },
+  "expiresAt": "2026-10-09T01:39:00+08:00",
+  "userCampaignFundingVerified": true,
+  "agentWalletTransactions": 0
+}
