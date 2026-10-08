@@ -21,7 +21,7 @@ const accounts = new Map<string, Wallet>([
 ])
 type Balance = { id: string; asset: string; amount: string; sponsor: string; claimants: { destination: string; predicate: unknown }[] }
 const balances = new Map<string, Balance>()
-const records = new Map<string, { hash: string; successful: boolean; ledger: number; result_xdr: string }>()
+const records = new Map<string, { hash: string; successful: boolean; ledger: number; result_xdr: string; created_at: string }>()
 let ledger = 1000
 let submissions = 0
 let loseResponse = false
@@ -115,7 +115,7 @@ const server = createServer(async (request, response) => {
     if (!records.has(hash)) {
       submissions++
       apply(transaction)
-      records.set(hash, { hash, successful: true, ledger, result_xdr: resultOf(transaction) })
+      records.set(hash, { hash, successful: true, ledger, result_xdr: resultOf(transaction), created_at: '2026-10-01T12:00:00Z' })
     }
     if (loseResponse) { response.writeHead(504); record = { status: 504 }; loseResponse = false }
     else record = records.get(hash)
@@ -250,6 +250,14 @@ try {
     check(`${mode}: temporary account and claimed balance removed`, !accounts.has(ephemeral.publicKey()) && balances.size === 1)
     check(`${mode}: required persistent recipient reserves remain`, accounts.get(recipient.publicKey())!.sponsored === 3)
     check(`${mode}: DB records the actual recipient/hash`, (await prisma.claimLink.findUniqueOrThrow({ where: { id: link.id } })).claimedBy === recipient.publicKey())
+    const settled = await prisma.claimLink.findUniqueOrThrow({ where: { id: link.id } })
+    check(`${mode}: delayed direct settlement preserves the ledger time, separate from observation`,
+      settled.claimedAt?.toISOString() === '2026-10-01T12:00:00.000Z' &&
+      settled.ledgerSettledAt?.toISOString() === '2026-10-01T12:00:00.000Z' &&
+      !!settled.observedAt && settled.observedAt.getTime() > settled.ledgerSettledAt.getTime())
+    const signedReceipt = await (await import('../src/lib/api/receipts')).issueReceipt(link.id)
+    check(`${mode}: v3 receipt attests ledger time after recovery`, signedReceipt?.contents.version === 3 &&
+      signedReceipt.contents.claim.claimedAt === '2026-10-01T12:00:00.000Z' && signedReceipt.contents.claim.timeSource === 'ledger')
     await prisma.campaign.update({ where: { id: campaign.id }, data: { expiresAt: new Date(Date.now() - 1000), status: 'EXPIRED' } })
     const reclaimDeps = {
       readBalances: async () => new Map([...balances].map(([id, balance]) => [id, balance.amount])),

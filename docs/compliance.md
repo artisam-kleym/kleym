@@ -193,6 +193,11 @@ export writes an audit row `org.regulator_export` with the window and the row co
 
 ## 4. Accounting export
 
+Current exports are v2 with explicit `timeSource` and `feeEvidence` columns.
+New valuations require confirmed ledger time; missing history is not priced
+using the application clock. Historical rows remain `legacy-unverified`, and
+unknown fees produce no invented fee expense. See [settlement time and compatibility](settlement-time.md).
+
 `GET /api/org/accounting/export?format=csv|json&from=&to=&campaignId=` — Operator and up,
 scoped to the session's organisation. One journal line per settled claim, **valued at the
 claim's own ledger time** in the organisation's reporting currency (Settings → Accounting;
@@ -230,7 +235,7 @@ Accounts are fixed strings a bookkeeper maps once: `Payouts expense`, `Digital a
 debit/credit entries per movement. This is reporting, not tax determination.
 ## 5. Claim receipts
 
-Every settled claim has a signed receipt (#81), issued the moment the claim lands and
+Every settled claim with verified time and delivered/payee evidence can receive a signed receipt (#81), issued when that evidence is available and
 never regenerated: the recipient address (read off the submitted envelope), what was
 delivered — for a receive-as claim (#74) the destination asset and the amount the ledger paid
 out — the ledger time, the transaction hash, the memo where one applied (#75), the delivery
@@ -238,6 +243,11 @@ channel and the claim policy that applied (#79), and the campaign's terms. The l
 by id only: the sender's label, reference, category and note are never in a receipt or a
 recipient's copy; the sender-facing CSV bundle carries them as unsigned columns beside each
 receipt. Nothing derived from the link — no URL, no fragment, no seed.
+
+New v3 receipts explicitly attest ledger time. Existing v1/v2 signatures and
+canonical bytes are preserved with their historical semantics. Missing ledger
+time prevents new issuance; it does not turn a successful claim into a failed
+transfer. See [settlement time and rollback](settlement-time.md).
 
 - `GET /api/campaigns/{id}/links/{linkId}/receipt` — one receipt; the body is its exact
   signed bytes, the signature and key in the headers above.

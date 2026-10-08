@@ -648,6 +648,9 @@ model LedgerAttempt {
   ledger          Int?
   resultXdr       String?
   feeCharged      String?
+  /// Confirmed Horizon transaction time; never inferred from the application clock.
+  ledgerSettledAt DateTime?
+  observedAt      DateTime?
   updatedAt       DateTime @updatedAt
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   @@index([status, kind])
@@ -661,6 +664,8 @@ model ReclaimBatch {
   /// Summed from the LEDGER's amounts, not from amountPerLink.
   amount          Decimal  @db.Decimal(23, 7)
   submittedAt     DateTime @default(now())
+  ledgerSettledAt DateTime?
+  observedAt      DateTime?
 
   campaign  Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   valuation Valuation?
@@ -730,6 +735,9 @@ model ClaimLink {
 
   claimedBy       String? // recipient G... — the PAYMENT destination, read off the submitted envelope
   claimedAt       DateTime?
+  /// Separate authoritative settlement time from legacy claimedAt observations.
+  ledgerSettledAt DateTime?
+  observedAt      DateTime?
   claimTxHash     String?
   /// Deposit memo (#75) TX2 carried, when the recipient claimed to an
   /// exchange or custodian: how the omnibus account credited them. Read
@@ -1019,12 +1027,16 @@ model Valuation {
   kind            ValuationKind
   /// The ledger instant the rate is for — the claim's or the reclaim's.
   valuedAt        DateTime
+  /// Existing rows remain unverified until explicitly reconciled with history.
+  timeSource      String        @default("legacy-unverified")
   assetCode       String
   assetIssuer     String?
   /// The asset amount that moved. Decimal (AGENT.md §4.1).
   amount          Decimal       @db.Decimal(23, 7)
   /// The network fee the sponsor paid for this movement, in XLM. Its own journal line.
   feeXlm          Decimal       @default(0) @db.Decimal(23, 7)
+  /// Zero with false means unavailable evidence, not a confirmed zero fee.
+  feeKnown        Boolean       @default(false)
   currency        String
   /// Units of `currency` per one unit of the asset, or null when unpriced.
   rate            Decimal?      @db.Decimal(23, 7)

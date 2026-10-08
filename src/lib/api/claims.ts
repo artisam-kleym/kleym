@@ -33,6 +33,7 @@ import { issueReceipt } from './receipts'
 import { enqueueReceipt } from '@/lib/queue/email'
 import { executeAttempt, hasSignature, lookupAttempt, parseAttempt, prepareAttempt, type AttemptLookup } from '@/lib/stellar/attempts'
 import { SourceCoordinationError } from '@/lib/stellar/source-coordination'
+import { ledgerSettlementTime } from '@/lib/stellar/settlement-time'
 
 const PUBLIC_KEY = /^G[A-Z2-7]{55}$/
 
@@ -687,7 +688,7 @@ export interface Submitted {
  * itself also rejects a replayed sequence number, but that arrives as an error
  * the recipient would see — this returns the original result instead.
  */
-export type Submitter = (transaction: Transaction) => Promise<{ hash: string; successful: boolean; ledger?: number; feeCharged?: string | number | null; resultXdr?: string; errorCode?: string }>
+export type Submitter = (transaction: Transaction) => Promise<{ hash: string; successful: boolean; ledger?: number; feeCharged?: string | number | null; resultXdr?: string; errorCode?: string; settledAt?: string }>
 
 /** The real one. Injectable for the same reason `loadClaimable`'s read is. */
 const submitToHorizon: Submitter = async (transaction) => {
@@ -851,12 +852,15 @@ async function submitClaimUnobserved(
     const recipient = recipientOf(transaction)
     const memo = memoOf(transaction.memo)
     const delivered = deliveredOf(transaction, result.resultXdr)
-    const claimedAt = new Date()
+    const claimedAt = ledgerSettlementTime(result.settledAt)
+    const observedAt = new Date()
     const claimed = await prisma.claimLink.update({
       where: { id: link.id },
       data: {
         status: 'CLAIMED',
         claimedAt,
+        ledgerSettledAt: claimedAt,
+        observedAt,
         claimTxHash: result.hash,
         claimedBy: recipient,
         // Beside the recipient, off the same envelope (#75).
@@ -893,7 +897,7 @@ async function submitClaimUnobserved(
       await enqueueReceipt({
         kind: 'receipt', deliveryId: claimed.delivery.id, linkId: link.id, email: claimed.delivery.email,
         senderName: claimed.campaign.user.username, amount: receipt.contents.claim.amount, assetCode: receipt.contents.claim.assetCode,
-        recipient, claimedAt: claimedAt.toISOString(), transactionHash: result.hash,
+        recipient, claimedAt: receipt.contents.claim.claimedAt, transactionHash: result.hash,
         receiptId: receipt.receiptId, canonical: receipt.canonical, signature: receipt.signature, publicKey: receipt.publicKey,
       }).catch((error: unknown) => logger.error({ linkId: link.id, reason: error instanceof Error ? error.message : 'unknown' }, 'receipt email could not be queued'))
     }
@@ -909,7 +913,8 @@ async function submitClaimUnobserved(
     })
     // The ephemeral PUBLIC key and the claimant — what the ledger shows. Never the link (#51).
     await emitWebhook(claimed.campaign.organizationId, 'link.claimed', {
-      campaignId: link.campaignId, linkId: link.id, ephemeralPublicKey, claimedBy: recipient ?? '', claimTxHash: result.hash, claimedAt: claimedAt.toISOString(),
+      campaignId: link.campaignId, linkId: link.id, ephemeralPublicKey, claimedBy: recipient ?? '', claimTxHash: result.hash,
+      claimedAt: claimedAt?.toISOString() ?? null, observedAt: observedAt.toISOString(), timeSource: claimedAt ? 'ledger' : 'unavailable',
       claimMemoType: memo?.type ?? null, claimMemo: memo?.value ?? null,
       receiptId: receipt?.receiptId ?? null,
     })

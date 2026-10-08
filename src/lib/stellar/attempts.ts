@@ -5,6 +5,7 @@ import { horizon } from './horizon'
 import type { LedgerAttempt, Prisma } from '@/generated/prisma/client'
 import { feeChargedOf } from './fees'
 import { coordinateSource, SourceCoordinationError } from './source-coordination'
+import { ledgerSettlementTime } from './settlement-time'
 
 export interface LedgerResult {
   hash: string
@@ -13,6 +14,7 @@ export interface LedgerResult {
   resultXdr?: string
   feeCharged?: string | number | null
   errorCode?: string
+  settledAt?: string
 }
 export type AttemptLookup = (hash: string) => Promise<LedgerResult | null>
 
@@ -20,7 +22,7 @@ export const lookupAttempt: AttemptLookup = async (hash) => {
   try {
     const record = await horizon().transactions().transaction(hash).call()
     return { hash: record.hash, successful: record.successful, ledger: record.ledger_attr,
-      resultXdr: record.result_xdr, feeCharged: feeChargedOf(record.result_xdr) }
+      resultXdr: record.result_xdr, feeCharged: feeChargedOf(record.result_xdr), settledAt: record.created_at }
   } catch (error) {
     const status = (error as { response?: { status?: number } }).response?.status
     if (status === 404 || (error as { name?: string }).name === 'NotFoundError') return null
@@ -56,7 +58,8 @@ export async function prepareAttempt(
       }
     }
     const data = { campaignId, kind, preparedXdr: xdr, transactionHash: parseAttempt(xdr).hash().toString('hex'),
-      metadata, submittedXdr: null, status: 'PREPARED', ledger: null, resultXdr: null, feeCharged: null }
+      metadata, submittedXdr: null, status: 'PREPARED', ledger: null, resultXdr: null, feeCharged: null,
+      ledgerSettledAt: null, observedAt: null }
     await check(parseAttempt(xdr))
     return db.ledgerAttempt.upsert({ where: { scope }, create: { scope, ...data }, update: data })
   })
@@ -73,6 +76,7 @@ export async function executeAttempt(
   if (attempt.status === 'CONFIRMED' || attempt.status === 'SETTLED') return {
     hash: attempt.transactionHash, successful: true, ledger: attempt.ledger ?? undefined,
     resultXdr: attempt.resultXdr ?? undefined, feeCharged: attempt.feeCharged,
+    settledAt: attempt.ledgerSettledAt?.toISOString(),
   }
   if (attempt.status === 'FAILED') throw new Error('Prepare a new transaction after the confirmed failure')
   await coordinateSource(transaction, { scope: attempt.scope }, async (db, check) => {
@@ -128,10 +132,17 @@ export async function executeAttempt(
     }
   }
   if (result.hash !== saved.transactionHash) throw new Error('Ledger returned a different transaction')
+  if (result.successful && !ledgerSettlementTime(result.settledAt)) {
+    // Submission responses may omit created_at. Read this confirmed hash;
+    // missing history remains explicitly unavailable, never application time.
+    const confirmed = await lookup(saved.transactionHash)
+    if (confirmed && confirmed.hash === saved.transactionHash && confirmed.successful) result = { ...result, ...confirmed }
+  }
   await prisma.ledgerAttempt.updateMany({
     where: { scope: saved.scope, transactionHash: saved.transactionHash },
     data: { status: result.successful ? 'CONFIRMED' : 'FAILED', ledger: result.ledger ?? null,
-      resultXdr: result.resultXdr ?? null, feeCharged: result.feeCharged == null ? null : String(result.feeCharged) },
+      resultXdr: result.resultXdr ?? null, feeCharged: result.feeCharged == null ? null : String(result.feeCharged),
+      ledgerSettledAt: ledgerSettlementTime(result.settledAt), observedAt: new Date() },
   })
   return result
 }

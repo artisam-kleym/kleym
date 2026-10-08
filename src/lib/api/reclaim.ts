@@ -29,6 +29,7 @@ import { stellarContextProblem } from '@/lib/stellar/context'
 import { horizonResultCode } from './batches'
 import { recordReclaimValuation } from './valuations'
 import { feeChargedOf } from '@/lib/stellar/fees'
+import { ledgerSettlementTime } from '@/lib/stellar/settlement-time'
 import { executeAttempt, lookupAttempt, prepareAttempt, type AttemptLookup } from '@/lib/stellar/attempts'
 import { sponsorFor, sponsorSecret } from '@/lib/stellar/sponsors'
 import { sponsorSpendable } from '@/lib/stellar/horizon'
@@ -121,7 +122,7 @@ export interface ReclaimDeps {
    * this codebase has already been bitten by once.
    */
   /** Submits and reports the fee charged in stroops (null when unknown), for the accounting fee line (#80). */
-  submit: (transaction: Transaction) => Promise<{ feeCharged: string | number | null } | void>
+  submit: (transaction: Transaction) => Promise<{ feeCharged: string | number | null; settledAt?: string; ledger?: number; resultXdr?: string } | void>
   lookup?: AttemptLookup
 }
 
@@ -136,12 +137,12 @@ const liveAccount = async (publicKey: string): Promise<Account | null> => {
   }
 }
 
-const liveSubmit = async (transaction: Transaction): Promise<{ feeCharged: string | number | null }> => {
+const liveSubmit: ReclaimDeps['submit'] = async (transaction) => {
   const response = await horizon().submitTransaction(transaction)
   if (response.successful !== true || !Number.isInteger(response.ledger) || response.hash !== transaction.hash().toString('hex')) {
     throw new Error('Reclaim ledger inclusion is not confirmed')
   }
-  return { feeCharged: feeChargedOf(response.result_xdr) }
+  return { feeCharged: feeChargedOf(response.result_xdr), ledger: response.ledger, resultXdr: response.result_xdr }
 }
 
 const LIVE: ReclaimDeps = {
@@ -430,15 +431,18 @@ export async function submitReclaim(
   if (attempt?.status === 'FAILED') return conflict('The previous reclaim failed. Prepare it again before signing.')
 
   let feeCharged: string | number | null = null
+  let settledAt: Date | null = null
   try {
     if (sponsor) verified.transaction.sign(Keypair.fromSecret(sponsorSecret(sponsor.publicKey)))
     const result = await executeAttempt(attempt, verified.transaction, async (transaction) => {
       const response = await deps.submit(transaction)
       // liveSubmit waits for ledger inclusion, not merely HTTP acceptance.
-      return { hash: transaction.hash().toString('hex'), successful: true, feeCharged: response?.feeCharged }
+      return { hash: transaction.hash().toString('hex'), successful: true, feeCharged: response?.feeCharged,
+        settledAt: response?.settledAt, ledger: response?.ledger, resultXdr: response?.resultXdr }
     }, deps.lookup ?? (deps === LIVE ? lookupAttempt : async () => null))
     if (!result.successful) return conflict('The reclaim failed on ledger. Prepare it again.')
     feeCharged = result.feeCharged ?? null
+    settledAt = ledgerSettlementTime(result.settledAt)
   } catch (error) {
     if (error instanceof SourceCoordinationError) return conflict(error.message)
     const code = horizonResultCode(error)
@@ -467,6 +471,8 @@ export async function submitReclaim(
           transactionHash: hash,
           balanceCount: claimed.length,
           amount: amount.toFixed(),
+          ledgerSettledAt: settledAt,
+          observedAt: new Date(),
         },
       }),
       prisma.claimLink.updateMany({
@@ -474,7 +480,9 @@ export async function submitReclaim(
         data: {
           status: 'RECLAIMED',
           claimedBy: campaign.senderPublicKey,
-          claimedAt: new Date(),
+          claimedAt: settledAt,
+          ledgerSettledAt: settledAt,
+          observedAt: new Date(),
           claimTxHash: hash,
         },
       }),
