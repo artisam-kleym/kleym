@@ -1,10 +1,10 @@
 {
-  "captured_at_utc": "2026-10-08T15:45:26.854652+00:00",
+  "captured_at_utc": "2026-10-08T15:49:19.658564+00:00",
   "text_files_scanned": 1,
   "binary_files_require_separate_review": [],
   "findings": [],
   "scope": "Changed/untracked nonignored candidate files; bounded literal patterns only, not all credentials/mnemonics or image OCR",
   "sha256": {
-    "src/app/(sender)/campaigns/new/network-picker.tsx": "52700f482c558051219d3cd4978912bf1813177cf38db8b16ffda6d092e0dba0"
+    "src/app/api/claims/federation/route.ts": "33c78b911530ba9c99a3a1d1bea3ab978de73c2e0034259ccd61b78950c8f3e6"
   }
 }

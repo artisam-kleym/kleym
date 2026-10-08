@@ -39,18 +39,17 @@ const schema = z.object({ address: z.string().regex(FEDERATION_ADDRESS, 'must be
  * are held to "a public name": no IP literals in any spelling, no loopback,
  * link-local, private or reserved ranges, no localhost / .local / .internal
  * / .localhost, no ports — and neither fetch follows a redirect, so a public
- * toml cannot bounce the request somewhere this check never saw. A DNS name
- * that later resolves to a private address (rebinding) is not caught here;
- * this is the surface the route can see.
+ * toml cannot bounce the request somewhere this check never saw. The shared
+ * outbound transport also validates every DNS answer at socket creation and
+ * pins those checked public addresses to that connection.
  */
 const FETCH_TIMEOUT_MS = 5_000
 const MAX_BODY_BYTES = 100 * 1024
 
 /**
- * One bounded, redirect-refusing HTTPS GET. Native fetch rather than the
- * SDK's resolvers, which follow redirects by default and give no way to say
- * otherwise — and a redirect is exactly how a public host would send this
- * request somewhere `isPublicHost` never saw.
+ * One bounded, redirect-refusing HTTPS GET through the shared DNS-pinned
+ * transport. The SDK's resolvers follow redirects by default; this route
+ * requires both the declared host and its connection address to be public.
  */
 async function fetchPublic(url: string, accept: string): Promise<string> {
   const response = await outboundFetch(url, {
@@ -59,8 +58,8 @@ async function fetchPublic(url: string, accept: string): Promise<string> {
     headers: { accept },
   })
   if (!response.ok) throw new Error(`upstream answered ${response.status}`)
-  // The cap is enforced WHILE reading, in bytes: a hostile host must not be
-  // able to make this server buffer an arbitrarily large body first.
+  // Apply the stricter federation cap in bytes. The shared transport already
+  // bounds network buffering to 2 MiB before returning this response.
   const declared = Number(response.headers.get('content-length') ?? '0')
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) throw new Error('upstream body too large')
   if (!response.body) throw new Error('upstream sent no body')
