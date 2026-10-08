@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-10-03T13:21:56.711Z",
+  "checks": [
+    {
+      "serviceId": "4d547645-da9f-4e1e-aec3-2511f6239fc3",
+      "network": "testnet",
+      "seedDisabled": true,
+      "seedCredentialsAbsent": true,
+      "databasePrivate": true,
+      "redisPrivate": true,
+      "freshSponsorPairMatches": true
+    },
+    {
+      "serviceId": "2490753a-e4ba-471c-87c9-a6dd7d74d567",
+      "network": "testnet",
+      "seedDisabled": true,
+      "seedCredentialsAbsent": true,
+      "databasePrivate": true,
+      "redisPrivate": true,
+      "freshSponsorPairMatches": true
+    }
+  ]
+}

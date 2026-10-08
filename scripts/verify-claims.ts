@@ -21,7 +21,10 @@ import { startTestnetNetworkFixture } from '../tests/fixtures/horizon-network'
 import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
-const stopNetworkFixture = await startTestnetNetworkFixture({ missingAccounts: true })
+const fixtureSponsor = Keypair.fromSecret(process.env.SPONSOR_SECRET_KEY!).publicKey()
+const sourceAccount = { sequence: '100', nativeBalance: '10000.0000000' }
+const stopNetworkFixture = await startTestnetNetworkFixture({ missingAccounts: true,
+  accounts: new Map([[fixtureSponsor, sourceAccount]]), baseReserveStroops: 5_000_000 })
 
 const { prisma } = await import('../src/lib/db/client')
 const { redis } = await import('../src/lib/redis/client')
@@ -261,26 +264,35 @@ async function submitBindsToItsLink(): Promise<void> {
 
   const sponsor = Keypair.fromSecret(process.env.SPONSOR_SECRET_KEY!)
   const attacker = Keypair.random()
+  const pairs = new Map<string, Keypair>()
+  const { prepareAttempt } = await import('../src/lib/stellar/attempts')
 
   /** Never reaches the network — asserts on what the row becomes. */
-  const accept = async (t: { hash: () => Buffer }) => ({ hash: t.hash().toString('hex'), successful: true })
+  const accept = async (t: { hash: () => Buffer; sequence: string }) => {
+    sourceAccount.sequence = t.sequence
+    return { hash: t.hash().toString('hex'), successful: true }
+  }
 
   async function linkWith(tag: string) {
-    const key = await makeLink()
+    const oldKey = await makeLink()
+    const pair = Keypair.random()
+    const key = pair.publicKey()
+    pairs.set(key, pair)
+    await prisma.claimLink.update({ where: { ephemeralPublicKey: oldKey }, data: { ephemeralPublicKey: key } })
     const row = await prisma.claimLink.findUniqueOrThrow({
       where: { ephemeralPublicKey: key },
-      select: { id: true, balanceId: true },
+      select: { id: true, balanceId: true, campaignId: true },
     })
-    return { tag, key, id: row.id, balanceId: row.balanceId! }
+    return { tag, key, id: row.id, campaignId: row.campaignId, balanceId: row.balanceId! }
   }
 
   const a = await linkWith('a')
   const b = await linkWith('b')
 
-  const tx2For = (link: { key: string; balanceId: string }) => {
+  const tx2For = async (link: { key: string; id: string; campaignId: string; balanceId: string }) => {
     const plan = buildClaim(
       {
-        sponsorAccount: new Account(sponsor.publicKey(), '100'),
+        sponsorAccount: new Account(sponsor.publicKey(), sourceAccount.sequence),
         sponsorPublicKey: sponsor.publicKey(),
         ephemeralPublicKey: link.key,
         recipientPublicKey: attacker.publicKey(),
@@ -292,13 +304,15 @@ async function submitBindsToItsLink(): Promise<void> {
       },
       { ephemeralExists: true, ephemeralTrusts: false, recipientExists: true, recipientTrusts: true },
     )
-    const tx = TransactionBuilder.fromXDR(plan.xdr, Networks.TESTNET)
-    tx.sign(sponsor)
+    const attempt = await prepareAttempt(`claim:${link.id}`, link.campaignId, 'CLAIM', plan.xdr,
+      { requiredSigners: [sponsor.publicKey(), link.key] })
+    const tx = TransactionBuilder.fromXDR(attempt.preparedXdr, Networks.TESTNET)
+    tx.sign(sponsor, pairs.get(link.key)!)
     return tx.toXDR()
   }
 
   // THE ATTACK: link A's envelope, posted under link B's key.
-  const crossed = await submitClaim(b.key, tx2For(a), 'claim', accept)
+  const crossed = await submitClaim(b.key, await tx2For(a), 'claim', accept)
   check(
     "link A's envelope is refused under link B's key",
     crossed.kind === 'conflict',
@@ -313,7 +327,7 @@ async function submitBindsToItsLink(): Promise<void> {
   check('and carries no hash or claimant', victim.claimTxHash === null && victim.claimedBy === null)
 
   // The attacker's own claim must still work — the check binds, it does not block.
-  const own = await submitClaim(a.key, tx2For(a), 'claim', accept)
+  const own = await submitClaim(a.key, await tx2For(a), 'claim', accept)
   check("the holder's own envelope still succeeds", own.kind === 'ok', JSON.stringify(own).slice(0, 160))
 
   const claimed = await prisma.claimLink.findUniqueOrThrow({
@@ -336,7 +350,7 @@ async function submitBindsToItsLink(): Promise<void> {
   const d = await linkWith('d')
   const mixed = buildClaim(
     {
-      sponsorAccount: new Account(sponsor.publicKey(), '100'),
+      sponsorAccount: new Account(sponsor.publicKey(), sourceAccount.sequence),
       sponsorPublicKey: sponsor.publicKey(),
       ephemeralPublicKey: a.key, // someone else's account does the spending
       recipientPublicKey: attacker.publicKey(),
@@ -359,10 +373,10 @@ async function submitBindsToItsLink(): Promise<void> {
 
   // TX1 is bound by what it creates, not by a balance.
   const c = await linkWith('c')
-  const tx1For = (key: string) => {
+  const tx1For = async (key: string) => {
     const built = buildMaterialise(
       {
-        sponsorAccount: new Account(sponsor.publicKey(), '100'),
+        sponsorAccount: new Account(sponsor.publicKey(), sourceAccount.sequence),
         sponsorPublicKey: sponsor.publicKey(),
         ephemeralPublicKey: key,
         recipientPublicKey: key,
@@ -374,19 +388,28 @@ async function submitBindsToItsLink(): Promise<void> {
       },
       { ephemeralTrusts: false },
     )
-    const tx = TransactionBuilder.fromXDR(built.xdr, Networks.TESTNET)
-    tx.sign(sponsor)
+    const row = await prisma.claimLink.findUniqueOrThrow({ where: { ephemeralPublicKey: key }, select: { id: true, campaignId: true } })
+    const attempt = await prepareAttempt(`materialise:${row.id}`, row.campaignId, 'MATERIALISE', built.xdr,
+      { requiredSigners: [sponsor.publicKey(), key] })
+    const tx = TransactionBuilder.fromXDR(attempt.preparedXdr, Networks.TESTNET)
+    tx.sign(sponsor, pairs.get(key)!)
     return tx.toXDR()
   }
 
-  const crossedTx1 = await submitClaim(c.key, tx1For(a.key), 'materialise', accept)
+  const crossedTx1 = await submitClaim(c.key, await tx1For(a.key), 'materialise', accept)
   check(
     "a TX1 that creates another link's account is refused",
     crossedTx1.kind === 'conflict',
     JSON.stringify(crossedTx1).slice(0, 160),
   )
 
-  const ownTx1 = await submitClaim(c.key, tx1For(c.key), 'materialise', accept)
+  // The rejected cross-link request never submitted A's preparation. Release
+  // that fixture reservation explicitly before preparing C on the same source.
+  const abandoned = await prisma.ledgerAttempt.updateMany({ where: { scope: `materialise:${a.id}`,
+    status: 'PREPARED', submittedXdr: null }, data: { status: 'FAILED' } })
+  check('the rejected TX1 remained unsubmitted', abandoned.count === 1)
+
+  const ownTx1 = await submitClaim(c.key, await tx1For(c.key), 'materialise', accept)
   check('its own TX1 succeeds', ownTx1.kind === 'ok', JSON.stringify(ownTx1).slice(0, 160))
 
   // An envelope Kleym did not build at all.

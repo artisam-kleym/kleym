@@ -30,6 +30,7 @@ export function ReclaimPanel({
   expired,
   outstanding,
   alreadyReclaimed,
+  sponsored = false,
 }: {
   campaignId: string
   network: 'testnet' | 'public'
@@ -46,6 +47,7 @@ export function ReclaimPanel({
   expired: boolean
   outstanding: number
   alreadyReclaimed: Done[]
+  sponsored?: boolean
 }) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -106,7 +108,10 @@ export function ReclaimPanel({
 
         const submitted = await post('submit', { signedXdr })
         if (!submitted.ok) throw new Error(await detail(submitted))
-        collected.push((await submitted.json()) as Done)
+        const receipt = (await submitted.json()) as Done
+        if (!collected.some((entry) => entry.transactionHash === receipt.transactionHash)) collected.push(receipt)
+        // A later batch failure must not hide refunds that already landed.
+        setDone((prior) => prior.some((entry) => entry.transactionHash === receipt.transactionHash) ? prior : [receipt, ...prior])
       }
 
       if (collected.length === 0 && done.length === 0) {
@@ -114,7 +119,6 @@ export function ReclaimPanel({
         setPhase('idle')
         return
       }
-      setDone([...collected, ...done])
       setPhase('reclaimed')
     } catch (caught) {
       setError(await walletErrorMessage(caught))
@@ -144,6 +148,8 @@ export function ReclaimPanel({
             {outstanding} {outstanding === 1 ? 'link is' : 'links are'} still outstanding.
           </p>
         )}
+        {error && <p role="alert" className="mt-md text-body-md text-error">{error}</p>}
+        {expired && outstanding > 0 && <Button onClick={() => setPhase('confirming')}>Reclaim remaining funds</Button>}
       </section>
     )
   }
@@ -159,6 +165,8 @@ export function ReclaimPanel({
         exact number comes from the ledger when you confirm, so it may be lower if someone claimed
         recently.
       </p>
+
+      {sponsored && <p className="mt-sm text-body-md text-on-surface-variant">Kleym pays the network fee. Your wallet authorizes the USDC refund and needs no XLM top-up.</p>}
 
       {error && (
         <p role="alert" className="mt-md text-body-md text-error">

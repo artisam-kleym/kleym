@@ -1,0 +1,32 @@
+[
+  {
+    "path": "D:\\lantern\\test-plan-QA-SANDBOX.pdf",
+    "sha256": "8f55c408c3cade8da2193fb5ebff9d94ebfd69c3d70accb3451664acdf79e423",
+    "pages": 11
+  },
+  {
+    "path": "D:\\lantern\\lantern-d1-blacklist-registry-test-plan.pdf",
+    "sha256": "78469b725049cacbe1e38b564daf9eb5fd77daf05878b148de6bb197fb28d214",
+    "pages": 8
+  },
+  {
+    "path": "D:\\lantern\\test-plan-QA-D2-scanner-v2.pdf",
+    "sha256": "989153c7c0a73bee07f86810de80338e92e9b6c431dae6748c212217f0ce9e0e",
+    "pages": 8
+  },
+  {
+    "path": "D:\\lantern\\d3-build-acceptance-test-plan.pdf",
+    "sha256": "300bbd878a6e0205ea32e64a21b9d573d951d96c9f286bdf683c8a083dd4a572",
+    "pages": 9
+  },
+  {
+    "path": "D:\\lantern\\test-plan-QA-D3-extension.pdf",
+    "sha256": "494a40d75c3c40e7d52dce649819a5771eae3f02ed78bb7977c61a1d9e37db5b",
+    "pages": 8
+  },
+  {
+    "path": "D:\\lantern\\d4-playground-test-plan-v3.pdf",
+    "sha256": "1654503caab8da4cad141ee69f6271fdc723c220360d4ccb8a582b48cea4b736",
+    "pages": 11
+  }
+]

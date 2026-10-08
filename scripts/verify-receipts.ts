@@ -17,7 +17,7 @@ applyEnvPlaceholders()
 
 const { prisma } = await import('../src/lib/db/client')
 const { issueReceipt, receiptFor, receiptsFor, buildReceiptBundle, verifyReceipt } = await import('../src/lib/api/receipts')
-const { verifyBytes } = await import('../src/lib/api/audit-chain')
+const { verifyBytes, canonicalJson, signBytes, signingPublicKey } = await import('../src/lib/api/audit-chain')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -36,7 +36,7 @@ async function fixture() {
     },
     select: { id: true },
   })
-  const link = async (claimed: boolean, over: { claimedBy?: string | null; reconciled?: boolean } = {}) => {
+  const link = async (claimed: boolean, over: { claimedBy?: string | null; reconciled?: boolean; missingTime?: boolean } = {}) => {
     const ephemeralPublicKey = Keypair.random().publicKey()
     // A row reconciliation settled names the claimable balance's claimant — the ephemeral account — as `claimedBy`.
     const claimedBy = over.reconciled ? ephemeralPublicKey : over.claimedBy === undefined ? Keypair.random().publicKey() : over.claimedBy
@@ -44,7 +44,7 @@ async function fixture() {
       data: {
         campaignId: campaign.id, ephemeralPublicKey, amount: '1.0000000',
         status: claimed ? 'CLAIMED' : 'ACTIVE',
-        ...(claimed ? { claimedBy, claimedAt: new Date(), claimTxHash: randomUUID().replace(/-/g, '').repeat(2), claimMemoType: 'id', claimMemo: '42' } : {}),
+        ...(claimed ? { claimedBy, claimedAt: new Date(), ledgerSettledAt: over.missingTime ? null : new Date('2026-10-01T12:00:00Z'), observedAt: new Date(), claimTxHash: randomUUID().replace(/-/g, '').repeat(2), claimMemoType: 'id', claimMemo: '42' } : {}),
       },
       select: { id: true },
     })
@@ -53,6 +53,7 @@ async function fixture() {
     organizationId, campaignId: campaign.id,
     claimedA: await link(true), claimedB: await link(true), active: await link(false),
     unpaid: await link(true, { claimedBy: null }), reconciled: await link(true, { reconciled: true }),
+    missingTime: await link(true, { missingTime: true }),
   }
 }
 
@@ -62,6 +63,24 @@ async function main(): Promise<void> {
   const first = await issueReceipt(f.claimedA.id)
   const again = await issueReceipt(f.claimedA.id)
   check('a settled claim gets a receipt', first !== null)
+  check('v3 uses authoritative time despite delayed observation', first?.contents.version === 3 &&
+    first.contents.claim.claimedAt === '2026-10-01T12:00:00.000Z' && first.contents.claim.timeSource === 'ledger')
+  check('legacy application time alone cannot create a new receipt', await issueReceipt(f.missingTime.id) === null)
+  // Historical bytes are generated from a safe public fixture, then stored
+  // as v2. Fetching must return them unchanged, even without a reliable time.
+  const legacyDoc = { ...first!.contents, version: 2, receiptId: `legacy_${f.missingTime.id}`,
+    link: { id: f.missingTime.id }, claim: { ...first!.contents.claim } }
+  delete legacyDoc.claim.timeSource
+  const legacyCanonical = canonicalJson(legacyDoc)
+  const legacySignature = signBytes(Buffer.from(legacyCanonical))
+  await prisma.claimReceipt.create({ data: { id: legacyDoc.receiptId, linkId: f.missingTime.id,
+    campaignId: f.campaignId, organizationId: f.organizationId, version: 2, claimedAt: new Date(),
+    canonical: legacyCanonical, signature: legacySignature, publicKey: signingPublicKey() } })
+  const historical = await issueReceipt(f.missingTime.id)
+  check('stored v2 canonical/signature remain byte-identical and verifiable', historical?.canonical === legacyCanonical &&
+    historical.signature === legacySignature && verifyReceipt(historical.canonical, historical.signature, historical.publicKey))
+  // Remove only this owned compatibility fixture before the original bundle-count checks.
+  await prisma.claimReceipt.delete({ where: { linkId: f.missingTime.id } })
   check('a second issue returns the same receipt, byte-identical', first !== null && again !== null && first.receiptId === again.receiptId && first.canonical === again.canonical && first.signature === again.signature)
   check('it verifies with the public key alone', first !== null && verifyReceipt(first.canonical, first.signature, first.publicKey))
   check('it records the memo beside the destination', first !== null && first.contents.claim.memoType === 'id' && first.contents.claim.memo === '42')

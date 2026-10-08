@@ -1,0 +1,9 @@
+{
+  "logs": ".runtime/app-sending-pilot",
+  "database": "kleym_app_pilot",
+  "appPid": 28684,
+  "checkedAt": "2026-10-01T08:06:58.8907979Z",
+  "redisDatabase": 1,
+  "workerWrapperPid": 26224,
+  "url": "http://127.0.0.1:3220"
+}

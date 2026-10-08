@@ -1,0 +1,170 @@
+{
+  "stage": "claim",
+  "network": "testnet",
+  "hash": "400b8848574356aa5c4a33c0240760c8f631e8137b6c3b17743b0c65377d8fde",
+  "ledger": 4951288,
+  "successful": true,
+  "feeChargedStroops": "700",
+  "reviewed": {
+    "stage": "claim",
+    "network": "testnet",
+    "hash": "400b8848574356aa5c4a33c0240760c8f631e8137b6c3b17743b0c65377d8fde",
+    "source": "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+    "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+    "feeBidStroops": "7000",
+    "requiredSigners": [
+      "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+      "GCFKAQEEPDEBDF47MW2VBSUPATAY7K5XBRBHTMPJXRIHLJF4PUW3OW7Y",
+      "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I"
+    ],
+    "operationTypes": [
+      "claimClaimableBalance",
+      "beginSponsoringFutureReserves",
+      "changeTrust",
+      "endSponsoringFutureReserves",
+      "payment",
+      "changeTrust",
+      "accountMerge"
+    ],
+    "recipient": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+    "recipientMode": "existing-no-trustline",
+    "recipientBefore": {
+      "address": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+      "native": "0.0000000",
+      "usdc": "0.0000000",
+      "baseReserve": "0.5000000",
+      "hasUsdcTrustline": false,
+      "accountSponsor": "GAUKFGMOCJ6CW6MTQZZHRTKH6F2EAYHLJUZ6YWWKO3WHURVX35AHAGIX",
+      "trustlineSponsor": null,
+      "numSponsoring": 0,
+      "numSponsored": 2,
+      "minimumReserve": "0.0000000",
+      "spendableNative": "0.0000000"
+    },
+    "amount": "1.0000000",
+    "needsRecipientSignature": true,
+    "newRecipientReserveUnits": 1,
+    "materialiseLedger": 4951278
+  },
+  "requiredSignersVerified": [
+    "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+    "GCFKAQEEPDEBDF47MW2VBSUPATAY7K5XBRBHTMPJXRIHLJF4PUW3OW7Y",
+    "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I"
+  ],
+  "before": {
+    "sender": {
+      "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "native": "0.0000000",
+      "usdc": "16.0000000",
+      "baseReserve": "0.5000000",
+      "hasUsdcTrustline": true,
+      "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "trustlineSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "numSponsoring": 0,
+      "numSponsored": 3,
+      "minimumReserve": "0.0000000",
+      "spendableNative": "0.0000000"
+    },
+    "sponsor": {
+      "address": "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+      "native": "9999.9999000",
+      "usdc": "0.0000000",
+      "baseReserve": "0.5000000",
+      "hasUsdcTrustline": false,
+      "accountSponsor": null,
+      "trustlineSponsor": null,
+      "numSponsoring": 7,
+      "numSponsored": 0,
+      "minimumReserve": "4.5000000",
+      "spendableNative": "9995.4999000"
+    },
+    "recipient": {
+      "exists": true,
+      "trusts": false,
+      "snapshot": {
+        "address": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+        "native": "0.0000000",
+        "usdc": "0.0000000",
+        "baseReserve": "0.5000000",
+        "hasUsdcTrustline": false,
+        "accountSponsor": "GAUKFGMOCJ6CW6MTQZZHRTKH6F2EAYHLJUZ6YWWKO3WHURVX35AHAGIX",
+        "trustlineSponsor": null,
+        "numSponsoring": 0,
+        "numSponsored": 2,
+        "minimumReserve": "0.0000000",
+        "spendableNative": "0.0000000"
+      }
+    }
+  },
+  "after": {
+    "sender": {
+      "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "native": "0.0000000",
+      "usdc": "16.0000000",
+      "baseReserve": "0.5000000",
+      "hasUsdcTrustline": true,
+      "accountSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "trustlineSponsor": "GAHWMILWJ7JW2PKMQNR3TNCD5MZPKAWP3ON5VVYFJVNXWXRY2C6DND7M",
+      "numSponsoring": 0,
+      "numSponsored": 3,
+      "minimumReserve": "0.0000000",
+      "spendableNative": "0.0000000"
+    },
+    "sponsor": {
+      "address": "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+      "native": "9999.9998300",
+      "usdc": "0.0000000",
+      "baseReserve": "0.5000000",
+      "hasUsdcTrustline": false,
+      "accountSponsor": null,
+      "trustlineSponsor": null,
+      "numSponsoring": 3,
+      "numSponsored": 0,
+      "minimumReserve": "2.5000000",
+      "spendableNative": "9997.4998300"
+    },
+    "recipient": {
+      "exists": true,
+      "trusts": true,
+      "snapshot": {
+        "address": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+        "native": "0.0000000",
+        "usdc": "1.0000000",
+        "baseReserve": "0.5000000",
+        "hasUsdcTrustline": true,
+        "accountSponsor": "GAUKFGMOCJ6CW6MTQZZHRTKH6F2EAYHLJUZ6YWWKO3WHURVX35AHAGIX",
+        "trustlineSponsor": "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+        "numSponsoring": 0,
+        "numSponsored": 3,
+        "minimumReserve": "0.0000000",
+        "spendableNative": "0.0000000"
+      }
+    }
+  },
+  "recipient": {
+    "address": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+    "native": "0.0000000",
+    "usdc": "1.0000000",
+    "baseReserve": "0.5000000",
+    "hasUsdcTrustline": true,
+    "accountSponsor": "GAUKFGMOCJ6CW6MTQZZHRTKH6F2EAYHLJUZ6YWWKO3WHURVX35AHAGIX",
+    "trustlineSponsor": "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+    "numSponsoring": 0,
+    "numSponsored": 3,
+    "minimumReserve": "0.0000000",
+    "spendableNative": "0.0000000"
+  },
+  "assertions": {
+    "senderStillHasZeroXlm": true,
+    "sponsorPaidExactFee": true,
+    "recipientReceivedExactlyOneUsdc": true,
+    "recipientNeededNoXlmTopUp": true,
+    "recipientSponsorshipMatchesState": true,
+    "recipientSignatureMatchesOperations": true,
+    "tx2InStrictlyLaterLedger": true,
+    "ephemeralAccountRemoved": true,
+    "claimedBalanceRemoved": true,
+    "temporaryReservesReleased": true
+  },
+  "acceptancePassed": true
+}

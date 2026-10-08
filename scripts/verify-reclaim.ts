@@ -17,10 +17,12 @@ import { Account, Keypair, Operation, TransactionBuilder, type Transaction } fro
 import Decimal from 'decimal.js'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
 import { startTestnetNetworkFixture } from '../tests/fixtures/horizon-network'
+import type { FixtureAccount } from '../tests/fixtures/horizon-network'
 import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
-const stopNetworkFixture = await startTestnetNetworkFixture()
+const sourceAccounts = new Map<string, FixtureAccount>()
+const stopNetworkFixture = await startTestnetNetworkFixture({ accounts: sourceAccounts, baseReserveStroops: 5_000_000 })
 
 const { prisma } = await import('../src/lib/db/client')
 const { env } = await import('../src/lib/config/env')
@@ -57,6 +59,7 @@ async function fixture(
     select: { id: true },
   })
   const sender = Keypair.random()
+  sourceAccounts.set(sender.publicKey(), { sequence: '1', nativeBalance: '10000.0000000' })
   const campaign = await prisma.campaign.create({
     data: {
       userId: user.id,
@@ -98,12 +101,15 @@ async function fixture(
 const ledgerHolding = (ids: string[], amount = AMOUNT) => async () =>
   new Map(ids.map((id) => [id, amount]))
 
-const account = (sender: Keypair) => async () => new Account(sender.publicKey(), '1')
+const account = (sender: Keypair) => async () => new Account(sender.publicKey(), sourceAccounts.get(sender.publicKey())!.sequence)
 
 /** Records what was submitted instead of sending it. */
 function recordingSubmit() {
   const sent: Transaction[] = []
-  return { sent, submit: async (t: Transaction) => void sent.push(t) }
+  return { sent, submit: async (t: Transaction) => {
+    sent.push(t)
+    sourceAccounts.get(t.source)!.sequence = t.sequence
+  } }
 }
 
 const deps = (f: Fixture, ledger: string[], sink = recordingSubmit()) => ({

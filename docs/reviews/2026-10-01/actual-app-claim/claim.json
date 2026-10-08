@@ -1,0 +1,50 @@
+{
+  "checkedAt": "2026-10-01T10:11:12.584Z",
+  "network": "testnet",
+  "readOnly": true,
+  "campaignId": "cmupd9xde0008y8kjuywfibzl",
+  "fundingHash": "51f03667ca967988ae514af5f85cd5bf82cfd82f72be9db6535298c299519e3d",
+  "tx1Hash": "18c9dbd642d01c3d338683c464392247ed9efb4bd9efd99eb657e0322b8dda1a",
+  "claimHash": "aa495e65ac2d88c3d20c0433b20924364fc1414ae0ba831bd584e01e66a93bce",
+  "materialiseLedger": 4965092,
+  "claimLedger": 4965095,
+  "successful": true,
+  "recipientReceived": "1.0000000",
+  "sender": {
+    "usdc": "13.0000000",
+    "xlm": "0.0000000"
+  },
+  "recipient": {
+    "usdc": "2.0000000",
+    "xlm": "0.0000000"
+  },
+  "feePaidBySponsorStroops": {
+    "materialise": "600",
+    "claim": "400"
+  },
+  "signaturesVerified": true,
+  "temporaryAccountRemoved": true,
+  "claimedBalanceRemoved": true,
+  "senderRecipientAndOutstandingUsdc": "18.0000000",
+  "remainingSponsorReserveUnits": 6,
+  "outstanding": [
+    {
+      "campaignId": "cmupcw5ey0004y8kjq7oryzzk",
+      "amount": "2.0000000",
+      "expiresAt": "2026-10-01T10:07:00Z",
+      "balanceIds": [
+        "0000000053a8bc618dc0ba7a5ec6b6af7836f011a7d1afa5c843167732898c766faa7fdc",
+        "00000000c9459cdc01a80320e6461e02755851fdfbcd71ae0786b7dc6485d6319eed0de6"
+      ]
+    },
+    {
+      "campaignId": "cmupd9xde0008y8kjuywfibzl",
+      "amount": "1.0000000",
+      "expiresAt": "2026-10-31T02:02:00Z",
+      "balanceIds": [
+        "0000000063b1a5d9131f75e31f466ba5bae617761e0683bf0afe8a200b5026de8b43a7d1"
+      ]
+    }
+  ],
+  "acceptancePassed": true
+}

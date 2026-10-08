@@ -1,0 +1,22 @@
+[
+  {
+    "name": "web",
+    "service": "4d547645-da9f-4e1e-aec3-2511f6239fc3",
+    "stopRequestedAt": "2026-10-06T13:46:31.100Z"
+  },
+  {
+    "name": "worker",
+    "service": "2490753a-e4ba-471c-87c9-a6dd7d74d567",
+    "stopRequestedAt": "2026-10-06T13:46:36.373Z"
+  },
+  {
+    "name": "redis",
+    "service": "45121e0c-a4e7-4961-8004-102e6dfa6d03",
+    "stopRequestedAt": "2026-10-06T13:46:41.246Z"
+  },
+  {
+    "name": "postgres",
+    "service": "37702f7c-d942-4b00-96aa-16b5c4a8b58e",
+    "stopRequestedAt": "2026-10-06T13:47:50.540Z"
+  }
+]

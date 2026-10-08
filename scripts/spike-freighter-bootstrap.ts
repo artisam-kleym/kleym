@@ -11,15 +11,21 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Horizon, Keypair, Networks, StrKey, type Transaction } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
-import { bootstrapFeePerOperation, buildSponsoredSenderBootstrap, verifyBootstrapSignature, BOOTSTRAP_ASSET } from './lib/freighter-bootstrap'
+import { bootstrapFeePerOperation, buildSponsoredBootstrap, verifyBootstrapSignature, BOOTSTRAP_ASSET, type BootstrapMode } from './lib/freighter-bootstrap'
 
 const sender = process.argv[2]
 const recipient = process.argv[3]
 const evidenceDirectory = process.argv[4]
+const mode = process.argv[5] ?? 'sender-usdc'
+if (mode !== 'sender-usdc' && mode !== 'recipient-account-only') throw new Error('Choose sender-usdc or recipient-account-only bootstrap mode.')
 if (!sender || !recipient || !evidenceDirectory || sender === recipient ||
     ![sender, recipient].every((address) => StrKey.isValidEd25519PublicKey(address))) {
-  throw new Error('Usage: tsx scripts/spike-freighter-bootstrap.ts SENDER_G_ADDRESS RECIPIENT_G_ADDRESS EXISTING_EVIDENCE_DIRECTORY')
+  throw new Error('Usage: tsx scripts/spike-freighter-bootstrap.ts SENDER_G_ADDRESS RECIPIENT_G_ADDRESS EXISTING_EVIDENCE_DIRECTORY [sender-usdc|recipient-account-only]')
 }
+const target = mode === 'sender-usdc' ? sender : recipient
+const reference = mode === 'sender-usdc' ? recipient : sender
+const targetLabel = mode === 'sender-usdc' ? 'sender' : 'recipient'
+const reserveUnits = mode === 'sender-usdc' ? 3 : 2
 const host = '127.0.0.1:3217'
 const origin = `http://${host}`
 const horizon = new Horizon.Server('https://horizon-testnet.stellar.org')
@@ -30,6 +36,7 @@ let pending: Transaction | undefined
 let attempted = false
 let receipt: Record<string, unknown> | undefined
 let before: Record<string, unknown> | undefined
+let referenceBefore: Awaited<ReturnType<typeof snapshot>> | undefined
 const buildDirectory = await mkdtemp(join(tmpdir(), 'kleym-freighter-bootstrap-'))
 const require = createRequire(import.meta.url)
 const build = createRequire(require.resolve('tsx'))('esbuild').build as (options: object) => Promise<unknown>
@@ -73,11 +80,15 @@ async function save(name: string, value: unknown) {
 }
 const session = new Date().toISOString().replace(/[:.]/g, '-')
 async function prepare() {
-  if (receipt) throw new Error('Sender setup already confirmed.')
+  if (receipt) throw new Error('Wallet setup already confirmed.')
   if (attempted) throw new Error('Resolve the existing submission before preparing another transaction.')
   await assertTestnet()
-  if (await exists(recipient)) throw new Error('The recipient is no longer absent; stop and review the fixture.')
-  if (await exists(sender)) throw new Error('The sender is already activated; stop and review its ledger state.')
+  if (await exists(target)) throw new Error(`The ${targetLabel} is already activated; stop and review its ledger state.`)
+  if (mode === 'sender-usdc') {
+    if (await exists(reference)) throw new Error('The recipient is no longer absent; stop and review the fixture.')
+  } else {
+    referenceBefore = await snapshot(reference)
+  }
   const fees = await horizon.feeStats()
   const perOperation = bootstrapFeePerOperation(fees.last_ledger_base_fee)
   if (!sponsorFunded) {
@@ -87,21 +98,24 @@ async function prepare() {
     await save(`bootstrap-sponsor-${session}.json`, { network: 'testnet', sponsor: sponsor.publicKey(), fundedAt: new Date().toISOString(), keyStorage: 'process memory only' })
   }
   before = await snapshot(sponsor.publicKey())
-  pending = buildSponsoredSenderBootstrap(await horizon.loadAccount(sponsor.publicKey()), sender, perOperation)
+  pending = buildSponsoredBootstrap(await horizon.loadAccount(sponsor.publicKey()), target, perOperation, mode as BootstrapMode)
   pending.sign(sponsor)
   return {
     xdr: pending.toXDR(),
     review: {
       network: 'Stellar Testnet (no monetary value)', hash: pending.hash().toString('hex'),
-      transactionSource: sponsor.publicKey(), requiredSigners: [sponsor.publicKey(), sender], feeStroops: pending.fee,
+      mode, target, targetLabel, sponsoredReserveUnits: reserveUnits,
+      transactionSource: sponsor.publicKey(), requiredSigners: [sponsor.publicKey(), target], feeStroops: pending.fee,
       feeBasis: { lastLedgerBaseFeeStroops: fees.last_ledger_base_fee, perOperationBidStroops: perOperation, maximumPerOperationStroops: '10000' },
-      sender, recipient, recipientRemainsAbsent: true, senderStartingXlm: '0.0000000',
-      asset: { code: 'USDC', issuer: BOOTSTRAP_ASSET.getIssuer(), trustlineLimit: '100.0000000', principalTransferred: '0.0000000' },
+      sender, recipient, recipientRemainsAbsent: mode === 'sender-usdc', targetStartingXlm: '0.0000000',
+      asset: mode === 'sender-usdc'
+        ? { code: 'USDC', issuer: BOOTSTRAP_ASSET.getIssuer(), trustlineLimit: '100.0000000', principalTransferred: '0.0000000' }
+        : { trustlineCreated: false, principalTransferred: '0.0000000' },
       operations: [
-        { type: 'beginSponsoringFutureReserves', source: sponsor.publicKey(), sponsoredId: sender },
-        { type: 'createAccount', source: sponsor.publicKey(), destination: sender, startingBalance: '0' },
-        { type: 'changeTrust', source: sender, assetCode: 'USDC', issuer: BOOTSTRAP_ASSET.getIssuer(), limit: '100' },
-        { type: 'endSponsoringFutureReserves', source: sender },
+        { type: 'beginSponsoringFutureReserves', source: sponsor.publicKey(), sponsoredId: target },
+        { type: 'createAccount', source: sponsor.publicKey(), destination: target, startingBalance: '0' },
+        ...(mode === 'sender-usdc' ? [{ type: 'changeTrust', source: target, assetCode: 'USDC', issuer: BOOTSTRAP_ASSET.getIssuer(), limit: '100' }] : []),
+        { type: 'endSponsoringFutureReserves', source: target },
       ],
     },
   }
@@ -111,8 +125,8 @@ async function submit(xdr: string) {
     if (receipt.acceptancePassed !== true) throw new Error('The confirmed transaction failed setup assertions. Inspect the saved receipt before continuing.')
     return receipt
   }
-  if (!pending || !before) throw new Error('Prepare a sender setup first.')
-  const signed = verifyBootstrapSignature(pending, xdr, sender)
+  if (!pending || !before) throw new Error('Prepare a wallet setup first.')
+  const signed = verifyBootstrapSignature(pending, xdr, target)
   const hash = pending.hash().toString('hex')
   await assertTestnet()
   let confirmed: any
@@ -120,34 +134,39 @@ async function submit(xdr: string) {
     if (error?.response?.status !== 404) throw error
   }
   if (!confirmed) {
-    if (await exists(recipient)) throw new Error('Recipient activation invalidated the absent-account fixture.')
-    if (await exists(sender)) throw new Error('Sender activated outside this exact transaction; stop and review.')
+    if (mode === 'sender-usdc' && await exists(reference)) throw new Error('Recipient activation invalidated the absent-account fixture.')
+    if (await exists(target)) throw new Error('Wallet activated outside this exact transaction; stop and review.')
     if (!attempted) {
-      await save(`bootstrap-attempt-${session}.json`, { network: 'testnet', hash, sender, recipient, sponsor: sponsor.publicKey(), before, submittedAt: new Date().toISOString() })
+      await save(`bootstrap-attempt-${session}.json`, { network: 'testnet', mode, target, hash, sender, recipient, sponsor: sponsor.publicKey(), before, referenceBefore, submittedAt: new Date().toISOString() })
       attempted = true
     }
     await horizon.submitTransaction(signed)
     confirmed = await horizon.transactions().transaction(hash).call()
   }
-  if (!confirmed.successful) throw new Error('The sender setup transaction failed on Testnet.')
-  const [senderAfter, sponsorAfter, recipientExists] = await Promise.all([snapshot(sender), snapshot(sponsor.publicKey()), exists(recipient)])
-  const trustline = senderAfter.balances.find((b) => b.code === 'USDC' && b.issuer === BOOTSTRAP_ASSET.getIssuer())
+  if (!confirmed.successful) throw new Error('The wallet setup transaction failed on Testnet.')
+  const [targetAfter, sponsorAfter, referenceExists] = await Promise.all([snapshot(target), snapshot(sponsor.publicKey()), exists(reference)])
+  const referenceAfter = mode === 'recipient-account-only' ? await snapshot(reference) : undefined
+  const trustline = targetAfter.balances.find((b) => b.code === 'USDC' && b.issuer === BOOTSTRAP_ASSET.getIssuer())
   const assertions = {
-    senderHasLiteralZeroXlm: senderAfter.nativeBalance === '0.0000000',
-    senderAccountSponsored: senderAfter.accountSponsor === sponsor.publicKey(),
-    officialTrustlineSponsored: trustline?.sponsor === sponsor.publicKey(),
-    senderHasThreeSponsoredReserves: senderAfter.numSponsored === 3,
-    sponsorAddedThreeReserves: sponsorAfter.numSponsoring === Number(before.numSponsoring) + 3,
+    targetHasLiteralZeroXlm: targetAfter.nativeBalance === '0.0000000',
+    targetAccountSponsored: targetAfter.accountSponsor === sponsor.publicKey(),
+    trustlineMatchesMode: mode === 'sender-usdc' ? trustline?.sponsor === sponsor.publicKey() : targetAfter.balances.length === 1 && !trustline,
+    exactSponsoredReserveCount: targetAfter.numSponsored === reserveUnits,
+    sponsorAddedExactReserves: sponsorAfter.numSponsoring === Number(before.numSponsoring) + reserveUnits,
     sponsorPaidExactFee: new Decimal(String(before.nativeBalance)).minus(sponsorAfter.nativeBalance).mul(10_000_000).equals(confirmed.fee_charged),
-    recipientStillAbsent: !recipientExists,
+    referenceStatePreserved: mode === 'sender-usdc' ? !referenceExists : JSON.stringify(referenceBefore) === JSON.stringify(referenceAfter),
   }
+  const ledger = typeof confirmed.ledger_attr === 'number' ? confirmed.ledger_attr : confirmed.ledger
+  if (!Number.isInteger(ledger) || ledger <= 0) throw new Error('Confirmed transaction has no canonical ledger number; resolve the original hash before continuing.')
   receipt = {
-    network: 'testnet', hash, ledger: confirmed.ledger, successful: confirmed.successful,
+    network: 'testnet', mode, target, hash, ledger, successful: confirmed.successful,
     feeChargedStroops: confirmed.fee_charged, confirmedAt: new Date().toISOString(),
-    sender, recipient, sponsor: sponsor.publicKey(), requiredSignersVerified: [sender, sponsor.publicKey()],
-    sponsorBefore: before, senderAfter, sponsorAfter, assertions,
+    sender, recipient, sponsor: sponsor.publicKey(), requiredSignersVerified: [target, sponsor.publicKey()],
+    sponsorBefore: before, targetAfter, senderAfter: mode === 'sender-usdc' ? targetAfter : referenceAfter,
+    recipientAfter: mode === 'recipient-account-only' ? targetAfter : undefined, referenceBefore, referenceAfter, sponsorAfter, assertions,
     acceptancePassed: Object.values(assertions).every(Boolean),
-    remaining: 'Acquire official test USDC, then prove sponsored funding, claim and expiry reclaim. This is setup only.',
+    remaining: mode === 'sender-usdc' ? 'Acquire official test USDC, then prove sponsored funding, claim and expiry reclaim. This is setup only.'
+      : 'Recipient account exists with zero XLM and no trustline. Return to Codex before sponsored funding/claim/reclaim. Its account reserves remain sponsored.',
   }
   await save(`bootstrap-receipt-${session}.json`, receipt)
   if (!Object.values(assertions).every(Boolean)) throw new Error('Transaction confirmed, but setup assertions failed. Stop and inspect the saved receipt.')
@@ -165,7 +184,11 @@ async function readBody(request: IncomingMessage) {
   }
   return JSON.parse(text)
 }
-const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kleym · Testnet sender setup</title><link rel="stylesheet" href="/style.css"></head><body><main><p class="eyebrow">KLEYM · DEVELOPMENT PROOF</p><h1>Set up your Testnet sender</h1><p>Create your sender account and a test-USDC trustline with sponsored reserves. Your sender starts with <strong>zero XLM</strong>. Test tokens have no monetary value.</p><p>Sender <code id="sender"></code></p><p>Recipient <code id="recipient"></code></p><p>Keep the recipient unfunded. Select <strong>Kleym Sender</strong> and <strong>Testnet</strong> in Freighter.</p><div class="actions"><button id="connect">1. Connect Freighter</button><button id="prepare" disabled>2. Prepare sender setup</button><button id="sign" disabled>3. Sign in Freighter</button><button id="submit" disabled>4. Submit sender setup</button></div><p id="status" role="status" aria-live="polite">Connecting or opening this page submits no transaction. Preparation funds only an isolated sponsor via the Testnet faucet.</p><pre id="review" aria-label="Transaction review"></pre></main><script type="module" src="/assets/freighter-bootstrap-browser.js"></script></body></html>`
+const walletLabel = mode === 'sender-usdc' ? 'Kleym Sender' : 'Kleym Recipient - No Trustline'
+const setupDescription = mode === 'sender-usdc'
+  ? 'Create your sender account and a test-USDC trustline with sponsored reserves. Your sender starts with <strong>zero XLM</strong>.'
+  : 'Create only your sponsored recipient account, with <strong>zero XLM and no USDC trustline</strong>. The later claim will create the trustline with your wallet signature. Leave this wallet unfunded.'
+const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kleym - Testnet ${targetLabel} setup</title><link rel="stylesheet" href="/style.css"></head><body><main><p class="eyebrow">KLEYM - DEVELOPMENT PROOF</p><h1>Set up your Testnet ${targetLabel}</h1><p>${setupDescription} Test tokens have no monetary value.</p><p>Sender <code id="sender"></code></p><p>Recipient <code id="recipient"></code></p><p>${mode === 'sender-usdc' ? 'Keep the recipient unfunded. ' : ''}Select <strong>${walletLabel}</strong> and <strong>Testnet</strong> in Freighter.</p><div class="actions"><button id="connect">1. Connect Freighter</button><button id="prepare" disabled>2. Prepare ${targetLabel} setup</button><button id="sign" disabled>3. Sign in Freighter</button><button id="submit" disabled>4. Submit ${targetLabel} setup</button></div><p id="status" role="status" aria-live="polite">Connecting or opening this page submits no transaction. Preparation funds only an isolated sponsor via the Testnet faucet.</p><pre id="review" aria-label="Transaction review"></pre></main><script type="module" src="/assets/freighter-bootstrap-browser.js"></script></body></html>`
 const css = `:root{font-family:system-ui,sans-serif;color:#17242a;background:#f3f6f4}body{margin:0}main{max-width:850px;margin:4rem auto;padding:2rem;background:white;border:1px solid #dce6df;border-radius:16px}h1{font-size:2rem;letter-spacing:-.04em}.eyebrow{font-size:.75rem;letter-spacing:.12em;color:#3b7357}p{line-height:1.6}code{display:block;overflow-wrap:anywhere;font-size:.85rem}.actions{display:flex;flex-wrap:wrap;gap:.6rem;margin:2rem 0}button{padding:.8rem 1rem;border:1px solid #1e6040;border-radius:8px;background:#1e6040;color:white;cursor:pointer;font:inherit}button:disabled{opacity:.45;cursor:default}button:focus-visible{outline:3px solid #de9d25;outline-offset:3px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem;line-height:1.5}@media(max-width:650px){main{margin:1rem;padding:1.2rem}.actions{flex-direction:column}}`
 await assertTestnet()
 const http = createServer(async (request, response) => {
@@ -181,7 +204,7 @@ const http = createServer(async (request, response) => {
       const content = await readFile(join(buildDirectory, path.slice('/assets/'.length)))
       response.writeHead(200, { 'content-type': 'application/javascript' }); response.end(content); return
     }
-    if (request.method === 'GET' && path === '/status') return respond(response, 200, { network: 'testnet', sender, recipient, receipt })
+    if (request.method === 'GET' && path === '/status') return respond(response, 200, { network: 'testnet', sender, recipient, mode, target, targetLabel, walletLabel, receipt })
     if (request.method !== 'POST' || !['/prepare', '/submit'].includes(path)) return respond(response, 404, { error: 'Not found.' })
     if (request.headers.origin !== origin || request.headers['x-kleym-proof'] !== 'bootstrap' || request.headers['content-type'] !== 'application/json') {
       return respond(response, 403, { error: 'Only the local signing page can initiate this proof.' })

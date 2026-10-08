@@ -1,0 +1,20 @@
+
+ RUN  v4.1.11 D:/kleym/.worktrees/app-sending-pilot
+
+{"level":30,"time":1791461365012,"pid":26448,"hostname":"Adealix","created":1,"checked":0,"priced":0,"msg":"valuation pass: rows created and priced"}
+{"level":30,"time":1791461365014,"pid":26448,"hostname":"Adealix","created":1,"checked":0,"priced":0,"msg":"valuation pass: rows created and priced"}
+{"level":30,"time":1791461365016,"pid":26448,"hostname":"Adealix","created":0,"checked":2,"priced":1,"msg":"valuation pass: rows created and priced"}
+{"level":50,"time":1791461366703,"pid":24376,"hostname":"Adealix","templateId":"template","campaignId":"campaign","reason":"audit unavailable","msg":"prepared run audit could not be recorded"}
+{"level":30,"time":1791461366704,"pid":24376,"hostname":"Adealix","templateId":"template","campaignId":"campaign","kind":"SCHEDULED","linkCount":1,"msg":"template run prepared"}
+{"level":30,"time":1791461366712,"pid":24376,"hostname":"Adealix","templateId":"template","campaignId":"campaign","kind":"SCHEDULED","linkCount":1,"msg":"template run prepared"}
+{"level":50,"time":1791461366712,"pid":24376,"hostname":"Adealix","templateId":"template","campaignId":"campaign","reason":"notification unavailable","msg":"prepared run notification failed"}
+{"level":50,"time":1791461367859,"pid":1352,"hostname":"Adealix","deliveryId":"d1","reason":"redis gone","msg":"could not queue a reminder; continuing"}
+{"level":50,"time":1791461367861,"pid":1352,"hostname":"Adealix","deliveryId":"d1","reason":"db gone","msg":"could not queue a reminder; continuing"}
+{"level":50,"time":1791461367862,"pid":1352,"hostname":"Adealix","deliveryId":"d1","reason":"connection dropped after the write","msg":"could not queue a reminder; continuing"}
+{"level":30,"time":1791461367864,"pid":1352,"hostname":"Adealix","actorId":"admin","redacted":1,"msg":"erasure request honoured"}
+
+ Test Files  53 passed (53)
+      Tests  652 passed (652)
+   Start at  20:09:21
+   Duration  8.18s (transform 5.76s, setup 49.21s, import 26.39s, tests 5.86s, environment 7ms)
+

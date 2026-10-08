@@ -16,6 +16,7 @@ import { claimPolicyGate } from '@/lib/api/claim-policy'
 import { rateLimit } from '@/lib/auth/rate-limit'
 import { guardRequestBody } from '@/lib/security/guard'
 import { claimSchema, prepareClaim } from '@/lib/api/claims'
+import { validClaimPrepareProof } from '@/lib/api/claim-prepare-proof'
 import { zodErrors } from '@/lib/api/campaigns'
 import {
   CLAIM_LIMIT,
@@ -47,6 +48,9 @@ export async function POST(request: Request) {
 
   const parsed = claimSchema.safeParse(body)
   if (!parsed.success) return claimValidationProblem(zodErrors(parsed.error))
+  if (!validClaimPrepareProof(request, 'claim', parsed.data)) {
+    return claimConflict('This claim request expired or could not be verified. Reopen your saved claim link and try again.')
+  }
 
 
   /*

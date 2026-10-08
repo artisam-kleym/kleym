@@ -31,6 +31,9 @@ import { recordClaimValuation } from './valuations'
 import { feeChargedOf } from '@/lib/stellar/fees'
 import { issueReceipt } from './receipts'
 import { enqueueReceipt } from '@/lib/queue/email'
+import { executeAttempt, hasSignature, lookupAttempt, parseAttempt, prepareAttempt, type AttemptLookup } from '@/lib/stellar/attempts'
+import { SourceCoordinationError } from '@/lib/stellar/source-coordination'
+import { ledgerSettlementTime } from '@/lib/stellar/settlement-time'
 
 const PUBLIC_KEY = /^G[A-Z2-7]{55}$/
 
@@ -518,13 +521,16 @@ async function prepareMaterialiseUnobserved(ephemeralPublicKey: string): Promise
 
   const context = await claimContext(loaded.value, ephemeralPublicKey, ephemeralPublicKey)
   const built = buildMaterialise(context, { ephemeralTrusts: false })
+  const attempt = await prepareAttempt(`materialise:${loaded.value.id}`, loaded.value.campaignId, 'MATERIALISE',
+    signAsSponsor(built.xdr, env.NETWORK_PASSPHRASE, sponsorSecret(loaded.value.sponsorPublicKey)),
+    { operations: built.operations, requiredSigners: [loaded.value.sponsorPublicKey, ephemeralPublicKey] })
 
   return {
     kind: 'ok',
     value: {
       alreadyExists: false,
-      xdr: signAsSponsor(built.xdr, env.NETWORK_PASSPHRASE, sponsorSecret(loaded.value.sponsorPublicKey)),
-      operations: built.operations,
+      xdr: attempt.preparedXdr,
+      operations: parseAttempt(attempt.preparedXdr).operations.length,
     },
   }
 }
@@ -616,6 +622,12 @@ async function prepareClaimUnobserved(
   }
 
   const context = await claimContext(loaded.value, ephemeralPublicKey, recipientPublicKey, converting, memo)
+  const ephemeralAccount = await horizon().loadAccount(ephemeralPublicKey)
+  const createdLedger = Number(BigInt(ephemeralAccount.sequenceNumber()) >> 32n)
+  const ledgers = await horizon().ledgers().order('desc').limit(1).call()
+  const closedLedger = ledgers.records[0]?.sequence
+  if (!closedLedger || closedLedger <= createdLedger) return conflict('Waiting for the next ledger before claiming.', 'not-ready')
+  context.minimumClaimLedger = createdLedger + 1
   const plan = buildClaim(context, {
     ephemeralExists: true,
     ephemeralTrusts,
@@ -623,9 +635,7 @@ async function prepareClaimUnobserved(
     recipientTrusts: recipientLive && recipientTrusts,
   })
 
-  return {
-    kind: 'ok',
-    value: {
+  const value = {
       xdr: signAsSponsor(plan.xdr, env.NETWORK_PASSPHRASE, sponsorSecret(loaded.value.sponsorPublicKey)),
       needsRecipientSignature: plan.needsRecipientSignature,
       operations: plan.operations,
@@ -638,8 +648,23 @@ async function prepareClaimUnobserved(
           }
         : null,
       memo: memo ?? null,
-    },
   }
+  const scope = `claim:${loaded.value.id}`
+  const prior = await prisma.ledgerAttempt.findUnique({ where: { scope } })
+  if (prior?.status === 'PREPARED') {
+    const old = prior.metadata as unknown as Omit<ClaimPrepared, 'xdr'>
+    if (recipientOf(parseAttempt(prior.preparedXdr)) !== recipientPublicKey || old.needsRecipientSignature !== value.needsRecipientSignature ||
+      JSON.stringify(old.memo) !== JSON.stringify(value.memo) || JSON.stringify(old.conversion) !== JSON.stringify(value.conversion)) {
+      await prisma.ledgerAttempt.updateMany({ where: { scope, transactionHash: prior.transactionHash, status: 'PREPARED' }, data: { status: 'FAILED' } })
+    }
+  }
+  const attempt = await prepareAttempt(scope, loaded.value.campaignId, 'CLAIM', value.xdr,
+    JSON.parse(JSON.stringify({ ...value, xdr: undefined,
+      requiredSigners: [loaded.value.sponsorPublicKey, ephemeralPublicKey, ...(plan.needsRecipientSignature ? [recipientPublicKey] : [])] })))
+  if (recipientOf(parseAttempt(attempt.preparedXdr)) !== recipientPublicKey) {
+    return conflict('An existing claim attempt is bound to another recipient. Complete that attempt before changing wallets.')
+  }
+  return { kind: 'ok', value: { ...attempt.metadata as unknown as Omit<ClaimPrepared, 'xdr'>, xdr: attempt.preparedXdr } }
 }
 
 export interface Submitted {
@@ -663,12 +688,13 @@ export interface Submitted {
  * itself also rejects a replayed sequence number, but that arrives as an error
  * the recipient would see — this returns the original result instead.
  */
-export type Submitter = (transaction: Transaction) => Promise<{ hash: string; successful: boolean; feeCharged?: string | number | null; resultXdr?: string }>
+export type Submitter = (transaction: Transaction) => Promise<{ hash: string; successful: boolean; ledger?: number; feeCharged?: string | number | null; resultXdr?: string; errorCode?: string; settledAt?: string }>
 
 /** The real one. Injectable for the same reason `loadClaimable`'s read is. */
 const submitToHorizon: Submitter = async (transaction) => {
   const response = await horizon().submitTransaction(transaction)
-  return { hash: response.hash, successful: response.successful !== false, feeCharged: feeChargedOf(response.result_xdr), resultXdr: response.result_xdr }
+  if (response.successful !== true || !Number.isInteger(response.ledger)) throw new Error('Ledger inclusion is not confirmed')
+  return { hash: response.hash, successful: true, ledger: response.ledger, feeCharged: feeChargedOf(response.result_xdr), resultXdr: response.result_xdr }
 }
 
 async function submitClaimUnobserved(
@@ -676,12 +702,13 @@ async function submitClaimUnobserved(
   signedXdr: string,
   phase: 'materialise' | 'claim',
   submit: Submitter = submitToHorizon,
+  lookup: AttemptLookup = submit === submitToHorizon ? lookupAttempt : async () => null,
 ): Promise<Outcome<Submitted>> {
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
     select: {
       id: true, status: true, campaignId: true, claimTxHash: true, claimedBy: true, balanceId: true, suspendedAt: true,
-      campaign: { select: { network: true, sponsorPublicKey: true, suspendedAt: true, claimPolicy: true, organizationId: true } },
+      campaign: { select: { network: true, sponsorPublicKey: true, suspendedAt: true, expiresAt: true, claimPolicy: true, organizationId: true } },
     },
   })
   if (!link) return { kind: 'not-found' }
@@ -696,10 +723,6 @@ async function submitClaimUnobserved(
    * Kleym claim after `suspendedAt`. Same 404 as prepare, for the §6.4 reason;
    * a recorded replay of an earlier successful submit still answers as such.
    */
-  if ((link.suspendedAt || link.campaign.suspendedAt) && link.claimTxHash === null) {
-    return { kind: 'not-found' }
-  }
-
   let transaction: Transaction
   try {
     const parsed = TransactionBuilder.fromXDR(signedXdr, env.NETWORK_PASSPHRASE)
@@ -747,9 +770,21 @@ async function submitClaimUnobserved(
   if (!binding.ok) return conflict(binding.detail)
 
   const hash = transaction.hash().toString('hex')
+  const attempt = await prisma.ledgerAttempt.findUnique({ where: { scope: `${phase}:${link.id}` } })
+  if (!attempt || attempt.transactionHash !== hash) return conflict('That transaction was not the prepared envelope for this link.')
+  const required = (attempt.metadata as { requiredSigners: string[] }).requiredSigners
+  if (!required.every((key) => hasSignature(transaction, key))) return conflict('A required transaction signature is missing or invalid.')
+  if (attempt.status === 'FAILED') return conflict('The transaction failed. Prepare a new claim and try again.')
+  const stopped = !!(link.suspendedAt || link.campaign.suspendedAt)
+  const expired = link.campaign.expiresAt.getTime() <= Date.now()
+  if (attempt.status === 'PREPARED') {
+    if (stopped) return { kind: 'not-found' }
+    if (expired) return conflict('This link has expired. The funds return to the sender.', 'expired')
+  }
 
   // Already recorded: return what happened rather than submitting again.
   if (link.claimTxHash === hash) {
+    await prisma.ledgerAttempt.updateMany({ where: { scope: attempt.scope, transactionHash: hash, status: 'CONFIRMED' }, data: { status: 'SETTLED' } })
     return { kind: 'ok', value: { hash, phase, replay: true } }
   }
   if (phase === 'claim' && link.status === 'CLAIMED') {
@@ -770,14 +805,11 @@ async function submitClaimUnobserved(
   const providerProblem = await stellarContextProblem(link.campaign)
   if (providerProblem) return { kind: 'unavailable', detail: 'Claims are temporarily unavailable. Try again shortly.' }
 
-  if (phase === 'materialise' && (await accountExists(ephemeralPublicKey))) {
-    return { kind: 'ok', value: { hash, phase, replay: true } }
-  }
-
   let result: Awaited<ReturnType<Submitter>>
   try {
-    result = await submit(transaction)
+    result = await executeAttempt(attempt, transaction, submit, lookup, !stopped && !expired)
   } catch (error) {
+    if (error instanceof SourceCoordinationError) return { kind: 'unavailable', detail: error.message }
     const code = horizonResultCode(error)
 
     /*
@@ -800,11 +832,14 @@ async function submitClaimUnobserved(
     }
 
     logger.error({ linkId: link.id, phase, code }, 'claim submission rejected')
-    return conflict(`Stellar rejected the transaction: ${code}.`)
+    return { kind: 'unavailable', detail: 'The transaction is awaiting confirmation. Try again to check the same transaction.' }
   }
 
   if (!result.successful) {
-    logger.error({ linkId: link.id, phase, hash: result.hash }, 'claim transaction failed on ledger')
+    if (phase === 'claim' && result.errorCode && QUOTE_MISSED_CODES.has(result.errorCode)) {
+      return conflict('The price moved before the claim landed, so it was not filled. Your funds are safe — you can receive the original asset instead.', 'quote-missed')
+    }
+    logger.error({ linkId: link.id, phase, hash: result.hash }, 'claim transaction was refused or failed')
     return conflict('The transaction did not succeed on the network.')
   }
 
@@ -817,12 +852,15 @@ async function submitClaimUnobserved(
     const recipient = recipientOf(transaction)
     const memo = memoOf(transaction.memo)
     const delivered = deliveredOf(transaction, result.resultXdr)
-    const claimedAt = new Date()
+    const claimedAt = ledgerSettlementTime(result.settledAt)
+    const observedAt = new Date()
     const claimed = await prisma.claimLink.update({
       where: { id: link.id },
       data: {
         status: 'CLAIMED',
         claimedAt,
+        ledgerSettledAt: claimedAt,
+        observedAt,
         claimTxHash: result.hash,
         claimedBy: recipient,
         // Beside the recipient, off the same envelope (#75).
@@ -859,7 +897,7 @@ async function submitClaimUnobserved(
       await enqueueReceipt({
         kind: 'receipt', deliveryId: claimed.delivery.id, linkId: link.id, email: claimed.delivery.email,
         senderName: claimed.campaign.user.username, amount: receipt.contents.claim.amount, assetCode: receipt.contents.claim.assetCode,
-        recipient, claimedAt: claimedAt.toISOString(), transactionHash: result.hash,
+        recipient, claimedAt: receipt.contents.claim.claimedAt, transactionHash: result.hash,
         receiptId: receipt.receiptId, canonical: receipt.canonical, signature: receipt.signature, publicKey: receipt.publicKey,
       }).catch((error: unknown) => logger.error({ linkId: link.id, reason: error instanceof Error ? error.message : 'unknown' }, 'receipt email could not be queued'))
     }
@@ -875,13 +913,15 @@ async function submitClaimUnobserved(
     })
     // The ephemeral PUBLIC key and the claimant — what the ledger shows. Never the link (#51).
     await emitWebhook(claimed.campaign.organizationId, 'link.claimed', {
-      campaignId: link.campaignId, linkId: link.id, ephemeralPublicKey, claimedBy: recipient ?? '', claimTxHash: result.hash, claimedAt: claimedAt.toISOString(),
+      campaignId: link.campaignId, linkId: link.id, ephemeralPublicKey, claimedBy: recipient ?? '', claimTxHash: result.hash,
+      claimedAt: claimedAt?.toISOString() ?? null, observedAt: observedAt.toISOString(), timeSource: claimedAt ? 'ledger' : 'unavailable',
       claimMemoType: memo?.type ?? null, claimMemo: memo?.value ?? null,
       receiptId: receipt?.receiptId ?? null,
     })
   }
 
-  return { kind: 'ok', value: { hash: result.hash, phase, replay: false } }
+  await prisma.ledgerAttempt.updateMany({ where: { scope: attempt.scope, transactionHash: hash, status: 'CONFIRMED' }, data: { status: 'SETTLED' } })
+  return { kind: 'ok', value: { hash: result.hash, phase, replay: attempt.status === 'SETTLED' } }
 }
 
 /**
@@ -1002,7 +1042,17 @@ export function horizonResultCode(error: unknown): string {
 /* ── the exported claim path: each phase in a span, each outcome counted (#53) ── */
 
 export const resolveLink = observedClaim('resolve', resolveLinkUnobserved)
-export const prepareMaterialise = observedClaim('materialise', prepareMaterialiseUnobserved)
-export const prepareClaim = observedClaim('claim', prepareClaimUnobserved)
+function withSourceRefusal<A extends unknown[], T>(fn: (...args: A) => Promise<Outcome<T>>) {
+  return async (...args: A): Promise<Outcome<T>> => {
+    try { return await fn(...args) }
+    catch (error) {
+      if (error instanceof SourceCoordinationError) return { kind: 'unavailable', detail: error.message }
+      throw error
+    }
+  }
+}
+
+export const prepareMaterialise = observedClaim('materialise', withSourceRefusal(prepareMaterialiseUnobserved))
+export const prepareClaim = observedClaim('claim', withSourceRefusal(prepareClaimUnobserved))
 export const quoteReceiveAs = observedClaim('quote', quoteReceiveAsUnobserved)
 export const submitClaim = observedClaim('submit', submitClaimUnobserved)

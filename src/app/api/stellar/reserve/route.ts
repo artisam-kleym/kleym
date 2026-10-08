@@ -25,6 +25,7 @@ export async function GET() {
       baseReserve: base.toString(),
       claimantsPerLink: CLAIMANTS_PER_LINK,
       reservePerLink: reservePerLink(base, CLAIMANTS_PER_LINK).toString(),
+      sponsoredReservePerLink: base.times(CLAIMANTS_PER_LINK).toString(),
     })
   } catch (error) {
     logger.error({ reason: error instanceof Error ? error.message : 'unknown' }, 'reserve lookup failed')

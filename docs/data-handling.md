@@ -1,7 +1,30 @@
 # Data handling: what Kleym stores about people, why, and for how long
 
-Kleym holds very little about anyone, and nothing that can move money. This
-note is the answer to the first page of a data-protection questionnaire.
+Current deployments use local-link distribution: senders privately distribute
+individual claim URLs from their saved CSV. Bearer-link email is disabled at the
+route, service, producer and worker boundaries (#108). New email-only campaigns
+are refused; OPEN, CODE and PASSKEY remain available. This document also records
+the historical email path, which did not meet the browser-only key guarantee.
+
+## Historical bearer delivery and operator action
+
+Historical `DeliveryJob.claimUrl` values were persisted by BullMQ in Redis,
+including while workers were stopped or retrying. They could also reach Redis
+backups and the mail provider. Completion/failure deletion did not establish
+that all copies were erased. Do not apply the local-only guarantee to those jobs.
+
+Existing bearer jobs are held in a delayed state before reading the URL or
+calling a provider. Retries remain held without consuming attempts or silently
+removing the payload. Workers log only job/link identifiers. Operators must
+inventory these jobs without exporting payloads, protect Redis and its backups,
+and agree a documented quarantine/erasure decision with the campaign owner.
+Disabling the feature is not retrospective deletion. No blanket purge is run.
+
+`LEGACY_BEARER_EMAIL_ENABLED=true` is restricted to non-production Testnet
+development harnesses; it cannot enable bearer delivery in production or on
+the public network. Receipt/reminder email contains no bearer URL and is
+unaffected. Existing email-gated links retain their gates; this change does not
+turn them into OPEN links. New deployments must not offer email-only campaigns.
 
 ## Senders (Kleym's users)
 
@@ -12,13 +35,13 @@ note is the answer to the first page of a data-protection questionnaire.
 | API key hash and prefix | read-only API access | until revoked (the row stays, revoked) |
 | Audit rows: who did what, when, from which IP | SPEC §5.4 accountability | see `docs/` on the audit log |
 
-No sender's Stellar secret key is ever held. The sponsor key belongs to Kleym
+No sender's Stellar secret key is held by the application. The sponsor key belongs to Kleym
 and lives in the environment, never the database (`AGENT.md` §5.5).
 
 ## Recipients (not Kleym's users)
 
 A recipient is someone a sender gave a link to. Kleym never knows who they
-are — unless the sender chose email delivery, in which case Kleym holds the
+are — unless the sender previously chose email delivery, in which case Kleym holds the
 one piece of recipient PII it has:
 
 | Data | Why | Kept |
@@ -49,14 +72,16 @@ funds return to the sender at expiry.
 evidence, not PII, and the chain — not Kleym — is the authority on them
 (`AGENT.md` §4.2). Erasure never touches them.
 
-**Where the address never goes.** Log lines (the delivery id stands in for
-it), audit metadata (the scrubber refuses any `email` key), the queue after
-a send completes (`removeOnComplete`), the claim page, or the server's
-request logs. `scripts/verify-email.ts` and `scripts/verify-privacy.ts` scan
-for it after a job completes and after an erasure.
+**Runtime handling.** Logs use the delivery id; audit metadata rejects `email`
+keys. Legacy completion/erasure checks scan their disposable fixtures, not
+historical backups or provider systems. The local-only endpoint refuses new
+bearer payloads before parsing them; the worker does not log held payloads.
 
-## Not stored at all
+## Local-only distribution
 
-Ephemeral secret seeds, claim URLs (they transit memory for one email send),
-recipients' wallet addresses beyond the `claimedBy` the ledger reports, any
-analytics or tracking on the claim page (`SPEC.md` §5.2).
+New local-only flows send public link keys and signatures to Kleym. Recovery
+phrases, ephemeral seeds and private claim URLs remain in the sender's browser
+and private export. Claim fragments are removed from browser history after
+reading. Historical email payloads are the exception described above; no claim
+of retrospective erasure is made. Wallet connection is a separate explicit
+action described in `docs/mobile-claims.md`.

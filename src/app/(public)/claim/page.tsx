@@ -22,13 +22,9 @@ export const dynamic = 'force-dynamic'
  * The most sensitive route in the system: it handles a bearer secret held in a
  * URL fragment, for an audience who may never have used Stellar.
  *
- * Nothing on this page loads from a third party — no analytics, no tag
- * manager, no font CDN, no error-reporting SDK. Fonts are self-hosted from the
- * root layout. The only network requests are same-origin `/api/claims/*` calls
- * and, once the recipient asks for it, the wallet kit from our own bundle.
- *
- * The server component reads only `STELLAR_NETWORK` — which network to sign
- * for. It is deliberately the only thing crossing from server to client here.
+ * No third-party scripts, fonts or analytics. WalletConnect communication is
+ * loaded only after an explicit mobile connection request. Only network and
+ * the public project identifier cross the server/client boundary.
  */
 export default function ClaimPage() {
   return (
@@ -41,7 +37,7 @@ export default function ClaimPage() {
 
       <div className="relative w-full max-w-[520px]">
         <h1 className="sr-only">Claim your funds</h1>
-        <ClaimFlow network={env.STELLAR_NETWORK} />
+        <ClaimFlow network={env.STELLAR_NETWORK} mobileWallet={env.WALLETCONNECT_PROJECT_ID ? { projectId: env.WALLETCONNECT_PROJECT_ID } : undefined} />
 
         <footer className="mt-lg text-center">
           <p className="text-body-md text-on-surface-variant">

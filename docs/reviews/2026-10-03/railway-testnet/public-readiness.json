@@ -1,0 +1,8 @@
+{
+  "checkedAt": "2026-10-03T13:23:24.805Z",
+  "origin": "https://kleym-web-testnet.up.railway.app",
+  "ready": true,
+  "claimHeadersPassed": true,
+  "qualification": "Public HTTP readiness only. Worker settlement, Android wallet and ledger acceptance still require proof.",
+  "writes": 0
+}

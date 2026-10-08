@@ -15,7 +15,7 @@ const ISSUER = Keypair.random().publicKey()
 const AT = new Date('2026-09-14T10:15:00.000Z')
 
 const row = (over: Partial<ValuationRow> = {}): ValuationRow => ({
-  id: 'v1', kind: 'CLAIM', valuedAt: AT, assetCode: 'USDC', assetIssuer: ISSUER,
+  id: 'v1', kind: 'CLAIM', valuedAt: AT, timeSource: 'ledger', feeKnown: true, assetCode: 'USDC', assetIssuer: ISSUER,
   amount: new Decimal('250') as never, feeXlm: new Decimal('0.00001') as never, currency: 'USD',
   rate: new Decimal('1') as never, xlmRate: new Decimal('0.1234567') as never, rateSource: 'identity', rateWindow: null, xlmRateSource: 'stellar-dex', xlmRateWindow: '1h',
   transactionHash: 'ab'.repeat(32), campaignId: 'c1', campaignName: 'March contractors', linkId: 'l1', reclaimBatchId: null,
@@ -24,6 +24,11 @@ const row = (over: Partial<ValuationRow> = {}): ValuationRow => ({
 })
 
 describe('journalLines', () => {
+  it('labels legacy time and missing fee evidence without inventing a fee line', () => {
+    const lines = journalLines([row({ timeSource: 'legacy-unverified', feeKnown: false })])
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatchObject({ timeSource: 'legacy-unverified', feeEvidence: 'unavailable' })
+  })
   it('values a claim at ITS date, debits expense against the asset, and adds a fee line in XLM', () => {
     const lines = journalLines([row()])
     expect(lines).toHaveLength(2)
@@ -147,7 +152,7 @@ const rates = (table: Record<string, string | null>, delayMs = 0): RateSource =>
 })
 
 const campaign = { id: 'c1', assetCode: 'USDC', assetIssuer: ISSUER, organization: { id: 'o1', reportingCurrency: 'USD' } }
-const claimedLink = { id: 'l1', amount: new Decimal('250'), status: 'CLAIMED', claimedAt: AT, claimTxHash: 'ab'.repeat(32), campaign }
+const claimedLink = { id: 'l1', amount: new Decimal('250'), status: 'CLAIMED', ledgerSettledAt: AT, claimedAt: new Date('2030-01-01T00:00:00Z'), claimTxHash: 'ab'.repeat(32), campaign }
 
 function stub(over: Partial<{ links: unknown[]; batches: unknown[]; reclaimedLinks: unknown[]; rows: unknown[] }> = {}) {
   const writes: Record<string, unknown[]> = { upsert: [], update: [], updateMany: [] }
@@ -170,6 +175,15 @@ function stub(over: Partial<{ links: unknown[]; batches: unknown[]; reclaimedLin
 }
 
 describe('revalueUnpriced', () => {
+  it('values authoritative ledger time despite a skewed legacy clock, and refuses missing history', async () => {
+    const { db, writes } = stub()
+    await recordClaimValuation('l1', null, rates({ USDC: '1', XLM: '0.1' }), db)
+    expect((writes.upsert![0] as { create: unknown }).create).toMatchObject({ valuedAt: AT, timeSource: 'ledger', feeKnown: false })
+    const missing = stub()
+    vi.mocked(missing.db.claimLink.findUnique).mockResolvedValue({ ...claimedLink, ledgerSettledAt: null } as never)
+    await recordClaimValuation('l1', '100', rates({ USDC: '1' }), missing.db)
+    expect(missing.writes.upsert).toHaveLength(0)
+  })
   it('creates the row a failed claim-time write left missing (CLAIMED link, no valuation)', async () => {
     const { db, writes } = stub({ links: [{ id: 'l1' }] })
     const report = await revalueUnpriced(rates({ USDC: '1', XLM: '0.1' }), 50, db)
@@ -201,7 +215,7 @@ describe('revalueUnpriced', () => {
     const { db, writes } = stub({ rows })
     const report = await revalueUnpriced(rates({ USDC: '1', XLM: '0.25' }), 50, db)
     const select = (db.valuation.findMany as ReturnType<typeof vi.fn>).mock.calls[0]![0] as { where: unknown; orderBy: unknown }
-    expect(select.where).toEqual({ OR: [{ rate: null }, { xlmRate: null, feeXlm: { gt: 0 } }] })
+    expect(select.where).toEqual({ timeSource: 'ledger', OR: [{ rate: null }, { xlmRate: null, feeXlm: { gt: 0 } }] })
     expect(select.orderBy).toEqual([{ attempts: 'asc' }, { valuedAt: 'asc' }, { id: 'asc' }])
     // RARE never prices: attempts bumped, nothing else written for it.
     expect(writes.update).toEqual([{ where: { id: 'v-asset' }, data: { attempts: { increment: 1 } } }])

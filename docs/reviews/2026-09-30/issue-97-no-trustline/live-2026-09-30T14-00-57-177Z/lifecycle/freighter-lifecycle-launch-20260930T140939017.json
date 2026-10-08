@@ -1,0 +1,8 @@
+﻿{
+    "startedAtUTC":  "2026-09-30T14:09:39.0127538Z",
+    "processId":  6868,
+    "url":  "http://127.0.0.1:3218",
+    "checkout":  "D:\\kleym\\.worktrees\\97-recipient-matrix",
+    "recipientMode":  "existing-no-trustline",
+    "keyStorage":  "Sponsor in process memory; link keys in browser/local CSV only"
+}

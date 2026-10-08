@@ -1,0 +1,127 @@
+{"level":30,"time":1790841734274,"pid":16148,"hostname":"Adealix","batchId":"cmup8xhfg0005gkkj6gxmoenb","sequence":1,"links":2,"msg":"batch confirmed"}
+PASS absent: app funding takes exactly 2 sender USDC
+PASS absent: funding preserves sender zero XLM
+PASS absent: claim waits for a strictly later ledger
+PASS absent: recipient signature is conditional
+PASS absent: ledger bound prevents TX2 in the creation ledger
+PASS absent: two prepares reuse the identical body
+PASS absent: unsigned claim refused before Horizon
+PASS absent: wrong-network signature refused
+PASS absent: changed prepared body refused
+PASS absent: invalid bodies never reach Horizon
+{"level":50,"time":1790841735153,"pid":16148,"hostname":"Adealix","linkId":"cmup8xhas0003gkkjpjvy2ka4","phase":"claim","code":"[redacted]","msg":"claim submission rejected"}
+PASS absent: lost claim response is pending
+PASS absent: original signed claim saved before network
+{"level":30,"time":1790841735328,"pid":16148,"hostname":"Adealix","linkId":"cmup8xhas0003gkkjpjvy2ka4","campaignId":"cmup8xhaf0002gkkj7m2veqsm","hash":"f0794fd3a66c59b587517a8dddd732b566ae34bfb8d55801c5855f02a07893c8","policy":"open","msg":"link claimed"}
+{"level":40,"time":1790841735351,"pid":16148,"hostname":"Adealix","reason":"Not Found","window":"1h","msg":"trade aggregation read failed"}
+{"level":40,"time":1790841735356,"pid":16148,"hostname":"Adealix","reason":"Not Found","window":"24h","msg":"trade aggregation read failed"}
+{"level":30,"time":1790841735432,"pid":16148,"hostname":"Adealix","linkId":"cmup8xhas0003gkkjpjvy2ka4","campaignId":"cmup8xhaf0002gkkj7m2veqsm","receiptId":"rcpt_cmup8xhas0003gkkjpjvy2ka4","msg":"claim receipt issued"}
+PASS absent: exact claim retry recovers receipt
+PASS absent: recovery does not submit twice
+PASS absent: recipient gets exactly 1 USDC and zero XLM
+PASS absent: temporary account and claimed balance removed
+PASS absent: required persistent recipient reserves remain
+PASS absent: DB records the actual recipient/hash
+PASS absent: reclaim sponsor pays while sender owns the refund
+{"level":40,"time":1790841735697,"pid":16148,"hostname":"Adealix","campaignId":"cmup8xhaf0002gkkj7m2veqsm","code":"[redacted]","msg":"reclaim rejected by the network"}
+PASS absent: lost reclaim response is pending
+{"level":40,"time":1790841735805,"pid":16148,"hostname":"Adealix","reason":"Not Found","window":"1h","msg":"trade aggregation read failed"}
+{"level":40,"time":1790841735812,"pid":16148,"hostname":"Adealix","reason":"Not Found","window":"24h","msg":"trade aggregation read failed"}
+PASS absent: refund retry succeeds after balance disappeared
+{"level":30,"time":1790841735845,"pid":16148,"hostname":"Adealix","campaignId":"cmup8xhaf0002gkkj7m2veqsm","hash":"dc9d186184ba83636e3bf90faeab1914f5a8405b234c15beb000ca9620e0c9b3","balances":1,"amount":"1","msg":"reclaim submitted"}
+PASS absent: refund recovery never pays twice
+PASS absent: one USDC net sent; sender still zero XLM
+PASS absent: exactly one settled refund record
+PASS absent: claimed and reclaimed links accounted separately
+PASS absent: no claimable balances remain
+PASS absent: refund replay remains idempotent
+{"level":30,"time":1790841736288,"pid":16148,"hostname":"Adealix","batchId":"cmup8xj5u000cgkkj9wgzdn4q","sequence":1,"links":2,"msg":"batch confirmed"}
+PASS no-trustline: app funding takes exactly 2 sender USDC
+PASS no-trustline: funding preserves sender zero XLM
+PASS no-trustline: claim waits for a strictly later ledger
+PASS no-trustline: recipient signature is conditional
+PASS no-trustline: ledger bound prevents TX2 in the creation ledger
+PASS no-trustline: two prepares reuse the identical body
+PASS no-trustline: unsigned claim refused before Horizon
+PASS no-trustline: wrong-network signature refused
+PASS no-trustline: changed prepared body refused
+PASS no-trustline: invalid bodies never reach Horizon
+{"level":50,"time":1790841736986,"pid":16148,"hostname":"Adealix","linkId":"cmup8xj3w000agkkj5k4evah7","phase":"claim","code":"[redacted]","msg":"claim submission rejected"}
+PASS no-trustline: lost claim response is pending
+PASS no-trustline: original signed claim saved before network
+{"level":30,"time":1790841737091,"pid":16148,"hostname":"Adealix","linkId":"cmup8xj3w000agkkj5k4evah7","campaignId":"cmup8xj3o0009gkkjjy8gaja0","hash":"37cfd76aa3c755f18a0a48ea1748af6c871d835d4aae7052dd4a3c24f43fa627","policy":"open","msg":"link claimed"}
+{"level":40,"time":1790841737105,"pid":16148,"hostname":"Adealix","reason":"Not Found","window":"1h","msg":"trade aggregation read failed"}
+{"level":40,"time":1790841737111,"pid":16148,"hostname":"Adealix","reason":"Not Found","window":"24h","msg":"trade aggregation read failed"}
+{"level":30,"time":1790841737170,"pid":16148,"hostname":"Adealix","linkId":"cmup8xj3w000agkkj5k4evah7","campaignId":"cmup8xj3o0009gkkjjy8gaja0","receiptId":"rcpt_cmup8xj3w000agkkj5k4evah7","msg":"claim receipt issued"}
+PASS no-trustline: exact claim retry recovers receipt
+PASS no-trustline: recovery does not submit twice
+PASS no-trustline: recipient gets exactly 1 USDC and zero XLM
+PASS no-trustline: temporary account and claimed balance removed
+PASS no-trustline: required persistent recipient reserves remain
+PASS no-trustline: DB records the actual recipient/hash
+PASS no-trustline: reclaim sponsor pays while sender owns the refund
+{"level":40,"time":1790841737345,"pid":16148,"hostname":"Adealix","campaignId":"cmup8xj3o0009gkkjjy8gaja0","code":"[redacted]","msg":"reclaim rejected by the network"}
+PASS no-trustline: lost reclaim response is pending
+{"level":40,"time":1790841737438,"pid":16148,"hostname":"Adealix","reason":"Not Found","window":"1h","msg":"trade aggregation read failed"}
+{"level":40,"time":1790841737443,"pid":16148,"hostname":"Adealix","reason":"Not Found","window":"24h","msg":"trade aggregation read failed"}
+{"level":30,"time":1790841737457,"pid":16148,"hostname":"Adealix","campaignId":"cmup8xj3o0009gkkjjy8gaja0","hash":"ec7fac84b7a8fbcf1465b6efb57541dfea85e982c062792c7c80cde2c13528ef","balances":1,"amount":"1","msg":"reclaim submitted"}
+PASS no-trustline: refund retry succeeds after balance disappeared
+PASS no-trustline: refund recovery never pays twice
+PASS no-trustline: one USDC net sent; sender still zero XLM
+PASS no-trustline: exactly one settled refund record
+PASS no-trustline: claimed and reclaimed links accounted separately
+PASS no-trustline: no claimable balances remain
+PASS no-trustline: refund replay remains idempotent
+{"level":30,"time":1790841737989,"pid":16148,"hostname":"Adealix","batchId":"cmup8xkfe000jgkkjxrjajjy6","sequence":1,"links":2,"msg":"batch confirmed"}
+PASS trusted: app funding takes exactly 2 sender USDC
+PASS trusted: funding preserves sender zero XLM
+PASS a prepared materialise is refused after campaign expiry
+PASS a prepared materialise is refused after suspension
+PASS expiry and suspension refusals never submit
+PASS trusted: claim waits for a strictly later ledger
+PASS trusted: recipient signature is conditional
+PASS trusted: ledger bound prevents TX2 in the creation ledger
+PASS trusted: two prepares reuse the identical body
+PASS trusted: unsigned claim refused before Horizon
+PASS trusted: wrong-network signature refused
+PASS trusted: changed prepared body refused
+PASS trusted: invalid bodies never reach Horizon
+{"level":50,"time":1790841738969,"pid":16148,"hostname":"Adealix","linkId":"cmup8xkd7000hgkkjk5wchn7n","phase":"claim","hash":"90bd4b0bc4c398a03d6390f2a6914e7dfd9865eb0c0e9ad4e4d7aad00a0c8fb4","msg":"claim transaction was refused or failed"}
+PASS definite rejection is not mistaken for a pending success
+PASS rejected claim preserves the balance and temporary account
+PASS a new prepare is possible after a definite rejection
+{"level":50,"time":1790841739191,"pid":16148,"hostname":"Adealix","linkId":"cmup8xkd7000hgkkjk5wchn7n","phase":"claim","code":"[redacted]","msg":"claim submission rejected"}
+PASS trusted: lost claim response is pending
+PASS trusted: original signed claim saved before network
+{"level":50,"time":1790841739303,"pid":16148,"hostname":"Adealix","linkId":"cmup8xkd7000hgkkjk5wchn7n","phase":"claim","code":"[redacted]","msg":"claim submission rejected"}
+PASS an uncertain claim remains pending during suspension
+PASS suspended or expired recovery never resubmits
+{"level":30,"time":1790841739456,"pid":16148,"hostname":"Adealix","linkId":"cmup8xkd7000hgkkjk5wchn7n","campaignId":"cmup8xkcs000ggkkj7li1og2w","hash":"c23e8964a4d3596046a1fae2bd8bb1412493043f0076caa1e11d7ceb224474f2","policy":"open","msg":"link claimed"}
+{"level":40,"time":1790841739469,"pid":16148,"hostname":"Adealix","reason":"Not Found","window":"1h","msg":"trade aggregation read failed"}
+{"level":40,"time":1790841739474,"pid":16148,"hostname":"Adealix","reason":"Not Found","window":"24h","msg":"trade aggregation read failed"}
+{"level":30,"time":1790841739545,"pid":16148,"hostname":"Adealix","linkId":"cmup8xkd7000hgkkjk5wchn7n","campaignId":"cmup8xkcs000ggkkj7li1og2w","receiptId":"rcpt_cmup8xkd7000hgkkjk5wchn7n","msg":"claim receipt issued"}
+PASS worker recovers a lost claim without browser keys
+PASS a confirmed earlier claim can be recorded after suspension and expiry
+PASS trusted: exact claim retry recovers receipt
+PASS trusted: recovery does not submit twice
+PASS trusted: recipient gets exactly 1 USDC and zero XLM
+PASS trusted: temporary account and claimed balance removed
+PASS trusted: required persistent recipient reserves remain
+PASS trusted: DB records the actual recipient/hash
+PASS trusted: reclaim sponsor pays while sender owns the refund
+PASS trusted: lost reclaim response is pending
+{"level":40,"time":1790841739820,"pid":16148,"hostname":"Adealix","campaignId":"cmup8xkcs000ggkkj7li1og2w","code":"[redacted]","msg":"reclaim rejected by the network"}
+{"level":40,"time":1790841739944,"pid":16148,"hostname":"Adealix","reason":"Not Found","window":"1h","msg":"trade aggregation read failed"}
+{"level":40,"time":1790841739949,"pid":16148,"hostname":"Adealix","reason":"Not Found","window":"24h","msg":"trade aggregation read failed"}
+{"level":30,"time":1790841739965,"pid":16148,"hostname":"Adealix","campaignId":"cmup8xkcs000ggkkj7li1og2w","hash":"3f8f050d7c2139ba93849c1d3ac89c176424e6a29a75064afb3ce5bd56f07c74","balances":1,"amount":"1","msg":"reclaim submitted"}
+PASS worker recovers a lost refund without sender keys
+PASS trusted: refund retry succeeds after balance disappeared
+PASS trusted: refund recovery never pays twice
+PASS trusted: one USDC net sent; sender still zero XLM
+PASS trusted: exactly one settled refund record
+PASS trusted: claimed and reclaimed links accounted separately
+PASS trusted: no claimable balances remain
+PASS trusted: refund replay remains idempotent
+PASS expired uncertain attempt is retired only after the closed-ledger bound and hash checks
+PASS expired attempt never reaches network submission
+94 app lifecycle checks passed (simulated Horizon; no chain writes).

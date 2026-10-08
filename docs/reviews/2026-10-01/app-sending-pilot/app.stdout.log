@@ -1,0 +1,6 @@
+▲ Next.js 16.3.5
+- Local:         http://127.0.0.1:3220
+- Network:       http://127.0.0.1:3220
+✓ Ready in 1423ms
+✓ Running next.config.ts took 61ms
+{"level":30,"time":1790837037655,"pid":25928,"hostname":"Adealix","userId":"cmup5l0i10000vwkj8geh63u7","ip":"127.0.0.1","mfa":"none","msg":"login succeeded"}

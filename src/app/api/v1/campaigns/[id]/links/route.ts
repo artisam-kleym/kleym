@@ -88,6 +88,7 @@ export async function POST(request: Request, { params }: Params) {
     if (outcome.kind === 'not-found') return apiNotFound()
     if (outcome.kind === 'bad-status') return apiConflict(`Links can only be registered while a campaign is DRAFT or CREATING; this one is ${outcome.status}.`)
     if (outcome.kind === 'codes') return apiConflict(outcome.detail)
+    if (outcome.kind === 'budget') return apiConflict(outcome.detail)
     if (outcome.kind === 'over-limit') return apiConflict(`This campaign declares ${outcome.declared} links; registering ${outcome.adding} more would make ${outcome.wouldTotal}.`)
     // The key's issuer is the signer (#45, #82), exactly as the wizard's user would be: a prepared run continued by API cannot then be approved by the same person.
     await recordSigner(id, auth.caller.organizationId, auth.caller.userId)

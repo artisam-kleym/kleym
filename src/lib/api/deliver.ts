@@ -29,6 +29,7 @@ import { logger } from '@/lib/config/logger'
 import { owned } from './session-guard'
 import { enqueueDelivery } from '@/lib/queue/email'
 import { noteRecipientMailed } from './reminders'
+import { legacyBearerEmailAllowed, LOCAL_DELIVERY_NOTICE } from '@/lib/email/delivery-policy'
 
 /**
  * A claim URL, checked against its shape and nothing more permissive.
@@ -110,6 +111,7 @@ export async function queueDeliveries(
   organizationId: string,
   input: DeliverInput,
 ): Promise<DeliverOutcome<DeliverReport>> {
+  if (!legacyBearerEmailAllowed()) return conflict(LOCAL_DELIVERY_NOTICE)
   const campaign = await prisma.campaign.findFirst({
     where: owned(campaignId, organizationId),
     select: {

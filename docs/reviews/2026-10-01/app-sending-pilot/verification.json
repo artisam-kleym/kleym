@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-01",
+  "branch": "codex/app-sending-pilot",
+  "baseCommit": "452735cb21a598883856cab9fa660ea8a6e873cc",
+  "unit": {"files": 4, "passed": 92, "exitCode": 0},
+  "legacyBatchPersistence": {"passed": 36, "exitCode": 0},
+  "sponsoredFundingPersistenceAndRecovery": {"passed": 22, "exitCode": 0, "network": "loopback fixture", "chainWrites": false},
+  "browser": {"passed": 10, "exitCode": 0, "engine": "chromium", "productionBuild": true, "walletSigned": false, "trace": "off"},
+  "productionBuild": {"bundler": "webpack", "exitCode": 0, "includesFinalRecoveryChanges": true},
+  "typeScript": {"exitCode": 0, "finalSourceVerifiedByBuild": true},
+  "eslint": {"exitCode": 0, "scope": "changed source, tests and harnesses"},
+  "migration": {"name": "20261001000000_sponsored_funding", "isolatedVerificationDatabaseApplied": true, "isolatedPilotDatabaseApplied": true},
+  "diffWhitespace": {"exitCode": 0},
+  "liveFreighterAppCycle": "pending claim and sponsor-paid reclaim integration",
+  "publicDeployment": false,
+  "realUsdcTransferred": false
+}

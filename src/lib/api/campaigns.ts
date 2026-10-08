@@ -10,6 +10,7 @@ import { z } from 'zod'
 import { Decimal } from 'decimal.js'
 import { env } from '@/lib/config/env'
 import { isOfficialUsdc } from '@/lib/stellar/network'
+import { isStellarAmount, MAX_STELLAR_AMOUNT } from '@/lib/stellar/amount'
 
 /*
  * Read LAZILY, inside a refine, never at schema-construction time.
@@ -29,6 +30,9 @@ import { recordAudit } from './audit'
 import { chooseSponsor } from '@/lib/stellar/sponsors'
 import { emitWebhook } from '@/lib/webhooks/emit'
 import { isClaimCode, policyFromRow, policyToRow } from './claim-policy'
+import { assertRenewalTerms, renewalSource, RenewalRefused } from './renewal'
+import { legacyBearerEmailAllowed } from '@/lib/email/delivery-policy'
+import { newFundingProblem } from '@/lib/stellar/funding-rollout'
 
 /**
  * Money crosses the API boundary as a STRING. AGENT.md §4.1.
@@ -59,6 +63,7 @@ export const stellarAmount = z
     },
     { message: 'must be greater than zero' },
   )
+  .refine(isStellarAmount, { message: `must be a positive Stellar amount no greater than ${MAX_STELLAR_AMOUNT}` })
 
 /** One asset a recipient may receive as (#74): `XLM`, or a code with its issuer. */
 export const receiveAsAssetSchema = z
@@ -83,6 +88,7 @@ const sameAsset = (a: { assetCode: string; assetIssuer?: string | undefined }, b
 export const campaignBodySchema = z
   .object({
     name: seedFreeString.min(1).max(120),
+    renewalOfId: z.string().min(1).max(64).optional(),
     network: z.enum(['testnet', 'public']),
     senderPublicKey: stellarPublicKey,
     assetCode: z
@@ -126,6 +132,14 @@ export const campaignBodySchema = z
   .strict()
 
 export const createCampaignSchema = campaignBodySchema
+  .superRefine((v, ctx) => {
+    const problem = newFundingProblem(v.network, v.assetCode === 'USDC' ? 'SPONSORED' : 'SENDER')
+    if (problem) ctx.addIssue({ code: 'custom', path: ['network'], message: problem })
+  })
+  .refine((v) => v.claimPolicy !== 'email' || legacyBearerEmailAllowed(), {
+    message: 'Email-only claims are disabled. Choose open, code or passkey and distribute links privately from your saved CSV.',
+    path: ['claimPolicy'],
+  })
   .refine((v) => v.network === env.STELLAR_NETWORK, {
     message: 'must match the Stellar network of this deployment',
     path: ['network'],
@@ -195,7 +209,8 @@ export const registerLinksSchema = z
       .array(stellarPublicKey)
       .min(1)
       .refine((keys) => withinLinkLimit(keys.length), { message: linkLimitMessage() }),
-    labels: z.array(seedFreeString.max(200)).optional(),
+    // Browser/SDK publicHalves use null for an optional blank label.
+    labels: z.array(seedFreeString.max(200).nullable()).optional(),
     /** Attestation fields (#52), one entry (or null) per public key. */
     attestations: z.array(attestationSchema.nullable()).optional(),
     /**
@@ -268,15 +283,23 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
   // Shared functions can also be called by local tooling; do not rely solely
   // on an HTTP route having parsed its body.
   input = createCampaignSchema.parse(input)
+  const renewal = input.renewalOfId ? await renewalSource(input.renewalOfId, creator.organizationId) : null
+  if (renewal) {
+    assertRenewalTerms(input, renewal)
+    if (renewal.source.renewal) throw new RenewalRefused('This round already has a renewal. Open the original campaign to continue that round; do not fund another campaign.')
+  }
   const [{ sponsor }, org] = await Promise.all([
     chooseSponsor(),
     prisma.organization.findUniqueOrThrow({ where: { id: creator.organizationId }, select: { approvalThreshold: true, approvalsRequired: true } }),
   ])
   const campaign = await prisma.campaign.create({
     data: {
+      renewalOfId: input.renewalOfId ?? null,
+      renewalBudget: renewal?.budget ?? null,
       userId: creator.userId,
       organizationId: creator.organizationId,
       sponsorPublicKey: sponsor.publicKey,
+      fundingMode: input.assetCode === 'USDC' ? 'SPONSORED' : 'SENDER',
       approvalThreshold: org.approvalThreshold,
       approvalsRequired: org.approvalsRequired,
       name: input.name,
@@ -297,6 +320,9 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
       emailReceipts: input.emailReceipts ?? false,
     },
     select: { id: true, name: true, status: true, network: true, assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true, expiresAt: true, createdAt: true, receiveAsAssets: true, claimPolicy: true, allowExchangeDeposit: true },
+  }).catch((error: unknown) => {
+    if (renewal && (error as { code?: string })?.code === 'P2002') throw new RenewalRefused('A renewal was already created for this round. Open the original campaign to continue it.')
+    throw error
   })
   if (input.templateId) {
     // Scoped in the query: a template from another organisation is simply not there, and the campaign stands alone.
@@ -310,7 +336,7 @@ export async function createCampaign(creator: CampaignCreator, input: CreateCamp
   }
   await recordAudit({
     userId: creator.userId, organizationId: creator.organizationId, action: 'campaign.create', entityType: 'campaign', entityId: campaign.id,
-    metadata: { name: campaign.name, linkCount: campaign.linkCount, templateId: input.templateId ?? null }, ip,
+    metadata: { name: campaign.name, linkCount: campaign.linkCount, templateId: input.templateId ?? null, renewalOfId: input.renewalOfId ?? null, renewalBudget: renewal?.budget ?? null }, ip,
   })
   await emitWebhook(creator.organizationId, 'campaign.created', {
     campaignId: campaign.id, name: campaign.name, network: campaign.network, assetCode: campaign.assetCode, assetIssuer: campaign.assetIssuer,

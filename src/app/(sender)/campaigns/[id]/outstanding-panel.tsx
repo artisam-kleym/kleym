@@ -17,7 +17,7 @@ import type { Outstanding } from '@/lib/api/outstanding'
  */
 const REMINDER_CHOICES = [14, 7, 3, 1]
 
-export function OutstandingPanel({ campaignId, canEdit }: { campaignId: string; canEdit: boolean }) {
+export function OutstandingPanel({ campaignId, canEdit, renewalExists = false }: { campaignId: string; canEdit: boolean; renewalExists?: boolean }) {
   const router = useRouter()
   const [data, setData] = useState<Outstanding | null | 'error'>(null)
   const [points, setPoints] = useState<number[] | null>(null)
@@ -159,33 +159,20 @@ export function OutstandingPanel({ campaignId, canEdit }: { campaignId: string; 
             </div>
           )}
 
-          {!data.expired && data.count > 0 && (
+          {data.count > 0 && (
             <div className="mt-md rounded-lg border border-outline-variant/50 bg-surface p-md">
-              <p className="text-label-md font-semibold text-on-surface">Need more time? Reissue with a later expiry</p>
+              <p className="text-label-md font-semibold text-on-surface">Renew unused funds after reclaim</p>
               <p className="mt-xs text-body-md text-on-surface-variant">
-                The expiry is written into each balance on the ledger, so it cannot be edited. Extending it means a{' '}
-                <strong className="text-on-surface">reissue</strong>: new links for the {data.count} unclaimed{' '}
-                {data.count === 1 ? 'recipient' : 'recipients'}, with a later expiry — a new signature from your wallet, new
-                balance ids, and the asset and reserve locked again while the current links stay claimable until{' '}
-                {day(data.expiresAt)}. When these expire, reclaim them. The current links are not changed by this.
+                Ledger expiry cannot be edited. Wait until {day(data.expiresAt)}, reclaim the unused funds,
+                then renew using only that returned budget. To resend a current link, use its saved CSV;
+                funding another campaign would create an additional payout.
               </p>
-              {canEdit && (
-                <div className="mt-sm">
-                  <Link
-                    href={`/campaigns/new?reissue=${campaignId}`}
-                    className="inline-flex min-h-11 items-center rounded-lg border border-outline-variant bg-surface px-4 py-3 font-mono text-label-md font-semibold text-primary shadow-sm hover:border-primary/50"
-                  >
-                    Reissue {data.count} {data.count === 1 ? 'link' : 'links'}
-                  </Link>
-                </div>
-              )}
             </div>
           )}
-          {data.expired && (
-            <p className="mt-md text-label-sm text-on-surface-variant">
-              This campaign has expired, so its expiry cannot be extended or reissued from here — reclaim what is left, and
-              create a new campaign for anyone still owed.
-            </p>
+          {data.expired && data.count === 0 && data.reclaimed.length > 0 && canEdit && !renewalExists && (
+            <Link href={`/campaigns/new?renew=${campaignId}`} className="mt-md inline-flex min-h-11 items-center rounded-lg border border-outline-variant px-4 py-3 font-mono text-label-md font-semibold text-primary">
+              Renew returned funds
+            </Link>
           )}
         </>
       )}

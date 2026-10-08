@@ -1,0 +1,5 @@
+# Inspection scratch of colleague-owned reference documents; hashes are published.
+evidences/references/*.txt
+evidences/references/*.png
+# All full-size renders are kept locally; compact contact sheets accompany the PR.
+evidences/layout/page-*.png

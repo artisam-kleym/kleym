@@ -14,7 +14,8 @@ import {
   releaseIdempotency,
   storeIdempotentResult,
 } from '@/lib/api/idempotency'
-import { serverError, validationProblem } from '@/lib/api/problems'
+import { conflict, serverError, validationProblem } from '@/lib/api/problems'
+import { RenewalRefused } from '@/lib/api/renewal'
 import {
   createCampaign,
   createCampaignSchema,
@@ -113,6 +114,7 @@ export async function POST(request: Request) {
     // The work did not complete, so the key must not stay claimed — otherwise
     // the client's retry is told its own failed request is still in progress.
     await releaseIdempotency(request, context)
+    if (error instanceof RenewalRefused) return conflict(error.message, 'renewal')
     logger.error({ userId: user.id, reason: error instanceof Error ? error.message : 'unknown' }, 'campaign create failed')
     return serverError()
   }

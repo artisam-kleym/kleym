@@ -69,78 +69,151 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Apply migrations
+        id: migrations
         run: pnpm db:deploy
 
       - name: Verify idempotency and link-limit concurrency
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:concurrency
 
       - name: Verify API keys, rate limiting and ownership
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:api-keys
 
       - name: Verify batch lifecycle
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:batches
 
       - name: Verify claim resolve, limits and ledger authority
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:claims
 
+      - name: Verify claim policy persistence and signing receipts
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
+        run: |
+          pnpm verify:claim-policies
+          pnpm verify:receipts
+
+      - name: Verify sponsored funding and interrupted app settlement
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
+        run: |
+          pnpm verify:sponsored-funding
+          pnpm verify:app-lifecycle
+
+      - name: Verify source admission across independent processes
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
+        run: pnpm verify:source-coordination
+
       - name: Verify the sponsor pool, failover and alerting
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:sponsors
 
       - name: Verify email delivery and OTP
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:email
 
+      - name: Verify local-only delivery and held legacy jobs
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
+        run: pnpm verify:local-delivery
+
       - name: Verify campaign list and history ownership, filters and ordering
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:campaign-list
 
       - name: Verify the dashboard is scoped, claimed-only and bounded
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:dashboard
 
       - name: Verify reconciliation and the expiry sweep
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:reconcile
 
       - name: Verify reclaim after expiry
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:reclaim
       - name: Verify the stranded ephemeral account monitor
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:stranded
 
       - name: Verify the admin area and audit logging
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:admin
 
       - name: Verify the campaign detail page is bounded at MAX_LINKS_PER_CAMPAIGN
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:campaign-detail
 
       - name: Verify user provisioning by invitation
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:invitations
 
       - name: Verify organisations, memberships and roles
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:organisations
 
       - name: Verify delivery retention and erasure
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:privacy
 
       - name: Verify dual control
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:approvals
 
       - name: Verify compliance hooks (screening fail-closed, attestation, regulator export)
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:compliance
       - name: Verify observability (traces, forced-condition metrics, status page)
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:observability
 
       - name: Verify the write API, webhooks and the SDK
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:write-api
 
       - name: Verify SSO and SCIM (OIDC sign-in, SSO-only, deprovisioning, role mapping, no email linking, no token leaks)
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:sso
       - name: Verify MFA (TOTP, passkeys, policy, step-up, redaction, recovery, lockout)
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:mfa
 
       - name: Verify the audit chain, checkpoints, concurrency and signed export
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         run: pnpm verify:audit-chain
 
       # Last, so the database the suites above populated is what gets dumped,
       # restored into a clean database, and questioned. A backup check that
       # only looks for a file is not one.
       - name: Verify a backup by restoring it
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
         env:
           RESTORE_DATABASE_URL: postgresql://kleym:kleym@localhost:5432/kleym_restore
         run: |
@@ -201,6 +274,8 @@ jobs:
       DATABASE_URL: postgresql://kleym:kleym@localhost:5432/kleym
       REDIS_URL: redis://localhost:6379
       STELLAR_NETWORK: testnet
+      SPONSORED_FUNDING_ENABLED: 'true' # Explicit opt-in for isolated browser fixtures.
+      MAINNET_DISTRIBUTION_ENABLED: 'false'
       HORIZON_URL: https://horizon-testnet.stellar.org
       NETWORK_PASSPHRASE: 'Test SDF Network ; September 2015'
       EMAIL_FROM: noreply@kleym.test
@@ -530,43 +605,6 @@ jobs:
           fi
           echo "clean"
 
-      # Regression guard for the leak fixed in ff1beb7, closing the loop: rather
-      # than hardcoding key names here, this checks that every secret-shaped key
-      # in the env schema is classified in SECRET_ENV_KEYS, which the logger
-      # derives its redact paths from. A seventh secret cannot be added without
-      # a decision being recorded.
-      - name: Every env secret is classified and redacted
-        run: |
-          # Keys matching a secret shape that are genuinely NOT secrets.
-          # Adding to this list is a deliberate act, which is the point.
-          NOT_SECRET="SPONSOR_PUBLIC_KEY APP_URL HORIZON_URL"
-
-          registered=$(sed -n '/export const SECRET_ENV_KEYS/,/] as const/p' src/lib/config/env.ts \
-                        | grep -oE "'[A-Z0-9_]+'" | tr -d "'")
-          schema_keys=$(grep -oE '^  [A-Z][A-Z0-9_]*:' src/lib/config/env.ts | tr -d ' :')
-
-          fail=0
-          for key in $schema_keys; do
-            case "$key" in
-              *SECRET*|*PASSWORD*|*TOKEN*|*_KEY|*_URL) ;;
-              *) continue ;;
-            esac
-            echo "$NOT_SECRET" | tr ' ' '\n' | grep -qx "$key" && continue
-            if ! echo "$registered" | grep -qx "$key"; then
-              echo "::error::$key looks like a secret but is not in SECRET_ENV_KEYS (src/lib/config/env.ts). Classify it, or add it to NOT_SECRET in this workflow."
-              fail=1
-            fi
-          done
-
-          # And the logger must actually SPREAD that list into redact.paths.
-          # Grepping for the bare name is not enough — the import line alone
-          # would satisfy it while the usage was gone.
-          if ! grep -qE '\.\.\.SECRET_ENV_KEYS\s*\.flatMap' src/lib/config/logger.ts; then
-            echo "::error::logger.ts no longer derives redact paths from SECRET_ENV_KEYS"
-            fail=1
-          fi
-          exit $fail
-
       # Issue #53. Span attributes and metric labels are a log by another name,
       # and the logger's redaction does not see them. Two guards: every
       # attribute must pass through `safeAttributes` (so nothing in src/ may
@@ -610,6 +648,13 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Planted key material never survives safeAttributes
         run: pnpm vitest run tests/lib/observability
+
+      # #109: actual schema membership, including future SEED names, plus
+      # emitted Pino serialization rather than an import/name-only source grep.
+      - name: Every env secret is classified and redacted
+        run: |
+          pnpm exec tsx scripts/check-secret-classification.ts
+          pnpm exec vitest run tests/lib/config/secret-classification.test.ts
 
       # #77. A BIP39 recovery phrase is a seed in a different alphabet and the
       # greps above cannot see it. The same detector the request guard uses,

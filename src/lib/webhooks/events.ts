@@ -30,7 +30,7 @@ export interface WebhookPayloads {
   'batch.confirmed': { campaignId: string; batchId: string; sequence: number; transactionHash: string; links: number }
   /** `claimMemoType`/`claimMemo`: the deposit memo TX2 carried when claiming to an exchange (#75), null otherwise. */
   /** `receiptId` (#81): the signed receipt issued for this claim, fetched at `GET /api/campaigns/{id}/links/{linkId}/receipt`. */
-  'link.claimed': { campaignId: string; linkId: string; ephemeralPublicKey: string; claimedBy: string; claimTxHash: string; claimedAt: string; claimMemoType: string | null; claimMemo: string | null; receiptId: string | null }
+  'link.claimed': { campaignId: string; linkId: string; ephemeralPublicKey: string; claimedBy: string; claimTxHash: string; claimedAt: string | null; observedAt?: string; timeSource?: 'ledger' | 'unavailable'; claimMemoType: string | null; claimMemo: string | null; receiptId: string | null }
   'campaign.reclaimed': { campaignId: string }
   /** Kleym stopped serving the links (#72). The balances are still claimable until `reclaimScheduledFor`. */
   'campaign.suspended': { campaignId: string; outstanding: number; outstandingAmount: string; assetCode: string; suspendedAt: string; reclaimScheduledFor: string }

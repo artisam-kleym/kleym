@@ -1,0 +1,33 @@
+{
+  "checkedAt": "2026-10-03T14:15:17.047Z",
+  "origin": "https://kleym-web-testnet.up.railway.app",
+  "sourceChanged": false,
+  "results": [
+    {
+      "scenario": "No extension response",
+      "expectedDetectionError": true,
+      "connectionMessages": [
+        "REQUEST_CONNECTION_STATUS"
+      ],
+      "writesAttempted": 0
+    },
+    {
+      "scenario": "Responding extension bridge on the same draft",
+      "detectionAndAccessPassed": true,
+      "networkCheckPassed": true,
+      "connectionMessages": [
+        "REQUEST_CONNECTION_STATUS",
+        "REQUEST_CONNECTION_STATUS",
+        "REQUEST_ACCESS",
+        "REQUEST_PUBLIC_KEY",
+        "REQUEST_CONNECTION_STATUS",
+        "REQUEST_NETWORK_DETAILS"
+      ],
+      "stoppedBeforeCampaignCreation": true
+    }
+  ],
+  "campaignsCreated": 0,
+  "transactionsSigned": 0,
+  "transactionsSubmitted": 0,
+  "qualification": "Actual deployed sender wizard and bundled Freighter API under HTTPS/CSP, with a synthetic extension message responder. Does not prove the user browser extension is responding or that a real wallet popup opens."
+}

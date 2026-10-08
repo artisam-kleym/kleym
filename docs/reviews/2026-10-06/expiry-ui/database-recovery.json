@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-10-06T11:16:53.659Z",
+  "results": [
+    {
+      "name": "postgres",
+      "lines": [
+        "PostgreSQL Database directory appears to contain a database; Skipping initialization",
+        "2026-10-06 11:14:30.692 UTC [66] LOG:  database system was shut down at 2026-10-03 16:15:43 UTC",
+        "2026-10-06 11:14:30.709 UTC [30] LOG:  database system is ready to accept connections"
+      ]
+    },
+    {
+      "name": "redis",
+      "lines": [
+        "1:M 06 Oct 2026 11:14:29.166 * Loading RDB produced by version 8.2.10",
+        "1:M 06 Oct 2026 11:14:29.166 * RDB age 241133 seconds",
+        "1:M 06 Oct 2026 11:14:29.166 * RDB memory usage when created 2.49 Mb",
+        "1:M 06 Oct 2026 11:14:29.167 * Done loading RDB, keys loaded: 125, keys expired: 0.",
+        "1:M 06 Oct 2026 11:14:29.167 * DB loaded from disk: 0.003 seconds"
+      ]
+    }
+  ]
+}

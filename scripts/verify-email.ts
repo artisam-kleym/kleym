@@ -16,8 +16,12 @@ import { randomUUID } from 'node:crypto'
 import { Keypair } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
 import { personalOrg } from '../tests/fixtures/tenant'
+import { prepareProofMessage, type PrepareProofInput } from '../src/lib/claim/prepare-proof'
+import { startTestnetNetworkFixture } from '../tests/fixtures/horizon-network'
 
 applyEnvPlaceholders()
+process.env.LEGACY_BEARER_EMAIL_ENABLED = 'true' // Disposable Testnet legacy-mode qualification only.
+const stopNetworkFixture = await startTestnetNetworkFixture({ missingAccounts: true })
 
 const { prisma } = await import('../src/lib/db/client')
 const { redis } = await import('../src/lib/redis/client')
@@ -462,6 +466,14 @@ async function theGateIsWiredOnTheMoneyRoutes(): Promise<void> {
   if (!verified.ok) return check('a token was earned', false, JSON.stringify(verified))
   const token = verified.token
 
+  function holderHeaders(path: string, body: unknown): Record<string, string> {
+    if (!path.includes('/prepare/')) return {}
+    const expires = Math.floor(Date.now() / 1000) + 90
+    const proof = Keypair.fromSecret(link.seed).sign(Buffer.from(prepareProofMessage(
+      new URL(env.APP_URL).origin, 'testnet', 'claim', expires, body as PrepareProofInput))).toString('base64')
+    return { 'x-kleym-proof-expires': String(expires), 'x-kleym-link-proof': proof }
+  }
+
   // A fresh IP per request so the per-IP rate limits (10/min) stay out of it.
   const post = (handler: (r: Request) => Promise<Response>, path: string, body: unknown, header?: string) =>
     handler(
@@ -469,6 +481,7 @@ async function theGateIsWiredOnTheMoneyRoutes(): Promise<void> {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
+          ...holderHeaders(path, body),
           'x-forwarded-for': `10.1.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250) + 1}`,
           ...(header ? { [OTP_HEADER]: header } : {}),
         },
@@ -519,6 +532,7 @@ async function main(): Promise<void> {
     await deliveryJobs().obliterate({ force: true }).catch(() => undefined)
     await deliveryJobs().close().catch(() => undefined)
     await prisma.$disconnect()
+    await stopNetworkFixture()
     redis.disconnect()
   }
   console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)

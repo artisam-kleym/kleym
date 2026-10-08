@@ -22,6 +22,8 @@ import {
   requireApiWriter,
 } from '@/lib/api/v1'
 import { policyFromRow } from '@/lib/api/claim-policy'
+import { RenewalRefused } from '@/lib/api/renewal'
+import { conflict } from '@/lib/api/problems'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -83,6 +85,7 @@ export async function POST(request: Request) {
     logger.info({ keyId: auth.caller.keyId, campaignId: campaign.id }, 'v1 campaign created')
     return jsonWithHeaders({ ...campaign, amountPerLink: amount(campaign.amountPerLink) }, auth.headers, 201)
   } catch (error) {
+    if (error instanceof RenewalRefused) return conflict(error.message, 'renewal')
     logger.error({ keyId: auth.caller.keyId, reason: error instanceof Error ? error.message : 'unknown' }, 'v1 campaign create failed')
     return apiServerError()
   }

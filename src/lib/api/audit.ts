@@ -21,6 +21,7 @@ import { appendChained } from './audit-chain'
 /** The actions SPEC.md §5.4 requires. A union so a typo is a build error. */
 export type AuditAction =
   | 'campaign.create'
+  | 'campaign.link-existing-renewal'
   | 'campaign.cancel'
   | 'campaign.suspend'
   | 'link.suspend'

@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-08",
+  "source": "codex/app-sending-pilot",
+  "public_deployment": "Not performed; Railway remains paused",
+  "production_build": "Passed; build-qualified.log",
+  "typecheck": "Passed; typecheck-final.log",
+  "lint": "Passed; lint.log and lint-final.log",
+  "full_unit": {
+    "tests": 621,
+    "files": 50,
+    "result": "Passed after durable-preparation fixture correction",
+    "additional_sender_tests": 3
+  },
+  "additional_sender_mobile_tests": 3,
+  "production_browser_checks": 5,
+  "real_lantern_wallet_signing": "Pending directory-enabled Lantern build and HTTPS deployment",
+  "evidence": "browser-verification.json; unit.log; full-unit.log; full-unit-final.log; sender-mobile.log; build.log",
+  "reference_files": {
+    "components--LanternButton.tsx.txt": "a873a30b27bbc75a7cd8aa347626862c8baa94626b4c51aaad6cd2bef76fbd5f",
+    "docs--lantern-integration.md": "50fed083a20dadbc3d6ac3bea60186bcd0de3ceb3033bd4cdfec199b030fc22c",
+    "lantern-directory.ts.txt": "7ba7e3e45ccaf939b41a9d590516f3119f1eadcaca71cee2a58128812d5ab28e",
+    "lib--stellar--lantern.ts.txt": "60b67c343b798d91973f8d7299d19b6b666675408b36ffa8e09d99a06c7bf01e",
+    "lib--stellar--wallet-lantern.ts.txt": "135b96662a0f789fc8472aea2d2ccc0a5f81ecd3c23d2a4c558f162a9dfba1f2"
+  },
+  "integration_subset_final": 21,
+  "verified_source_sha256": {
+    "src/lib/wallet/lantern.ts": "e5d0eaee0aec13f6018be4c33d8fb45cc768ee5a7583df47c14ae9c6822a052a",
+    "src/lib/wallet/lantern-config.ts": "3b54c8701697cd000e0ccd55cf119f5649682dbfa2c979a56067a742177dba4a",
+    "src/lib/wallet/signing.ts": "35abb05b47624550ce37e0b8ff8e2f315631f3d39d09ef8764189d62e9e749a7",
+    "src/app/(public)/claim/wallet.ts": "16c615367fa6d532718fc68fc6e9f0f5a26f7d532be780cd705dff31e88197eb",
+    "src/components/wallet-environment.tsx": "c4d3e2431c12f578eb835140bb0c3a321c33f186dcfe47cc57da63aee1fed693",
+    "src/middleware.ts": "c33a8a295a6134e024b3a51d605b2c2db114656dd4eb1c93cefba2784c18a024",
+    "src/app/layout.tsx": "6076fc45dd9bdd8dc69dbab689c4199f80f6d9a41e5234251bcfb16eeff95b00",
+    "src/app/manifest.ts": "c3b9829506b7a943c3b9bb67e3d86a96fe0fd876a24ea490868941f9c4483bcb",
+    "src/lib/auth/session.ts": "7520fca1c82ea6c4bf7e122b2666a6a0af2ac347ac4b82eeb34307db7653c3a4",
+    "src/app/api/auth/logout/route.ts": "f98cf2b24d5bfe84c60dc70e559a46da868acb5656338b9933e6eb62186c550d",
+    "src/app/(sender)/campaigns/new/steps.tsx": "ffa9af7b8d84ee4fe2af42a0817e0b780e2efe1e901db157facaa3e4d91631f9",
+    "src/app/(sender)/campaigns/new/wizard.tsx": "e5c91f5692c801ba2f5fa4681bdff4ac4143fc5a1afd3fdf614a6682e208a504",
+    "src/app/(public)/claim/claim-flow.tsx": "3fd8031f6dc0c960af84eb2f81c38c53990fe7f325984b3815786c8314f7ab57",
+    "src/app/(public)/claim/screens.tsx": "ded01c082e4450adeded14f8a47e4b98c593d270a5aaa3255cba72db3a76d354"
+  },
+  "static_checkpoint_notes": "Earlier final build/static run found unused arguments in the added phone test; corrected and qualified rerun passed. Earlier logs preserved."
+}

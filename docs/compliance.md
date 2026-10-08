@@ -40,16 +40,46 @@ own process, so the URL is treated as hostile input:
 - **No redirects.** The request is sent with `redirect: 'error'`, deliberately: a
   redirect is a way to turn an approved public hostname into a request to somewhere
   else, and a provider that redirects is answered with a HOLD.
-- **No loopback in production.** Otherwise any organisation Owner could make Kleym
+- **No private or reserved literal addresses in production.** URL-parser-normalized
+  IPv4 (including shorthand, octal and hexadecimal), IPv6 loopback/private/link-local,
+  mapped/translation/transition ranges, documentation ranges and local hostnames
+  are refused. Only public HTTPS destinations without credentials pass; isolated
+  non-production HTTP/HTTPS loopback fixtures remain supported. Otherwise an Owner could make Kleym
   POST to whatever shares the application host — the Next.js server, a metrics
   sidecar, a co-located service.
-- **Stated limitation:** Kleym does **not** resolve the hostname before connecting.
-  An HTTPS hostname that resolves — or later rebinds — to a private, link-local or
-  metadata address is not detected here. Deploy so that the application host cannot
-  reach internal services over HTTPS (egress policy, a network without internal
-  HTTPS endpoints, or an egress proxy that only permits public ranges). The response
-  is not echoed except through the 300-character `reason` field, so what leaks on a
-  successful SSRF is bounded, but the request is still made.
+- **Pinned public DNS at connection time:** the default HTTPS transport resolves
+  all addresses when its socket is created, refuses the entire answer set if any
+  address is private/reserved, and returns only checked answers to that same
+  connector. There is no second hostname lookup or shared connection pool.
+  Each new connection rechecks DNS; redirects never create a next-hop request.
+  Normal hostname/TLS certificate validation stays enabled. Requests are limited
+  to 1 MiB, responses to 2 MiB, and total transport time to 10 seconds or the
+  caller's shorter signal. No integration payload or provider error is logged.
+- **Deployment scope:** enforced egress remains defence in depth for other code,
+  infrastructure proxies, custom CA/routing and malicious public endpoints.
+  Trusted injected transports exist only for fixtures; do not introduce an
+  unrestricted production injection. Local fixture exceptions apply only to
+  validated non-production loopback URLs. Application tests do not attest the
+  deployed host's firewall, network routing or every external integration.
+
+The same canonical host rule applies to webhook, screening, OIDC and federation
+requests. Stored webhook/screening URLs and OIDC issuer/endpoint requests are
+revalidated when executed, so a previously accepted private HTTPS URL is refused
+without sending its payload. The shared request wrapper forces `redirect: 'error'`.
+SSO discovery caches are separated by environment; the actual `jose.customFetch`
+export routes JWKS downloads through the same wrapper. Transport errors are
+recorded using fixed categories, without echoing URLs or provider error text.
+
+Transport API basis: [Node HTTPS request](https://nodejs.org/api/https.html#httpsrequesturl-options-callback)
+and [DNS lookup](https://nodejs.org/api/dns.html#dnspromiseslookuphostname-options).
+The read-only `scripts/verify-outbound-network.ts` probe records public-provider
+TLS/DNS compatibility or an explicit unavailable verdict, with zero chain writes.
+
+The literal-range policy conservatively excludes special IPv6 protocol assignment
+ranges and admits global unicast only. Range references: [IANA IPv4](https://www.iana.org/assignments/iana-ipv4-special-registry/)
+and [IANA IPv6](https://www.iana.org/assignments/iana-ipv6-special-registry/), reviewed
+2026-10-08. Reassess the policy if an integration legitimately requires a excluded
+special-purpose range; do not bypass it with an unrestricted fetch.
 
 Deployment-wide environment:
 
@@ -175,6 +205,11 @@ export writes an audit row `org.regulator_export` with the window and the row co
 
 ## 4. Accounting export
 
+Current exports are v2 with explicit `timeSource` and `feeEvidence` columns.
+New valuations require confirmed ledger time; missing history is not priced
+using the application clock. Historical rows remain `legacy-unverified`, and
+unknown fees produce no invented fee expense. See [settlement time and compatibility](settlement-time.md).
+
 `GET /api/org/accounting/export?format=csv|json&from=&to=&campaignId=` — Operator and up,
 scoped to the session's organisation. One journal line per settled claim, **valued at the
 claim's own ledger time** in the organisation's reporting currency (Settings → Accounting;
@@ -212,7 +247,7 @@ Accounts are fixed strings a bookkeeper maps once: `Payouts expense`, `Digital a
 debit/credit entries per movement. This is reporting, not tax determination.
 ## 5. Claim receipts
 
-Every settled claim has a signed receipt (#81), issued the moment the claim lands and
+Every settled claim with verified time and delivered/payee evidence can receive a signed receipt (#81), issued when that evidence is available and
 never regenerated: the recipient address (read off the submitted envelope), what was
 delivered — for a receive-as claim (#74) the destination asset and the amount the ledger paid
 out — the ledger time, the transaction hash, the memo where one applied (#75), the delivery
@@ -220,6 +255,11 @@ channel and the claim policy that applied (#79), and the campaign's terms. The l
 by id only: the sender's label, reference, category and note are never in a receipt or a
 recipient's copy; the sender-facing CSV bundle carries them as unsigned columns beside each
 receipt. Nothing derived from the link — no URL, no fragment, no seed.
+
+New v3 receipts explicitly attest ledger time. Existing v1/v2 signatures and
+canonical bytes are preserved with their historical semantics. Missing ledger
+time prevents new issuance; it does not turn a successful claim into a failed
+transfer. See [settlement time and rollback](settlement-time.md).
 
 - `GET /api/campaigns/{id}/links/{linkId}/receipt` — one receipt; the body is its exact
   signed bytes, the signature and key in the headers above.

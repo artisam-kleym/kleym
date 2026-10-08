@@ -12,7 +12,9 @@ import { clientIp } from '@/lib/auth/client-ip'
 import { guardRequestBody } from '@/lib/security/guard'
 import { requireUser } from '@/lib/api/session-guard'
 import { serverError, validationProblem } from '@/lib/api/problems'
-import { horizon } from '@/lib/stellar/horizon'
+import { baseReserve, horizon } from '@/lib/stellar/horizon'
+import { fundingBalances } from '@/lib/stellar/funding-balances'
+import { env } from '@/lib/config/env'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -41,14 +43,11 @@ export async function GET(request: Request) {
 
   try {
     const account = await horizon().loadAccount(publicKey)
+    const reserve = await baseReserve()
     return Response.json({
+      network: env.STELLAR_NETWORK,
       exists: true,
-      balances: account.balances.map((balance) => ({
-        assetType: balance.asset_type,
-        assetCode: 'asset_code' in balance ? balance.asset_code : 'XLM',
-        assetIssuer: 'asset_issuer' in balance ? balance.asset_issuer : null,
-        balance: balance.balance,
-      })),
+      balances: fundingBalances(account, reserve),
       subentryCount: account.subentry_count,
     })
   } catch (error) {
@@ -56,7 +55,7 @@ export async function GET(request: Request) {
     if (status === 404 || (error as { name?: string })?.name === 'NotFoundError') {
       // Not an error: an unfunded account is a normal thing for the wizard to
       // report, and the sender needs to be told rather than shown a failure.
-      return Response.json({ exists: false, balances: [], subentryCount: 0 })
+      return Response.json({ network: env.STELLAR_NETWORK, exists: false, balances: [], subentryCount: 0 })
     }
     logger.error({ reason: error instanceof Error ? error.message : 'unknown' }, 'account lookup failed')
     return serverError()

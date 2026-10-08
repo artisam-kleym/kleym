@@ -75,7 +75,26 @@ export function isValidPhrase(phrase: string): boolean {
 }
 
 export function normalisePhrase(phrase: string): string {
-  return phrase.trim().toLowerCase().split(/\s+/).join(' ')
+  const clean = phrase.normalize('NFKD').replace(/[\u200B-\u200D\u2060\uFEFF]/g, '').trim().toLowerCase().split(/\s+/).join(' ')
+  // Accept the numbered list shown by our own UI, but never reorder words or
+  // discard arbitrary characters. Incomplete/misordered numbering stays invalid.
+  const pattern = /(?:^|\s)(\d{1,2})[.)]?\s*([a-z]+)(?=\s|$)/g
+  const numbered = [...clean.matchAll(pattern)]
+  if (numbered.length && clean.replace(pattern, '').trim() === '' && numbered.every((entry, index) => Number(entry[1]) === index + 1)) {
+    return numbered.map((entry) => entry[2]).join(' ')
+  }
+  return clean
+}
+
+/** Client-only diagnostics: counts/categories, never the supplied words. */
+export function phraseInputStatus(phrase: string): { valid: boolean; wordCount: number; reason: 'count' | 'words' | 'checksum' | null } {
+  const normalised = normalisePhrase(phrase)
+  const words = normalised ? normalised.split(' ') : []
+  const wordCount = words.length
+  if (![12, 15, 18, 21, 24].includes(wordCount)) return { valid: false, wordCount, reason: 'count' }
+  if (words.some((word) => !wordlist.includes(word))) return { valid: false, wordCount, reason: 'words' }
+  const valid = validateMnemonic(normalised, wordlist)
+  return { valid, wordCount, reason: valid ? null : 'checksum' }
 }
 
 /** A random 31-bit campaign index, so two campaigns from one phrase never share a path. */

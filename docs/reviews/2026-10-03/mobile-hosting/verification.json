@@ -1,0 +1,64 @@
+{
+  "checkedAt": "2026-10-03T12:39:05.035Z",
+  "base": "4163d7954bff9c1582c0c405174cddbe6951da33",
+  "source": "preserved local changes on codex/app-sending-pilot",
+  "unit": {
+    "passed": 46,
+    "files": 3,
+    "newMobile": 18
+  },
+  "browser": {
+    "passed": 19,
+    "viewport": {
+      "width": 393,
+      "height": 851
+    },
+    "transport": "bundled SDK with local relay and attestation fixtures; desktop bridge fixture",
+    "realPhone": false
+  },
+  "typecheck": true,
+  "eslint": true,
+  "productionWebpackBuild": true,
+  "knownBuildWarnings": [
+    "middleware convention deprecation",
+    "BullMQ optional valkey module",
+    "BullMQ dynamic child processor"
+  ],
+  "frozenLockfile": {
+    "passed": true,
+    "pnpm": "10.6.4",
+    "mode": "offline lockfile-only, ignore scripts"
+  },
+  "publicProbe": {
+    "loopbackRefusalPassed": true,
+    "deployedOriginTested": false
+  },
+  "publicDeployment": false,
+  "chainWrites": 0,
+  "realWalletSigning": false,
+  "preview": {
+    "port": 3222,
+    "stopped": true,
+    "syntheticProjectId": true
+  },
+  "initialBrowserFailure": "Offline Redis caused fail-closed 429; restored existing loopback fixtures and all 19 tests passed",
+  "hashes": {
+    "src/lib/wallet/mobile.ts": "0eb01971109e9c1f3edd4715b15ff3b67ea76705a169b39026d8e9c0451e3628",
+    "src/app/(public)/claim/wallet.ts": "98fb4d6756366f8cf87192dd79ff4b56e03a2b2b9fbf448faf5bf692f97bedd8",
+    "src/app/(public)/claim/claim-flow.tsx": "4c64000f33f15dcf59cf58fc4f4189044e1be5c761cd60289bef5062681b28f8",
+    "src/app/(public)/claim/screens.tsx": "99b16695815194f5d18672e22cfabca4a14d999c9e9cd67175428bc2ab7d3f78",
+    "src/app/(public)/claim/page.tsx": "6d680c73ab99f29e3be37cee752692c8461180290435b71806072c364b533fca",
+    "src/lib/config/env.ts": "35c09c9d51b360124720b702cbc4f20d17832e00e05d2c960b56b9f30a29283b",
+    "src/middleware.ts": "8cdd913ad2f543ed76808163c95cb52f6485d356a628b2dcb3310cfee24fdb0d",
+    "tests/lib/wallet/mobile.test.ts": "b370ddf965116a8f81923f3ecf3ef666a6e2655cdd72747d2e0b03079fb70699",
+    "e2e/claim-page.spec.ts": "332bb47cf1104a10995b9490a30d46745de70974593d438a18b2954fce4d2bbe",
+    "scripts/check-public-deployment.ts": "53d222e6dd4acce284b3ccf25ef04529e9123d6350bbbffd6b247472acbb91ff",
+    "package.json": "25a292ac3425050e8bddf3c5a97ba95ac3e376c474e64581fc4fe59d30dc72f7",
+    "pnpm-lock.yaml": "70492b6292fc04c09e36526ef29a6631ab12c7d63ec9c1314ac03c133a6ecd68",
+    "railway.json": "7411ffd9ada4a564d32b8857797516eac5683a021569ed7da76e45f0522ad4f6",
+    "railway.worker.json": "8956fc6f1cc41bd2bdd2a5fedcfc8b331961f2f1809c89fa8f68f273d63e1825",
+    ".railwayignore": "5c82f6271a1f809fbd1ea807e80e32ea4096ce89e1a9c6565560667f77852958",
+    "docs/railway.md": "29339ea86bf83094d347bed79c204d33d1fb228e9c9cbadf08065dedb56cb3e3",
+    "docs/mobile-claims.md": "f72f44324f860e5ae4ab867c2c915a11f04f3c83c2cd069f26348d8742f0b066"
+  }
+}

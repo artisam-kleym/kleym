@@ -7,6 +7,8 @@
 import { Queue } from 'bullmq'
 import { QUEUE, queueConnection } from './connection'
 import { traceCarrier } from '@/lib/observability/tracing'
+import { prisma } from '@/lib/db/client'
+import { env } from '@/lib/config/env'
 
 export interface BatchConfirmJob {
   batchId: string
@@ -34,7 +36,7 @@ export function batchConfirmQueue(): Queue<BatchConfirmJob> {
 }
 
 /** The job id for a batch. No colon: BullMQ 6 refuses a custom id containing one. */
-export const batchConfirmJobId = (batchId: string) => `batch-confirm-${batchId}`
+export const batchConfirmJobId = (batchId: string, hash?: string) => `batch-confirm-${batchId}${hash ? `-${hash}` : ''}`
 
 /**
  * Enqueues confirmation for a submitted batch.
@@ -48,6 +50,24 @@ export const batchConfirmJobId = (batchId: string) => `batch-confirm-${batchId}`
  * Found by verify:observability enqueuing under a trace (#53) and by the
  * SDK end-to-end run in verify:write-api (#51).
  */
-export async function enqueueBatchConfirm(batchId: string): Promise<void> {
-  await batchConfirmQueue().add(QUEUE.batchConfirm, { batchId, trace: traceCarrier() }, { jobId: batchConfirmJobId(batchId) })
+export async function enqueueBatchConfirm(batchId: string, hash?: string): Promise<void> {
+  const queue = batchConfirmQueue()
+  const jobId = batchConfirmJobId(batchId, hash)
+  const existing = await queue.getJob(jobId)
+  if (existing && await existing.getState() === 'failed') {
+    await existing.retry()
+    return
+  }
+  await queue.add(QUEUE.batchConfirm, { batchId, trace: traceCarrier() }, { jobId })
+}
+
+/** Repairs a crash between recording a signed attempt and enqueueing confirmation. */
+export async function recoverSubmittedFunding(campaignId?: string): Promise<number> {
+  const batches = await prisma.batch.findMany({
+    where: { status: 'SUBMITTED', submittedXdr: { not: null }, transactionHash: { not: null },
+      ...(campaignId ? { campaignId } : {}), campaign: { network: env.STELLAR_NETWORK } },
+    select: { id: true, transactionHash: true }, orderBy: { submittedAt: 'asc' }, take: 1000,
+  })
+  for (const batch of batches) await enqueueBatchConfirm(batch.id, batch.transactionHash!)
+  return batches.length
 }

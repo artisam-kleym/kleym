@@ -1,0 +1,864 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies", "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ critical            │ Next.js: Remote Code Execution in next/og              │
+│                     │ ImageResponse                                          │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=16.2.0 <16.3.6                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=16.3.6                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > next@16.3.5                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-vcvr-r3jv-pc5j      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ brace-expansion: DoS via uncontrolled recursion on     │
+│                     │ nested brace groups causing stack exhaustion           │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ brace-expansion                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <1.1.20                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.1.20                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > eslint-config-next@16.3.1 >                        │
+│                     │ eslint-import-resolver-typescript@3.10.1 >             │
+│                     │ eslint-plugin-import@2.32.0 > minimatch@3.1.5 >        │
+│                     │ brace-expansion@1.1.18                                 │
+│                     │                                                        │
+│                     │ . > eslint-config-next@16.3.1 >                        │
+│                     │ eslint-plugin-import@2.32.0 > minimatch@3.1.5 >        │
+│                     │ brace-expansion@1.1.18                                 │
+│                     │                                                        │
+│                     │ . > eslint-config-next@16.3.1 >                        │
+│                     │ eslint-plugin-jsx-a11y@6.10.2 > minimatch@3.1.5 >      │
+│                     │ brace-expansion@1.1.18                                 │
+│                     │                                                        │
+│                     │ ... Found 4 paths, run `pnpm why brace-expansion` for  │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-qhr7-859c-m2p7      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ brace-expansion: DoS via uncontrolled recursion on     │
+│                     │ nested brace groups causing stack exhaustion           │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ brace-expansion                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=4.0.0 <5.0.11                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=5.0.11                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > eslint@10.8.1 > @eslint/config-array@0.23.5 >      │
+│                     │ minimatch@10.2.6 > brace-expansion@5.0.9               │
+│                     │                                                        │
+│                     │ . > eslint@10.8.1 > minimatch@10.2.6 >                 │
+│                     │ brace-expansion@5.0.9                                  │
+│                     │                                                        │
+│                     │ . > eslint-config-next@16.3.1 >                        │
+│                     │ @next/eslint-plugin-next@16.3.1 >                      │
+│                     │ @eslint-community/eslint-utils@4.9.1 > eslint@10.8.1 > │
+│                     │ @eslint/config-array@0.23.5 > minimatch@10.2.6 >       │
+│                     │ brace-expansion@5.0.9                                  │
+│                     │                                                        │
+│                     │ ... Found 57 paths, run `pnpm why brace-expansion` for │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-qhr7-859c-m2p7      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ brace-expansion: DoS via uncontrolled recursion in     │
+│                     │ parseCommaParts causing stack exhaustion               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ brace-expansion                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <1.1.19                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.1.19                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > eslint-config-next@16.3.1 >                        │
+│                     │ eslint-import-resolver-typescript@3.10.1 >             │
+│                     │ eslint-plugin-import@2.32.0 > minimatch@3.1.5 >        │
+│                     │ brace-expansion@1.1.18                                 │
+│                     │                                                        │
+│                     │ . > eslint-config-next@16.3.1 >                        │
+│                     │ eslint-plugin-import@2.32.0 > minimatch@3.1.5 >        │
+│                     │ brace-expansion@1.1.18                                 │
+│                     │                                                        │
+│                     │ . > eslint-config-next@16.3.1 >                        │
+│                     │ eslint-plugin-jsx-a11y@6.10.2 > minimatch@3.1.5 >      │
+│                     │ brace-expansion@1.1.18                                 │
+│                     │                                                        │
+│                     │ ... Found 4 paths, run `pnpm why brace-expansion` for  │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-6j4f-fj2g-mc7p      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ brace-expansion: DoS via uncontrolled recursion in     │
+│                     │ parseCommaParts causing stack exhaustion               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ brace-expansion                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=4.0.0 <5.0.10                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=5.0.10                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > eslint@10.8.1 > @eslint/config-array@0.23.5 >      │
+│                     │ minimatch@10.2.6 > brace-expansion@5.0.9               │
+│                     │                                                        │
+│                     │ . > eslint@10.8.1 > minimatch@10.2.6 >                 │
+│                     │ brace-expansion@5.0.9                                  │
+│                     │                                                        │
+│                     │ . > eslint-config-next@16.3.1 >                        │
+│                     │ @next/eslint-plugin-next@16.3.1 >                      │
+│                     │ @eslint-community/eslint-utils@4.9.1 > eslint@10.8.1 > │
+│                     │ @eslint/config-array@0.23.5 > minimatch@10.2.6 >       │
+│                     │ brace-expansion@5.0.9                                  │
+│                     │                                                        │
+│                     │ ... Found 57 paths, run `pnpm why brace-expansion` for │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-6j4f-fj2g-mc7p      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Axios: ReDoS in fromDataURI data: URL parser freezes   │
+│                     │ the Node event loop (DoS)                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.16.1 <1.20.0                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.20.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios@1.18.0                │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios-retry@4.5.0 >         │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 >                                 │
+│                     │ @reown/appkit-scaffold-ui@1.8.21 >                     │
+│                     │ @reown/appkit-pay@1.8.21 > @reown/appkit-utils@1.8.21  │
+│                     │ > @base-org/account@2.4.0 > @coinbase/cdp-sdk@1.55.0 > │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ ... Found 10 paths, run `pnpm why axios` for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-c29m-xwm3-cm6r      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Axios: ReDoS (O(N²)) in shouldBypassProxy host         │
+│                     │ normalization, reachable via untrusted redirect        │
+│                     │ Location                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.15.0 <1.20.0                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.20.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios@1.18.0                │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios-retry@4.5.0 >         │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 >                                 │
+│                     │ @reown/appkit-scaffold-ui@1.8.21 >                     │
+│                     │ @reown/appkit-pay@1.8.21 > @reown/appkit-utils@1.8.21  │
+│                     │ > @base-org/account@2.4.0 > @coinbase/cdp-sdk@1.55.0 > │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ ... Found 10 paths, run `pnpm why axios` for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-mghh-pgcx-3jjj      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Axios: Prototype Pollution Gadget in axios toFormData  │
+│                     │ Options                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.15.1 <1.20.0                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.20.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios@1.18.0                │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios-retry@4.5.0 >         │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 >                                 │
+│                     │ @reown/appkit-scaffold-ui@1.8.21 >                     │
+│                     │ @reown/appkit-pay@1.8.21 > @reown/appkit-utils@1.8.21  │
+│                     │ > @base-org/account@2.4.0 > @coinbase/cdp-sdk@1.55.0 > │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ ... Found 10 paths, run `pnpm why axios` for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-x97p-jq2g-jp4f      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Axios: HTTP/2 adapter bypasses configured DNS lookup   │
+│                     │ and proxy controls                                     │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.13.0 <1.20.0                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.20.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios@1.18.0                │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios-retry@4.5.0 >         │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 >                                 │
+│                     │ @reown/appkit-scaffold-ui@1.8.21 >                     │
+│                     │ @reown/appkit-pay@1.8.21 > @reown/appkit-utils@1.8.21  │
+│                     │ > @base-org/account@2.4.0 > @coinbase/cdp-sdk@1.55.0 > │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ ... Found 10 paths, run `pnpm why axios` for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-3pq3-5fj3-cg6v      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Axios: Denial of Service via Unhandled 'error' Event   │
+│                     │ in HTTP/2 ClientHttp2Session Initialization            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.13.0 <1.20.0                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.20.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios@1.18.0                │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios-retry@4.5.0 >         │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 >                                 │
+│                     │ @reown/appkit-scaffold-ui@1.8.21 >                     │
+│                     │ @reown/appkit-pay@1.8.21 > @reown/appkit-utils@1.8.21  │
+│                     │ > @base-org/account@2.4.0 > @coinbase/cdp-sdk@1.55.0 > │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ ... Found 10 paths, run `pnpm why axios` for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-542g-h47m-68v8      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ @grpc/grpc-js: In certain configurations,              │
+│                     │ getAuthContext can return unauthorized certificates as │
+│                     │ though they were authorized                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ @grpc/grpc-js                                          │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.14.0 <1.14.5                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.14.5                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @opentelemetry/sdk-node@0.222.0 >                  │
+│                     │ @opentelemetry/exporter-logs-otlp-grpc@0.222.0 >       │
+│                     │ @opentelemetry/otlp-grpc-exporter-base@0.222.0 >       │
+│                     │ @grpc/grpc-js@1.14.4                                   │
+│                     │                                                        │
+│                     │ . > @opentelemetry/sdk-node@0.222.0 >                  │
+│                     │ @opentelemetry/exporter-metrics-otlp-grpc@0.222.0 >    │
+│                     │ @opentelemetry/otlp-grpc-exporter-base@0.222.0 >       │
+│                     │ @grpc/grpc-js@1.14.4                                   │
+│                     │                                                        │
+│                     │ . > @opentelemetry/sdk-node@0.222.0 >                  │
+│                     │ @opentelemetry/exporter-trace-otlp-grpc@0.222.0 >      │
+│                     │ @opentelemetry/otlp-grpc-exporter-base@0.222.0 >       │
+│                     │ @grpc/grpc-js@1.14.4                                   │
+│                     │                                                        │
+│                     │ ... Found 4 paths, run `pnpm why @grpc/grpc-js` for    │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-m9gg-hp2v-232j      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Axios: Node HTTP adapter prototype-pollution gadget    │
+│                     │ allows request socket hijack via inherited             │
+│                     │ createConnection                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.15.2 <1.20.0                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.20.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios@1.18.0                │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios-retry@4.5.0 >         │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 >                                 │
+│                     │ @reown/appkit-scaffold-ui@1.8.21 >                     │
+│                     │ @reown/appkit-pay@1.8.21 > @reown/appkit-utils@1.8.21  │
+│                     │ > @base-org/account@2.4.0 > @coinbase/cdp-sdk@1.55.0 > │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ ... Found 10 paths, run `pnpm why axios` for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-m8m8-qj5v-23w3      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Axios: maxRedirects: 0 is not enforced by the fetch    │
+│                     │ adapter, allowing redirect-based SSRF                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.17.0 <1.20.0                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.20.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios@1.18.0                │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios-retry@4.5.0 >         │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 >                                 │
+│                     │ @reown/appkit-scaffold-ui@1.8.21 >                     │
+│                     │ @reown/appkit-pay@1.8.21 > @reown/appkit-utils@1.8.21  │
+│                     │ > @base-org/account@2.4.0 > @coinbase/cdp-sdk@1.55.0 > │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ ... Found 10 paths, run `pnpm why axios` for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-r4gj-5m52-g5wh      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ braces vulnerable to stack-exhaustion denial of        │
+│                     │ service through deeply nested patterns                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ braces                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <=3.0.3                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ <0.0.0                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > eslint-config-next@16.3.1 >                        │
+│                     │ @next/eslint-plugin-next@16.3.1 > fast-glob@3.3.1 >    │
+│                     │ micromatch@4.0.8 > braces@3.0.3                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-vfj7-8cjw-p6xm      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ source-map-js allows event-loop denial of service      │
+│                     │ through indexed source-map section offsets             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ source-map-js                                          │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.0.0 <1.2.2                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.2.2                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > next@16.3.5 > postcss@8.5.23 > source-map-js@1.2.1 │
+│                     │                                                        │
+│                     │ . > @tailwindcss/postcss@4.3.3 >                       │
+│                     │ @tailwindcss/node@4.3.3 > source-map-js@1.2.1          │
+│                     │                                                        │
+│                     │ . > @tailwindcss/postcss@4.3.3 > postcss@8.5.26 >      │
+│                     │ source-map-js@1.2.1                                    │
+│                     │                                                        │
+│                     │ ... Found 6 paths, run `pnpm why source-map-js` for    │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-68fv-2mgg-jv7q      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ sharp : Vulnerability in librsvg dependency            │
+│                     │ CVE-2026-96889                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ sharp                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <0.35.5                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=0.35.5                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > next@16.3.5 > sharp@0.35.4                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-wq5f-xc86-pv6w      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Next.js has Server-Side Request Forgery in Image       │
+│                     │ Optimization                                           │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=16.0.0 <16.3.8                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=16.3.8                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > next@16.3.5                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-cjq9-62q9-8jv4      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ fast-uri vulnerable to inconsistent host case          │
+│                     │ normalization via percent-encoded octets               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ fast-uri                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=3.0.0 <3.1.8                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=3.1.8                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @prisma/client@7.10.0 > prisma@7.10.0 >            │
+│                     │ @prisma/dev@0.24.17 > @prisma/streams-local@0.1.11 >   │
+│                     │ ajv@8.20.0 > fast-uri@3.1.7                            │
+│                     │                                                        │
+│                     │ . > prisma@7.10.0 > @prisma/dev@0.24.17 >              │
+│                     │ @prisma/streams-local@0.1.11 > ajv@8.20.0 >            │
+│                     │ fast-uri@3.1.7                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-hrr3-gc8f-f4qj      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ brace-expansion: Quadratic-time expansion of the       │
+│                     │ `{a},b}` rewrite causes CPU denial of service          │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ brace-expansion                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <1.1.21                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.1.21                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > eslint-config-next@16.3.1 >                        │
+│                     │ eslint-import-resolver-typescript@3.10.1 >             │
+│                     │ eslint-plugin-import@2.32.0 > minimatch@3.1.5 >        │
+│                     │ brace-expansion@1.1.18                                 │
+│                     │                                                        │
+│                     │ . > eslint-config-next@16.3.1 >                        │
+│                     │ eslint-plugin-import@2.32.0 > minimatch@3.1.5 >        │
+│                     │ brace-expansion@1.1.18                                 │
+│                     │                                                        │
+│                     │ . > eslint-config-next@16.3.1 >                        │
+│                     │ eslint-plugin-jsx-a11y@6.10.2 > minimatch@3.1.5 >      │
+│                     │ brace-expansion@1.1.18                                 │
+│                     │                                                        │
+│                     │ ... Found 4 paths, run `pnpm why brace-expansion` for  │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-q2hr-2g5m-vwhr      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ brace-expansion: Quadratic-time expansion of the       │
+│                     │ `{a},b}` rewrite causes CPU denial of service          │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ brace-expansion                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=4.0.0 <5.0.12                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=5.0.12                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > eslint@10.8.1 > @eslint/config-array@0.23.5 >      │
+│                     │ minimatch@10.2.6 > brace-expansion@5.0.9               │
+│                     │                                                        │
+│                     │ . > eslint@10.8.1 > minimatch@10.2.6 >                 │
+│                     │ brace-expansion@5.0.9                                  │
+│                     │                                                        │
+│                     │ . > eslint-config-next@16.3.1 >                        │
+│                     │ @next/eslint-plugin-next@16.3.1 >                      │
+│                     │ @eslint-community/eslint-utils@4.9.1 > eslint@10.8.1 > │
+│                     │ @eslint/config-array@0.23.5 > minimatch@10.2.6 >       │
+│                     │ brace-expansion@5.0.9                                  │
+│                     │                                                        │
+│                     │ ... Found 57 paths, run `pnpm why brace-expansion` for │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-q2hr-2g5m-vwhr      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Axios: Prototype pollution gadget in fetch adapter can │
+│                     │ alter outbound requests                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.7.0 <1.20.0                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.20.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios@1.18.0                │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios-retry@4.5.0 >         │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 >                                 │
+│                     │ @reown/appkit-scaffold-ui@1.8.21 >                     │
+│                     │ @reown/appkit-pay@1.8.21 > @reown/appkit-utils@1.8.21  │
+│                     │ > @base-org/account@2.4.0 > @coinbase/cdp-sdk@1.55.0 > │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ ... Found 10 paths, run `pnpm why axios` for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-vh66-26gq-q6x8      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Axios: Prototype-Pollution Gadget in the Default       │
+│                     │ Instance Allows Inherited Object.prototype.method to   │
+│                     │ Override HTTP Method                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.0.0 <1.20.0                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.20.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios@1.18.0                │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios-retry@4.5.0 >         │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 >                                 │
+│                     │ @reown/appkit-scaffold-ui@1.8.21 >                     │
+│                     │ @reown/appkit-pay@1.8.21 > @reown/appkit-utils@1.8.21  │
+│                     │ > @base-org/account@2.4.0 > @coinbase/cdp-sdk@1.55.0 > │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ ... Found 10 paths, run `pnpm why axios` for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-9fr6-4gfg-395g      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Axios: Header Injection via Inherited headers After    │
+│                     │ Minimal Interceptor                                    │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.0.0 <1.20.0                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.20.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios@1.18.0                │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios-retry@4.5.0 >         │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 >                                 │
+│                     │ @reown/appkit-scaffold-ui@1.8.21 >                     │
+│                     │ @reown/appkit-pay@1.8.21 > @reown/appkit-utils@1.8.21  │
+│                     │ > @base-org/account@2.4.0 > @coinbase/cdp-sdk@1.55.0 > │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ ... Found 10 paths, run `pnpm why axios` for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-j8rh-479h-cp32      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Axios: Fetch Adapter Header Injection via Inherited    │
+│                     │ FormData getHeaders                                    │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.12.0 <1.20.0                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.20.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios@1.18.0                │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios-retry@4.5.0 >         │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 >                                 │
+│                     │ @reown/appkit-scaffold-ui@1.8.21 >                     │
+│                     │ @reown/appkit-pay@1.8.21 > @reown/appkit-utils@1.8.21  │
+│                     │ > @base-org/account@2.4.0 > @coinbase/cdp-sdk@1.55.0 > │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ ... Found 10 paths, run `pnpm why axios` for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-4hqw-qxg8-jxx2      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Axios: CIDR-form NO_PROXY entries are ignored, causing │
+│                     │ proxy exclusion bypass for internal IP ranges          │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.15.0 <1.20.0                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.20.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios@1.18.0                │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 > @reown/appkit-pay@1.8.21 >      │
+│                     │ @reown/appkit-utils@1.8.21 > @base-org/account@2.4.0 > │
+│                     │ @coinbase/cdp-sdk@1.55.0 > axios-retry@4.5.0 >         │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @reown/appkit@1.8.21 >                                 │
+│                     │ @reown/appkit-scaffold-ui@1.8.21 >                     │
+│                     │ @reown/appkit-pay@1.8.21 > @reown/appkit-utils@1.8.21  │
+│                     │ > @base-org/account@2.4.0 > @coinbase/cdp-sdk@1.55.0 > │
+│                     │ axios@1.18.0                                           │
+│                     │                                                        │
+│                     │ ... Found 10 paths, run `pnpm why axios` for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-44g4-m2mj-wpvx      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ smol-toml: Quadratic-time parse() from parseKey        │
+│                     │ rescanning to end of document on each key line         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ smol-toml                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <=1.8.0                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.9.0                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @stellar/stellar-sdk@17.0.1 > smol-toml@1.8.0          │
+│                     │                                                        │
+│                     │ . > @stellar/stellar-sdk@16.2.0 > smol-toml@1.8.0      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-r4xh-jqrq-34v2      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ fast-copy: Stack exhaustion in fast-copy when copying  │
+│                     │ deeply-nested values                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ fast-copy                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=4.0.0 <4.1.0                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=4.1.0                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > pino-pretty@13.1.3 > fast-copy@4.0.4               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-jggr-w7fw-pc2j      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Next.js: Pending `use cache` fill can leak Draft Mode  │
+│                     │ content into regular responses and persisted pages     │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=16.3.0 <16.3.8                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=16.3.8                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > next@16.3.5                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-3w37-wq28-93x7      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Next.js has cache poisoning of SSG and ISR pages in    │
+│                     │ self-hosted applications                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=16.0.0 <16.3.8                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=16.3.8                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > next@16.3.5                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-4jqv-mc3x-m676      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Next.js has information disclosure in App Router       │
+│                     │ metadata image routes via dynamicParams bypass         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=16.0.0 <16.3.8                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=16.3.8                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > next@16.3.5                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-f87g-xv8r-7p7x      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Next.js has cache poisoning in SSG/ISR rendering that  │
+│                     │ leads to cross-user content substitution and           │
+│                     │ persistent denial of service                           │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=16.0.0 <16.3.8                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=16.3.8                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > next@16.3.5                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-mcj8-r9mp-w47p      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ low                 │ Elliptic Uses a Cryptographic Primitive with a Risky   │
+│                     │ Implementation                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ elliptic                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <=6.6.1                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ <0.0.0                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @hot-wallet/sdk@1.0.11 > @near-js/crypto@1.4.2 >       │
+│                     │ secp256k1@5.0.1 > elliptic@6.6.1                       │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @hot-wallet/sdk@1.0.11 >                               │
+│                     │ @near-wallet-selector/core@8.10.2 > near-api-js@5.1.1  │
+│                     │ > @near-js/accounts@1.4.1 > @near-js/crypto@1.4.2 >    │
+│                     │ secp256k1@5.0.1 > elliptic@6.6.1                       │
+│                     │                                                        │
+│                     │ . > @creit.tech/stellar-wallets-kit@2.6.0 >            │
+│                     │ @hot-wallet/sdk@1.0.11 >                               │
+│                     │ @near-wallet-selector/core@8.10.2 > near-api-js@5.1.1  │
+│                     │ > @near-js/accounts@1.4.1 > @near-js/providers@1.0.3 > │
+│                     │ @near-js/transactions@1.3.3 > @near-js/crypto@1.4.2 >  │
+│                     │ secp256k1@5.0.1 > elliptic@6.6.1                       │
+│                     │                                                        │
+│                     │ ... Found 43 paths, run `pnpm why elliptic` for more   │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-848j-6mx2-7j84      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ low                 │ @grpc/grpc-js: The server transmits some error         │
+│                     │ messages thrown by method handlers to the client in    │
+│                     │ status messages                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ @grpc/grpc-js                                          │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.14.0 <1.14.5                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.14.5                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @opentelemetry/sdk-node@0.222.0 >                  │
+│                     │ @opentelemetry/exporter-logs-otlp-grpc@0.222.0 >       │
+│                     │ @opentelemetry/otlp-grpc-exporter-base@0.222.0 >       │
+│                     │ @grpc/grpc-js@1.14.4                                   │
+│                     │                                                        │
+│                     │ . > @opentelemetry/sdk-node@0.222.0 >                  │
+│                     │ @opentelemetry/exporter-metrics-otlp-grpc@0.222.0 >    │
+│                     │ @opentelemetry/otlp-grpc-exporter-base@0.222.0 >       │
+│                     │ @grpc/grpc-js@1.14.4                                   │
+│                     │                                                        │
+│                     │ . > @opentelemetry/sdk-node@0.222.0 >                  │
+│                     │ @opentelemetry/exporter-trace-otlp-grpc@0.222.0 >      │
+│                     │ @opentelemetry/otlp-grpc-exporter-base@0.222.0 >       │
+│                     │ @grpc/grpc-js@1.14.4                                   │
+│                     │                                                        │
+│                     │ ... Found 4 paths, run `pnpm why @grpc/grpc-js` for    │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-f596-whhp-79r4      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ low                 │ Next.js has information disclosure in development      │
+│                     │ server's Model Context Protocol endpoint               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=16.0.0 <16.3.8                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=16.3.8                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > next@16.3.5                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-39w2-rjm5-chcv      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+34 vulnerabilities found
+Severity: 3 low | 14 moderate | 16 high | 1 critical

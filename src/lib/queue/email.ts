@@ -1,9 +1,9 @@
 /**
  * The `email-deliver` queue. SPEC.md §6.5.
  *
- * This queue carries the ONE piece of link material that transits Kleym's
- * infrastructure, so its retention settings are a security control rather than
- * housekeeping:
+ * Historical bearer delivery persisted full URLs in Redis payloads. Current
+ * deployments refuse new bearer jobs and hold existing ones for operator review.
+ * The legacy development-only Testnet path uses these retention settings:
  *
  *   removeOnComplete: true   — the payload leaves Redis the moment it is sent.
  *   removeOnFail: true       — and when it is finally NOT sent, too.
@@ -17,10 +17,11 @@
  */
 import { Queue } from 'bullmq'
 import { QUEUE, queueConnection } from './connection'
+import { legacyBearerEmailAllowed, LOCAL_DELIVERY_NOTICE } from '@/lib/email/delivery-policy'
 
 /**
- * What one delivery needs. `claimUrl` is the exception (SPEC.md §6.5): it is
- * passed to the mail provider and discarded, never persisted, never logged.
+ * Historical job shape. `claimUrl` is persisted by BullMQ, and is therefore
+ * forbidden at ingress in current deployments. Held jobs require operator review.
  */
 export interface DeliveryJob {
   kind?: 'claim'
@@ -97,6 +98,7 @@ export function deliveryJobs(): Queue<EmailJob> {
 }
 
 export async function enqueueDelivery(job: DeliveryJob): Promise<void> {
+  if (!legacyBearerEmailAllowed()) throw new Error(LOCAL_DELIVERY_NOTICE)
   /*
    * Deduplicated on the delivery row, so a sender who double-clicks "Send"
    * does not email the same person twice — and, more to the point, does not

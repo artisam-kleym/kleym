@@ -10,12 +10,13 @@
  * is the claims, and the session Kleym then issues is its own opaque token.
  */
 import { createHash, randomBytes } from 'node:crypto'
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose'
+import { createRemoteJWKSet, customFetch, jwtVerify, type JWTPayload } from 'jose'
 import { redis } from '@/lib/redis/client'
 import { env } from '@/lib/config/env'
 import { logger } from '@/lib/config/logger'
 import { decryptAtRest } from '@/lib/auth/at-rest'
 import { outboundUrlFor } from '@/lib/validation/outbound-url'
+import { outboundFetch } from '@/lib/validation/outbound-fetch'
 
 export interface OidcConnection {
   id: string
@@ -63,31 +64,33 @@ const trimSlash = (v: string) => v.replace(/\/$/, '')
  *   document can change after the connection was saved.
  */
 export async function discover(issuer: string, fetchImpl: typeof fetch = fetch, nodeEnv = process.env.NODE_ENV ?? 'development'): Promise<Discovery> {
-  const cached = discoveryCache.get(issuer)
+  const rule = outboundUrlFor(nodeEnv)
+  if (!rule.safeParse(issuer).success) throw new DiscoveryError('issuer is not a URL Kleym will call', 'endpoint-refused')
+  const cacheKey = `${nodeEnv}\0${issuer}`
+  const cached = discoveryCache.get(cacheKey)
   if (cached && Date.now() - cached.at < DISCOVERY_TTL_MS) return cached.doc
   const url = `${trimSlash(issuer)}/.well-known/openid-configuration`
   let response: Response
   try {
-    response = await fetchImpl(url, { signal: AbortSignal.timeout(5000), redirect: 'error' })
-  } catch (error) {
-    throw new DiscoveryError(`discovery failed: ${error instanceof Error ? error.message : 'unreachable'}`, 'unreachable')
+    response = await outboundFetch(url, { signal: AbortSignal.timeout(5000) }, fetchImpl, nodeEnv)
+  } catch {
+    throw new DiscoveryError('discovery request failed or was refused', 'unreachable')
   }
   if (!response.ok) throw new DiscoveryError(`discovery failed: HTTP ${response.status}`, 'unreachable')
   const doc = (await response.json().catch(() => ({}))) as Partial<Discovery>
   if (!doc.authorization_endpoint || !doc.token_endpoint || !doc.jwks_uri || !doc.issuer) throw new DiscoveryError('discovery document incomplete', 'incomplete')
-  if (trimSlash(doc.issuer) !== trimSlash(issuer)) throw new DiscoveryError(`discovery document claims issuer ${doc.issuer}, configured ${issuer}`, 'issuer-mismatch')
-  const rule = outboundUrlFor(nodeEnv)
+  if (trimSlash(doc.issuer) !== trimSlash(issuer)) throw new DiscoveryError('discovery document issuer does not match configuration', 'issuer-mismatch')
   for (const [name, endpoint] of [['authorization_endpoint', doc.authorization_endpoint], ['token_endpoint', doc.token_endpoint], ['jwks_uri', doc.jwks_uri], ['userinfo_endpoint', doc.userinfo_endpoint]] as const) {
     if (endpoint !== undefined && !rule.safeParse(endpoint).success) throw new DiscoveryError(`${name} is not a URL Kleym will call`, 'endpoint-refused')
   }
   const checked: Discovery = { issuer: doc.issuer, authorization_endpoint: doc.authorization_endpoint, token_endpoint: doc.token_endpoint, jwks_uri: doc.jwks_uri, ...(doc.userinfo_endpoint ? { userinfo_endpoint: doc.userinfo_endpoint } : {}) }
-  discoveryCache.set(issuer, { at: Date.now(), doc: checked })
+  discoveryCache.set(cacheKey, { at: Date.now(), doc: checked })
   return checked
 }
 
 /** For tests and the settings form: forget what was discovered for an issuer. */
 export function forgetDiscovery(issuer: string): void {
-  discoveryCache.delete(issuer)
+  for (const key of discoveryCache.keys()) if (key.endsWith(`\0${issuer}`)) discoveryCache.delete(key)
 }
 
 export type FlowPurpose = 'login' | 'link'
@@ -176,28 +179,28 @@ export async function completeAuthorization(
       client_secret: decryptAtRest(connection.clientCiphertext),
       code_verifier: flow.verifier,
     })
-    const response = await fetchImpl(doc.token_endpoint, {
+    const response = await outboundFetch(doc.token_endpoint, {
       method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, body: body.toString(), signal: AbortSignal.timeout(10_000), redirect: 'error',
-    })
+    }, fetchImpl)
     if (!response.ok) {
       logger.warn({ connectionId: connection.id, status: response.status }, 'sso: token exchange refused')
       return { ok: false, reason: 'exchange-failed' }
     }
     tokens = (await response.json()) as { id_token?: string; access_token?: string }
-  } catch (error) {
-    logger.warn({ connectionId: connection.id, reason: error instanceof Error ? error.message : 'unknown' }, 'sso: token exchange failed')
+  } catch {
+    logger.warn({ connectionId: connection.id, reason: 'destination or transport failure' }, 'sso: token exchange failed')
     return { ok: false, reason: 'exchange-failed' }
   }
   if (!tokens.id_token) return { ok: false, reason: 'invalid-token' }
 
   let payload: JWTPayload
   try {
-    const jwks = createRemoteJWKSet(new URL(doc.jwks_uri), { [Symbol.for('jose.customFetch')]: fetchImpl } as never)
+    const jwks = createRemoteJWKSet(new URL(doc.jwks_uri), { [customFetch]: (url, init) => outboundFetch(url, init, fetchImpl) })
     // Against the CONFIGURED issuer — discover() has already required the document to agree.
     const verified = await jwtVerify(tokens.id_token, jwks, { issuer: [connection.issuer, trimSlash(connection.issuer), `${trimSlash(connection.issuer)}/`], audience: connection.clientId, clockTolerance: 60 })
     payload = verified.payload
-  } catch (error) {
-    logger.warn({ connectionId: connection.id, reason: error instanceof Error ? error.message : 'unknown' }, 'sso: id token rejected')
+  } catch {
+    logger.warn({ connectionId: connection.id, reason: 'verification or destination failure' }, 'sso: id token rejected')
     return { ok: false, reason: 'invalid-token' }
   }
   if (payload.nonce !== flow.nonce) return { ok: false, reason: 'invalid-token' }
@@ -206,7 +209,7 @@ export async function completeAuthorization(
   let extra: Record<string, unknown> = {}
   if (doc.userinfo_endpoint && tokens.access_token && !(connection.groupsClaim in payload)) {
     try {
-      const response = await fetchImpl(doc.userinfo_endpoint, { headers: { authorization: `Bearer ${tokens.access_token}` }, signal: AbortSignal.timeout(5000), redirect: 'error' })
+      const response = await outboundFetch(doc.userinfo_endpoint, { headers: { authorization: `Bearer ${tokens.access_token}` }, signal: AbortSignal.timeout(5000) }, fetchImpl)
       if (response.ok) {
         const info = (await response.json()) as Record<string, unknown>
         // OIDC Core §5.3.2: the userinfo `sub` MUST match the ID token's; otherwise it is not this user's.

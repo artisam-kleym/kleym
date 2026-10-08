@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 D:/kleym/.worktrees/app-sending-pilot
+
+
+ Test Files  3 passed (3)
+      Tests  21 passed (21)
+   Start at  19:51:45
+   Duration  884ms (transform 239ms, setup 1.20s, import 343ms, tests 228ms, environment 0ms)
+

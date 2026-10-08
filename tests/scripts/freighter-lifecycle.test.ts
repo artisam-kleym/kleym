@@ -1,7 +1,8 @@
-import { Account, Claimant, Keypair, Networks, Operation, TransactionBuilder } from '@stellar/stellar-sdk'
+import { Account, Claimant, Keypair, Networks, Operation, Transaction, TransactionBuilder } from '@stellar/stellar-sdk'
 import { describe, expect, it } from 'vitest'
-import { buildProofFunding, buildProofReclaim, verifyProofSignatures } from '../../scripts/lib/freighter-lifecycle'
+import { buildProofFunding, buildProofReclaim, recipientProofRequirements, verifyProofSignatures } from '../../scripts/lib/freighter-lifecycle'
 import { BOOTSTRAP_ASSET } from '../../scripts/lib/freighter-bootstrap'
+import { buildClaim } from '../../src/lib/stellar/claim'
 
 describe('sponsored Freighter lifecycle spike', () => {
   const sponsor = Keypair.random(), sender = Keypair.random(), ephemeral = Keypair.random(), second = Keypair.random()
@@ -64,5 +65,21 @@ describe('sponsored Freighter lifecycle spike', () => {
     expect(tx.source).toBe(sponsor.publicKey())
     expect(tx.operations).toEqual([{ type: 'claimClaimableBalance', source: sender.publicKey(), balanceId: id }])
     expect(tx.fee).toBe('1000')
+  })
+  it.each([
+    { name: 'absent', exists: false, trusts: false, signer: true, reserves: 3 },
+    { name: 'existing without trustline', exists: true, trusts: false, signer: true, reserves: 1 },
+    { name: 'existing with trustline', exists: true, trusts: true, signer: false, reserves: 0 },
+  ])('derives recipient authority and reserve units from $name TX2 operations', ({ exists, trusts, signer, reserves }) => {
+    const recipient = Keypair.random()
+    const plan = buildClaim({ sponsorAccount: new Account(sponsor.publicKey(), '11'), sponsorPublicKey: sponsor.publicKey(),
+      ephemeralPublicKey: ephemeral.publicKey(), recipientPublicKey: recipient.publicKey(), asset: BOOTSTRAP_ASSET,
+      amount: '1.0000000', balanceId: build().balanceIds[0], networkPassphrase: Networks.TESTNET, baseFee: '1000' },
+    { ephemeralExists: true, ephemeralTrusts: true, recipientExists: exists, recipientTrusts: trusts })
+    const transaction = TransactionBuilder.fromXDR(plan.xdr, Networks.TESTNET)
+    expect(transaction).toBeInstanceOf(Transaction)
+    const requirements = recipientProofRequirements(transaction as Transaction, recipient.publicKey())
+    expect(requirements).toEqual({ needsRecipientSignature: signer, newReserveUnits: reserves })
+    expect(plan.needsRecipientSignature).toBe(signer)
   })
 })

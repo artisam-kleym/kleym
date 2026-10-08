@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Keypair } from '@stellar/stellar-sdk'
 import { stellarMetadata } from '@/lib/stellar/network'
 import { createCampaignSchema, registerLinksSchema, serialiseAmount, stellarAmount } from '@/lib/api/campaigns'
+import { generateEphemeralKeys, publicHalves } from '@/lib/campaign/keygen'
 
 const PUB = Keypair.random().publicKey()
 const SEED = Keypair.random().secret()
@@ -23,7 +24,7 @@ describe('stellarAmount', () => {
    * Money crosses the boundary as a string because a JSON number is an IEEE
    * double: 0.1 + 0.2 !== 0.3, and Stellar's seven places do not survive it.
    */
-  it.each(['0.3000000', '1', '0.0000001', '1000000.1234567'])('accepts %s', (v) => {
+  it.each(['0.3000000', '1', '0.0000001', '1000000.1234567', '922337203685.4775807'])('accepts %s', (v) => {
     expect(stellarAmount.safeParse(v).success).toBe(true)
   })
 
@@ -33,6 +34,8 @@ describe('stellarAmount', () => {
     ['negative', '-1'],
     ['zero', '0'],
     ['empty', ''],
+    ['one stroop above the ledger maximum', '922337203685.4775808'],
+    ['above the database range', '10000000000000000'],
   ])('rejects %s', (_label, v) => {
     expect(stellarAmount.safeParse(v).success).toBe(false)
   })
@@ -112,10 +115,31 @@ describe('registerLinksSchema amounts', () => {
     ['negative', '-1'],
     ['zero', '0'],
     ['eight places', '0.00000001'],
+    ['above the ledger maximum', '922337203685.4775808'],
     ['a number, not a string', 1.5],
     ['a seed', SEED],
   ])('rejects %s as an amount', (_label, value) => {
     expect(registerLinksSchema.safeParse({ publicKeys: keys, amounts: [value, null] }).success).toBe(false)
+  })
+})
+
+describe('browser public link registration contract', () => {
+  it('accepts the exact generated public payload when labels are blank', () => {
+    const payload = publicHalves(generateEphemeralKeys(2))
+    expect(payload.labels).toEqual([null, null])
+    expect(registerLinksSchema.safeParse(payload).success).toBe(true)
+  })
+  it('preserves mixed labels and omitted labels', () => {
+    const keys = [Keypair.random().publicKey(), Keypair.random().publicKey()]
+    expect(registerLinksSchema.parse({ publicKeys: keys, labels: ['First link', null] }).labels).toEqual(['First link', null])
+    expect(registerLinksSchema.safeParse({ publicKeys: keys }).success).toBe(true)
+  })
+  it('still rejects label mismatches, nonstrings, overlong labels, secret seeds and unknown fields', () => {
+    const publicKeys = [Keypair.random().publicKey(), Keypair.random().publicKey()]
+    for (const labels of [[null], [null, null, null], [12, null], ['x'.repeat(201), null], [SEED, null]]) {
+      expect(registerLinksSchema.safeParse({ publicKeys, labels }).success).toBe(false)
+    }
+    expect(registerLinksSchema.safeParse({ publicKeys, labels: [null, null], unexpected: 'value' }).success).toBe(false)
   })
 })
 

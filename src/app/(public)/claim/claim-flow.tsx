@@ -7,14 +7,18 @@
  * nowhere else. It is used to derive a public key and to sign two transactions
  * in memory — it is never sent, stored, or logged (AGENT.md §1, §4.5).
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Keypair, Networks, Transaction, TransactionBuilder } from '@stellar/stellar-sdk'
 import { ClaimPanel } from '@/components/ui'
 import { clearFragment, readFragment } from '@/lib/claim/fragment'
 import { claimTraceHeaders } from '@/lib/claim/trace'
+import { prepareProofMessage, type PrepareProofInput } from '@/lib/claim/prepare-proof'
 import { isConversionRefused, isDepositRefused, isNotReady, retryTarget, stateFromProblem, type ClaimState } from '@/lib/claim/machine'
 import { ClaimScreen, type Deposit, type DepositDraft, type LinkDetails, type ReceiveAsOption, type ReceiveAsQuote } from './screens'
 import type { DepositMemo } from '@/lib/stellar/memo'
+import type { MobileWalletConfig } from '@/lib/wallet/mobile'
+import { FREIGHTER_APP_LINK, freighterPairingLink, phoneBrowserSnapshot, subscribePhoneBrowser } from '@/lib/wallet/phone'
+import { lanternSnapshot, subscribeLantern } from '@/lib/wallet/lantern'
 
 /**
  * One ledger is ~5s. §3.3.1 says the boundary is the ledger, not the clock, so
@@ -40,7 +44,9 @@ function claimHeaders(token: string | null): Record<string, string> {
     : { 'content-type': 'application/json', ...claimTraceHeaders() }
 }
 
-export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
+export function ClaimFlow({ network, mobileWallet }: { network: 'testnet' | 'public'; mobileWallet?: MobileWalletConfig }) {
+  const inLantern = useSyncExternalStore(subscribeLantern, lanternSnapshot, () => false)
+  const phoneBrowser = useSyncExternalStore(subscribePhoneBrowser, phoneBrowserSnapshot, () => false)
   const [state, setState] = useState<ClaimState>('loading')
   const [link, setLink] = useState<LinkDetails | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -96,6 +102,14 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
   const [passkeyError, setPasskeyError] = useState<string | null>(null)
   const materialised = useRef(false)
   const recipient = useRef<string | null>(null)
+  const [connectedRecipient, setConnectedRecipient] = useState<string | null>(null)
+  const [pairingUri, setPairingUri] = useState<string | null>(null)
+  const [mobileConnecting, setMobileConnecting] = useState(false)
+  const [mobileApprovalPending, setMobileApprovalPending] = useState(false)
+  const pairing = useRef<AbortController | null>(null)
+  useEffect(() => () => { pairing.current?.abort() }, [])
+  // Public signed bytes only, retained in memory for a lost HTTP response.
+  const pendingClaim = useRef<{ signedXdr: string; recipient: string; delivered: { assetCode: string; destAmount: string; destMin: string } | null } | null>(null)
 
   /*
    * Read the fragment, remove it, then resolve the link. SPEC.md §3.6.
@@ -232,6 +246,12 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
 
     const passphrase = network === 'public' ? Networks.PUBLIC : Networks.TESTNET
     const ephemeralKeypair = Keypair.fromSecret(secret)
+    const prepareHeaders = (phase: 'materialise' | 'claim', input: PrepareProofInput) => {
+      const expires = Math.floor(Date.now() / 1000) + 90
+      const message = prepareProofMessage(window.location.origin, network, phase, expires, input)
+      return { ...claimHeaders(otpToken.current), 'x-kleym-proof-expires': String(expires),
+        'x-kleym-link-proof': bytesToBase64(ephemeralKeypair.sign(new TextEncoder().encode(message) as unknown as Buffer)) }
+    }
 
     const sign = (xdr: string, extra?: Keypair) => {
       const tx = TransactionBuilder.fromXDR(xdr, passphrase) as Transaction
@@ -243,6 +263,28 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
     setError(null)
 
     try {
+      if (pendingClaim.current) {
+        setState('submitting')
+        const pending = pendingClaim.current
+        const response = await fetch('/api/claims/submit', {
+          method: 'POST', headers: claimHeaders(otpToken.current),
+          body: JSON.stringify({ ephemeralPublicKey, signedXdr: pending.signedXdr, phase: 'claim' }),
+        })
+        if (!response.ok) {
+          const p = await problem(response)
+          if (response.status !== 503) pendingClaim.current = null
+          setError(p.detail)
+          return setState(stateFromProblem(p.status, p.type))
+        }
+        const result = await response.json()
+        setTxHash(result.hash)
+        setClaimedAt(new Date().toISOString())
+        setClaimedBy(pending.recipient)
+        setDelivered(pending.delivered)
+        setDepositMade(deposit.current)
+        pendingClaim.current = null
+        return setState('claimed_success')
+      }
       const { connectWallet, signBatch } = await import('./wallet')
       let recipientKey = recipient.current
 
@@ -250,13 +292,17 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         /* Exchange deposit (#75): the destination is typed, not connected. No wallet is involved. */
         recipientKey = deposit.current.publicKey
         recipient.current = recipientKey
-      } else if (from !== 'preparing' || !recipientKey || recipientKey === lastDeposit.current) {
+      } else {
         /* Wallet first — §3.3 says TX1 fires on COMMITMENT, not on page load. A key left
            over from an abandoned deposit is never reused as a wallet. */
         /* Wallet first — §3.3 says TX1 fires on COMMITMENT, not on page load. */
-        setState('wallet_connecting')
-        recipientKey = await connectWallet(network)
-        recipient.current = recipientKey
+        const current = await connectWallet(network)
+        if (!recipientKey || current !== recipientKey) {
+          recipient.current = null
+          setConnectedRecipient(null)
+          setError('The wallet account changed. Connect again and review the destination before claiming.')
+          return setState('ready')
+        }
       }
 
       /* TX1. Skipped on a resume: the ephemeral account is already on the ledger. */
@@ -264,7 +310,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         setState('materialising')
         const prepared = await fetch('/api/claims/prepare/materialise', {
           method: 'POST',
-          headers: claimHeaders(otpToken.current),
+          headers: prepareHeaders('materialise', { ephemeralPublicKey }),
           body: JSON.stringify({ ephemeralPublicKey }),
         })
         if (!prepared.ok) {
@@ -311,15 +357,12 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         : null
       let prepared: Response
       for (let attempt = 1; ; attempt += 1) {
+        const input = { ephemeralPublicKey, recipientPublicKey: recipientKey,
+          ...(conversion ? { receiveAs: conversion } : {}), ...(deposit.current ? { memo: deposit.current.memo } : {}) }
         prepared = await fetch('/api/claims/prepare/claim', {
           method: 'POST',
-          headers: claimHeaders(otpToken.current),
-          body: JSON.stringify({
-            ephemeralPublicKey,
-            recipientPublicKey: recipientKey,
-            ...(conversion ? { receiveAs: conversion } : {}),
-            ...(deposit.current ? { memo: deposit.current.memo } : {}),
-          }),
+          headers: prepareHeaders('claim', input),
+          body: JSON.stringify(input),
         })
         if (prepared.ok) break
         const p = await problem(prepared)
@@ -369,10 +412,19 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         // it gets here, so this is a belt for the braces.
         if (deposit.current) throw new Error('That address would need to sign, which an exchange account cannot. Check the deposit address with your exchange.')
         setState('awaiting_signature')
-        signedXdr = await signBatch(signedXdr, network, recipientKey)
+        try {
+          signedXdr = await signBatch(signedXdr, network, recipientKey, phoneBrowser ? () => {
+            setMobileApprovalPending(true)
+            try { window.location.assign(FREIGHTER_APP_LINK) } catch { /* explicit launch remains available */ }
+          } : undefined)
+        } finally {
+          setMobileApprovalPending(false)
+        }
       }
 
       setState('submitting')
+      pendingClaim.current = { signedXdr, recipient: recipientKey,
+        delivered: plan.conversion ? { assetCode: plan.conversion.assetCode, destAmount: plan.conversion.destAmount, destMin: plan.conversion.destMin } : null }
       const submitted = await fetch('/api/claims/submit', {
         method: 'POST',
         headers: claimHeaders(otpToken.current),
@@ -380,6 +432,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       })
       if (!submitted.ok) {
         const p = await problem(submitted)
+        if (submitted.status !== 503) pendingClaim.current = null
         // The price moved past the bound (#74): refused rather than filled.
         // Retry claims the asset as sent.
         if (isConversionRefused(p.status, p.type)) {
@@ -391,6 +444,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       }
 
       const result = await submitted.json()
+      pendingClaim.current = null
       setTxHash(result.hash)
       setClaimedAt(new Date().toISOString())
       setClaimedBy(recipientKey)
@@ -402,7 +456,7 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
       setError(await walletErrorMessage(caught))
       setState('failed')
     }
-  }, [network, problem, receiveAs, quote])
+  }, [network, problem, receiveAs, quote, phoneBrowser])
 
   /*
    * Retry resumes at TX2 when TX1 has landed. Restarting from `ready` would
@@ -430,10 +484,80 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
    * then bounced to `ready` by a lapsed OTP, or refused — must not hijack it
    * and send the funds to that address without a wallet ever connecting.
    */
-  const onConnect = useCallback(() => {
+  const onConnect = useCallback(async () => {
+    pairing.current?.abort()
+    pairing.current = null
+    setMobileConnecting(false)
+    setPairingUri(null)
     deposit.current = null
-    void run()
-  }, [run])
+    lastDeposit.current = null
+    setError(null)
+    setState('wallet_connecting')
+    try {
+      const { connectWallet, selectDesktopWallet } = await import('./wallet')
+      await selectDesktopWallet()
+      const address = await connectWallet(network)
+      recipient.current = address
+      setConnectedRecipient(address)
+    } catch (caught) {
+      recipient.current = null
+      setConnectedRecipient(null)
+      const { walletErrorMessage } = await import('./wallet')
+      setError(await walletErrorMessage(caught))
+    }
+    // Connecting is read-only. Only the separate claim action commits funds.
+    setState('ready')
+  }, [network])
+
+  const onConnectMobile = useCallback(async () => {
+    if (!mobileWallet) return
+    pairing.current?.abort()
+    const attempt = new AbortController()
+    pairing.current = attempt
+    setMobileConnecting(true)
+    deposit.current = null
+    lastDeposit.current = null
+    recipient.current = null
+    setConnectedRecipient(null)
+    setPairingUri(null)
+    setError(null)
+    setState('wallet_connecting')
+    try {
+      const { connectMobileWallet } = await import('./wallet')
+      const address = await connectMobileWallet(network, mobileWallet, (uri) => {
+        if (attempt.signal.aborted || pairing.current !== attempt) return
+        // Render the explicit launch/fallback before trying the OS hand-off.
+        const appLink = freighterPairingLink(uri)
+        setPairingUri(uri)
+        if (phoneBrowser) {
+          // Some browsers require another tap after async pairing initialization.
+          // Keep the session pending and show Open Freighter if launch is blocked.
+          try { window.location.assign(appLink) } catch { /* explicit launch remains available */ }
+        }
+      }, attempt.signal)
+      if (attempt.signal.aborted) return
+      recipient.current = address
+      setConnectedRecipient(address)
+    } catch {
+      if (attempt.signal.aborted) return
+      setError('The phone wallet could not connect. Select the correct network in Freighter, approve the connection, and try again.')
+    } finally {
+      if (pairing.current === attempt && !attempt.signal.aborted) {
+        pairing.current = null
+        setMobileConnecting(false)
+        setPairingUri(null)
+        setState('ready')
+      }
+    }
+  }, [network, mobileWallet, phoneBrowser])
+
+  const cancelPairing = useCallback(() => {
+    pairing.current?.abort()
+    pairing.current = null
+    setMobileConnecting(false)
+    setPairingUri(null)
+    setState('ready')
+  }, [])
 
   const lookupFederation = useCallback(
     async (address: string): Promise<{ accountId: string; memo: DepositMemo | null }> => {
@@ -594,6 +718,14 @@ export function ClaimFlow({ network }: { network: 'testnet' | 'public' }) {
         claimedAt={claimedAt}
         claimedBy={claimedBy}
         onConnect={onConnect}
+        onConnectMobile={mobileWallet ? onConnectMobile : undefined}
+        phoneBrowser={phoneBrowser && !inLantern}
+        lanternWallet={inLantern}
+        mobileApprovalPending={mobileApprovalPending}
+        pairingUri={pairingUri}
+        onCancelPairing={mobileConnecting ? cancelPairing : undefined}
+        connectedRecipient={connectedRecipient}
+        onClaim={() => void run(materialised.current ? 'preparing' : 'ready')}
         otpError={otpError}
         onVerifyOtp={verifyOtp}
         onResendOtp={resendOtp}

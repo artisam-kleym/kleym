@@ -27,6 +27,8 @@ export interface BuildReclaimInput {
   /** The sender's account, loaded from Horizon — its sequence number is used. */
   senderAccount: Account
   senderPublicKey: string
+  /** Sponsored campaigns use the sponsor's sequence and XLM fee. */
+  sponsorAccount?: Account
   /** Balance IDs confirmed to still exist on the ledger, in order. */
   balanceIds: string[]
   networkPassphrase: string
@@ -42,7 +44,7 @@ export function buildReclaimTransaction(input: BuildReclaimInput): { xdr: string
     throw new Error('cannot build a reclaim with no balances')
   }
 
-  const builder = new TransactionBuilder(input.senderAccount, {
+  const builder = new TransactionBuilder(input.sponsorAccount ?? input.senderAccount, {
     fee: input.baseFee,
     networkPassphrase: input.networkPassphrase,
   })
@@ -58,6 +60,8 @@ export function buildReclaimTransaction(input: BuildReclaimInput): { xdr: string
 
 export interface ExpectedReclaim {
   senderPublicKey: string
+  sponsorPublicKey?: string
+  preparedHash?: string
   balanceIds: string[]
   networkPassphrase: string
   baseFee: string
@@ -75,6 +79,7 @@ export type ReclaimVerifyFailure =
   | 'wrong-operation-source'
   | 'wrong-fee'
   | 'not-signed-by-sender'
+  | 'changed-preparation'
 
 /**
  * Checks that a signed envelope reclaims exactly the balances Kleym prepared.
@@ -107,8 +112,12 @@ export function verifyReclaimTransaction(
     return { ok: false, reason: 'unparseable' }
   }
 
-  if (transaction.source !== expected.senderPublicKey) {
+  if (transaction.source !== (expected.sponsorPublicKey ?? expected.senderPublicKey)) {
     return { ok: false, reason: 'wrong-source' }
+  }
+
+  if (expected.preparedHash && transaction.hash().toString('hex') !== expected.preparedHash) {
+    return { ok: false, reason: 'changed-preparation' }
   }
 
   // The signature, not a passphrase field, is what proves the network — see
@@ -132,7 +141,7 @@ export function verifyReclaimTransaction(
       return { ok: false, reason: 'wrong-operation-type' }
     }
     // An absent source inherits the transaction's, which is checked above.
-    if (operation.source !== undefined && operation.source !== expected.senderPublicKey) {
+    if ((operation.source ?? transaction.source) !== expected.senderPublicKey) {
       return { ok: false, reason: 'wrong-operation-source' }
     }
     // `delete` returning false catches an unexpected id AND a duplicate one.

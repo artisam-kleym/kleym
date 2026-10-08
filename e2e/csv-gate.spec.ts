@@ -51,12 +51,107 @@ async function stubLookups(page: Page, balances = ACCOUNT_BALANCES) {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ baseReserve: '0.5', claimantsPerLink: 2, reservePerLink: '1.5' }),
+      body: JSON.stringify({ baseReserve: '0.5', claimantsPerLink: 2, reservePerLink: '1.5', sponsoredReservePerLink: '1' }),
     }),
   )
 }
 
+test.describe('campaign expiry controls', () => {
+  async function reachExpiry(page: Page) {
+    await stubLookups(page)
+    await page.goto('/campaigns/new')
+    await page.getByLabel('Campaign name').fill('Expiry preview')
+    const accountChecked = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/stellar/account')
+    await page.getByLabel('Funding account').fill(SENDER)
+    await accountChecked
+    await page.getByLabel('Amount per link', { exact: true }).fill('1')
+    await expect(page.getByTestId('next-step')).toBeEnabled()
+    await page.getByTestId('next-step').click()
+  }
+
+  test('selects a quick deadline and keeps it when returning from review', async ({ page }) => {
+    await reachExpiry(page)
+    await expect(page.getByRole('button', { name: '30 days', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await page.getByRole('button', { name: '1 hour', exact: true }).click()
+    const deadline = await page.getByTestId('expiry-deadline').innerText()
+    expect(deadline).toContain('UTC')
+    await page.getByTestId('next-step').click()
+    await expect(page.getByText(`Expiry: ${deadline}`, { exact: false })).toBeVisible()
+    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    await expect(page.getByTestId('expiry-deadline')).toHaveText(deadline)
+    await expect(page.getByRole('button', { name: '1 hour', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    if (process.env.E2E_EVIDENCE_DIR) {
+      await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/expiry-desktop.png`, fullPage: true })
+      await page.setViewportSize({ width: 390, height: 844 })
+      await expect(page.getByRole('button', { name: 'Custom', exact: true })).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+      await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/expiry-mobile.png`, fullPage: true })
+    }
+  })
+
+  test('accepts typed custom dates and refuses incomplete or past deadlines', async ({ page }) => {
+    await reachExpiry(page)
+    await page.getByRole('button', { name: 'Custom', exact: true }).click()
+    await page.getByLabel('Expiry date', { exact: true }).fill('2020-01-01')
+    await expect(page.getByText('Choose an expiry in the future.', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('next-step')).toBeDisabled()
+    await page.getByLabel('Expiry date', { exact: true }).fill('')
+    await expect(page.getByText('Enter a complete expiry date and time.', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('next-step')).toBeDisabled()
+    await page.getByLabel('Expiry date', { exact: true }).fill('2030-10-07')
+    await page.getByLabel('Expiry time', { exact: true }).fill('18:30')
+    await expect(page.getByTestId('next-step')).toBeEnabled()
+    await expect(page.getByTestId('expiry-deadline')).toContainText('2030-10-07')
+    const deadline = await page.getByTestId('expiry-deadline').innerText()
+    await page.getByTestId('next-step').click()
+    await expect(page.getByText(`Expiry: ${deadline}`, { exact: false })).toBeVisible()
+  })
+
+  test.describe('repeated clock hours', () => {
+    test.use({ timezoneId: 'America/New_York' })
+    test('retains the intended instant through a repeated daylight saving hour', async ({ page }) => {
+      await page.clock.setFixedTime(new Date('2026-11-01T05:30:00Z'))
+      await reachExpiry(page)
+      await page.getByRole('button', { name: '1 hour', exact: true }).click()
+      await expect(page.getByTestId('expiry-deadline')).toContainText('2026-11-01 06:30:00.000Z UTC')
+      await expect(page.getByTestId('next-step')).toBeEnabled()
+      const deadline = await page.getByTestId('expiry-deadline').innerText()
+      await page.getByRole('button', { name: 'Custom', exact: true }).click()
+      await expect(page.getByLabel('Expiry time', { exact: true })).toHaveValue('01:30')
+      await expect(page.getByTestId('expiry-deadline')).toHaveText(deadline)
+      await page.getByTestId('next-step').click()
+      await expect(page.getByText(`Expiry: ${deadline}`, { exact: false })).toBeVisible()
+    })
+  })
+})
+
 test.describe('deployment asset identity (#96)', () => {
+  test('refuses email-only policy during private CSV distribution', async ({ page }) => {
+    await stubLookups(page)
+    await page.goto('/campaigns/new')
+    await page.getByLabel('Campaign name').fill('CSV pilot')
+    await page.getByLabel('Funding account').fill(SENDER)
+    await page.getByLabel('Amount per link').fill('1')
+    await page.getByTestId('next-step').click()
+    await expect(page.getByRole('radio', { name: /Email verification/ })).toBeDisabled()
+    await expect(page.locator('input[name="claimPolicy"][value="open"]')).toBeChecked()
+  })
+  test('prices sponsor-paid USDC correctly for a zero-XLM sender', async ({ page }) => {
+    await stubLookups(page, ACCOUNT_BALANCES.map((b) => ({ ...b, balance: b.assetCode === 'XLM' ? '0.0000000' : b.balance })))
+    await page.goto('/campaigns/new')
+    await page.getByLabel('Campaign name').fill('Sponsored pilot')
+    await page.getByLabel('Funding account').fill(SENDER)
+    await page.getByLabel('Amount per link').fill('1')
+    await page.getByTestId('next-step').click()
+    await page.getByLabel('Number of links').fill('3')
+    await expect(page.getByText('Reserve is 1 XLM per link', { exact: false })).toBeVisible()
+    await expect(page.getByText('Kleym pays this reserve and the network fees.', { exact: false })).toBeVisible()
+    await expect(page.getByText('Not enough XLM', { exact: false })).toHaveCount(0)
+    await page.getByTestId('next-step').click()
+    await expect(page.getByText('Kleym reserve locked', { exact: true })).toBeVisible()
+    await expect(page.getByText('3 XLM', { exact: true })).toBeVisible()
+    await expect(page.getByText('0.0005 XLM', { exact: true })).toBeVisible()
+  })
   test('locks the network and selects official USDC after hydration', async ({ page }) => {
     await stubLookups(page, [...ACCOUNT_BALANCES,
       { assetType: 'credit_alphanum4', assetCode: 'USDC', assetIssuer: Keypair.random().publicKey(), balance: '99999.0000000' },
@@ -66,8 +161,8 @@ test.describe('deployment asset identity (#96)', () => {
     await page.getByLabel('Funding account').fill(SENDER)
     await page.getByLabel('Amount per link', { exact: true }).fill('1.5')
     await expect(page.getByTestId('next-step')).toBeEnabled()
-    await expect(page.getByLabel('Network', { exact: true })).toBeDisabled()
-    await expect(page.getByLabel('Network', { exact: true })).toHaveValue('testnet')
+    await expect(page.getByRole('button', { name: 'Testnet · test funds', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('button', { name: 'Mainnet · unavailable', exact: true })).toBeDisabled()
     await expect(page.getByLabel('Asset', { exact: true })).toHaveValue(`USDC:${stellarMetadata('testnet').defaultAsset.assetIssuer}`)
     await expect(page.locator('#asset option')).toHaveCount(2)
     await expect(page.getByText(stellarMetadata('testnet').valueNotice)).toBeVisible()

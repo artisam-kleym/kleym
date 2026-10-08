@@ -1,0 +1,20 @@
+{
+  "checkedAtUTC": "2026-09-30T14:59:52.820Z",
+  "url": "http://127.0.0.1:3218/",
+  "httpStatus": 200,
+  "recipient": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+  "recipientMode": "existing-no-trustline",
+  "sponsor": "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+  "claimHash": "400b8848574356aa5c4a33c0240760c8f631e8137b6c3b17743b0c65377d8fde",
+  "reclaimBalanceId": "0000000069d3a278f5abb12f117524106bbb3cf6fddee12c24dd4d5646808ea89f67ddf2",
+  "reclaimExpiresAt": "2026-09-30T14:38:40.069Z",
+  "claimPassed": true,
+  "reclaimNotSubmitted": true,
+  "bootstrapStillReachable": true,
+  "expectedSenderUsdcBefore": "16.0000000",
+  "expectedSenderUsdcAfter": "17.0000000",
+  "expectedRecipientUsdc": "1.0000000",
+  "expectedLifecycleSponsorUnitsAfter": 1,
+  "acceptancePassed": true,
+  "ledgerMutation": false
+}

@@ -1,0 +1,49 @@
+▲ Next.js 16.3.5 (webpack)
+- Environments: .env
+✓ Running next.config.ts took 32ms
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+
+  To migrate automatically, run:
+  npx @next/codemod@canary middleware-to-proxy .
+
+  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+⚠ Compiled with warnings in 12.4s
+
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/valkey-glide-client.js
+Module not found: Can't resolve '@valkey/valkey-glide' in 'D:\kleym\node_modules\.pnpm\bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0\node_modules\bullmq\dist\esm\classes'
+
+Import trace for requested module:
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/valkey-glide-client.js
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/index.js
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/index.js
+./src/lib/queue/maintenance.ts
+./src/lib/observability/status.ts
+
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/child-processor.js
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/child-processor.js
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/index.js
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/index.js
+./src/lib/queue/maintenance.ts
+./src/app/api/admin/reconcile/route.ts
+
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/valkey-glide-client.js
+Module not found: Can't resolve '@valkey/valkey-glide' in 'D:\kleym\node_modules\.pnpm\bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0\node_modules\bullmq\dist\esm\classes'
+
+Import trace for requested module:
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/valkey-glide-client.js
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/index.js
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/index.js
+./src/lib/queue/maintenance.ts
+./src/app/api/admin/reconcile/route.ts
+
+✓ Compiled successfully in 16.6s
+  Running TypeScript ...
+tests/lib/wallet/sender-mobile.test.ts(19,50): error TS6133: 'network' is declared but its value is never read.
+tests/lib/wallet/sender-mobile.test.ts(19,58): error TS6133: 'address' is declared but its value is never read.
+Failed to type check.
+

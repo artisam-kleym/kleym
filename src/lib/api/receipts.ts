@@ -33,12 +33,12 @@ import { canonicalJson, signBytes, signingPublicKey, verifyBytes } from './audit
 import { policyFromRow, type ClaimPolicy } from './claim-policy'
 
 export const RECEIPT_FORMAT = 'kleym-claim-receipt'
-export const RECEIPT_VERSION = 2
+export const RECEIPT_VERSION = 3
 
 /** What a receipt attests. Field order is fixed by `canonicalJson`; the version names the shape. */
 export interface ReceiptContents {
   format: typeof RECEIPT_FORMAT
-  version: typeof RECEIPT_VERSION
+  version: 1 | 2 | typeof RECEIPT_VERSION
   receiptId: string
   organization: { id: string; name: string }
   campaign: { id: string; name: string; network: string; assetCode: string; assetIssuer: string | null }
@@ -62,6 +62,8 @@ export interface ReceiptContents {
     assetIssuer: string | null
     /** The ledger time Kleym recorded the claim at, ISO 8601. */
     claimedAt: string
+    /** Present on v3 only; historical signed v1/v2 bytes remain unchanged. */
+    timeSource?: 'ledger'
     transactionHash: string
     /** The deposit memo TX2 carried (#75), when claiming to an exchange; null otherwise. */
     memoType: string | null
@@ -117,6 +119,7 @@ export function buildReceipt(input: ReceiptInput): SignedReceipt {
       amount: new Decimal(input.delivered.amount.toString()).toFixed(),
       ...assetFieldsOf(input.delivered.asset),
       claimedAt: input.claim.claimedAt.toISOString(),
+      timeSource: 'ledger',
       transactionHash: input.claim.transactionHash,
       memoType: input.claim.memoType,
       memo: input.claim.memo,
@@ -150,7 +153,7 @@ export async function issueReceipt(linkId: string): Promise<SignedReceipt | null
     where: { id: linkId },
     select: {
       id: true, amount: true, ephemeralPublicKey: true, deliveredAsset: true, deliveredAmount: true,
-      status: true, claimedBy: true, claimedAt: true, claimTxHash: true, claimMemoType: true, claimMemo: true,
+      status: true, claimedBy: true, ledgerSettledAt: true, claimTxHash: true, claimMemoType: true, claimMemo: true,
       delivery: { select: { id: true } },
       campaign: {
         select: {
@@ -160,7 +163,7 @@ export async function issueReceipt(linkId: string): Promise<SignedReceipt | null
       },
     },
   })
-  if (!link || link.status !== 'CLAIMED' || !link.claimedBy || !link.claimedAt || !link.claimTxHash) {
+  if (!link || link.status !== 'CLAIMED' || !link.claimedBy || !link.ledgerSettledAt || !link.claimTxHash) {
     logger.warn({ linkId }, 'receipt requested for a link that is not settled; none issued')
     return null
   }
@@ -202,7 +205,7 @@ export async function issueReceipt(linkId: string): Promise<SignedReceipt | null
     link: { id: link.id },
     delivered: { asset: deliveredAsset, amount: deliveredAmount },
     claim: {
-      recipient: link.claimedBy, claimedAt: link.claimedAt, transactionHash: link.claimTxHash,
+      recipient: link.claimedBy, claimedAt: link.ledgerSettledAt, transactionHash: link.claimTxHash,
       memoType: link.claimMemoType, memo: link.claimMemo, emailed: link.delivery !== null,
     },
   })
@@ -210,7 +213,7 @@ export async function issueReceipt(linkId: string): Promise<SignedReceipt | null
     await prisma.claimReceipt.create({
       data: {
         id: receiptId, linkId: link.id, campaignId: link.campaign.id, organizationId: link.campaign.organization.id,
-        version: RECEIPT_VERSION, canonical: receipt.canonical, signature: receipt.signature, publicKey: receipt.publicKey, claimedAt: link.claimedAt,
+        version: RECEIPT_VERSION, canonical: receipt.canonical, signature: receipt.signature, publicKey: receipt.publicKey, claimedAt: link.ledgerSettledAt,
       },
     })
   } catch (error) {
@@ -257,9 +260,9 @@ export interface ReceiptsQuery {
 export async function receiptsFor(query: ReceiptsQuery): Promise<BundledReceipt[]> {
   const missing = await prisma.claimLink.findMany({
     where: {
-      status: 'CLAIMED', claimedBy: { not: null }, receipt: null,
+      status: 'CLAIMED', claimedBy: { not: null }, ledgerSettledAt: { not: null }, receipt: null,
       campaign: { organizationId: query.organizationId, ...(query.campaignId ? { id: query.campaignId } : {}) },
-      ...(query.from || query.to ? { claimedAt: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) } } : {}),
+      ...(query.from || query.to ? { ledgerSettledAt: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) } } : {}),
     },
     select: { id: true },
   })

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { getSessionUser } from '@/lib/auth/session'
 import { membershipsOf, resolveScope } from '@/lib/api/session-guard'
 import { AppShell } from '@/components/shell/app-shell'
+import { env } from '@/lib/config/env'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,6 +28,10 @@ export default async function SenderLayout({ children }: { children: ReactNode }
 
   return (
     <AppShell organizations={organizations} activeOrganizationId={org?.id ?? null}>
+      <aside role="status" className="mb-lg rounded-lg border border-outline-variant bg-surface-container-low px-md py-sm text-body-md">
+        <strong>{env.STELLAR_NETWORK === 'testnet' ? 'Testnet · test funds' : 'Mainnet · real assets'}</strong>
+        <span className="ml-sm text-on-surface-variant">{env.STELLAR_NETWORK === 'testnet' ? 'These assets have no financial value.' : 'Campaigns use real funds on Stellar Mainnet.'}</span>
+      </aside>
       {org ? (
         children
       ) : (

@@ -1,0 +1,27 @@
+{
+  "checkedAt": "2026-10-03T13:46:21.466Z",
+  "network": "testnet",
+  "networkIdentityVerified": true,
+  "appReadyHttp": 200,
+  "appReady": true,
+  "userReported": {
+    "extensionWalletListReset": true,
+    "hasSavedSenderPrivateBackup": false,
+    "account1PublicKey": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+    "recreatedSenderPublicKey": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "recreatedSenderDisplayedUsdc": "15.0000000"
+  },
+  "accounts": [
+    { "role": "originalSender", "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A", "http": 200, "native": "0.0000000", "officialTestUsdc": "15.0000000" },
+    { "role": "survivingAccount1OriginalRecipient", "address": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW", "http": 200, "native": "0.0000000", "officialTestUsdc": "2.0000000" },
+    { "role": "otherHistoricalRecipient", "address": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I", "http": 200, "native": "0.0000000", "officialTestUsdc": "2.0000000" }
+  ],
+  "newTestPlan": { "linkCount": 3, "amountPerLink": "1.0000000", "total": "3.0000000", "first": "desktop claim", "second": "Android claim", "third": "unused-link expiry refund" },
+  "freighterPublicSourceCommit": "fb1601eb9ebbbfb2279c325401aebd3790dacd71",
+  "freighterPublicSourceTree": "ffe8e17168bdfa873d9934041a5c489d5baa8a9a",
+  "recoveryInference": "Public addAccount handler derives the next address from the stored mnemonic. With Account 1 still accessible, adding an address may recreate the prior derived sender if the same phrase and correct derivation index survive. Public address comparison is required; recovery is not yet proven.",
+  "accountRecreationResult": "User added an address through existing Freighter and returned the exact original sender G-address with15USDC displayed. Identity restoration established by public address match and user wallet observation; real transaction signing remains to be tested.",
+  "pending": "Privately back up the retained Freighter phrase, then create a fresh3links x1USDC campaign. Original sender does not need new activation or faucet funding. Return public funding receipt before desktop/phone claims. Android destination/version still pending.",
+  "walletStorageAccessed": false,
+  "transactionsSubmitted": 0
+}

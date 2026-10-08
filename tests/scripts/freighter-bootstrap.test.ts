@@ -1,6 +1,6 @@
 import { Account, Asset, Keypair, Networks, Operation, TransactionBuilder } from '@stellar/stellar-sdk'
 import { describe, expect, it } from 'vitest'
-import { BOOTSTRAP_ASSET, bootstrapFeePerOperation, buildSponsoredSenderBootstrap, verifyBootstrapSignature } from '../../scripts/lib/freighter-bootstrap'
+import { BOOTSTRAP_ASSET, bootstrapFeePerOperation, buildSponsoredBootstrap, buildSponsoredSenderBootstrap, verifyBootstrapSignature } from '../../scripts/lib/freighter-bootstrap'
 
 describe('Classic bootstrap fee bid', () => {
   it('uses the live ledger base fee, rather than treating a high charged-fee percentile as mandatory', () => {
@@ -64,5 +64,40 @@ describe('Freighter zero-XLM Testnet bootstrap envelope', () => {
       changed.sign(sponsor, sender)
       expect(() => verifyBootstrapSignature(original, changed.toXDR(), sender.publicKey())).toThrow('changed')
     }
+  })
+})
+
+describe('Existing recipient fixture without a USDC trustline', () => {
+  const sponsor = Keypair.random()
+  const recipient = Keypair.random()
+  function prepared() {
+    const tx = buildSponsoredBootstrap(new Account(sponsor.publicKey(), '5'), recipient.publicKey(), '100', 'recipient-account-only')
+    tx.sign(sponsor)
+    return tx
+  }
+  it('creates only a sponsored zero-XLM account, leaving the trustline for the later claim', () => {
+    const tx = prepared()
+    expect(tx.source).toBe(sponsor.publicKey())
+    expect(tx.fee).toBe('300')
+    expect(tx.operations.map((op) => op.type)).toEqual(['beginSponsoringFutureReserves', 'createAccount', 'endSponsoringFutureReserves'])
+    expect(tx.operations[0]).toMatchObject({ sponsoredId: recipient.publicKey() })
+    expect(tx.operations[1]).toMatchObject({ destination: recipient.publicKey(), startingBalance: '0.0000000' })
+    expect(tx.operations[2]).toMatchObject({ source: recipient.publicKey() })
+  })
+  it('requires the recipient signature, rejecting a signature from a different sender', () => {
+    const original = prepared()
+    expect(() => verifyBootstrapSignature(original, original.toXDR(), recipient.publicKey())).toThrow('exactly')
+    const wrong = TransactionBuilder.fromXDR(original.toXDR(), Networks.TESTNET)
+    wrong.sign(Keypair.random())
+    expect(() => verifyBootstrapSignature(original, wrong.toXDR(), recipient.publicKey())).toThrow('signature')
+    const correct = TransactionBuilder.fromXDR(original.toXDR(), Networks.TESTNET)
+    correct.sign(recipient)
+    expect(verifyBootstrapSignature(original, correct.toXDR(), recipient.publicKey()).hash()).toEqual(original.hash())
+  })
+  it('rejects adding a trustline during account-only setup, even with valid signatures', () => {
+    const original = prepared()
+    const changed = buildSponsoredSenderBootstrap(new Account(sponsor.publicKey(), '5'), recipient.publicKey(), '100')
+    changed.sign(sponsor, recipient)
+    expect(() => verifyBootstrapSignature(original, changed.toXDR(), recipient.publicKey())).toThrow('changed')
   })
 })

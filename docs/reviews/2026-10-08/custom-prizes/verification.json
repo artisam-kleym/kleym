@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-08",
+  "branch": "codex/app-sending-pilot",
+  "base_commit": "4163d7954bff9c1582c0c405174cddbe6951da33",
+  "status": "Implemented locally, uncommitted",
+  "example": {
+    "ten_links_total": "80",
+    "five_links_total": "55",
+    "default_amount": "5",
+    "custom_amounts": [
+      "20",
+      "15",
+      "10"
+    ]
+  },
+  "unit": {
+    "evidence": "unit-tests.log",
+    "status": "passed",
+    "files": 55,
+    "tests": 667
+  },
+  "focused": {
+    "status": "passed",
+    "evidence": "prize-tests.log",
+    "tests": 6
+  },
+  "browser": {
+    "status": "passed",
+    "evidence": "browser-verification.json",
+    "mode": "Actual wizard/components with fixture reads and router/wallet stubs, production CSS and local fonts",
+    "checks": 5
+  },
+  "lint": {
+    "status": "passed",
+    "evidence": "lint-final.log"
+  },
+  "typecheck": {
+    "status": "passed",
+    "evidence": "typecheck-qualified.log"
+  },
+  "production_build": {
+    "status": "passed",
+    "evidence": "build-final.log"
+  },
+  "deployed_wallet_testing": "Not performed",
+  "asset_transfers": 0,
+  "deployment": "Not performed; Railway paused",
+  "schema_migrations": 0,
+  "existing_limitation": "Automatic renewal only supports equal-amount campaigns; mixed-prize expiry reclaim is retained",
+  "source_sha256": {
+    "src/lib/campaign/prize-amounts.ts": "17c674d3aaf92fe17a7c0733dd5b6ed84ac18489af817c89a6b8f73b061f1065",
+    "src/lib/campaign/csv.ts": "d2427d4a242579cb68c3a2cb9c15c3561055176bf30c6c5a6b3dc15833b071e4",
+    "src/app/(sender)/campaigns/new/prize-amounts.tsx": "d9ee3c53c29cd08d4d47687bccc7df199524fe083c09903d3bca507b5a58e2aa",
+    "src/app/(sender)/campaigns/new/steps.tsx": "99b4c6914b891f51de50797c4874bfe1c4e50e57a2132c99fe071f711b6703ec",
+    "src/app/(sender)/campaigns/new/wizard.tsx": "7c5207ca0c42336c9ee6f92937c033eb26b41da4e097522cf2a1a9b8fbba756c",
+    "tests/lib/campaign/prize-amounts.test.ts": "5045e849b63dc22ac0dcdaafc65ffe5f885e8cea550716b507375306feeef3b6",
+    "scripts/verify-custom-prizes-browser.mjs": "f743d36b180b19075dc8942c53c3b793d3555e39386683a6bd3bcefe5ad6a44d"
+  }
+}

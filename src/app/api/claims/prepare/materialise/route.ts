@@ -15,6 +15,7 @@ import { claimPolicyGate } from '@/lib/api/claim-policy'
 import { rateLimit } from '@/lib/auth/rate-limit'
 import { guardRequestBody } from '@/lib/security/guard'
 import { materialiseSchema, prepareMaterialise } from '@/lib/api/claims'
+import { validClaimPrepareProof } from '@/lib/api/claim-prepare-proof'
 import { zodErrors } from '@/lib/api/campaigns'
 import {
   MATERIALISE_LIMIT,
@@ -58,6 +59,9 @@ export async function POST(request: Request) {
 
   const parsed = materialiseSchema.safeParse(body)
   if (!parsed.success) return claimValidationProblem(zodErrors(parsed.error))
+  if (!validClaimPrepareProof(request, 'materialise', parsed.data)) {
+    return claimConflict('This claim request expired or could not be verified. Reopen your saved claim link and try again.')
+  }
 
 
   /*

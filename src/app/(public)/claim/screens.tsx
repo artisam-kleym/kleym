@@ -15,6 +15,7 @@ import { StrKey } from '@stellar/stellar-sdk'
 import { Button, Icon, StellarAddress } from '@/components/ui'
 import type { ClaimState } from '@/lib/claim/machine'
 import { MEMO_TYPES, checkMemo, type DepositMemo, type MemoType } from '@/lib/stellar/memo'
+import { FREIGHTER_APP_LINK, freighterPairingLink } from '@/lib/wallet/phone'
 
 export interface LinkDetails {
   amount: string
@@ -107,6 +108,34 @@ function formatDate(iso: string): string {
   })
 }
 
+function MobilePairing({ uri, network, phoneBrowser, onCancel }: { uri: string; network: string; phoneBrowser: boolean; onCancel?: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState(false)
+  const appLink = freighterPairingLink(uri)
+  return <div className="flex flex-col gap-md">
+    <h2 className="text-headline-sm text-on-surface">Connect Freighter on your phone</h2>
+    <p className="text-body-md text-on-surface-variant">Select {network === 'testnet' ? 'Testnet' : 'Mainnet'} in Freighter, approve the connection, then return to this tab to review where your funds will go.</p>
+    {phoneBrowser && <a href={appLink} rel="noreferrer" data-testid="open-freighter"
+      className="inline-flex min-h-11 items-center justify-center rounded-lg bg-action px-4 py-3 font-mono text-label-md font-semibold text-action-on hover:bg-action-hover">
+      Open Freighter
+    </a>}
+    {phoneBrowser && <p className="text-body-md text-on-surface-variant">If Freighter did not open automatically, tap Open Freighter.</p>}
+    <details open={!phoneBrowser} className="text-body-md text-on-surface-variant">
+      <summary className="min-h-11 cursor-pointer py-sm">{phoneBrowser ? 'Freighter did not open?' : 'Connect on another device'}</summary>
+      <p className="my-sm">If Freighter is not installed, install it first. Otherwise copy the code, open Freighter’s QR scanner and paste it there.</p>
+    <label className="text-label-md" htmlFor="wallet-pairing">Wallet connection code</label>
+    <textarea id="wallet-pairing" readOnly value={uri} rows={3} className="w-full break-all rounded-lg border border-outline-variant bg-surface-container-low p-md font-mono text-label-sm" />
+    <Button variant="claim" onClick={async () => {
+      try { await navigator.clipboard.writeText(uri); setCopied(true); setCopyError(false) }
+      catch { setCopyError(true) }
+    }}>{copied ? 'Copied' : 'Copy connection code'}</Button>
+    {copyError && <p role="alert">Select and copy the code manually.</p>}
+    </details>
+    <p className="text-body-md text-on-surface-variant">Keep this tab open. This connects your wallet; it does not send funds.</p>
+    <Button variant="secondary" onClick={onCancel}>Cancel connection</Button>
+  </div>
+}
+
 export function ClaimScreen({
   state,
   link,
@@ -116,6 +145,14 @@ export function ClaimScreen({
   claimedAt,
   claimedBy,
   onConnect,
+  onConnectMobile,
+  phoneBrowser = false,
+  lanternWallet = false,
+  mobileApprovalPending = false,
+  pairingUri = null,
+  onCancelPairing,
+  connectedRecipient = null,
+  onClaim,
   onRetry,
   otpError,
   onVerifyOtp,
@@ -142,6 +179,14 @@ export function ClaimScreen({
   claimedAt: string | null
   claimedBy: string | null
   onConnect: () => void
+  onConnectMobile?: () => void
+  phoneBrowser?: boolean
+  lanternWallet?: boolean
+  mobileApprovalPending?: boolean
+  pairingUri?: string | null
+  onCancelPairing?: () => void
+  connectedRecipient?: string | null
+  onClaim?: () => void
   onRetry: () => void
   otpError: string | null
   onVerifyOtp: (code: string) => void
@@ -223,16 +268,23 @@ export function ClaimScreen({
             <ReceiveAsChooser link={link} chosen={receiveAs ?? null} quote={quote ?? null} onChoose={onReceiveAs} />
           )}
 
-          <Button
+          {connectedRecipient && phoneBrowser && <p role="status" className="text-center text-body-md text-on-surface" data-testid="phone-connected">
+            Freighter connected. Your funds have not been claimed yet. Review the destination below, then tap Claim. If approval is needed, Freighter will open again.
+          </p>}
+          {connectedRecipient && <p className="break-all text-center font-mono text-label-sm text-on-surface-variant">Destination: {connectedRecipient}</p>}
+          {(connectedRecipient || !phoneBrowser) && <Button
             variant="claim"
-            onClick={onConnect}
+            onClick={connectedRecipient ? onClaim : onConnect}
             data-testid="claim-connect"
             className="w-full"
             // Not while a price is still being fetched: the button commits to what is shown.
             disabled={quote?.status === 'loading'}
           >
-            Connect wallet to claim
-          </Button>
+            {connectedRecipient ? `Claim ${link?.amount ?? ''} ${link?.assetCode ?? ''}` : lanternWallet ? 'Connect Lantern' : 'Connect wallet'}
+          </Button>}
+          {connectedRecipient && <Button variant="secondary" onClick={phoneBrowser ? onConnectMobile : onConnect}>Change wallet</Button>}
+          {phoneBrowser && !connectedRecipient && <Button variant="claim" onClick={onConnectMobile} disabled={!onConnectMobile} data-testid="claim-connect-mobile">Connect Freighter on phone</Button>}
+          {phoneBrowser && !onConnectMobile && !connectedRecipient && <p role="alert" className="text-body-md text-error">Phone wallet connections are unavailable here. Ask the sender to check Kleym’s phone connection setup.</p>}
 
           {link?.exchangeDeposit && onDeposit && (
             <DepositForm
@@ -284,7 +336,8 @@ export function ClaimScreen({
       return <PasskeyPanel error={passkeyError} bound={link?.passkeyBound === true} onPasskey={onPasskey ?? (() => undefined)} />
 
     case 'wallet_connecting':
-      return <Waiting heading="Waiting for your wallet" detail="Choose an account to continue." />
+      if (pairingUri) return <MobilePairing uri={pairingUri} network={network} phoneBrowser={phoneBrowser} onCancel={onCancelPairing} />
+      return <div className="flex flex-col gap-md"><Waiting heading="Waiting for your wallet" detail="Choose an account to continue." />{onCancelPairing && <Button variant="secondary" onClick={onCancelPairing}>Cancel connection</Button>}</div>
 
     case 'materialising':
       return <Waiting heading="Setting up your claim" detail="Approve the first step in your wallet." />
@@ -301,6 +354,14 @@ export function ClaimScreen({
       return <Waiting heading="Building your claim" />
 
     case 'awaiting_signature':
+      if (phoneBrowser && mobileApprovalPending) return <div className="flex flex-col gap-md">
+        <Waiting heading="Approve your claim in Freighter" detail="Review and approve the transaction in Freighter, then return to this tab for confirmation." />
+        <a href={FREIGHTER_APP_LINK} rel="noreferrer" data-testid="open-freighter-approval"
+          className="inline-flex min-h-11 items-center justify-center rounded-lg bg-action px-4 py-3 font-mono text-label-md font-semibold text-action-on hover:bg-action-hover">
+          Open Freighter to approve
+        </a>
+        <p className="text-body-md text-on-surface-variant">Keep this tab open. This button reopens your wallet; it does not send another claim request.</p>
+      </div>
       return <Waiting heading="Confirm in your wallet" detail="One more approval and the funds are yours." />
 
     case 'submitting':

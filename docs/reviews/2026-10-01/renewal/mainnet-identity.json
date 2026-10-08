@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-10-01T10:50:18.433Z",
+  "network": "public",
+  "asset": {
+    "assetCode": "USDC",
+    "assetIssuer": "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
+  },
+  "provider": "https://horizon.stellar.org",
+  "providerPassphraseVerified": true,
+  "issuerAccountExists": true,
+  "ledger": 64713206,
+  "closedAt": "2026-10-01T10:50:12Z",
+  "protocolVersion": 28,
+  "baseFeeStroops": "100",
+  "baseReserveStroops": "5000000",
+  "writes": 0,
+  "qualification": "Identity and public ledger read only. No wallet, funding, claim, reclaim or release qualification."
+}

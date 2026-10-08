@@ -1,11 +1,44 @@
 import { describe, expect, it } from 'vitest'
 import { Keypair } from '@stellar/stellar-sdk'
 import { mnemonicToSeedSync } from '@scure/bip39'
-import { deriveChild, deriveKeypairs, derivePath, generatePhrase, isValidPhrase, masterNode, phraseFingerprint, randomCampaignIndex } from '@/lib/campaign/derive'
+import { deriveChild, deriveKeypairs, derivePath, generatePhrase, isValidPhrase, masterNode, normalisePhrase, phraseFingerprint, phraseInputStatus, randomCampaignIndex } from '@/lib/campaign/derive'
 import { deriveEphemeralKeys, publicHalves } from '@/lib/campaign/keygen'
 import { buildCsv } from '@/lib/campaign/csv'
 
 const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex')
+
+describe('private recovery phrase input', () => {
+  // Public BIP39 zero-entropy test vector. Never use it for funds.
+  const fixture = 'abandon '.repeat(11) + 'about'
+  const words = fixture.split(' ')
+  it.each(['.', ')', ''])('accepts sequential numbering with %s and preserves the same keys', (suffix) => {
+    const numbered = words.map((word, index) => `${index + 1}${suffix} ${word}`).join('\n')
+    expect(normalisePhrase(numbered)).toBe(fixture)
+    expect(isValidPhrase(numbered)).toBe(true)
+    expect(deriveKeypairs(numbered, 7, 2).map((key) => key.publicKey())).toEqual(deriveKeypairs(fixture, 7, 2).map((key) => key.publicKey()))
+    expect(phraseFingerprint(numbered)).toBe(phraseFingerprint(fixture))
+  })
+  it('accepts ordinary spaces, line breaks, uppercase and copied invisible spacing', () => {
+    const pasted = words.join('\u200b\u00a0\n').toUpperCase()
+    expect(normalisePhrase(pasted)).toBe(fixture)
+    expect(phraseInputStatus(pasted)).toEqual({ valid: true, wordCount: 12, reason: null })
+  })
+  it('rejects missing, duplicate and out-of-order numbering without sorting', () => {
+    for (const indexes of [words.map((_, i) => i + 2), words.map(() => 1), words.map((_, i) => 12 - i)]) {
+      expect(isValidPhrase(words.map((word, i) => `${indexes[i]}. ${word}`).join(' '))).toBe(false)
+    }
+  })
+  it('distinguishes count, unknown word and checksum errors without returning words', () => {
+    expect(phraseInputStatus(words.slice(1).join(' '))).toEqual({ valid: false, wordCount: 11, reason: 'count' })
+    expect(phraseInputStatus('notaword ' + words.slice(1).join(' '))).toEqual({ valid: false, wordCount: 12, reason: 'words' })
+    expect(phraseInputStatus('abandon '.repeat(12))).toEqual({ valid: false, wordCount: 12, reason: 'checksum' })
+  })
+  it('does not discard headings, punctuation or arbitrary numeric content', () => {
+    expect(isValidPhrase('My phrase: ' + fixture)).toBe(false)
+    expect(isValidPhrase(fixture.replaceAll(' ', ', '))).toBe(false)
+    expect(isValidPhrase(fixture.replace('about', 'ab0ut'))).toBe(false)
+  })
+})
 
 /*
  * SLIP-0010 test vector 1 for ed25519 (seed 000102…0f). If this fails, the

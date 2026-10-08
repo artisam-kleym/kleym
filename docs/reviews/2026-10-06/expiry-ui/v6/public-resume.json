@@ -1,0 +1,81 @@
+{
+  "checkedAt": "2026-10-06T11:53:38.091Z",
+  "origin": "https://kleym-web-testnet.up.railway.app",
+  "health": {
+    "status": "ok"
+  },
+  "ready": {
+    "ready": true
+  },
+  "loginPassed": true,
+  "retainedCampaignId": "cmusjy67f00020dp4imc8q054",
+  "retainedCampaignCount": 2,
+  "links": [
+    {
+      "id": "cmusjy6i500030dp4ewe3gc4d",
+      "status": "CLAIMED",
+      "amount": "1",
+      "balanceId": "00000000b77821ef2d2045e9b936de54be9dec3bb1018d5ec67bf87bbfe561b0d0ebf760",
+      "claimTxHash": "0616c193a2f4c76c89b4b8cb24951a79015e6ab33a14b0e2a1e0463aa69f006d"
+    },
+    {
+      "id": "cmusjy6i500040dp4bxj8td4z",
+      "status": "CLAIMED",
+      "amount": "1",
+      "balanceId": "00000000621a62247a0f6e16e0916b5a59d26c8e971a30efbf08116c03ae6b783a73ed78",
+      "claimTxHash": "08b0d23b3e1517d35e95738875723c9096a1757a76f3d5cc27d80c7c9ada55a1"
+    },
+    {
+      "id": "cmusjy6i500050dp4rodr3xvv",
+      "status": "EXPIRED",
+      "amount": "1",
+      "balanceId": "00000000994080e58ae9a9e6e4445f9e05444f39a60e301b035c229bb949f027005f6f74",
+      "claimTxHash": null
+    }
+  ],
+  "batches": [
+    {
+      "status": "CONFIRMED",
+      "transactionHash": "b41d0e63d16c13ed1b895f495a23ff0464085d659b5d25b250da2e79e6b0bdf0"
+    }
+  ],
+  "status": {
+    "generatedAt": "2026-10-06T11:53:28.606Z",
+    "overall": "operational",
+    "components": [
+      {
+        "name": "Database",
+        "state": "operational",
+        "note": "answering"
+      },
+      {
+        "name": "Queue and cache",
+        "state": "operational",
+        "note": "answering"
+      },
+      {
+        "name": "Stellar network (Horizon)",
+        "state": "operational",
+        "note": "answering"
+      },
+      {
+        "name": "Background workers",
+        "state": "operational",
+        "note": "draining"
+      },
+      {
+        "name": "Claim sponsorship",
+        "state": "operational",
+        "note": "operational"
+      },
+      {
+        "name": "Ledger reconciliation",
+        "state": "operational",
+        "note": "current"
+      }
+    ]
+  },
+  "claimNoReferrer": true,
+  "newCampaignsCreated": 0,
+  "agentLedgerWrites": 0
+}

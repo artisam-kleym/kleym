@@ -1,0 +1,28 @@
+{
+  "environment": "testnet",
+  "project": "kleym-testnet",
+  "volumes": [
+    {
+      "currentSizeMB": 32.178176,
+      "deletedAt": null,
+      "id": "38b09453-d0b2-4446-8e9c-e795a874bcca",
+      "isPendingDeletion": false,
+      "mountPath": "/data",
+      "name": "redis-volume",
+      "serviceName": "Redis",
+      "sizeMB": 500,
+      "status": "Ready"
+    },
+    {
+      "currentSizeMB": 83.42732799999999,
+      "deletedAt": null,
+      "id": "73798d01-f324-42dc-bee7-5d08a3648688",
+      "isPendingDeletion": false,
+      "mountPath": "/var/lib/postgresql/data",
+      "name": "postgres-volume",
+      "serviceName": "Postgres",
+      "sizeMB": 500,
+      "status": "Ready"
+    }
+  ]
+}

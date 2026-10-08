@@ -1,0 +1,24 @@
+{
+  "checkedAtUTC": "2026-09-30T14:37:52.638Z",
+  "url": "http://127.0.0.1:3218/",
+  "httpStatus": 200,
+  "recipient": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+  "recipientMode": "existing-no-trustline",
+  "sponsor": "GBDHTO6Y7WGHJVOKDDKIEDG2H2EFKCGL5GOEIL5GDESX4PWR2OA2VUIL",
+  "fundingHash": "a3b7f0d1d07c953597db3c2cf3c08da134103da67059c115e7e60dc977697005",
+  "registeredPublicKeys": [
+    "GCFKAQEEPDEBDF47MW2VBSUPATAY7K5XBRBHTMPJXRIHLJF4PUW3OW7Y",
+    "GDER5N6LDNOFBI77ZU3BPTEVLTYIQ2KJEJJIGDLJC5ZJH3WVURC52S2P"
+  ],
+  "balanceIds": [
+    "00000000b934af3156cf41a64a11b80c9d88466733b0b116a781a6acd5d66a39c23805bf",
+    "0000000069d3a278f5abb12f117524106bbb3cf6fddee12c24dd4d5646808ea89f67ddf2"
+  ],
+  "claimExpiresAt": "2026-09-30T15:33:40.069Z",
+  "reclaimExpiresAt": "2026-09-30T14:38:40.069Z",
+  "fundPassed": true,
+  "materialiseAndClaimNotSubmitted": true,
+  "bootstrapStillReachable": true,
+  "acceptancePassed": true,
+  "ledgerMutation": false
+}

@@ -39,7 +39,8 @@ process.env.SPONSOR_WORKING_THRESHOLD = '50'
 process.env.SPONSOR_MIN_BALANCE_ALERT = '100'
 process.env.ALERT_WEBHOOK_URL = `http://127.0.0.1:${port}/alerts?token=hook-secret-token`
 applyEnvPlaceholders()
-const stopNetworkFixture = await startTestnetNetworkFixture()
+const sourceAccounts = new Map([primary, second].map((key) => [key.publicKey(), { sequence: '100', nativeBalance: '10000.0000000' }]))
+const stopNetworkFixture = await startTestnetNetworkFixture({ accounts: sourceAccounts, baseReserveStroops: 5_000_000 })
 
 const { prisma } = await import('../src/lib/db/client')
 const { redis } = await import('../src/lib/redis/client')
@@ -125,10 +126,11 @@ async function inFlightCampaignsKeepTheirSponsor(): Promise<void> {
       },
       select: { id: true },
     })
-    const key = Keypair.random().publicKey()
+    const pair = Keypair.random()
+    const key = pair.publicKey()
     const balanceId = `00000000${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}`.slice(0, 72)
-    await prisma.claimLink.create({ data: { campaignId: c.id, ephemeralPublicKey: key, amount: '2.5000000', status: 'ACTIVE', balanceId } })
-    return { key, balanceId }
+    const link = await prisma.claimLink.create({ data: { campaignId: c.id, ephemeralPublicKey: key, amount: '2.5000000', status: 'ACTIVE', balanceId } })
+    return { key, pair, balanceId, id: link.id, campaignId: c.id }
   }
   const onSecond = await mk(second.publicKey())
   const legacy = await mk(null)
@@ -141,30 +143,39 @@ async function inFlightCampaignsKeepTheirSponsor(): Promise<void> {
 
   // Even after "failover", the second-sponsor campaign's envelope must be
   // sourced by the second sponsor; one built for the primary is not Kleym's.
-  const accept = async (t: { hash: () => Buffer }) => ({ hash: t.hash().toString('hex'), successful: true })
-  const envelopeFrom = (sponsor: Keypair) => {
+  const accept = async (t: { hash: () => Buffer; source: string; sequence: string }) => {
+    sourceAccounts.get(t.source)!.sequence = t.sequence
+    return { hash: t.hash().toString('hex'), successful: true }
+  }
+  const envelopeFrom = async (sponsor: Keypair) => {
     const plan = buildClaim(
       {
-        sponsorAccount: new Account(sponsor.publicKey(), '100'), sponsorPublicKey: sponsor.publicKey(),
+        sponsorAccount: new Account(sponsor.publicKey(), sourceAccounts.get(sponsor.publicKey())!.sequence), sponsorPublicKey: sponsor.publicKey(),
         ephemeralPublicKey: onSecond.key, recipientPublicKey: Keypair.random().publicKey(), asset: Asset.native(),
         amount: '2.5000000', balanceId: onSecond.balanceId, networkPassphrase: Networks.TESTNET, baseFee: '1000',
       },
       { ephemeralExists: true, ephemeralTrusts: false, recipientExists: true, recipientTrusts: true },
     )
-    const tx = TransactionBuilder.fromXDR(plan.xdr, Networks.TESTNET)
-    tx.sign(sponsor)
+    let xdr = plan.xdr
+    if (sponsor.publicKey() === second.publicKey()) {
+      const { prepareAttempt } = await import('../src/lib/stellar/attempts')
+      xdr = (await prepareAttempt(`claim:${onSecond.id}`, onSecond.campaignId, 'CLAIM', xdr,
+        { requiredSigners: [sponsor.publicKey(), onSecond.key] })).preparedXdr
+    }
+    const tx = TransactionBuilder.fromXDR(xdr, Networks.TESTNET)
+    tx.sign(sponsor, onSecond.pair)
     return tx.toXDR()
   }
-  const wrong = await submitClaim(onSecond.key, envelopeFrom(primary), 'claim', accept)
+  const wrong = await submitClaim(onSecond.key, await envelopeFrom(primary), 'claim', accept)
   check("an envelope sourced by the PRIMARY is refused for a campaign bound to the second", wrong.kind === 'conflict' && /not prepared by Kleym/.test(wrong.detail), JSON.stringify(wrong))
-  const right = await submitClaim(onSecond.key, envelopeFrom(second), 'claim', accept)
+  const right = await submitClaim(onSecond.key, await envelopeFrom(second), 'claim', accept)
   check('the bound sponsor\'s envelope is accepted', right.kind === 'ok', JSON.stringify(right).slice(0, 120))
 
   // A runbook slip: a campaign bound to a sponsor that has left the pool.
   const orphan = await mk(Keypair.random().publicKey())
   const loadedOrphan = await loadClaimable(orphan.key, present)
   check('a campaign bound to a sponsor not in the pool is "temporarily unavailable", not an exception', loadedOrphan.kind === 'unavailable', JSON.stringify(loadedOrphan))
-  const submittedOrphan = await submitClaim(orphan.key, envelopeFrom(primary), 'claim', accept)
+  const submittedOrphan = await submitClaim(orphan.key, await envelopeFrom(primary), 'claim', accept)
   check('and its submit is refused the same way', submittedOrphan.kind === 'unavailable', JSON.stringify(submittedOrphan))
 }
 
