@@ -26,6 +26,8 @@ export function ExportStep({
   linkCount,
   keys,
   downloaded,
+  exportConfirmed,
+  onConfirmExport,
   filename,
   cost,
   progress,
@@ -42,6 +44,8 @@ export function ExportStep({
   linkCount: number
   keys: EphemeralKey[]
   downloaded: boolean
+  exportConfirmed: boolean
+  onConfirmExport: (confirmed: boolean) => void
   filename: string | null
   cost: CostBreakdown | null
   progress: BatchProgress
@@ -148,9 +152,22 @@ export function ExportStep({
               data-downloaded={downloaded ? 'true' : 'false'}
             >
               {downloaded
-                ? `Saved as ${filename}. Keep it somewhere you would keep a password.`
+                ? `Download requested: ${filename}. Check your browser downloads or Files app before signing. Keep it somewhere you would keep a password.`
                 : `${keys.length} keys are held in this tab only. Export them to continue.`}
             </p>
+            {downloaded && phase !== 'complete' && phase !== 'partial' && (
+              <label className="flex min-h-11 items-center gap-md text-body-md text-on-surface">
+                <input
+                  type="checkbox"
+                  checked={exportConfirmed}
+                  onChange={(event) => onConfirmExport(event.target.checked)}
+                  disabled={phase === 'batching'}
+                  data-testid="confirm-export-saved"
+                  className="h-5 w-5 shrink-0 accent-primary"
+                />
+                I found the secrets CSV on my device and saved it privately.
+              </label>
+            )}
           </>
         )}
 
@@ -160,7 +177,7 @@ export function ExportStep({
             type="button"
             variant="claim"
             onClick={onSign}
-            disabled={!downloaded || phase === 'batching'}
+            disabled={!downloaded || !exportConfirmed || phase === 'batching'}
             data-testid="sign-batches"
             className="self-start"
           >

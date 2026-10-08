@@ -1,0 +1,68 @@
+{
+  "checkedAt": "2026-10-08T17:30:00.212Z",
+  "network": "testnet",
+  "campaignId": "cmuzrnf7200020dnzr49itmq6",
+  "hash": "e7142b1f94e9c4e1a4a2eac79b44e80d7dbf757eea5adecfe81ed45a5c6e5c28",
+  "ledger": 5091390,
+  "successful": true,
+  "feeChargedStroops": "400",
+  "materialise": {
+    "hash": "28298af63be26bc2f2a22666b5938477c83e7d697cd5dd4bd922a397e9e56e1c",
+    "ledger": 5091388,
+    "feeChargedStroops": "600"
+  },
+  "requiredSignersVerified": [
+    "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+    "GBE4KFWQ7MSEIPZMM73MAZ4U5RH3NER6I2CUTRTVGUHIFGJ7R3PJ5QPE"
+  ],
+  "operationTypes": [
+    "claim_claimable_balance",
+    "payment",
+    "change_trust",
+    "account_merge"
+  ],
+  "recipientBefore": {
+    "native": "0.0000000",
+    "usdc": "3.0000000"
+  },
+  "recipientAfter": {
+    "address": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I",
+    "native": "0.0000000",
+    "usdc": "4.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 3
+  },
+  "senderAfter": {
+    "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "native": "0.0000000",
+    "usdc": "8.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 3
+  },
+  "sponsorAfter": {
+    "address": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+    "native": "9999.9993300",
+    "usdc": "0",
+    "numSponsoring": 4,
+    "numSponsored": 0
+  },
+  "remainingBalances": [
+    {
+      "id": "00000000b0de5120a1d05a73554398ce521a2803c92188aec2273f0b7ff49a0a43ae7ca0",
+      "amount": "1.0000000",
+      "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "sponsor": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK"
+    }
+  ],
+  "assertions": {
+    "receivedExactlyOneUsdc": true,
+    "recipientRemainedZeroXlm": true,
+    "ephemeralAccountRemoved": true,
+    "claimedBalanceRemoved": true,
+    "strictlyLaterClaimLedger": true,
+    "temporaryReservesReleased": true,
+    "sponsorPaidExactFees": true
+  },
+  "acceptancePassed": true,
+  "agentLedgerWrites": 0
+}

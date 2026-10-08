@@ -316,7 +316,7 @@ export function CampaignWizard(config: WizardConfig) {
   }, [wizard, draft.name, config.appUrl])
 
   const onSign = useCallback(async () => {
-    if (!canContinuePastExport(wizard.downloaded, wizard.keys)) return
+    if (!canContinuePastExport(wizard.downloaded, wizard.keys, wizard.exportConfirmed)) return
     wizard.setError(null)
     const invalidExpiry = expiryError(draft.expiresAt)
     if (invalidExpiry) {
@@ -523,6 +523,8 @@ export function CampaignWizard(config: WizardConfig) {
             linkCount={draft.linkCount}
             keys={wizard.keys}
             downloaded={wizard.downloaded}
+            exportConfirmed={wizard.exportConfirmed}
+            onConfirmExport={wizard.confirmExport}
             filename={filename}
             cost={cost}
             progress={wizard.progress}

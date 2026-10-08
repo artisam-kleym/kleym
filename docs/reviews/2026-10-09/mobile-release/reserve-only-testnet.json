@@ -1,0 +1,67 @@
+{
+  "status": "PASS",
+  "checkedAt": "2026-10-08T17:35:24.695Z",
+  "commit": "c74161753fced51f688c57c890ccc83adf3fca82",
+  "network": "testnet",
+  "asset": "USDC:GDR5WXI3GMBHDF7MEJYEPGCMEDWZ5RJLVU4CCEXQDZPLZXTRC6IY7HAD",
+  "assetQualification": "disposable custom issuer; not official USDC",
+  "wallet": "disposable Node signers; not wallet UI acceptance",
+  "minimumReserve": "1.5000000",
+  "spendableNativeBeforeAndAfter": "0.0000000",
+  "before": {
+    "address": "GAKEAFX2CME7UAMEDAMDVZNAUFYAEUPA7ALFXTSMX6YC77O57LIO2EYN",
+    "native": "1.5000000",
+    "usdc": "1.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 0
+  },
+  "after": {
+    "address": "GAKEAFX2CME7UAMEDAMDVZNAUFYAEUPA7ALFXTSMX6YC77O57LIO2EYN",
+    "native": "1.5000000",
+    "usdc": "1.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 0
+  },
+  "sponsorBefore": {
+    "address": "GD6RTTBJ7AJKXSVNHIBO36L5F2ONQ2DFNFQS3YJWBLNIVPNE33ZAB5D3",
+    "native": "10000.0000000",
+    "usdc": "0.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 0
+  },
+  "sponsorAfter": {
+    "address": "GD6RTTBJ7AJKXSVNHIBO36L5F2ONQ2DFNFQS3YJWBLNIVPNE33ZAB5D3",
+    "native": "9999.9999600",
+    "usdc": "0.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 0
+  },
+  "transactions": [
+    {
+      "stage": "explicit-reserve-only-bootstrap",
+      "hash": "bbaf2f5468b05e00bdddb91121a971d1573d22914c7083ab7154ec82d4ddf355",
+      "ledger": 5091459,
+      "feeChargedStroops": "300"
+    },
+    {
+      "stage": "fund",
+      "hash": "c28c3620ce52e18ee09b4c18c505dc60a0b65b8f88e1fdf99c92e76e456cc725",
+      "ledger": 5091460,
+      "feeChargedStroops": "300"
+    },
+    {
+      "stage": "reclaim",
+      "hash": "c771672cb3972e84bb9795108d16604ca996caa2d68f5c996ca01f4b3fe36ac2",
+      "ledger": 5091467,
+      "feeChargedStroops": "100"
+    }
+  ],
+  "assertions": {
+    "senderNativeUnchanged": true,
+    "senderPrincipalReturnedExactly": true,
+    "sponsorFeeOnlyDebit": true,
+    "balanceReservesReleased": true
+  },
+  "qualificationScript": "scripts/verify-reserve-only-testnet.ts",
+  "qualificationScriptSha256": "4d6827647473d9c17996470d6682cbc93aa32ea5ca6d73d8aeb77baa053f63ff"
+}

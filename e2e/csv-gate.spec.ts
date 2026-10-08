@@ -332,6 +332,32 @@ test.describe('recovery phrase (#77)', () => {
 })
 
 test.describe('CSV gate', () => {
+  test('Android creator confirms a readable private CSV before funding', async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 851 })
+    await reachExportStep(page)
+    await confirmPhrase(page)
+    await page.getByTestId('generate-keys').click()
+    const sign = page.getByTestId('sign-batches')
+    await expect(page.getByTestId('confirm-export-saved')).toHaveCount(0)
+    await expect(sign).toBeDisabled()
+    const download = page.waitForEvent('download')
+    await page.getByTestId('download-secrets').click()
+    const file = await download
+    expect(await file.failure()).toBeNull()
+    const stream = await file.createReadStream()
+    expect(stream).not.toBeNull()
+    const chunks: Buffer[] = []
+    for await (const chunk of stream!) chunks.push(Buffer.from(chunk))
+    // Inspect locally; never print, persist or send the bearer export.
+    const rows = Buffer.concat(chunks).toString('utf8').trim().split('\n')
+    expect(rows).toHaveLength(4)
+    await expect(sign).toBeDisabled()
+    await expect(page.getByTestId('download-state')).toContainText('Check your browser downloads or Files app')
+    await page.getByTestId('confirm-export-saved').check()
+    await expect(sign).toBeEnabled()
+    await page.getByTestId('confirm-export-saved').uncheck()
+    await expect(sign).toBeDisabled()
+  })
   test('signing is unreachable until the export has fired', async ({ page }) => {
     await reachExportStep(page)
 
@@ -371,6 +397,8 @@ test.describe('CSV gate', () => {
 
     expect(file.suggestedFilename()).toBe('kleym-gate-test-secrets.csv')
     await expect(page.getByTestId('download-state')).toHaveAttribute('data-downloaded', 'true')
+    await expect(sign).toBeDisabled()
+    await page.getByTestId('confirm-export-saved').check()
     await expect(sign).toBeEnabled()
   })
 
@@ -431,6 +459,7 @@ test.describe('CSV gate', () => {
     await page.getByTestId('download-secrets').click()
     await download
 
+    await page.getByTestId('confirm-export-saved').check()
     await expect(page.getByTestId('sign-batches')).toBeEnabled()
 
     /*

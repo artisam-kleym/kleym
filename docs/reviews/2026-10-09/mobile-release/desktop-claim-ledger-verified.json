@@ -1,0 +1,74 @@
+{
+  "checkedAt": "2026-10-08T16:54:44.852Z",
+  "network": "testnet",
+  "campaignId": "cmuzrnf7200020dnzr49itmq6",
+  "hash": "6d77bdcb793301bdda588e88926d96c07bd2c912a9fcdc9c3c9d8113828796c5",
+  "ledger": 5090917,
+  "successful": true,
+  "feeChargedStroops": "400",
+  "materialise": {
+    "hash": "c115879a3a577e4d5b29316602703f855eaf94e41c309f096eb2d7e5d5c91708",
+    "ledger": 5090915,
+    "feeChargedStroops": "600"
+  },
+  "requiredSignersVerified": [
+    "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+    "GCJKAZIZXXGTXL2RFFNA6KJNMLTCIJY7MIEERNB3AVU3NW5ZTN2SS5GD"
+  ],
+  "operationTypes": [
+    "claim_claimable_balance",
+    "payment",
+    "change_trust",
+    "account_merge"
+  ],
+  "recipientBefore": {
+    "native": "0.0000000",
+    "usdc": "4.0000000"
+  },
+  "recipientAfter": {
+    "address": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+    "native": "0.0000000",
+    "usdc": "5.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 3
+  },
+  "senderAfter": {
+    "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "native": "0.0000000",
+    "usdc": "8.0000000",
+    "numSponsoring": 0,
+    "numSponsored": 3
+  },
+  "sponsorAfter": {
+    "address": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+    "native": "9999.9994300",
+    "usdc": "0",
+    "numSponsoring": 6,
+    "numSponsored": 0
+  },
+  "remainingBalances": [
+    {
+      "id": "0000000090d4a64ef3cf79e716e10137d1812308ed6e13817106a800c4acec40d049385c",
+      "amount": "1.0000000",
+      "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "sponsor": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK"
+    },
+    {
+      "id": "00000000b0de5120a1d05a73554398ce521a2803c92188aec2273f0b7ff49a0a43ae7ca0",
+      "amount": "1.0000000",
+      "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "sponsor": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK"
+    }
+  ],
+  "assertions": {
+    "receivedExactlyOneUsdc": true,
+    "recipientRemainedZeroXlm": true,
+    "ephemeralAccountRemoved": true,
+    "claimedBalanceRemoved": true,
+    "strictlyLaterClaimLedger": true,
+    "temporaryReservesReleased": true,
+    "sponsorPaidExactFees": true
+  },
+  "acceptancePassed": true,
+  "agentLedgerWrites": 0
+}
