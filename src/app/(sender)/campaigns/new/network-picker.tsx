@@ -1,6 +1,6 @@
 'use client'
 
-import type { StellarNetwork } from '@/lib/stellar/network'
+import { stellarMetadata, type StellarNetwork } from '@/lib/stellar/network'
 import type { NetworkWorkspaces } from '@/lib/stellar/network-workspaces'
 
 /** Open a fresh workspace; never transfer drafts, phrases, keys, queries or sessions. */
@@ -19,7 +19,7 @@ export function NetworkPicker({ network, workspaces }: { network: StellarNetwork
         : <button type="button" disabled className="min-h-11 rounded-lg border border-outline-variant px-md py-sm text-on-surface-variant opacity-50">{otherName} · unavailable</button>}
     </div>
     <p className="font-mono text-label-sm text-on-surface-variant">
-      {network === 'testnet' ? 'Test assets have no financial value.' : 'This workspace uses real assets.'}{' '}
+      <span>{stellarMetadata(network).valueNotice}</span>{' '}
       {destination ? 'The other network opens in a new tab with its own sign-in and campaign. Your current draft stays here.' : `${otherName} will be available after its separate workspace is configured.`}
     </p>
   </fieldset>
