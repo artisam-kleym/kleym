@@ -520,6 +520,7 @@ export function CampaignWizard(config: WizardConfig) {
         {wizard.step === 2 && (
           <ExportStep
             phase={wizard.phase}
+            linkCount={draft.linkCount}
             keys={wizard.keys}
             downloaded={wizard.downloaded}
             filename={filename}

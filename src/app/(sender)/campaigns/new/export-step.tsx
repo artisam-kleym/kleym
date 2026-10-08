@@ -23,6 +23,7 @@ import type { BatchProgress, Phase } from './use-wizard'
 
 export function ExportStep({
   phase,
+  linkCount,
   keys,
   downloaded,
   filename,
@@ -38,6 +39,7 @@ export function ExportStep({
   onPhrase,
 }: {
   phase: Phase
+  linkCount: number
   keys: EphemeralKey[]
   downloaded: boolean
   filename: string | null
@@ -84,7 +86,7 @@ export function ExportStep({
         <dl className="mt-lg grid grid-cols-2 gap-md font-mono text-label-md max-md:grid-cols-1">
           <div>
             <dt className="text-on-surface-variant">Links</dt>
-            <dd className="text-on-surface">{keys.length || cost.batches * 0 || '—'}</dd>
+            <dd className="text-on-surface" data-testid="review-link-count">{linkCount}</dd>
           </div>
           <div>
             <dt className="text-on-surface-variant">Signatures</dt>
