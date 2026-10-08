@@ -1,4 +1,5 @@
 import { outboundUrlFor } from './outbound-url'
+import { pinnedFetch } from './pinned-fetch'
 
 export class OutboundDestinationError extends Error {
   constructor() {
@@ -9,7 +10,8 @@ export class OutboundDestinationError extends Error {
 }
 
 /** Revalidate stored URLs at execution time and refuse redirects at every hop.
- * Hostname-to-IP DNS resolution still requires enforced deployment egress.
+ * The default HTTPS transport resolves/validates DNS at socket creation.
+ * Trusted injected fixture transports and narrow nonproduction loopback retain fetch semantics.
  */
 export async function outboundFetch(
   input: string | URL, init: RequestInit = {}, fetchImpl: typeof fetch = fetch,
@@ -17,7 +19,12 @@ export async function outboundFetch(
 ): Promise<Response> {
   const checked = outboundUrlFor(nodeEnv).safeParse(String(input))
   if (!checked.success) throw new OutboundDestinationError()
-  const response = await fetchImpl(checked.data, { ...init, redirect: 'error' })
+  const url = new URL(checked.data)
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname.replace(/\.$/, ''))
+  const options = { ...init, redirect: 'error' as const }
+  const response = fetchImpl === fetch && !loopback
+    ? await pinnedFetch(checked.data, options)
+    : await fetchImpl(checked.data, options)
   if (response.redirected || response.status >= 300 && response.status < 400) {
     await response.body?.cancel().catch(() => undefined)
     throw new OutboundDestinationError()

@@ -6,6 +6,11 @@ review reports. See [funding rollout controls](funding-rollout.md),
 [Testnet cadence](testnet-cadence.md). Cadence `NOT_RUN` and custom-issuer spike
 results do not qualify an official-USDC/wallet release. Mainnet remains disabled.
 
+Owner update, October 8: no product USDC campaign amount cap. Wallet spendable
+balance governs principal choice; separate sponsor capacity and operational
+ownership still gate new commitments. [Network workspaces](network-workspaces.md)
+records the selector, unavailable Mainnet and preserved manual-address fallback.
+
 The `SPEC.md` §10 acceptance matrix, walked by execution. Regenerate with:
 
 ```bash

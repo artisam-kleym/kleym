@@ -8,7 +8,7 @@ import { chromium } from '@playwright/test'
 
 const require = createRequire(import.meta.resolve('tsx'))
 const { build } = require('esbuild')
-const out = 'docs/reviews/2026-10-08/custom-prizes'
+const out = process.env.UI_PROOF_OUTPUT ?? 'docs/reviews/2026-10-08/custom-prizes'
 mkdirSync(out, { recursive: true })
 const source = `
 import React from 'react';
@@ -66,6 +66,12 @@ try {
     const page = await context.newPage()
     page.on('pageerror', (error) => errors.push(error.message))
     await page.goto(origin)
+    await page.getByRole('button', { name: 'Testnet · test funds', exact: true }).waitFor()
+    assert(await page.getByRole('button', { name: 'Mainnet · unavailable', exact: true }).isDisabled())
+    await page.getByLabel('Funding account', { exact: true }).fill('G'.repeat(56))
+    assert(await page.getByTestId('next-step').isDisabled(), 'Invalid public address cannot continue')
+    await page.getByLabel('Funding account', { exact: true }).fill('GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A')
+    await page.screenshot({ path: `${out}/${phone ? 'phone' : 'desktop'}-network-balance.png`, fullPage: true })
     await page.getByTestId('next-step').click()
     await page.getByRole('button', { name: 'Set individual amounts', exact: true }).click()
     for (const [index, amount] of ['20', '15', '10'].entries()) await page.locator(`[name="prize-${index + 1}"]`).fill(amount)

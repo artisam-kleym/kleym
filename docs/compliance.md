@@ -47,13 +47,20 @@ own process, so the URL is treated as hostile input:
   non-production HTTP/HTTPS loopback fixtures remain supported. Otherwise an Owner could make Kleym
   POST to whatever shares the application host — the Next.js server, a metrics
   sidecar, a co-located service.
-- **Stated limitation:** Kleym does **not** resolve the hostname before connecting.
-  An HTTPS hostname that resolves — or later rebinds — to a private, link-local or
-  metadata address is not detected here. Deploy so that the application host cannot
-  reach internal services over HTTPS using an enforced egress policy/proxy that
-  validates resolved addresses and every connection. This is a Mainnet release
-  gate, not protection established by URL-parser tests. Do not rely on a one-time
-  DNS preflight: a later lookup could return a different address.
+- **Pinned public DNS at connection time:** the default HTTPS transport resolves
+  all addresses when its socket is created, refuses the entire answer set if any
+  address is private/reserved, and returns only checked answers to that same
+  connector. There is no second hostname lookup or shared connection pool.
+  Each new connection rechecks DNS; redirects never create a next-hop request.
+  Normal hostname/TLS certificate validation stays enabled. Requests are limited
+  to 1 MiB, responses to 2 MiB, and total transport time to 10 seconds or the
+  caller's shorter signal. No integration payload or provider error is logged.
+- **Deployment scope:** enforced egress remains defence in depth for other code,
+  infrastructure proxies, custom CA/routing and malicious public endpoints.
+  Trusted injected transports exist only for fixtures; do not introduce an
+  unrestricted production injection. Local fixture exceptions apply only to
+  validated non-production loopback URLs. Application tests do not attest the
+  deployed host's firewall, network routing or every external integration.
 
 The same canonical host rule applies to webhook, screening, OIDC and federation
 requests. Stored webhook/screening URLs and OIDC issuer/endpoint requests are
@@ -62,6 +69,11 @@ without sending its payload. The shared request wrapper forces `redirect: 'error
 SSO discovery caches are separated by environment; the actual `jose.customFetch`
 export routes JWKS downloads through the same wrapper. Transport errors are
 recorded using fixed categories, without echoing URLs or provider error text.
+
+Transport API basis: [Node HTTPS request](https://nodejs.org/api/https.html#httpsrequesturl-options-callback)
+and [DNS lookup](https://nodejs.org/api/dns.html#dnspromiseslookuphostname-options).
+The read-only `scripts/verify-outbound-network.ts` probe records public-provider
+TLS/DNS compatibility or an explicit unavailable verdict, with zero chain writes.
 
 The literal-range policy conservatively excludes special IPv6 protocol assignment
 ranges and admits global unicast only. Range references: [IANA IPv4](https://www.iana.org/assignments/iana-ipv4-special-registry/)

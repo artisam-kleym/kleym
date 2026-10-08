@@ -1,6 +1,7 @@
 import { pageScope } from '@/lib/api/session-guard'
 import { env } from '@/lib/config/env'
 import { stellarMetadata } from '@/lib/stellar/network'
+import { networkWorkspaces } from '@/lib/stellar/network-workspaces'
 import { loadReissueSource } from '@/lib/api/outstanding'
 import { prefillFromDraft, prefillFromTemplate } from '@/lib/api/templates'
 import { CampaignWizard } from './wizard'
@@ -51,6 +52,7 @@ export default async function NewCampaignPage({ searchParams }: { searchParams: 
 
       {!refused && !templateRefused && <CampaignWizard
         stellar={stellarMetadata(env.STELLAR_NETWORK)}
+        networkWorkspaces={networkWorkspaces(env.STELLAR_NETWORK, env.APP_URL, env.TESTNET_APP_URL, env.MAINNET_APP_URL)}
         appUrl={env.APP_URL}
         maxOpsPerBatch={env.MAX_OPS_PER_BATCH}
         maxLinksPerCampaign={env.MAX_LINKS_PER_CAMPAIGN}

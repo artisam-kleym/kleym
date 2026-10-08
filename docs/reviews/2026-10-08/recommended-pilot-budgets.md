@@ -3,6 +3,12 @@
 Status: recommendation requested by the owner, not approved or active settings.
 Mainnet distribution remains disabled. Railway remains paused.
 
+**Superseded October 8:** the owner declined a campaign USDC amount cap.
+Creators choose prizes according to their available wallet balance. The USDC
+campaign/organisation/initial-total rows below are historical proposals only;
+none was activated. See `docs/network-workspaces.md`. Operational XLM capacity,
+continuing reserve commitments and named owners remain separate release gates.
+
 | Control | Proposed starting value | Meaning |
 |---|---|---|
 | USDC per campaign | 3 USDC | Three links of 1 USDC for the first live exercise |

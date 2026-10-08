@@ -23,6 +23,7 @@ export type Phase =
 
 export interface WizardConfig {
   stellar: ReturnType<typeof stellarMetadata>
+  networkWorkspaces?: import('@/lib/stellar/network-workspaces').NetworkWorkspaces
   appUrl: string
   maxOpsPerBatch: number
   maxLinksPerCampaign: number

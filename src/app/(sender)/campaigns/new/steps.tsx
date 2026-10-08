@@ -7,10 +7,14 @@ import type { stellarMetadata } from '@/lib/stellar/network'
 import { ExpiryPicker } from './expiry-picker'
 import { isStellarAmount, MAX_STELLAR_AMOUNT } from '@/lib/stellar/amount'
 import { PrizeAmounts } from './prize-amounts'
+import { NetworkPicker } from './network-picker'
 
 /** Step 1 — asset and amount. SPEC.md §5.3. */
 export function AssetStep({
   stellar,
+  networkWorkspaces,
+  lookupFailed = false,
+  onRetryBalance,
   draft,
   onChange,
   onConnect,
@@ -26,6 +30,9 @@ export function AssetStep({
   onEmailReceipts,
 }: {
   stellar: ReturnType<typeof stellarMetadata>
+  networkWorkspaces?: import('@/lib/stellar/network-workspaces').NetworkWorkspaces
+  lookupFailed?: boolean
+  onRetryBalance?: () => void
   onConnect?: () => void
   draft: { network: 'testnet' | 'public'; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; name: string }
   onChange: (patch: Partial<typeof draft>) => void
@@ -63,24 +70,7 @@ export function AssetStep({
           required
         />
 
-        <div className="flex flex-col gap-xs">
-          <label
-            htmlFor="network"
-            className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant"
-          >
-            Network
-          </label>
-          <select
-            id="network"
-            name="network"
-            value={draft.network}
-            disabled
-            className="min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface"
-          >
-            <option value={stellar.network}>{stellar.networkLabel}</option>
-          </select>
-          <p className="font-mono text-label-sm text-on-surface-variant">{stellar.valueNotice}</p>
-        </div>
+        <NetworkPicker network={stellar.network} workspaces={networkWorkspaces} />
 
         <Input
           label="Funding account"
@@ -88,7 +78,7 @@ export function AssetStep({
           value={draft.senderPublicKey}
           onChange={(e) => onChange({ senderPublicKey: e.target.value.trim() })}
           helper={
-            checking
+            lookupFailed ? 'Balance check unavailable. Retry before choosing prizes.' : checking
               ? 'Checking…'
               : accountExists === false
                 ? 'This account does not exist on the selected network yet.'
@@ -102,6 +92,7 @@ export function AssetStep({
           required
         />
         {onConnect && <Button variant="secondary" onClick={onConnect}>Use connected wallet as funding account</Button>}
+        {lookupFailed && onRetryBalance && <Button variant="secondary" onClick={onRetryBalance}>Retry balance check</Button>}
 
         <div className="flex flex-col gap-xs">
           <label
@@ -142,7 +133,7 @@ export function AssetStep({
           value={draft.amountPerLink}
           inputMode="decimal"
           onChange={(e) => onChange({ amountPerLink: e.target.value })}
-          helper="Default prize, up to 7 decimal places. Set individual amounts in Recipients & expiry."
+          helper="Choose any prize your available balance can cover, up to 7 decimal places. Set individual prizes in Recipients & expiry."
           error={draft.amountPerLink !== '' && !isStellarAmount(draft.amountPerLink) ? `Enter a positive amount with up to 7 decimal places, at most ${MAX_STELLAR_AMOUNT}.` : undefined}
           required
         />

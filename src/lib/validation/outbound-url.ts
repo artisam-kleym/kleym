@@ -3,8 +3,8 @@
  * (#52), a webhook endpoint (#51). Public HTTPS hosts, no credentials; HTTP to a
  * loopback address outside production only, for local receivers and the
  * verify scripts. Redirects are refused by every caller (`redirect: 'error'`).
- * Kleym does not resolve the hostname first — docs/compliance.md states the
- * deployment's half of that defence.
+ * The production transport pins validated DNS answers at socket creation;
+ * deployment egress remains defence in depth. See docs/compliance.md.
  */
 import { z } from 'zod'
 import { isPublicHostname } from './public-host'

@@ -2,6 +2,8 @@
 export const PUBLIC_ENV_KEYS = [
   'SPONSOR_PUBLIC_KEY', // Public Stellar identity, not a signing seed.
   'APP_URL', // Public application origin.
+  'TESTNET_APP_URL', // Public Testnet workspace origin, no credentials.
+  'MAINNET_APP_URL', // Public Mainnet workspace origin, no credentials.
   'HORIZON_URL', // Public network provider URL; never embed credentials.
   'SEED_ADMIN_USERNAME', // Development account name, not its password.
   'ALLOW_PROD_SEED', // Bootstrap switch, not signing material.

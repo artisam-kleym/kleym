@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { StrKey } from '@stellar/stellar-sdk'
 import { Button, Stepper } from '@/components/ui'
 import { deriveEphemeralKeys, publicHalves, type Attestation } from '@/lib/campaign/keygen'
 import { phraseFingerprint, randomCampaignIndex } from '@/lib/campaign/derive'
@@ -86,8 +87,10 @@ export function CampaignWizard(config: WizardConfig) {
     balances: Balance[]
   }>({ key: '', exists: null, balances: [] })
 
-  const complete = draft.senderPublicKey.length === 56
-  const fresh = lookup.key === draft.senderPublicKey
+  const [lookupVersion, setLookupVersion] = useState(0)
+  const lookupKey = `${draft.network}:${draft.senderPublicKey}`
+  const complete = StrKey.isValidEd25519PublicKey(draft.senderPublicKey)
+  const fresh = lookup.key === lookupKey
 
   // All three derived, not stored: "still checking" is precisely "the address
   // is complete and the answer on hand is about a different one".
@@ -187,24 +190,28 @@ export function CampaignWizard(config: WizardConfig) {
   /* The sender's balances, so step 1 can only offer assets they hold. */
   useEffect(() => {
     const key = draft.senderPublicKey
-    if (key.length !== 56) return
+    if (!StrKey.isValidEd25519PublicKey(key)) return
 
     let cancelled = false
-    void fetch(`/api/stellar/account?publicKey=${encodeURIComponent(key)}`)
-      .then((r) => (r.ok ? r.json() : null))
+    const controller = new AbortController()
+    const resultKey = `${draft.network}:${key}`
+    void fetch(`/api/stellar/account?publicKey=${encodeURIComponent(key)}`, { signal: controller.signal })
+      .then((r) => { if (!r.ok) throw new Error('Balance lookup unavailable'); return r.json() })
       .then((body) => {
         if (cancelled) return
-        setLookup({ key, exists: body?.exists ?? false, balances: body?.balances ?? [] })
+        if (body.network && body.network !== draft.network) throw new Error('Balance network mismatch')
+        setLookup({ key: resultKey, exists: body?.exists ?? false, balances: (body?.balances ?? []).map((balance: Balance & { availableBalance?: string }) => ({ ...balance, balance: balance.availableBalance ?? balance.balance })) })
       })
       .catch(() => {
         // Recorded against this key so the UI stops saying "checking…" — an
         // unreachable Horizon is an answer the sender needs, not a spinner.
-        if (!cancelled) setLookup({ key, exists: null, balances: EMPTY_BALANCES })
+        if (!cancelled) setLookup({ key: resultKey, exists: null, balances: EMPTY_BALANCES })
       })
     return () => {
       cancelled = true
+      controller.abort()
     }
-  }, [draft.senderPublicKey, draft.network])
+  }, [draft.senderPublicKey, draft.network, lookupVersion])
 
   const cost: CostBreakdown | null = useMemo(() => {
     if (!reservePerLink || !draft.amountPerLink || draft.linkCount < 1) return null
@@ -402,11 +409,12 @@ export function CampaignWizard(config: WizardConfig) {
         draft.linkCount <= config.maxLinksPerCampaign &&
         expiryError(draft.expiresAt, expiryNow) === null &&
         labelError === null &&
+        affordable !== null && affordable.asset && affordable.reserve &&
         cost !== null
       )
     }
     return false
-  }, [wizard.step, draft, expiryNow, accountExists, balances, config.maxLinksPerCampaign, labelError, cost, receiveAsError])
+  }, [wizard.step, draft, expiryNow, accountExists, balances, config.maxLinksPerCampaign, labelError, cost, affordable, receiveAsError])
 
   return (
     <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
@@ -443,6 +451,9 @@ export function CampaignWizard(config: WizardConfig) {
         <fieldset disabled={locked || !!reissue?.draftCampaignId || (reissue !== null && wizard.step === 0)} className="contents" data-testid={locked ? 'terms-locked' : undefined}>
         {wizard.step === 0 && (
           <AssetStep
+            networkWorkspaces={config.networkWorkspaces}
+            lookupFailed={complete && fresh && accountExists === null}
+            onRetryBalance={() => { setLookup({ key: '', exists: null, balances: EMPTY_BALANCES }); setLookupVersion((version) => version + 1) }}
             stellar={config.stellar}
             draft={draft}
             onChange={patch}
