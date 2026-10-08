@@ -8,7 +8,8 @@
  *
  * Run: pnpm verify:api-keys
  */
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
+import argon2 from 'argon2'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
 import { personalOrg } from '../tests/fixtures/tenant'
 
@@ -16,7 +17,7 @@ applyEnvPlaceholders()
 
 const { prisma } = await import('../src/lib/db/client')
 const { redis } = await import('../src/lib/redis/client')
-const { issueApiKey, resolveApiKey, revokeApiKey, listApiKeys, touchApiKey } = await import(
+const { issueApiKey, resolveApiKey, revokeApiKey, listApiKeys, touchApiKey, API_KEY_FORMAT } = await import(
   '../src/lib/auth/api-key'
 )
 const { requireApiCaller, API_RATE_LIMIT } = await import('../src/lib/api/v1')
@@ -71,26 +72,39 @@ async function keysAuthenticateAndRevoke(): Promise<void> {
   const none = await resolveApiKey(new Request('https://kleym.test/api/v1/campaigns'))
   check('a missing header does not resolve', !none.ok)
 
-  /*
-   * EVERY key must resolve, not most of them.
-   *
-   * The secret half is base64url, whose alphabet contains `_`. An earlier
-   * parse split the key on `_` and expected three parts, so any key whose
-   * random half happened to contain one was rejected as malformed — about half
-   * of them, and correct the rest of the time, which is how a bug like that
-   * survives a spot check. One key proves nothing; a batch does.
-   */
-  const batch = await Promise.all(
-    Array.from({ length: 25 }, (_, i) => issueApiKey(userId, orgOf(userId), `batch-${i}`)),
-  )
-  const resolvedAll = await Promise.all(batch.map((k) => resolveApiKey(bearer(k.key))))
-  const bad = resolvedAll.filter((r) => !r.ok).length
-  check('25 freshly issued keys all resolve', bad === 0, `${bad} of 25 failed`)
-  check(
-    'and at least one of them contains the character that used to break parsing',
-    batch.some((k) => k.key.split('_').length > 3),
-    'no underscore appeared in 25 secrets — rerun',
-  )
+  // Disposable deterministic 32-byte fixtures: exercise the real parser/hash/
+  // revocation path, rather than hoping random generation produces separators.
+  const leading = Buffer.alloc(API_KEY_FORMAT.secretBytes)
+  leading[0] = 252
+  const middle = Buffer.alloc(API_KEY_FORMAT.secretBytes)
+  middle[15] = 252
+  const fixtures = [
+    { label: 'leading underscore', bytes: leading, shape: (s: string) => s.startsWith('_') },
+    { label: 'middle underscore', bytes: middle, shape: (s: string) => !s.startsWith('_') && s.includes('_') },
+    { label: 'repeated underscores', bytes: Buffer.alloc(API_KEY_FORMAT.secretBytes, 255), shape: (s: string) => s.includes('__') },
+    { label: 'no underscore', bytes: Buffer.alloc(API_KEY_FORMAT.secretBytes, 42), shape: (s: string) => !s.includes('_') },
+  ]
+  for (const fixture of fixtures) {
+    const secret = fixture.bytes.toString('base64url')
+    check(`${fixture.label}: deterministic fixture shape`, fixture.shape(secret))
+    const prefix = randomBytes(API_KEY_FORMAT.prefixChars / 2).toString('hex')
+    const key = `${API_KEY_FORMAT.namespace}_${prefix}_${secret}`
+    const row = await prisma.apiKey.create({
+      data: { userId, organizationId: orgOf(userId), name: `fixture-${fixture.label}`, scope: 'READ', prefix,
+        keyHash: await argon2.hash(key, { type: argon2.argon2id }) },
+    })
+    const parsed = API_KEY_FORMAT.pattern.exec(key)
+    check(`${fixture.label}: complete secret parsed`, parsed?.[2] === secret)
+    const valid = await resolveApiKey(bearer(key))
+    check(`${fixture.label}: real auth verifies`, valid.ok && valid.caller.keyId === row.id)
+    const wrongFixture = await resolveApiKey(bearer(`${key}x`))
+    check(`${fixture.label}: wrong key refused`, !wrongFixture.ok)
+    const stored = JSON.stringify(await prisma.apiKey.findUniqueOrThrow({ where: { id: row.id } }))
+    check(`${fixture.label}: neither full token nor full secret stored`, !stored.includes(key) && !stored.includes(secret))
+    await revokeApiKey(row.id, orgOf(userId))
+    const revoked = await resolveApiKey(bearer(key))
+    check(`${fixture.label}: revoked key refused`, !revoked.ok)
+  }
 }
 
 async function theKeyIsShownOnce(): Promise<void> {
@@ -116,7 +130,8 @@ async function theKeyIsShownOnce(): Promise<void> {
   check('the stored value is not the key', !stored.keyHash.includes(issued.key))
 
   // The secret half must not be recoverable from anything that IS stored.
-  const secret = issued.key.split('_')[2]!
+  const secret = API_KEY_FORMAT.pattern.exec(issued.key)?.[2]
+  if (!secret) throw new Error('issued fixture does not match the public API key contract')
   const everything = JSON.stringify(await prisma.apiKey.findMany({ where: { userId } }))
   check('no column contains the secret half', !everything.includes(secret))
 }

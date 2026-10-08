@@ -21,7 +21,7 @@ database, independent ledger or release qualification.
 | #108 | Keep open | Sender self-delivery documented; legacy bearer-email/reminder path must be explicitly gated and executed to prove exclusion. D2-SEC-011. |
 | #110 | Keep open | Direct claim uses application clock; reconciliation uses ledger created_at. Parity remains concrete implementation gap. D1-SET-011. |
 | #111 | Keep open | Queue packaging fixed; full hosted persistence gates and operational signed evidence cadence need qualification. D4-OPS. |
-| #112 | Keep open | API-key harness still has probabilistic underscore sampling and partial split-token secret check; isolated deterministic DB suite required. D2-SEC-003. |
+| #112 | Fix prepared; awaiting hosted proof | First PR #119 CI reproduced the partial split-token storage assertion. Harness now uses deterministic separator fixtures/full production pattern; real isolated DB suite must pass before closure. D2-SEC-003. |
 | #113 | Keep open | Monitoring/recovery mechanisms exist; operator-owned drain, shortage, backup/restore and incident rehearsals pending. D4-OPS. |
 | #114 | Keep open | Comprehensive D1-D4 adapted plan/tracker created; 118 cases begin Not Run. Full execution is a separate qualification campaign. |
 | #115 | Keep open | Real-funds caps, capital, owners, rollback and mandatory tested release gates are unresolved; local dependency audit reports 34 findings including critical/high. No Mainnet authorization inferred. D4-OPS-013. |
