@@ -11,6 +11,7 @@
 import { useCallback, useState } from 'react'
 import type { EphemeralKey } from '@/lib/campaign/keygen'
 import type { stellarMetadata } from '@/lib/stellar/network'
+import type { ReissueSource } from '@/lib/api/outstanding'
 
 export type Phase =
   | 'editing'
@@ -32,17 +33,7 @@ export interface WizardConfig {
    * Reissue (#78): the campaign this one replaces the unclaimed links of. The
    * terms are prefilled; the expiry is not — that is the point of a reissue.
    */
-  reissue?: {
-    id: string
-    name: string
-    network: 'testnet' | 'public'
-    senderPublicKey: string
-    assetCode: string
-    assetIssuer: string | null
-    amountPerLink: string
-    outstanding: number
-    expiresAt: string
-  } | null
+  reissue?: ReissueSource | null
   /**
    * Template (#82): terms and recipient list prefilled; this campaign is a
    * MANUAL run of it. Or a PREPARED run: the campaign already exists in

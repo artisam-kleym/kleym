@@ -1,70 +1,67 @@
 'use client'
 
-/**
- * Wallet access for the claim page. SPEC.md §8.
- *
- * Deliberately separate from the wizard's signing module rather than a shared
- * import. `/claim` is the hardened route (AGENT.md §5.2), and sharing a module
- * with the sender-side wizard means any dependency the wizard later pulls in
- * arrives here too. The wallet kit is loaded LAZILY for the same reason: a
- * recipient who never taps "Connect wallet" never fetches a wallet adapter.
- */
 import 'client-only'
+import { connectLantern, lanternParentOrigin, signLantern } from '@/lib/wallet/lantern'
 
+/** Separate claim dependency boundary: no modal or key storage. */
 type Network = 'testnet' | 'public'
+let transport: 'desktop' | 'mobile' = 'desktop'
 
-let initialised = false
-
-async function ensureInitialised(network: Network) {
-  const sdk = await import('@creit.tech/stellar-wallets-kit')
-  const { defaultModules } = await import('@creit.tech/stellar-wallets-kit/modules/utils')
-
-  const target = network === 'public' ? sdk.Networks.PUBLIC : sdk.Networks.TESTNET
-
-  if (!initialised) {
-    sdk.StellarWalletsKit.init({ modules: defaultModules(), network: target })
-    initialised = true
-  } else {
-    sdk.StellarWalletsKit.setNetwork(target)
-  }
-
-  return sdk
-}
-
-/** Opens the chooser and returns the address the recipient picked. */
-export async function connectWallet(network: Network): Promise<string> {
-  const sdk = await ensureInitialised(network)
-  const { address } = await sdk.StellarWalletsKit.authModal()
+export async function connectMobileWallet(network: Network, config: import('@/lib/wallet/mobile').MobileWalletConfig, onUri: (uri: string) => void, signal: AbortSignal) {
+  const { connectMobile } = await import('@/lib/wallet/mobile')
+  const address = await connectMobile(network, config, onUri, signal)
+  transport = 'mobile'
   return address
 }
 
-/** Adds the RECIPIENT's signature, when they are an operation source. */
-export async function signBatch(
-  xdr: string,
-  network: Network,
-  recipientPublicKey: string,
-): Promise<string> {
-  const sdk = await ensureInitialised(network)
-  const { signedTxXdr } = await sdk.StellarWalletsKit.signTransaction(xdr, {
-    address: recipientPublicKey,
-    networkPassphrase: network === 'public' ? sdk.Networks.PUBLIC : sdk.Networks.TESTNET,
+export async function selectDesktopWallet() {
+  transport = 'desktop'
+  const { disconnectMobile } = await import('@/lib/wallet/mobile')
+  await disconnectMobile()
+}
+
+async function adapter(network: Network) {
+  const { FreighterModule } = await import('@creit.tech/stellar-wallets-kit/modules/freighter')
+  const { Networks } = await import('@creit.tech/stellar-wallets-kit/types')
+  const wallet = new FreighterModule()
+  const passphrase = network === 'public' ? Networks.PUBLIC : Networks.TESTNET
+  if (!(await wallet.isAvailable())) throw new Error('Open Freighter in this desktop browser, unlock it, then try again.')
+  return { wallet, passphrase }
+}
+
+async function checkNetwork(wallet: Awaited<ReturnType<typeof adapter>>['wallet'], passphrase: string, network: Network) {
+  if ((await wallet.getNetwork()).networkPassphrase !== passphrase) {
+    throw new Error(`Switch Freighter to ${network === 'testnet' ? 'Testnet' : 'Mainnet'}, then try again.`)
+  }
+}
+
+/** Connecting is an explicit access request, never a signature or submission. */
+export async function connectWallet(network: Network): Promise<string> {
+  if (lanternParentOrigin()) return connectLantern(network)
+  if (transport === 'mobile') return (await import('@/lib/wallet/mobile')).mobileAddress(network)
+  const { wallet, passphrase } = await adapter(network)
+  const { address } = await wallet.getAddress({})
+  await checkNetwork(wallet, passphrase, network)
+  return address
+}
+
+/** Server verification still binds the exact envelope, signer and network. */
+export async function signBatch(xdr: string, network: Network, recipientPublicKey: string, onMobileRequestSent?: () => void): Promise<string> {
+  if (lanternParentOrigin()) return signLantern(xdr, network, recipientPublicKey)
+  if (transport === 'mobile') return (await import('@/lib/wallet/mobile')).signMobile(xdr, network, recipientPublicKey, onMobileRequestSent)
+  const { wallet, passphrase } = await adapter(network)
+  await checkNetwork(wallet, passphrase, network)
+  const { signedTxXdr, signerAddress } = await wallet.signTransaction(xdr, {
+    address: recipientPublicKey, networkPassphrase: passphrase,
   })
+  if (!signedTxXdr) throw new Error('Freighter did not return a signed transaction.')
+  if (signerAddress && signerAddress !== recipientPublicKey) throw new Error('Freighter signed with a different account. Select the recipient account and try again.')
   return signedTxXdr
 }
 
-/**
- * A message a recipient can act on.
- *
- * Never the raw error: a wallet's rejection text is aimed at developers, and
- * this page's audience did not choose to be here (BRAND.md §8).
- */
+/** Parse adapter errors without loading the modal and masking the original error. */
 export async function walletErrorMessage(error: unknown): Promise<string> {
-  try {
-    const { parseError } = await import('@creit.tech/stellar-wallets-kit')
-    const parsed = parseError(error)
-    if (parsed.message) return parsed.message
-  } catch {
-    /* fall through to the generic message */
-  }
-  return error instanceof Error ? error.message : 'The wallet did not complete the request.'
+  if (error instanceof Error) return error.message
+  if (typeof error === 'object' && error && 'message' in error && typeof error.message === 'string') return error.message
+  return 'The wallet did not complete the request.'
 }

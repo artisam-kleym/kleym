@@ -1,0 +1,12 @@
+{
+  "from": "a79f36e9189265e924989b9d7370077830e17eb66aff8f2443d7ce7d6718d0cd",
+  "to": "b27d11ba4338a019c13ac9191cd6f19ee68851fafa6d6a604f5caca28329f609",
+  "changed": [
+    "src/app/(sender)/campaigns/new/expiry-picker.tsx",
+    "src/app/(sender)/campaigns/new/steps.tsx",
+    "src/app/(sender)/campaigns/new/wizard.tsx",
+    "src/lib/campaign/expiry.ts"
+  ],
+  "removed": [],
+  "backendSchemaDependenciesUnchanged": true
+}

@@ -1,0 +1,1 @@
+{"passed":5,"checks":["Desktop has no Android app-opening button","Android sender/login has safe app-opening link","Trusted Android iframe hydrates, selects Lantern, validates connect response and does not submit/sign on connect","Runtime embedding CSP and claim no-referrer headers match policy","Production middleware refuses cross-origin authentication mutation"]}

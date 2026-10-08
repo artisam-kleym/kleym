@@ -32,6 +32,7 @@ import { feeChargedOf } from '@/lib/stellar/fees'
 import { executeAttempt, lookupAttempt, prepareAttempt, type AttemptLookup } from '@/lib/stellar/attempts'
 import { sponsorFor, sponsorSecret } from '@/lib/stellar/sponsors'
 import { sponsorSpendable } from '@/lib/stellar/horizon'
+import { SourceCoordinationError } from '@/lib/stellar/source-coordination'
 
 /** How long a prepared envelope stays valid for the sender to sign. */
 const SIGNING_WINDOW_SECONDS = 600
@@ -280,7 +281,12 @@ export async function prepareReclaim(
         data: { status: 'FAILED' } })
     }
   }
-  const attempt = await prepareAttempt(scope, campaign.id, 'RECLAIM', xdr, value)
+  let attempt
+  try { attempt = await prepareAttempt(scope, campaign.id, 'RECLAIM', xdr, value) }
+  catch (error) {
+    if (error instanceof SourceCoordinationError) return conflict(error.message)
+    throw error
+  }
   return {
     kind: 'ok',
     value: {
@@ -398,6 +404,13 @@ export async function submitReclaim(
     }
   }
 
+  // Historical settled receipts still replay above. New legacy sender-paid
+  // refunds use the same durable journal/source admission as sponsored ones;
+  // an old unsigned tab must prepare again before moving money.
+  if (!attempt || attempt.transactionHash !== hash) {
+    return conflict('Prepare this refund again before signing. Resolve any transaction awaiting confirmation first.')
+  }
+
   let amount: Decimal
   if (attempt && attempt.transactionHash === hash && attempt.status !== 'PREPARED') {
     // The balance can already be gone when a response was lost. Its exact
@@ -419,21 +432,18 @@ export async function submitReclaim(
   let feeCharged: string | number | null = null
   try {
     if (sponsor) verified.transaction.sign(Keypair.fromSecret(sponsorSecret(sponsor.publicKey)))
-    if (attempt && attempt.transactionHash === hash) {
-      const result = await executeAttempt(attempt, verified.transaction, async (transaction) => {
-        const response = await deps.submit(transaction)
-        // liveSubmit waits for ledger inclusion, not merely HTTP acceptance.
-        return { hash: transaction.hash().toString('hex'), successful: true, feeCharged: response?.feeCharged }
-      }, deps.lookup ?? (deps === LIVE ? lookupAttempt : async () => null))
-      if (!result.successful) return conflict('The reclaim failed on ledger. Prepare it again.')
-      feeCharged = result.feeCharged ?? null
-    } else {
-      feeCharged = (await deps.submit(verified.transaction))?.feeCharged ?? null
-    }
+    const result = await executeAttempt(attempt, verified.transaction, async (transaction) => {
+      const response = await deps.submit(transaction)
+      // liveSubmit waits for ledger inclusion, not merely HTTP acceptance.
+      return { hash: transaction.hash().toString('hex'), successful: true, feeCharged: response?.feeCharged }
+    }, deps.lookup ?? (deps === LIVE ? lookupAttempt : async () => null))
+    if (!result.successful) return conflict('The reclaim failed on ledger. Prepare it again.')
+    feeCharged = result.feeCharged ?? null
   } catch (error) {
+    if (error instanceof SourceCoordinationError) return conflict(error.message)
     const code = horizonResultCode(error)
     logger.warn({ campaignId: campaign.id, code }, 'reclaim rejected by the network')
-    return conflict(attempt ? 'The reclaim is awaiting confirmation. Retry to check the same transaction; do not send another refund.' : `Stellar rejected the reclaim: ${code}.`)
+    return conflict('The reclaim is awaiting confirmation. Retry to check the same transaction; do not send another refund.')
   }
 
   /*

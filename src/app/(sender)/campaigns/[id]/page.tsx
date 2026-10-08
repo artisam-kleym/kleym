@@ -77,6 +77,18 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         </p>
       )}
 
+      {campaign.renewalOfId && (
+        <p className="mt-md text-body-md text-on-surface-variant">
+          Renewal round of <Link className="text-primary underline" href={`/campaigns/${campaign.renewalOfId}`}>the original campaign</Link>. Budget: {campaign.renewalBudget?.toFixed()} {campaign.assetCode} returned by reclaim; claimed links are excluded.
+        </p>
+      )}
+      {campaign.renewal && (
+        <p className="mt-md text-body-md text-on-surface-variant">
+          This round has <Link className="text-primary underline" href={`/campaigns/${campaign.renewal.id}`}>a linked renewal ({campaign.renewal.status.toLowerCase()})</Link>.
+          {campaign.renewal.status === 'DRAFT' && <> <Link className="text-primary underline" href={`/campaigns/new?renew=${campaign.id}`}>Continue renewal with its saved recovery phrase</Link>.</>}
+        </p>
+      )}
+
       {campaign.emailReceipts && (
         // Signed receipts (#81): each email-delivered recipient is mailed theirs on claim.
         <p className="mt-sm font-mono text-label-md text-on-surface-variant">
@@ -142,8 +154,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         isCreator={selfApproving(campaign, user.id)}
       />
 
-      {['ACTIVE', 'PARTIAL', 'EXPIRED'].includes(campaign.status) && (
-        <OutstandingPanel campaignId={campaign.id} canEdit={canSuspend} />
+      {['ACTIVE', 'PARTIAL', 'EXPIRED', 'RECLAIMED'].includes(campaign.status) && (
+        <OutstandingPanel campaignId={campaign.id} canEdit={canSuspend} renewalExists={campaign.renewal !== null} />
       )}
 
       {canSuspend && campaign.status !== 'DRAFT' && (

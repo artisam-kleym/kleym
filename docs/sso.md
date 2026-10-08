@@ -35,7 +35,7 @@ Redirect URI for the IdP: `<APP_URL>/api/auth/sso/callback`. SCIM base:
 ## The discovery document is tenant-controlled input
 
 The issuer URL an Owner enters goes through the same `outboundUrl` rule as a
-screening callback or a webhook (HTTPS, no credentials, loopback only outside
+screening callback or a webhook (public HTTPS hosts, no credentials, loopback only outside
 production) — and so does **every endpoint the discovery document names**
 (`authorization_endpoint`, `token_endpoint`, `jwks_uri`, `userinfo_endpoint`),
 because the token exchange POSTs the client secret, the code and the verifier
@@ -48,6 +48,13 @@ connection was saved; a refusal is `discovery-refused` on the form and
 `/login/sso?error=idp` on the flow. The ID token is verified against the
 **configured** issuer. A `userinfo` response whose `sub` is not the ID
 token's is ignored (OIDC Core §5.3.2).
+
+Issuer validation runs before discovery or cache lookup. Discovery caches are
+separated by runtime environment. Token, JWKS and userinfo requests use the same
+execution-time URL/redirect guard; JWKS uses the installed library's exported
+`customFetch` symbol. Private and reserved literal destinations are refused before
+transport. DNS rebinding and private DNS answers still require enforced deployment
+egress, as recorded in [compliance](compliance.md); this remains a release gate.
 
 ## Sign-in
 

@@ -1,0 +1,21 @@
+# CLI uploads must never copy local keys, sessions, runtime state or evidence.
+.git
+.env
+.env.*
+!.env.example
+node_modules
+.next
+.runtime
+.worktrees
+.codex
+.agents
+.aws
+.pnpm-store
+e2e/.auth
+playwright-report
+test-results
+docs/reviews
+*.log
+*secrets*.csv
+*recovery*.csv
+*.csv

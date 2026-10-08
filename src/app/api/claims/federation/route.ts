@@ -14,6 +14,7 @@ import { clientIp } from '@/lib/auth/client-ip'
 import { rateLimit } from '@/lib/auth/rate-limit'
 import { guardRequestBody } from '@/lib/security/guard'
 import { federationServerOf, isPublicHost, memoFromRecord } from '@/lib/stellar/federation'
+import { outboundFetch } from '@/lib/validation/outbound-fetch'
 import { zodErrors } from '@/lib/api/campaigns'
 import { z } from 'zod'
 import {
@@ -52,7 +53,7 @@ const MAX_BODY_BYTES = 100 * 1024
  * request somewhere `isPublicHost` never saw.
  */
 async function fetchPublic(url: string, accept: string): Promise<string> {
-  const response = await fetch(url, {
+  const response = await outboundFetch(url, {
     redirect: 'error',
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     headers: { accept },

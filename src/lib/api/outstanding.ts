@@ -12,6 +12,7 @@ import Decimal from 'decimal.js'
 import { prisma } from '@/lib/db/client'
 import { owned } from './session-guard'
 import { readSenderBalances, type SenderBalanceReader } from './reclaim'
+import { renewalSource, RenewalRefused } from './renewal'
 
 export interface Outstanding {
   /** Balances the ledger still holds for this campaign. */
@@ -100,34 +101,36 @@ export interface ReissueSource {
   amountPerLink: string
   outstanding: number
   expiresAt: string
+  budget: string
+  draftCampaignId: string | null
+  draftExpiry: string | null
+  derivationIndex: number | null
+  keyFingerprint: string | null
+  registeredPublicKeys: string[]
+  draftPolicy: 'open' | 'code' | 'email' | 'passkey' | null
+  draftReminders: number[]
+  draftReceiveAs: string
+  draftExchangeDeposit: boolean
 }
 
 /**
- * The campaign a reissue (#78) replaces the unclaimed links of — its terms,
- * if it is ours and has not expired. Refused after expiry: those links are
- * dead and reclaimable, and a later expiry cannot be "extended" onto them; a
- * new campaign for anyone still owed is an ordinary new campaign. The clock
- * is read here, not during render.
+ * Compatibility loader for old ?reissue URLs. They now use the same safe
+ * renewal gate as ?renew: expired, fully reclaimed, exact confirmed budget.
  */
 export async function loadReissueSource(
   campaignId: string,
   organizationId: string,
   now: Date = new Date(),
 ): Promise<{ reissue: ReissueSource | null; refused: string | null }> {
-  const source = await prisma.campaign.findFirst({
-    where: owned(campaignId, organizationId),
-    select: {
-      id: true, name: true, network: true, senderPublicKey: true, assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true,
-      _count: { select: { links: { where: { status: 'ACTIVE' } } } },
-    },
-  })
-  if (!source) return { reissue: null, refused: 'That campaign could not be found.' }
-  if (source.expiresAt.getTime() <= now.getTime()) {
-    return {
-      reissue: null,
-      refused: `“${source.name}” has expired. Its links are dead and can be reclaimed; a later expiry cannot be reissued from it — create a new campaign for anyone still owed.`,
-    }
+  let value
+  try { value = await renewalSource(campaignId, organizationId, readSenderBalances, now) }
+  catch (error) {
+    if (error instanceof RenewalRefused) return { reissue: null, refused: error.message }
+    throw error
   }
+  const { source, count, budget } = value
+  const draft = source.renewal
+  if (draft && (draft.status !== 'DRAFT' || draft.expiresAt <= now)) return { reissue: null, refused: 'This campaign already has a renewal. Open its renewal round from the original campaign to inspect or recover it.' }
   return {
     refused: null,
     reissue: {
@@ -138,8 +141,18 @@ export async function loadReissueSource(
       assetCode: source.assetCode,
       assetIssuer: source.assetIssuer,
       amountPerLink: new Decimal(source.amountPerLink.toString()).toFixed(),
-      outstanding: source._count.links,
+      outstanding: count,
       expiresAt: source.expiresAt.toISOString(),
+      budget,
+      draftCampaignId: draft?.id ?? null,
+      draftExpiry: draft?.expiresAt.toISOString() ?? null,
+      derivationIndex: draft?.derivationIndex ?? null,
+      keyFingerprint: draft?.keyFingerprint ?? null,
+      registeredPublicKeys: draft?.links.map((l) => l.ephemeralPublicKey) ?? [],
+      draftPolicy: draft ? draft.claimPolicy.toLowerCase() as ReissueSource['draftPolicy'] : null,
+      draftReminders: draft?.reminderDaysBefore ?? [],
+      draftReceiveAs: draft?.receiveAsAssets.join('\n') ?? '',
+      draftExchangeDeposit: draft?.allowExchangeDeposit ?? false,
     },
   }
 }

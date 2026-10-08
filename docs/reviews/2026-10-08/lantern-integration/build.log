@@ -1,0 +1,182 @@
+▲ Next.js 16.3.5 (webpack)
+- Environments: .env
+✓ Running next.config.ts took 285ms
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+
+  To migrate automatically, run:
+  npx @next/codemod@canary middleware-to-proxy .
+
+  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+⚠ Compiled with warnings in 15.4s
+
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/valkey-glide-client.js
+Module not found: Can't resolve '@valkey/valkey-glide' in 'D:\kleym\node_modules\.pnpm\bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0\node_modules\bullmq\dist\esm\classes'
+
+Import trace for requested module:
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/valkey-glide-client.js
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/index.js
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/index.js
+./src/lib/queue/batch-confirm.ts
+./src/lib/observability/status.ts
+
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/child-processor.js
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/child-processor.js
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/index.js
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/index.js
+./src/lib/queue/maintenance.ts
+./src/app/api/admin/reconcile/route.ts
+
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/valkey-glide-client.js
+Module not found: Can't resolve '@valkey/valkey-glide' in 'D:\kleym\node_modules\.pnpm\bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0\node_modules\bullmq\dist\esm\classes'
+
+Import trace for requested module:
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/valkey-glide-client.js
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/classes/index.js
+../../node_modules/.pnpm/bullmq@6.2.0_ioredis@6.0.0_pg@8.23.0/node_modules/bullmq/dist/esm/index.js
+./src/lib/queue/maintenance.ts
+./src/app/api/admin/reconcile/route.ts
+
+✓ Compiled successfully in 29.5s
+  Running TypeScript ...
+  Finished TypeScript in 13.0s ...
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/2) ...
+✓ Generating static pages using 15 workers (2/2) in 1037ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /admin
+├ ƒ /admin/audit
+├ ƒ /admin/campaigns
+├ ƒ /admin/privacy
+├ ƒ /admin/reconciliation
+├ ƒ /admin/users
+├ ƒ /api/admin/audit/export
+├ ƒ /api/admin/audit/verify
+├ ƒ /api/admin/privacy/erase
+├ ƒ /api/admin/reconcile
+├ ƒ /api/admin/users
+├ ƒ /api/admin/users/[id]
+├ ƒ /api/admin/users/[id]/invitation
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/mfa/passkey/[id]
+├ ƒ /api/auth/mfa/passkey/authenticate
+├ ƒ /api/auth/mfa/passkey/authenticate/options
+├ ƒ /api/auth/mfa/passkey/register
+├ ƒ /api/auth/mfa/passkey/register/options
+├ ƒ /api/auth/mfa/status
+├ ƒ /api/auth/mfa/totp/confirm
+├ ƒ /api/auth/mfa/totp/enrol
+├ ƒ /api/auth/mfa/totp/remove
+├ ƒ /api/auth/mfa/verify
+├ ƒ /api/auth/password
+├ ƒ /api/auth/session
+├ ƒ /api/auth/sso/callback
+├ ƒ /api/auth/sso/start
+├ ƒ /api/campaigns
+├ ƒ /api/campaigns/[id]
+├ ƒ /api/campaigns/[id]/approvals
+├ ƒ /api/campaigns/[id]/batches
+├ ƒ /api/campaigns/[id]/batches/prepare
+├ ƒ /api/campaigns/[id]/batches/retry
+├ ƒ /api/campaigns/[id]/batches/submit
+├ ƒ /api/campaigns/[id]/deliver
+├ ƒ /api/campaigns/[id]/export
+├ ƒ /api/campaigns/[id]/links
+├ ƒ /api/campaigns/[id]/links/[linkId]
+├ ƒ /api/campaigns/[id]/links/[linkId]/receipt
+├ ƒ /api/campaigns/[id]/links/[linkId]/suspend
+├ ƒ /api/campaigns/[id]/outstanding
+├ ƒ /api/campaigns/[id]/receipts
+├ ƒ /api/campaigns/[id]/reclaim/prepare
+├ ƒ /api/campaigns/[id]/reclaim/submit
+├ ƒ /api/campaigns/[id]/suspend
+├ ƒ /api/campaigns/[id]/template
+├ ƒ /api/claims/code/verify
+├ ƒ /api/claims/federation
+├ ƒ /api/claims/otp/request
+├ ƒ /api/claims/otp/verify
+├ ƒ /api/claims/passkey/authenticate
+├ ƒ /api/claims/passkey/authenticate/options
+├ ƒ /api/claims/passkey/register
+├ ƒ /api/claims/passkey/register/options
+├ ƒ /api/claims/prepare/claim
+├ ƒ /api/claims/prepare/materialise
+├ ƒ /api/claims/quote
+├ ƒ /api/claims/resolve
+├ ƒ /api/claims/submit
+├ ƒ /api/health
+├ ƒ /api/invite/redeem
+├ ƒ /api/org
+├ ƒ /api/org/accounting/export
+├ ƒ /api/org/audit/export
+├ ƒ /api/org/compliance/export
+├ ƒ /api/org/members
+├ ƒ /api/org/members/[userId]
+├ ƒ /api/org/receipts
+├ ƒ /api/org/sso
+├ ƒ /api/org/sso/scim-tokens
+├ ƒ /api/org/sso/scim-tokens/[id]
+├ ƒ /api/org/switch
+├ ƒ /api/org/webhooks
+├ ƒ /api/org/webhooks/[id]
+├ ƒ /api/org/webhooks/[id]/deliveries
+├ ƒ /api/ready
+├ ƒ /api/scim/v2/Groups
+├ ƒ /api/scim/v2/Groups/[id]
+├ ƒ /api/scim/v2/ServiceProviderConfig
+├ ƒ /api/scim/v2/Users
+├ ƒ /api/scim/v2/Users/[id]
+├ ƒ /api/settings/api-keys
+├ ƒ /api/settings/api-keys/[id]
+├ ƒ /api/status
+├ ƒ /api/stellar/account
+├ ƒ /api/stellar/network
+├ ƒ /api/stellar/reserve
+├ ƒ /api/templates
+├ ƒ /api/templates/[id]
+├ ƒ /api/templates/[id]/run
+├ ƒ /api/templates/[id]/runs
+├ ƒ /api/v1/campaigns
+├ ƒ /api/v1/campaigns/[id]
+├ ƒ /api/v1/campaigns/[id]/batches/prepare
+├ ƒ /api/v1/campaigns/[id]/batches/submit
+├ ƒ /api/v1/campaigns/[id]/export
+├ ƒ /api/v1/campaigns/[id]/links
+├ ƒ /api/v1/templates
+├ ƒ /api/v1/templates/[id]/recipients
+├ ƒ /api/v1/templates/[id]/run
+├ ƒ /approvals
+├ ƒ /campaigns
+├ ƒ /campaigns/[id]
+├ ƒ /campaigns/[id]/links
+├ ƒ /campaigns/new
+├ ƒ /claim
+├ ƒ /dashboard
+├ ƒ /history
+├ ƒ /invite/[token]
+├ ƒ /login
+├ ƒ /login/mfa
+├ ƒ /login/sso
+├ ○ /manifest.webmanifest
+├ ƒ /settings
+├ ƒ /settings/security
+├ ƒ /status
+├ ƒ /templates
+└ ƒ /templates/[id]
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

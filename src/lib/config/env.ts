@@ -24,10 +24,12 @@ const SECRET_SEED = /^S[A-Z2-7]{55}$/
 const SECRET_SEED_ANYWHERE = /S[A-Z2-7]{55}/
 const PUBLIC_KEY = /^G[A-Z2-7]{55}$/
 
-const schema = z.object({
+const configurationSchema = z.object({
   // Core
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_URL: z.url(),
+  // Public WalletConnect identifier; optional until a project/domain is configured.
+  WALLETCONNECT_PROJECT_ID: z.union([z.string().regex(/^[a-f0-9]{32}$/i), z.literal('')]).default(''),
 
   // Database
   DATABASE_URL: z.string().min(1),
@@ -161,7 +163,12 @@ const schema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
-}).superRefine((value, context) => {
+})
+
+/** CI reads actual schema keys without accessing runtime configuration. */
+export const ENV_SCHEMA_KEYS = Object.keys(configurationSchema.shape)
+
+const schema = configurationSchema.superRefine((value, context) => {
   const problem = stellarConfigurationProblem(value)
   if (problem) context.addIssue({ code: 'custom', path: ['STELLAR_NETWORK'], message: problem })
 }).transform((value) => ({
@@ -175,7 +182,7 @@ const schema = z.object({
  * SINGLE SOURCE OF TRUTH. `src/lib/config/logger.ts` derives its redaction
  * paths from this list, and CI fails if a secret-shaped key is added to the
  * schema above without being classified here (or explicitly marked non-secret
- * in the workflow). Adding a secret and forgetting to redact it was a real
+ * in secret-classification.ts). Adding a secret and forgetting to redact it was a real
  * leak, not a hypothetical one — see the DATABASE_URL entry.
  */
 export const SECRET_ENV_KEYS = [
@@ -185,6 +192,7 @@ export const SECRET_ENV_KEYS = [
   'SCREENING_WEBHOOK_SECRET',
   'OTEL_EXPORTER_OTLP_HEADERS',
   'SESSION_SECRET',
+  'AUDIT_SIGNING_SEED',
   'CREDENTIAL_ENCRYPTION_KEY',
   'RESEND_API_KEY',
   'SEED_ADMIN_PASSWORD',

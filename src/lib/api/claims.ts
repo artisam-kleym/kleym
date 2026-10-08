@@ -32,6 +32,7 @@ import { feeChargedOf } from '@/lib/stellar/fees'
 import { issueReceipt } from './receipts'
 import { enqueueReceipt } from '@/lib/queue/email'
 import { executeAttempt, hasSignature, lookupAttempt, parseAttempt, prepareAttempt, type AttemptLookup } from '@/lib/stellar/attempts'
+import { SourceCoordinationError } from '@/lib/stellar/source-coordination'
 
 const PUBLIC_KEY = /^G[A-Z2-7]{55}$/
 
@@ -807,6 +808,7 @@ async function submitClaimUnobserved(
   try {
     result = await executeAttempt(attempt, transaction, submit, lookup, !stopped && !expired)
   } catch (error) {
+    if (error instanceof SourceCoordinationError) return { kind: 'unavailable', detail: error.message }
     const code = horizonResultCode(error)
 
     /*
@@ -1035,7 +1037,17 @@ export function horizonResultCode(error: unknown): string {
 /* ── the exported claim path: each phase in a span, each outcome counted (#53) ── */
 
 export const resolveLink = observedClaim('resolve', resolveLinkUnobserved)
-export const prepareMaterialise = observedClaim('materialise', prepareMaterialiseUnobserved)
-export const prepareClaim = observedClaim('claim', prepareClaimUnobserved)
+function withSourceRefusal<A extends unknown[], T>(fn: (...args: A) => Promise<Outcome<T>>) {
+  return async (...args: A): Promise<Outcome<T>> => {
+    try { return await fn(...args) }
+    catch (error) {
+      if (error instanceof SourceCoordinationError) return { kind: 'unavailable', detail: error.message }
+      throw error
+    }
+  }
+}
+
+export const prepareMaterialise = observedClaim('materialise', withSourceRefusal(prepareMaterialiseUnobserved))
+export const prepareClaim = observedClaim('claim', withSourceRefusal(prepareClaimUnobserved))
 export const quoteReceiveAs = observedClaim('quote', quoteReceiveAsUnobserved)
 export const submitClaim = observedClaim('submit', submitClaimUnobserved)

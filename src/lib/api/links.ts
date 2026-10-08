@@ -15,6 +15,7 @@ export type RegisterOutcome =
   | { kind: 'bad-status'; status: string }
   /** CODE policy (#79): the campaign needs a code per link and did not get one — or got codes it does not take. */
   | { kind: 'codes'; detail: string }
+  | { kind: 'budget'; detail: string }
   | { kind: 'over-limit'; declared: number; adding: number; wouldTotal: number }
   | { kind: 'ok'; registered: number; total: number }
 
@@ -45,7 +46,7 @@ export async function registerLinks(
     async (tx) => {
       const campaign = await tx.campaign.findFirst({
         where: owned(campaignId, organizationId),
-        select: { id: true, status: true, linkCount: true, amountPerLink: true, variableAmounts: true, claimPolicy: true },
+        select: { id: true, status: true, linkCount: true, amountPerLink: true, variableAmounts: true, claimPolicy: true, renewalOfId: true },
       })
       if (!campaign) return { kind: 'not-found' }
 
@@ -61,6 +62,7 @@ export async function registerLinks(
         return own ? new Decimal(own) : fallback
       })
       const variable = campaign.variableAmounts || resolved.some((amount) => !amount.equals(fallback))
+      if (campaign.renewalOfId && variable) return { kind: 'budget', detail: 'A renewal must preserve each returned link amount; variable amounts would change its refunded budget.' }
 
       // The policy decides whether codes are required or refused; never both silently.
       if (campaign.claimPolicy === 'CODE' && (!codes || codes.length !== publicKeys.length)) {
@@ -75,23 +77,44 @@ export async function registerLinks(
       }
 
       const existing = await tx.claimLink.count({ where: { campaignId } })
-      const wouldTotal = existing + publicKeys.length
-      if (wouldTotal > campaign.linkCount) {
-        return { kind: 'over-limit', declared: campaign.linkCount, adding: publicKeys.length, wouldTotal }
+      const desired = publicKeys.map((publicKey, index) => ({
+        campaignId,
+        ephemeralPublicKey: publicKey,
+        amount: resolved[index]!.toFixed(),
+        label: labels?.[index] ?? null,
+        codeHash: codes ? hashClaimCode(codes[index]!) : null,
+        reference: attestations?.[index]?.reference || null,
+        category: attestations?.[index]?.category || null,
+        note: attestations?.[index]?.note || null,
+      }))
+      if (new Set(publicKeys).size !== publicKeys.length) {
+        return { kind: 'budget', detail: 'Every prize link must have a distinct public key.' }
       }
+      // A committed registration may have lost its HTTP response. Replay only
+      // identical public terms; silently ignoring changed amounts/codes would
+      // produce an export that disagrees with the funded prize.
+      const recorded = await tx.claimLink.findMany({
+        where: { campaignId, ephemeralPublicKey: { in: publicKeys } },
+        select: { ephemeralPublicKey: true, amount: true, label: true, codeHash: true, reference: true, category: true, note: true },
+      })
+      const byKey = new Map(recorded.map((row) => [row.ephemeralPublicKey, row]))
+      for (const prize of desired) {
+        const row = byKey.get(prize.ephemeralPublicKey)
+        if (row && (!new Decimal(row.amount.toString()).equals(prize.amount) ||
+          row.label !== prize.label || row.codeHash !== prize.codeHash ||
+          row.reference !== prize.reference || row.category !== prize.category || row.note !== prize.note)) {
+          return { kind: 'budget', detail: 'A registered prize link has different terms. Keep its original export; registration retries cannot change its amount, label, code or recipient details.' }
+        }
+      }
+      const additions = desired.filter((prize) => !byKey.has(prize.ephemeralPublicKey))
+      const wouldTotal = existing + additions.length
+      if (wouldTotal > campaign.linkCount) {
+        return { kind: 'over-limit', declared: campaign.linkCount, adding: additions.length, wouldTotal }
+      }
+      if (additions.length === 0) return { kind: 'ok', registered: 0, total: existing }
 
       const created = await tx.claimLink.createMany({
-        data: publicKeys.map((publicKey, index) => ({
-          campaignId,
-          ephemeralPublicKey: publicKey,
-          amount: resolved[index]!.toFixed(),
-          label: labels?.[index] ?? null,
-          // The HASH. The code itself exists only in the sender's CSV (#79).
-          codeHash: codes ? hashClaimCode(codes[index]!) : null,
-          reference: attestations?.[index]?.reference || null,
-          category: attestations?.[index]?.category || null,
-          note: attestations?.[index]?.note || null,
-        })),
+        data: additions,
         skipDuplicates: true,
       })
 

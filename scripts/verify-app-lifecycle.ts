@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { randomUUID } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { Account, Keypair, Networks, Operation, Transaction, TransactionBuilder, xdr } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
@@ -30,9 +30,15 @@ let rejectNext = false
 const publicFunding = JSON.parse(readFileSync('tests/fixtures/sponsored-balance-id.json', 'utf8').replace(/^\uFEFF/, '')) as { resultXdr: string; balanceIds: string[] }
 function resultOf(transaction: Transaction): string {
   if (transaction.operations.some((operation) => operation.type === 'createClaimableBalance')) {
-    const bytes = Buffer.from(publicFunding.resultXdr, 'base64')
-    for (const index of [1, 2]) {
-      const offset = bytes.indexOf(Buffer.from(publicFunding.balanceIds[index - 1]!, 'hex'))
+    const prototype = xdr.TransactionResult.fromXDR(publicFunding.resultXdr, 'base64')
+    const results = prototype.result().results()
+    if (transaction.operations.length === 3) results.splice(2, 1)
+    prototype.result(xdr.TransactionResultResult.txSuccess(results))
+    prototype.feeCharged(xdr.Int64.fromString(String(transaction.operations.length * 100)))
+    const bytes = prototype.toXDR()
+    const creationIndices = transaction.operations.flatMap((op, index) => op.type === 'createClaimableBalance' ? [index] : [])
+    for (const [ordinal, index] of creationIndices.entries()) {
+      const offset = bytes.indexOf(Buffer.from(publicFunding.balanceIds[ordinal]!, 'hex'))
       assert(offset >= 0)
       Buffer.from(transaction.getClaimableBalanceId(index), 'hex').copy(bytes, offset)
     }
@@ -116,6 +122,7 @@ const server = createServer(async (request, response) => {
   } else if (url.pathname === '/') record = { network_passphrase: Networks.TESTNET }
   else if (url.pathname.startsWith('/transactions/')) record = hideRecords ? null : records.get(url.pathname.split('/').at(-1)!)
   else if (url.pathname.startsWith('/claimable_balances/')) record = balances.get(url.pathname.split('/').at(-1)!)
+  else if (url.pathname === '/claimable_balances') record = { _embedded: { records: [] } }
   else if (url.pathname === '/ledgers') record = { _embedded: { records: [{ sequence: ledger, closed_at: new Date().toISOString(), base_reserve_in_stroops: 5000000 }] } }
   else if (url.pathname.startsWith('/accounts/')) {
     const key = url.pathname.split('/').at(-1)!
@@ -141,7 +148,8 @@ const { prepareMaterialise, prepareClaim, submitClaim } = await import('../src/l
 const { prepareReclaim, submitReclaim } = await import('../src/lib/api/reclaim')
 const { parseAttempt } = await import('../src/lib/stellar/attempts')
 let checks = 0
-function check(name: string, condition: unknown) { assert(condition, name); checks++; console.log(`PASS ${name}`) }
+const passed: string[] = []
+function check(name: string, condition: unknown) { assert(condition, name); checks++; passed.push(name); console.log(`PASS ${name}`) }
 function signed(envelope: string, key: Keypair) { const transaction = parseAttempt(envelope); transaction.sign(key); return transaction.toXDR() }
 const user = await prisma.user.create({ data: { username: `lifecycle-${randomUUID()}`, passwordHash: 'fixture', role: 'SENDER' } })
 const organizationId = await personalOrg(prisma, user.id)
@@ -156,14 +164,27 @@ try {
     const start = new Decimal(accounts.get(sender.publicKey())!.usdc)
     const funding = await prepareBatch(campaign.id, organizationId, {})
     assert.equal(funding.kind, 'ok'); if (funding.kind !== 'ok') throw new Error('prepare funding')
-    const funded = await submitBatch(campaign.id, organizationId, { sequence: funding.value.sequence, signedXdr: signed(funding.value.xdr, sender) })
-    assert.equal(funded.kind, 'ok')
+    const probe = await prisma.campaign.create({ data: { userId: user.id, organizationId, name: 'Shared source probe', network: 'testnet', fundingMode: 'SPONSORED',
+      sponsorPublicKey: sponsor.publicKey(), senderPublicKey: sender.publicKey(), assetCode: 'USDC', assetIssuer: issuer,
+      amountPerLink: '1', linkCount: 1, expiresAt: new Date(Date.now() + 3600000), csvExportedAt: new Date() } })
+    await prisma.claimLink.create({ data: { campaignId: probe.id, ephemeralPublicKey: Keypair.random().publicKey(), amount: '1' } })
+    check(`${mode}: another campaign cannot prepare the same sponsor sequence`, (await prepareBatch(probe.id, organizationId, {})).kind === 'conflict')
+    const beforeFunding = submissions
+    const fundingInput = { sequence: funding.value.sequence, signedXdr: signed(funding.value.xdr, sender) }
+    const funded = await Promise.all([submitBatch(campaign.id, organizationId, fundingInput), submitBatch(campaign.id, organizationId, fundingInput)])
+    check(`${mode}: simultaneous funding double-clicks return the same original hash`, funded.every((result) => result.kind === 'ok') &&
+      funded[0].kind === 'ok' && funded[1].kind === 'ok' && funded[0].value.transactionHash === funded[1].value.transactionHash)
+    check(`${mode}: simultaneous funding submits principal exactly once`, submissions === beforeFunding + 1)
+    check(`${mode}: unconfirmed funding keeps the sponsor reserved`, (await prepareBatch(probe.id, organizationId, {})).kind === 'conflict')
     const batch = await prisma.batch.findFirstOrThrow({ where: { campaignId: campaign.id } })
     assert.equal(await confirmOne(batch.id), 'confirmed')
+    check(`${mode}: funding confirmation admits the next campaign with a fresh sequence`, (await prepareBatch(probe.id, organizationId, {})).kind === 'ok')
+    await prisma.campaign.delete({ where: { id: probe.id } }) // unsigned fixture only
     check(`${mode}: app funding takes exactly 2 sender USDC`, start.minus(accounts.get(sender.publicKey())!.usdc).equals(2))
     check(`${mode}: funding preserves sender zero XLM`, accounts.get(sender.publicKey())!.native === '0')
     const materialise = await prepareMaterialise(ephemeral.publicKey())
     assert.equal(materialise.kind, 'ok'); if (materialise.kind !== 'ok' || !materialise.value.xdr) throw new Error('prepare materialise')
+    check(`${mode}: two recipients cannot materialise with the same sponsor sequence`, (await prepareMaterialise(unused.publicKey())).kind === 'unavailable')
     if (mode === 'trusted') {
       const before = submissions
       await prisma.campaign.update({ where: { id: campaign.id }, data: { expiresAt: new Date(Date.now() - 1000) } })
@@ -257,20 +278,62 @@ try {
     check(`${mode}: no claimable balances remain`, balances.size === 0)
     check(`${mode}: refund replay remains idempotent`, (await submitReclaim(campaign.id, organizationId, { signedXdr: refund }, reclaimDeps)).kind === 'ok' && submissions === afterRefund)
     if (mode === 'trusted') {
-      const { executeAttempt, lookupAttempt, prepareAttempt } = await import('../src/lib/stellar/attempts')
+      const { createCampaign } = await import('../src/lib/api/campaigns')
+      const { loadReissueSource } = await import('../src/lib/api/outstanding')
+      const { registerLinks } = await import('../src/lib/api/links')
+      const terms = { name: 'Renewal fixture', network: 'testnet' as const, senderPublicKey: sender.publicKey(), assetCode: 'USDC', assetIssuer: issuer,
+        amountPerLink: '1', linkCount: 1, expiresAt: new Date(Date.now() + 3600000).toISOString(), renewalOfId: campaign.id,
+        derivationIndex: 42, keyFingerprint: '123456789abcdef0' }
+      const attempts = await Promise.allSettled([
+        createCampaign({ userId: user.id, organizationId }, terms, null),
+        createCampaign({ userId: user.id, organizationId }, terms, null),
+      ])
+      check('simultaneous renewals create only one successor', attempts.filter((a) => a.status === 'fulfilled').length === 1)
+      const renewed = await prisma.campaign.findUniqueOrThrow({ where: { renewalOfId: campaign.id } })
+      check('renewal excludes the paid link and binds the one-USDC refund budget', renewed.linkCount === 1 && renewed.renewalBudget?.equals(1))
+      const prefill = await loadReissueSource(campaign.id, organizationId)
+      check('unfinished renewal resumes the same draft and derivation path', prefill.reissue?.draftCampaignId === renewed.id && prefill.reissue.derivationIndex === 42)
+      const bad = await registerLinks(renewed.id, organizationId, [Keypair.random().publicKey()], undefined, undefined, ['2'])
+      check('registration cannot increase the renewed budget', bad.kind !== 'ok' && await prisma.claimLink.count({ where: { campaignId: renewed.id } }) === 0)
+      await registerLinks(renewed.id, organizationId, [Keypair.random().publicKey()])
+      check('registered renewed principal equals confirmed returned principal', (await prisma.claimLink.aggregate({ where: { campaignId: renewed.id }, _sum: { amount: true } }))._sum.amount?.equals(1))
+      check('renewal preparation has not submitted or moved more money', submissions === afterRefund && balances.size === 0)
+      await prisma.campaign.update({ where: { id: renewed.id }, data: { csvExportedAt: new Date() } })
+      const prepare = await prepareBatch(renewed.id, organizationId, {})
+      assert(prepare.kind === 'ok')
+      const preparedTransaction = parseAttempt(prepare.value.xdr)
+      check('renewal requires only one principal operation and the sponsorship bracket', preparedTransaction.operations.length === 3 && preparedTransaction.operations.filter((op) => op.type === 'createClaimableBalance').length === 1)
+      const submitted = await submitBatch(renewed.id, organizationId, { sequence: prepare.value.sequence, signedXdr: signed(prepare.value.xdr, sender) })
+      assert(submitted.kind === 'ok')
+      const renewalBatch = await prisma.batch.findFirstOrThrow({ where: { campaignId: renewed.id } })
+      await confirmOne(renewalBatch.id)
+      check('renewal funds only the returned USDC with sender still at zero XLM', start.minus(accounts.get(sender.publicKey())!.usdc).equals(2) && accounts.get(sender.publicKey())!.native === '0')
+      check('paid plus renewed principal equals the original funded budget', new Decimal(accounts.get(recipient.publicKey())!.usdc).plus([...balances.values()].reduce((sum, balance) => sum.plus(balance.amount), new Decimal(0))).equals(2))
+      check('original round remains reclaimed and renewal becomes active', (await prisma.campaign.findUniqueOrThrow({ where: { id: campaign.id } })).status === 'RECLAIMED' && (await prisma.campaign.findUniqueOrThrow({ where: { id: renewed.id } })).status === 'ACTIVE')
+      balances.clear() // simulated fixture entries only; no network writes
+      await prisma.campaign.delete({ where: { id: renewed.id } })
+    }
+    if (mode === 'trusted') {
+      const beforeExpiryCheck = submissions
+      const { executeAttempt, lookupAttempt } = await import('../src/lib/stellar/attempts')
       const expired = new TransactionBuilder(new Account(sponsor.publicKey(), accounts.get(sponsor.publicKey())!.sequence), {
         fee: '1000', networkPassphrase: Networks.TESTNET,
       }).addOperation(Operation.bumpSequence({ bumpTo: '999999' })).setTimebounds(0, Math.floor(Date.now() / 1000) - 30).build()
       expired.sign(sponsor)
-      const attempt = await prepareAttempt(`fixture-expired:${campaign.id}`, campaign.id, 'CLAIM', expired.toXDR(), {})
+      // Existing submitted journal from before its bound expired. New
+      // preparations correctly refuse an already-expired envelope.
+      const attempt = await prisma.ledgerAttempt.create({ data: { scope: `fixture-expired:${campaign.id}`, campaignId: campaign.id,
+        kind: 'CLAIM', preparedXdr: expired.toXDR(), submittedXdr: expired.toXDR(), status: 'SUBMITTED',
+        transactionHash: expired.hash().toString('hex'), metadata: {} } })
       const result = await executeAttempt(attempt, expired, async () => { throw new Error('An expired body must not be submitted') }, lookupAttempt)
       check('expired uncertain attempt is retired only after the closed-ledger bound and hash checks', !result.successful &&
         (await prisma.ledgerAttempt.findUniqueOrThrow({ where: { scope: attempt.scope } })).status === 'FAILED')
-      check('expired attempt never reaches network submission', submissions === afterRefund)
+      check('expired attempt never reaches network submission', submissions === beforeExpiryCheck)
     }
     ledger++
   }
   console.log(`${checks} app lifecycle checks passed (simulated Horizon; no chain writes).`)
+  if (process.env.VERIFY_RESULT_FILE) writeFileSync(process.env.VERIFY_RESULT_FILE, JSON.stringify({ checkedAt: new Date().toISOString(), checks, passed, horizon: 'simulated', chainWrites: 0 }, null, 2) + '\n')
 } finally {
   const batches = await prisma.batch.findMany({ where: { campaign: { userId: user.id } } })
   const queue = batchConfirmQueue()

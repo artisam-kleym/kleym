@@ -1,0 +1,25 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies", "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+> kleym@ test D:\kleym\.worktrees\app-sending-pilot
+> vitest run
+
+
+ RUN  v4.1.11 D:/kleym/.worktrees/app-sending-pilot
+
+{"level":30,"time":1791466911488,"pid":7512,"hostname":"Adealix","created":1,"checked":0,"priced":0,"msg":"valuation pass: rows created and priced"}
+{"level":30,"time":1791466911492,"pid":7512,"hostname":"Adealix","created":1,"checked":0,"priced":0,"msg":"valuation pass: rows created and priced"}
+{"level":30,"time":1791466911494,"pid":7512,"hostname":"Adealix","created":0,"checked":2,"priced":1,"msg":"valuation pass: rows created and priced"}
+{"level":50,"time":1791466913846,"pid":27740,"hostname":"Adealix","templateId":"template","campaignId":"campaign","reason":"audit unavailable","msg":"prepared run audit could not be recorded"}
+{"level":30,"time":1791466913847,"pid":27740,"hostname":"Adealix","templateId":"template","campaignId":"campaign","kind":"SCHEDULED","linkCount":1,"msg":"template run prepared"}
+{"level":30,"time":1791466913854,"pid":27740,"hostname":"Adealix","templateId":"template","campaignId":"campaign","kind":"SCHEDULED","linkCount":1,"msg":"template run prepared"}
+{"level":50,"time":1791466913858,"pid":27740,"hostname":"Adealix","templateId":"template","campaignId":"campaign","reason":"notification unavailable","msg":"prepared run notification failed"}
+{"level":50,"time":1791466915060,"pid":28276,"hostname":"Adealix","deliveryId":"d1","reason":"redis gone","msg":"could not queue a reminder; continuing"}
+{"level":50,"time":1791466915063,"pid":28276,"hostname":"Adealix","deliveryId":"d1","reason":"db gone","msg":"could not queue a reminder; continuing"}
+{"level":50,"time":1791466915064,"pid":28276,"hostname":"Adealix","deliveryId":"d1","reason":"connection dropped after the write","msg":"could not queue a reminder; continuing"}
+{"level":30,"time":1791466915066,"pid":28276,"hostname":"Adealix","actorId":"admin","redacted":1,"msg":"erasure request honoured"}
+
+ Test Files  59 passed (59)
+      Tests  740 passed (740)
+   Start at  21:41:47
+   Duration  9.34s (transform 7.68s, setup 53.13s, import 33.80s, tests 6.79s, environment 8ms)
+

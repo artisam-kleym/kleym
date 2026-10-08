@@ -1,0 +1,14 @@
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+locator.inputValue: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator('[name="prize-2"]')
+
+    at D:\kleym\.worktrees\app-sending-pilot\scripts\verify-custom-prizes-browser.mjs:109:57 {
+  log: [ `  - waiting for locator('[name="prize-2"]')` ],
+  name: 'TimeoutError'
+}
+
+Node.js v22.17.1

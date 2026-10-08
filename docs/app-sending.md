@@ -1,16 +1,73 @@
-# Kleym app sending — October 1
+# Kleym app sending
+
+## Latest: October 6 expiry controls
+
+Campaign creation offers **1 hour, 24 hours, 7 days, 30 days, or Custom** in Recipients & expiry. Custom supports typing separate date and time fields. The displayed local timezone and UTC instant identify the exact deadline. Presets freeze the deadline at selection; navigating the wizard does not extend it. Incomplete or past dates are refused before review and rechecked before key generation/signing. Prepared campaign terms remain locked; funded links cannot be extended by changing the UI.
+
+Public Testnet deployment and verification are recorded in [the October 6 report](reviews/2026-10-06/expiry-ui/implementation.md). Phone behavior is documented in [Mobile claims](mobile-claims.md). Mainnet qualification remains pending. The October 1 local notes below are historical.
+
+## October 1 local sending milestone
 
 The active product checkout is `D:\kleym\.worktrees\app-sending-pilot`, branch
 `codex/app-sending-pilot`. Product sending takes priority; GitHub Issues are
 deferred under the user's latest instruction. The local app runs at
 <http://127.0.0.1:3220>. This is readiness for a small Testnet wallet test.
-An end-to-end Freighter cycle through this app is still required before a
-public deployment or the October 7 pilot can be qualified.
+Actual Freighter Testnet funding, existing-trustline claim and expiry refund
+have now been independently verified. Public deployment and the October 7 pilot
+still require the remaining release evidence in [Mainnet preparation](mainnet-pilot.md).
+
+The desktop pilot connects directly through the wallet kit's **Freighter
+adapter**. Its general wallet modal injects styles blocked by Kleym's strict CSP;
+the pilot does not offer that modal or claim support for other wallets/mobile.
+Connection and signing check Freighter's selected network. The CSP is unchanged.
+
+Existing campaign phrases accept space/newline-separated words or a complete
+numbered list in original order. Copy formatting is normalized locally; invalid
+word counts, unknown words and failed recovery checks remain blocked. The wizard
+shows the detected count and reason without uploading the phrase.
 
 Mutable local process logs are in `.runtime/app-sending-pilot/`, outside Next's
 build output. Current PIDs are recorded in the implementation evidence.
 
 ## Working flow
+
+### Source and reserve coordination
+
+Funding, temporary account creation, recipient claims and expiry refunds now
+share a PostgreSQL guard per deployment network and transaction source. The
+existing `Batch` and `LedgerAttempt` public-envelope journals reserve the source
+while an unsigned envelope is valid or an exact submitted hash is unresolved.
+Another operation waits instead of receiving the same sequence. Different hot
+accounts remain independent. The guard rechecks current sequence and spendable
+XLM both before preparation and before recording submission.
+
+Spendable XLM subtracts ledger reserves and native selling liabilities. Admission
+budgets the envelope's fee bid, native source payments, claimant reserves and
+new sponsored accounts/trustlines using the live base reserve. It does not rely
+on reserves that later cleanup operations might release. These checks bound the
+next admitted envelope; they do not establish treasury capital or guarantee all
+future campaign claims can be financed.
+
+Unsigned envelopes expire after their existing 180-second claim or 600-second
+funding/refund signing window. A submitted envelope keeps the source reserved
+until its hash is confirmed/failed, or recovery proves absence after a closed
+ledger beyond its time bound. Recovery resends only the original signed bytes.
+Historical submitted funding is also considered when admitting new work.
+Unprepared legacy refund tabs must prepare again; historical settled receipts
+still replay without another payment.
+
+Public claim preparation additionally requires a short-lived signature from the
+link key, made locally by the browser. It binds deployment origin, network,
+phase, link key and (for TX2) destination, conversion floor and memo. Public-key
+knowledge alone cannot reserve a sponsor source. Policy checks and transaction
+signature checks still apply. Reopen the saved private claim URL after updating
+an old browser tab; its secret is never sent with the proof.
+
+This is serialized operation per hot source, not a throughput qualification or
+automatic cold-to-hot refill. The verification package is
+[source coordination evidence](reviews/2026-10-01/source-coordination/implementation.md).
+
+### Distribution lifecycle
 
 1. Sender creates an official USDC campaign, generates keys in the browser,
    and privately saves the recovery phrase and CSV. Only public link keys and
@@ -24,7 +81,8 @@ build output. Current PIDs are recorded in the implementation evidence.
    is disabled in this wizard because built-in delivery is deferred. Existing
    policies and server email APIs are retained; an email-policy template is
    refused before generating a new distribution instead of changing its policy.
-4. Recipient opens a URL and connects a wallet. TX1 materialises a sponsored
+4. Recipient opens a URL, connects a wallet, reviews its destination, then
+   presses **Claim**. Opening/connecting submits nothing. TX1 materialises a sponsored
    zero-XLM temporary account and its trustline. TX2 is prepared after a later
    closed ledger, with a minimum ledger bound, then claims, pays, removes the
    temporary trustline and merges the temporary account.
@@ -38,6 +96,20 @@ build output. Current PIDs are recorded in the implementation evidence.
    and its refund belong to the sender. Each batch is recomputed from live
    balances; already-claimed links are excluded. Historical `SENDER` campaigns
    retain their original fee model.
+7. **Renew returned funds** creates one linked successor only after the expired
+   round is fully reclaimed. It uses exactly the returned uniform link budget,
+   excluding claimed links. Choose the new expiry explicitly, save a new CSV,
+   and fund from the returned principal. Live links can be resent from their
+   saved CSV without another funding transaction. Existing successors are
+   displayed in the original campaign history and prevent another renewal.
+
+The earlier user reissue was independently funded before the original refund.
+After verifying that funding and the returned 2 USDC, its existing campaign was
+linked to the original as the historical replacement round. This repair changed
+only local history metadata, not ledger entries. Current balances: sender 15 USDC
+and zero XLM, recipient 2 USDC and zero XLM, replacement 1 USDC unclaimed until
+October 31 02:02 UTC / 10:02 Manila. Do not create another renewal of that original
+budget. [Renewal proof and limits](reviews/2026-10-01/renewal/implementation.md).
 
 ## Ownership and recovery
 
@@ -110,3 +182,35 @@ recipient **1 USDC / 0 XLM**, and sponsor **9999 spendable XLM**. With no other
 transactions, expected sender is **15 after funding, 16 after reclaim**;
 recipient is **2 after claiming**. Both retain zero XLM. Re-read balances at the
 actual test start; these are a timestamped preflight, not a permanent guarantee.
+
+## Prize distribution reliability — October 8, 2026
+
+Active source: D:/kleym/.worktrees/app-sending-pilot, codex/app-sending-pilot, base 4163d7954bff9c1582c0c405174cddbe6951da33; existing local work preserved. New changes refuse incomplete prize lists/plans, check all remaining sponsored USDC funding principal/reserves/fees, exclude confirmed batches and pause submitted ones. Amount limits use exact positive int64 stroops shared by CSV/API/browser; large review totals use 40-digit Decimal precision. Exact public registration retries are idempotent; changed prize terms/codes and duplicate keys are refused. See docs/reviews/2026-10-08/prize-funding/README.md and verification.json for final checks and source hashes.
+
+Final full unit suite: 661 tests / 54 files passed. Focused money boundary/retry tests use mocked DB/Horizon; the extended real PostgreSQL/Redis funding harness has NOT run because Docker Desktop startup failed on an inaccessible sailor-ingest.sock. Limited stop/rename recovery failed; no Docker data/socket deletion or reset was performed. Restore local Docker and rerun funding/source-coordination/app lifecycle before qualifying this candidate. Read-only Mainnet root/issuer/latest-ledger proof passed at ledger 64835115, zero writes; this is not a Mainnet transfer qualification.
+
+Whole remaining funding checks are fresh observations, not an atomic capital allocation or a future-claim reserve guarantee. Mainnet readiness remains unproven: real deployed wallet/device flows, Lantern directory-enabled rebuild, backup/restore, capital/caps/refill/incident ownership and approved release remain open. Railway remains paused; no deployments, wallet signatures, transfers or GitHub changes performed. Final static/build outcomes are in verification.json. Source changes remain local and uncommitted.
+
+## Individual prize amounts — October 8, 2026
+
+In the active app-sending-pilot checkout, the campaign UI now exposes existing per-link amount support directly: default amount per link, Prize amounts editor (10 rows/page), blank fields inherit the default, reset all, invalid-row errors, live exact total and read-only review breakdown. Example: five people at 20/15/10/default5/default5 =55 USDC. Row amounts align through browser keys/private CSV/public registration and sponsored SDK operations. Names preserve manual overrides; explicit CSV amount columns replace them, and manual edits synchronize imported CSV terms. Removed-link overrides are discarded when count shrinks. Public template snapshots preserve edited terms. Existing backend/ledger money guards and schema are reused.
+
+Full suite667/55 files, six focused amount/export/SDK tests, five real-Chromium actual-wizard UI checks with fixture reads and wallet/router stubs, focused lint, serial final TypeScript and production build passed. Screenshots inspected. Read docs/reviews/2026-10-08/custom-prizes/README.md and verification.json. Initial generated-types race and editor-collapse test failure retained; final checks pass after fixes. This is local UI/SDK proof, not deployed wallet/ledger acceptance. Railway remains paused; no deployment, live signatures, transfers or GitHub changes. Mixed-amount campaigns retain expiry reclaim but the existing automatic renewal gate still only permits equal-amount campaigns. Mainnet qualification remains open.
+
+## Reliability and test-plan preparation — October 8, 2026
+
+Funding preparation now avoids duplicate sender/sponsor/ledger reads within each
+request. Admission under the source lock still obtains fresh sequence, reserve and
+liability observations. The current combined fixture path uses five provider reads;
+the previous source required ten. No production throughput was measured.
+
+Private/reserved literal outbound destinations and redirects are refused across
+webhooks, screening, SSO and federation. SSO JWKS now uses the intended guarded
+transport. DNS rebinding/deployment egress remains a Mainnet gate. Native BullMQ
+loading removes queue bundling warnings without changing the configured backend.
+
+734 unit tests and five production-browser Lantern fixture checks pass, alongside
+TypeScript, lint and build. We can draft the Testnet plan; complete execution needs
+stable isolated DB/Redis, approved HTTPS candidate and actual wallet/device access,
+plus a directory-enabled Lantern rebuild. Railway remains paused and this source
+is local. [Full readiness assessment](reviews/2026-10-08/reliability-readiness/README.md).

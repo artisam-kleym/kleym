@@ -123,7 +123,7 @@ Structured JSON via `pino`. Redact by allowlist, not denylist — log named fiel
 
 - argon2id with sensible memory and time costs. Never bcrypt, never SHA-anything.
 - Sessions are opaque random tokens stored hashed (SHA-256) in Postgres. Not JWTs — JWTs cannot be revoked, and this application needs revocation.
-- Cookie: `__Host-kleym_session`, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`.
+- Cookie: `__Host-kleym_session`, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`. With explicitly configured Lantern origins, Chromium embedded sender sessions use `SameSite=None; Partitioned` plus exact-origin mutation checks. See `docs/lantern-integration.md`.
 - Rotate the session ID on login and on password change.
 - Rate limit login to 5 attempts per 15 minutes per IP, with per-account lockout after 10.
 - Identical error text and comparable response time for unknown username and wrong password.
@@ -145,7 +145,7 @@ Verify by loading the page with devtools open and confirming the network tab sho
 
 ### 5.3 Headers
 
-Set globally in `middleware.ts`: `Content-Security-Policy` (nonce-based), `Strict-Transport-Security` with preload, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` (overridden to `no-referrer` on `/claim`), and a restrictive `Permissions-Policy`.
+Set globally in `middleware.ts`: `Content-Security-Policy` (nonce-based), `Strict-Transport-Security` with preload, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` (overridden to `no-referrer` on `/claim`), and a restrictive `Permissions-Policy`. Explicit Lantern integration permits only designated sender/public routes to be framed by exact configured wallet origins; those pages omit X-Frame-Options. Administration stays unframeable. See `docs/lantern-integration.md`.
 
 ### 5.4 Input handling
 

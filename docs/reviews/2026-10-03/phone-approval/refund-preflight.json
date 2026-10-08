@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-10-03T15:54:16.603Z",
+  "network": "testnet",
+  "campaignId": "cmushrocg00040dodb0ev2end",
+  "sender": {
+    "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "native": "0.0000000",
+    "usdc": "11.0000000"
+  },
+  "balances": [
+    {
+      "id": "00000000d31a8726462329700b86caf6b1f5f70ea531aed7f66adf0e94a5808f8b6b043f",
+      "status": 404
+    },
+    {
+      "id": "000000004135ddc5c1aae0e2fba04f1961313f6da52504fb6fb39ccad37c4ec061fd397a",
+      "status": 404
+    }
+  ],
+  "agentLedgerWrites": 0
+}

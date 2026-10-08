@@ -1,5 +1,6 @@
 /** Pure federation host, TOML and memo validation, shared with the route and tests. */
 import { checkMemo, memoTypeFromFederation } from './memo'
+import { isPublicHostname } from '@/lib/validation/public-host'
 
 export function isPublicHost(hostname: string): boolean {
   const raw = hostname.toLowerCase().replace(/\.$/, '')
@@ -17,19 +18,7 @@ export function isPublicHost(hostname: string): boolean {
   } catch {
     return false
   }
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
-    const [a, b] = host.split('.').map(Number) as [number, number, number, number]
-    if (a === 10 || a === 127 || a === 0 || a >= 224) return false
-    if (a === 172 && b! >= 16 && b! <= 31) return false
-    if (a === 192 && b === 168) return false
-    if (a === 169 && b === 254) return false
-    if (a === 100 && b! >= 64 && b! <= 127) return false
-    if (a === 192 && b === 0) return false
-    if (a === 198 && (b === 18 || b === 19)) return false
-    return true
-  }
-  if (host === 'localhost' || /\.(local|internal|localhost|home|lan|corp|intranet)$/.test(host)) return false
-  return /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/.test(host)
+  return isPublicHostname(host)
 }
 
 export function federationServerOf(toml: string): string | null {

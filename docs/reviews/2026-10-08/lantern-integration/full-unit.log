@@ -1,0 +1,43 @@
+
+ RUN  v4.1.11 D:/kleym/.worktrees/app-sending-pilot
+
+{"level":30,"time":1791459945603,"pid":10096,"hostname":"Adealix","created":1,"checked":0,"priced":0,"msg":"valuation pass: rows created and priced"}
+{"level":30,"time":1791459945605,"pid":10096,"hostname":"Adealix","created":1,"checked":0,"priced":0,"msg":"valuation pass: rows created and priced"}
+{"level":30,"time":1791459945607,"pid":10096,"hostname":"Adealix","created":0,"checked":2,"priced":1,"msg":"valuation pass: rows created and priced"}
+{"level":50,"time":1791459946708,"pid":26912,"hostname":"Adealix","deliveryId":"d1","reason":"redis gone","msg":"could not queue a reminder; continuing"}
+{"level":50,"time":1791459946710,"pid":26912,"hostname":"Adealix","deliveryId":"d1","reason":"db gone","msg":"could not queue a reminder; continuing"}
+{"level":50,"time":1791459946712,"pid":26912,"hostname":"Adealix","deliveryId":"d1","reason":"connection dropped after the write","msg":"could not queue a reminder; continuing"}
+{"level":30,"time":1791459946713,"pid":26912,"hostname":"Adealix","actorId":"admin","redacted":1,"msg":"erasure request honoured"}
+{"level":50,"time":1791459947448,"pid":12852,"hostname":"Adealix","templateId":"template","campaignId":"campaign","reason":"audit unavailable","msg":"prepared run audit could not be recorded"}
+{"level":30,"time":1791459947448,"pid":12852,"hostname":"Adealix","templateId":"template","campaignId":"campaign","kind":"SCHEDULED","linkCount":1,"msg":"template run prepared"}
+{"level":30,"time":1791459947455,"pid":12852,"hostname":"Adealix","templateId":"template","campaignId":"campaign","kind":"SCHEDULED","linkCount":1,"msg":"template run prepared"}
+{"level":50,"time":1791459947456,"pid":12852,"hostname":"Adealix","templateId":"template","campaignId":"campaign","reason":"notification unavailable","msg":"prepared run notification failed"}
+ ❯ tests/lib/api/stellar-boundaries.test.ts (26 tests | 3 failed) 95ms
+     × claim submit refuses a mismatched provider before envelope/signature/submission work 15ms
+     × materialise submit refuses a mismatched provider before envelope/signature/submission work 8ms
+     × returns the exact recorded claim replay during a provider outage 8ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/lib/api/stellar-boundaries.test.ts > every monetary API entry point > claim submit refuses a mismatched provider before envelope/signature/submission work
+ FAIL  tests/lib/api/stellar-boundaries.test.ts > every monetary API entry point > materialise submit refuses a mismatched provider before envelope/signature/submission work
+ FAIL  tests/lib/api/stellar-boundaries.test.ts > every monetary API entry point > returns the exact recorded claim replay during a provider outage
+TypeError: Cannot read properties of undefined (reading 'findUnique')
+ ❯ submitClaimUnobserved src/lib/api/claims.ts:772:46
+    770|
+    771|   const hash = transaction.hash().toString('hex')
+    772|   const attempt = await prisma.ledgerAttempt.findUnique({ where: { sco…
+       |                                              ^
+    773|   if (!attempt || attempt.transactionHash !== hash) return conflict('T…
+    774|   const required = (attempt.metadata as { requiredSigners: string[] })…
+ ❯ kind src/lib/observability/claims.ts:27:24
+ ❯ src/lib/observability/tracing.ts:36:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+
+ Test Files  1 failed | 49 passed (50)
+      Tests  3 failed | 617 passed (620)
+   Start at  19:45:41
+   Duration  10.76s (transform 6.44s, setup 37.53s, import 56.03s, tests 5.96s, environment 7ms)
+

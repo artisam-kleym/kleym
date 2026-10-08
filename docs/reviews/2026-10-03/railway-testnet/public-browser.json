@@ -1,0 +1,54 @@
+{
+  "checkedAt": "2026-10-03T13:20:57.666Z",
+  "origin": "https://kleym-web-testnet.up.railway.app",
+  "adminLoginPassed": true,
+  "freshCloudCampaignCount": 0,
+  "manualReconcileQueued": true,
+  "wizardNetwork": "testnet",
+  "wizardOfficialUsdc": true,
+  "publicClaimHydrated": true,
+  "configuredWalletConnectProject": true,
+  "androidViewport": "393x851 Chromium; not physical Android",
+  "thirdPartyRequestsOnOpen": [],
+  "browserErrors": 0,
+  "statusHttp": 200,
+  "publicStatus": {
+    "generatedAt": "2026-10-03T13:20:53.036Z",
+    "overall": "degraded",
+    "components": [
+      {
+        "name": "Database",
+        "state": "operational",
+        "note": "answering"
+      },
+      {
+        "name": "Queue and cache",
+        "state": "operational",
+        "note": "answering"
+      },
+      {
+        "name": "Stellar network (Horizon)",
+        "state": "operational",
+        "note": "answering"
+      },
+      {
+        "name": "Background workers",
+        "state": "operational",
+        "note": "draining"
+      },
+      {
+        "name": "Claim sponsorship",
+        "state": "operational",
+        "note": "operational"
+      },
+      {
+        "name": "Ledger reconciliation",
+        "state": "degraded",
+        "note": "a scheduled pass has not run"
+      }
+    ]
+  },
+  "newCampaignsCreated": 0,
+  "ledgerTransactionsSubmitted": 0,
+  "qualification": "Public login/UI/configuration and empty-database maintenance trigger proof only; real Android signing and funded settlement still pending."
+}

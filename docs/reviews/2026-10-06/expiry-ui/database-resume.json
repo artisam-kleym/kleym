@@ -1,0 +1,71 @@
+{
+  "checkedAt": "2026-10-06T11:14:34.242Z",
+  "before": {
+    "environment": {
+      "serviceInstances": {
+        "edges": [
+          {
+            "node": {
+              "activeDeployments": [],
+              "latestDeployment": null,
+              "serviceId": "37702f7c-d942-4b00-96aa-16b5c4a8b58e",
+              "source": {
+                "image": "ghcr.io/railwayapp-templates/postgres-ssl:18",
+                "repo": null
+              }
+            }
+          },
+          {
+            "node": {
+              "activeDeployments": [],
+              "latestDeployment": null,
+              "serviceId": "45121e0c-a4e7-4961-8004-102e6dfa6d03",
+              "source": {
+                "image": "redis:8.2",
+                "repo": null
+              }
+            }
+          },
+          {
+            "node": {
+              "activeDeployments": [],
+              "latestDeployment": null,
+              "serviceId": "4d547645-da9f-4e1e-aec3-2511f6239fc3",
+              "source": {
+                "image": null,
+                "repo": null
+              }
+            }
+          },
+          {
+            "node": {
+              "activeDeployments": [],
+              "latestDeployment": null,
+              "serviceId": "2490753a-e4ba-471c-87c9-a6dd7d74d567",
+              "source": {
+                "image": null,
+                "repo": null
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "results": [
+    {
+      "service": "37702f7c-d942-4b00-96aa-16b5c4a8b58e",
+      "image": "ghcr.io/railwayapp-templates/postgres-ssl@sha256:4b89e3c89d9262f02f23e927ff9f1390a19f7c03e2483321bc05c30872a333a3",
+      "deploy": {
+        "serviceInstanceDeployV2": "e30d0532-dbb9-4964-89f3-46c214853754"
+      }
+    },
+    {
+      "service": "45121e0c-a4e7-4961-8004-102e6dfa6d03",
+      "image": "redis@sha256:164c759a0c342ee69d08fc99219382b0fd682181465c0df2e0e6911f4c85d73c",
+      "deploy": {
+        "serviceInstanceDeployV2": "829424a6-4c5f-436f-a330-131566d3f730"
+      }
+    }
+  ]
+}

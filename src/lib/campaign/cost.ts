@@ -7,6 +7,9 @@
  */
 import Decimal from 'decimal.js'
 import { batchCount } from '@/lib/stellar/batch'
+import { isStellarAmount } from '@/lib/stellar/amount'
+
+const ExactAmount = Decimal.clone({ precision: 40 })
 
 export interface CostInput {
   /** The default per link — and the whole answer for a uniform campaign. */
@@ -34,6 +37,9 @@ export interface CostBreakdown {
 }
 
 export function computeCost(input: CostInput): CostBreakdown {
+  if (!isStellarAmount(input.amountPerLink) || input.amounts?.slice(0, input.linkCount).some((amount) => amount !== null && !isStellarAmount(amount))) {
+    throw new Error('Use a positive amount within the Stellar limit, with at most seven decimal places.')
+  }
   const links = new Decimal(input.linkCount)
   const capacity = input.maxOpsPerBatch - (input.sponsored ? 2 : 0)
   const batches = batchCount(input.linkCount, capacity)
@@ -56,12 +62,12 @@ export function computeCost(input: CostInput): CostBreakdown {
  * default otherwise; entries past the count are not links and do not count.
  */
 function totalAmount(input: CostInput): Decimal {
-  const fallback = new Decimal(input.amountPerLink)
+  const fallback = new ExactAmount(input.amountPerLink)
   if (!input.amounts) return fallback.times(input.linkCount)
-  let total = new Decimal(0)
+  let total = new ExactAmount(0)
   for (let index = 0; index < input.linkCount; index += 1) {
     const own = input.amounts[index]
-    total = total.plus(own ? new Decimal(own) : fallback)
+    total = total.plus(own ? new ExactAmount(own) : fallback)
   }
   return total
 }

@@ -88,6 +88,7 @@ export async function loadCampaignDetail(id: string, organizationId: string) {
     select: {
       id: true, userId: true, signedById: true, name: true, status: true, assetCode: true, amountPerLink: true, receiveAsAssets: true, variableAmounts: true, derivationIndex: true, keyFingerprint: true, claimPolicy: true, allowExchangeDeposit: true, emailReceipts: true,
       linkCount: true, expiresAt: true, senderPublicKey: true, network: true, fundingMode: true,
+      renewalOfId: true, renewalBudget: true, renewal: { select: { id: true, status: true } },
       screeningDecision: true, screeningReason: true, screenedAt: true,
       suspendedAt: true, reclaimDueAt: true,
       links: { orderBy: LINK_ORDER, take: LINK_PREVIEW, select: LINK_SELECT },

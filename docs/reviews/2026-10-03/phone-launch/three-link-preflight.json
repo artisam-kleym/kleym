@@ -1,0 +1,52 @@
+{
+  "checkedAt": "2026-10-03T15:06:35.290Z",
+  "origin": "https://kleym-web-testnet.up.railway.app",
+  "network": "testnet",
+  "campaignId": "cmushrocg00040dodb0ev2end",
+  "campaignStatus": "ACTIVE",
+  "expiresAt": "2026-10-03T14:46:00.000Z",
+  "expiredNow": true,
+  "funding": {
+    "hash": "0011288ac05f0b7e96517a968ffa410f1244b242788018ce2f19e332c9620212",
+    "ledger": 5002883,
+    "sponsorPaysFees": true,
+    "feeChargedStroops": "500",
+    "threeExactSenderOwnedUsdcBalances": true,
+    "senderAndSponsorSignaturesVerified": true
+  },
+  "desktopClaim": {
+    "hash": "c60c9596b6982b5c3ccdfd148a28d253112d977d2ce50276d97d7ea0d2945aa3",
+    "ledger": 5002900,
+    "recipient": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+    "amount": "1.0000000",
+    "sponsorPaysFees": true,
+    "feeChargedStroops": "400",
+    "cleanupMergePresent": true
+  },
+  "accounts": [
+    {
+      "address": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "xlm": "0.0000000",
+      "usdc": "12.0000000"
+    },
+    {
+      "address": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "xlm": "0.0000000",
+      "usdc": "3.0000000"
+    }
+  ],
+  "outstanding": [
+    {
+      "balanceId": "00000000d31a8726462329700b86caf6b1f5f70ea531aed7f66adf0e94a5808f8b6b043f",
+      "amount": "1.0000000",
+      "sponsor": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK"
+    },
+    {
+      "balanceId": "000000004135ddc5c1aae0e2fba04f1961313f6da52504fb6fb39ccad37c4ec061fd397a",
+      "amount": "1.0000000",
+      "sponsor": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK"
+    }
+  ],
+  "recovery": "Two expired unused 1-USDC links remain; sender should reclaim 2 USDC before renewing only those two links. Do not repeat the paid desktop link or create another independent budget.",
+  "writes": "Operator login/session only; no campaign mutation, wallet signing or ledger submissions"
+}

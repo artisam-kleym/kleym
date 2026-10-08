@@ -515,6 +515,11 @@ model WebhookDelivery {
 
 model Campaign {
   id                   String             @id @default(cuid())
+  /// A renewal spends only confirmed refunds from this previous round. One successor per round.
+  renewalOfId          String?            @unique
+  renewalBudget        Decimal?           @db.Decimal(23, 7)
+  renewalOf            Campaign?          @relation("CampaignRenewal", fields: [renewalOfId], references: [id], onDelete: Restrict)
+  renewal              Campaign?          @relation("CampaignRenewal")
   /// Who created it. Ownership is the ORGANISATION; this is provenance.
   userId               String
   organizationId       String

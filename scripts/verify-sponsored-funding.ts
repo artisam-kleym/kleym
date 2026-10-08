@@ -9,10 +9,14 @@ import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 assert.equal(process.env.NODE_ENV, 'test')
+// Two links per sponsored batch makes remaining-campaign admission observable.
+process.env.MAX_OPS_PER_BATCH = '4'
 const sender = Keypair.random()
 const sponsor = Keypair.fromSecret(process.env.SPONSOR_SECRET_KEY!)
 let principal = '100'
 let spendable = '100'
+let authorized = true
+let sellingLiabilities = '0'
 let submissions = 0
 let indexed = false
 let latest: Transaction | null = null
@@ -68,7 +72,7 @@ const server = createServer(async (request, response) => {
   else if (request.url === `/accounts/${sender.publicKey()}` || request.url === `/accounts/${sponsor.publicKey()}`) {
     const isSender = request.url.endsWith(sender.publicKey())
     record = { account_id: isSender ? sender.publicKey() : sponsor.publicKey(), sequence: '100', subentry_count: isSender ? 1 : 0, num_sponsored: isSender ? 3 : 0, num_sponsoring: 0,
-      balances: [{ asset_type: 'native', balance: isSender ? '0' : spendable, selling_liabilities: '0' }, ...(isSender ? [{ asset_type: 'credit_alphanum4', asset_code: 'USDC', asset_issuer: issuer, balance: principal, selling_liabilities: '0' }] : [])] }
+      balances: [{ asset_type: 'native', balance: isSender ? '0' : spendable, selling_liabilities: '0' }, ...(isSender ? [{ asset_type: 'credit_alphanum4', asset_code: 'USDC', asset_issuer: issuer, balance: principal, selling_liabilities: sellingLiabilities, is_authorized: authorized }] : [])] }
   } else { response.writeHead(404); record = { status: 404 } }
   response.end(JSON.stringify(record))
 })
@@ -78,6 +82,7 @@ assert(address && typeof address !== 'string')
 process.env.HORIZON_URL = `http://127.0.0.1:${address.port}/`
 const { prisma } = await import('../src/lib/db/client')
 const { prepareBatch, submitBatch } = await import('../src/lib/api/batches')
+const { registerLinks } = await import('../src/lib/api/links')
 const { confirmOne } = await import('../src/workers/batch-confirm')
 const { recoverSubmittedFunding, batchConfirmQueue, batchConfirmJobId } = await import('../src/lib/queue/batch-confirm')
 const { stellarMetadata } = await import('../src/lib/stellar/network')
@@ -91,7 +96,13 @@ try {
   userId = user.id
   const org = await personalOrg(prisma, user.id)
   const campaign = await prisma.campaign.create({ data: { userId: user.id, organizationId: org, name: 'Sponsored funding fixture', network: 'testnet', fundingMode: 'SPONSORED', sponsorPublicKey: sponsor.publicKey(), senderPublicKey: sender.publicKey(), assetCode: 'USDC', assetIssuer: issuer, amountPerLink: '1', linkCount: 2, expiresAt: new Date(Date.now() + 86400000), csvExportedAt: new Date() } })
-  await prisma.claimLink.createMany({ data: [1, 2].map((i) => ({ campaignId: campaign.id, ephemeralPublicKey: Keypair.random().publicKey(), amount: `${i}` })) })
+  await prisma.claimLink.create({ data: { campaignId: campaign.id, ephemeralPublicKey: Keypair.random().publicKey(), amount: '1' } })
+  check('an incomplete prize list refuses before any funding plan exists', (await prepareBatch(campaign.id, org, {})).kind === 'conflict' && await prisma.batch.count({ where: { campaignId: campaign.id } }) === 0)
+  await prisma.claimLink.create({ data: { campaignId: campaign.id, ephemeralPublicKey: Keypair.random().publicKey(), amount: '2' } })
+  const registeredPrizes = await prisma.claimLink.findMany({ where: { campaignId: campaign.id }, orderBy: { amount: 'asc' } })
+  const replayRegistration = await registerLinks(campaign.id, org, registeredPrizes.map((prize) => prize.ephemeralPublicKey), undefined, undefined, ['1', '2'])
+  check('a lost registration response can be retried without adding prizes', replayRegistration.kind === 'ok' && replayRegistration.registered === 0 && replayRegistration.total === 2)
+  check('registration replay cannot change an existing prize amount', (await registerLinks(campaign.id, org, registeredPrizes.map((prize) => prize.ephemeralPublicKey), undefined, undefined, ['1', '3'])).kind === 'budget')
   check('foreign organisation cannot prepare', (await prepareBatch(campaign.id, 'foreign', {})).kind === 'not-found')
   await prisma.campaign.update({ where: { id: campaign.id }, data: { csvExportedAt: null } })
   check('funding refuses before the local backup is recorded', (await prepareBatch(campaign.id, org, {})).kind === 'conflict')
@@ -101,6 +112,29 @@ try {
   principal = '100'; spendable = '1'
   check('insufficient sponsor capacity refuses', (await prepareBatch(campaign.id, org, {})).kind === 'conflict')
   spendable = '100'
+  authorized = false
+  check('a frozen sender trustline refuses before wallet signing', (await prepareBatch(campaign.id, org, {})).kind === 'conflict')
+  authorized = true; principal = '3'; sellingLiabilities = '0.0000001'
+  check('USDC committed to selling liabilities is unavailable for prizes', (await prepareBatch(campaign.id, org, {})).kind === 'conflict')
+  sellingLiabilities = '0'; principal = '100'
+
+  const multiple = await prisma.campaign.create({ data: { userId: user.id, organizationId: org, name: 'Multi-batch admission', network: 'testnet', fundingMode: 'SPONSORED', sponsorPublicKey: sponsor.publicKey(), senderPublicKey: sender.publicKey(), assetCode: 'USDC', assetIssuer: issuer, amountPerLink: '1', linkCount: 3, expiresAt: new Date(Date.now() + 86400000), csvExportedAt: new Date() } })
+  await prisma.claimLink.createMany({ data: [1, 2, 3].map(() => ({ campaignId: multiple.id, ephemeralPublicKey: Keypair.random().publicKey(), amount: '1' })) })
+  principal = '2'
+  check('enough USDC for batch one but not all prizes refuses without a prepared envelope', (await prepareBatch(multiple.id, org, {})).kind === 'conflict' && await prisma.batch.count({ where: { campaignId: multiple.id, preparedXdr: { not: null } } }) === 0)
+  principal = '3'; spendable = '3.0004' // 2.0004 spendable; batch one fits, the remaining campaign does not.
+  check('enough XLM for batch one but not the remaining campaign refuses', (await prepareBatch(multiple.id, org, {})).kind === 'conflict')
+  const first = await prisma.batch.findFirstOrThrow({ where: { campaignId: multiple.id, sequence: 1 } })
+  await prisma.batch.update({ where: { id: first.id }, data: { status: 'CONFIRMED' } })
+  await prisma.claimLink.updateMany({ where: { batchId: first.id }, data: { status: 'ACTIVE' } })
+  const second = await prisma.batch.findFirstOrThrow({ where: { campaignId: multiple.id, sequence: 2 } })
+  await prisma.batch.update({ where: { id: second.id }, data: { status: 'FAILED' } })
+  principal = '1'; spendable = '2.0003' // Exactly one remaining reserve plus its three-operation fee.
+  const resumed = await prepareBatch(multiple.id, org, {})
+  check('a failed remaining batch resumes without requiring already-funded principal or reserves again', resumed.kind === 'ok' && resumed.value.sequence === 2 && resumed.value.linkCount === 1)
+  check('remaining-budget checks never submit a transaction', submissions === 0)
+  await prisma.campaign.delete({ where: { id: multiple.id } })
+  principal = '100'; spendable = '100'
   const prepared = await prepareBatch(campaign.id, org, {})
   assert.equal(prepared.kind, 'ok')
   if (prepared.kind !== 'ok') throw new Error('prepare refused')

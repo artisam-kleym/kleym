@@ -68,6 +68,9 @@ importers:
       '@stellar/stellar-sdk':
         specifier: ^16.2.0
         version: 16.2.0
+      '@walletconnect/sign-client':
+        specifier: 2.23.0
+        version: 2.23.0(bufferutil@4.1.0)(ioredis@6.0.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3)
       argon2:
         specifier: ^0.45.1
         version: 0.45.1

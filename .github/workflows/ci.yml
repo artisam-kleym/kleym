@@ -530,43 +530,6 @@ jobs:
           fi
           echo "clean"
 
-      # Regression guard for the leak fixed in ff1beb7, closing the loop: rather
-      # than hardcoding key names here, this checks that every secret-shaped key
-      # in the env schema is classified in SECRET_ENV_KEYS, which the logger
-      # derives its redact paths from. A seventh secret cannot be added without
-      # a decision being recorded.
-      - name: Every env secret is classified and redacted
-        run: |
-          # Keys matching a secret shape that are genuinely NOT secrets.
-          # Adding to this list is a deliberate act, which is the point.
-          NOT_SECRET="SPONSOR_PUBLIC_KEY APP_URL HORIZON_URL"
-
-          registered=$(sed -n '/export const SECRET_ENV_KEYS/,/] as const/p' src/lib/config/env.ts \
-                        | grep -oE "'[A-Z0-9_]+'" | tr -d "'")
-          schema_keys=$(grep -oE '^  [A-Z][A-Z0-9_]*:' src/lib/config/env.ts | tr -d ' :')
-
-          fail=0
-          for key in $schema_keys; do
-            case "$key" in
-              *SECRET*|*PASSWORD*|*TOKEN*|*_KEY|*_URL) ;;
-              *) continue ;;
-            esac
-            echo "$NOT_SECRET" | tr ' ' '\n' | grep -qx "$key" && continue
-            if ! echo "$registered" | grep -qx "$key"; then
-              echo "::error::$key looks like a secret but is not in SECRET_ENV_KEYS (src/lib/config/env.ts). Classify it, or add it to NOT_SECRET in this workflow."
-              fail=1
-            fi
-          done
-
-          # And the logger must actually SPREAD that list into redact.paths.
-          # Grepping for the bare name is not enough — the import line alone
-          # would satisfy it while the usage was gone.
-          if ! grep -qE '\.\.\.SECRET_ENV_KEYS\s*\.flatMap' src/lib/config/logger.ts; then
-            echo "::error::logger.ts no longer derives redact paths from SECRET_ENV_KEYS"
-            fail=1
-          fi
-          exit $fail
-
       # Issue #53. Span attributes and metric labels are a log by another name,
       # and the logger's redaction does not see them. Two guards: every
       # attribute must pass through `safeAttributes` (so nothing in src/ may
@@ -610,6 +573,13 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Planted key material never survives safeAttributes
         run: pnpm vitest run tests/lib/observability
+
+      # #109: actual schema membership, including future SEED names, plus
+      # emitted Pino serialization rather than an import/name-only source grep.
+      - name: Every env secret is classified and redacted
+        run: |
+          pnpm exec tsx scripts/check-secret-classification.ts
+          pnpm exec vitest run tests/lib/config/secret-classification.test.ts
 
       # #77. A BIP39 recovery phrase is a seed in a different alphabet and the
       # greps above cannot see it. The same detector the request guard uses,

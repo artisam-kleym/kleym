@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic'
 export default async function NewCampaignPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { org } = await pageScope()
   const params = await searchParams
-  const reissueId = typeof params.reissue === 'string' ? params.reissue : null
+  const reissueId = typeof params.renew === 'string' ? params.renew : typeof params.reissue === 'string' ? params.reissue : null
   // Reissue (#78): the source campaign's terms, or why not. Decided in the loader, not here.
   const { reissue, refused } = reissueId ? await loadReissueSource(reissueId, org.id) : { reissue: null, refused: null }
   // Template (#82): a fresh run of a template, or a prepared DRAFT to finish. Decided in the loader.
@@ -49,7 +49,7 @@ export default async function NewCampaignPage({ searchParams }: { searchParams: 
         why the export in step 3 is the only copy that will ever exist.
       </p>
 
-      <CampaignWizard
+      {!refused && !templateRefused && <CampaignWizard
         stellar={stellarMetadata(env.STELLAR_NETWORK)}
         appUrl={env.APP_URL}
         maxOpsPerBatch={env.MAX_OPS_PER_BATCH}
@@ -58,7 +58,7 @@ export default async function NewCampaignPage({ searchParams }: { searchParams: 
         screening={org.screeningUrl !== null}
         reissue={reissue}
         template={template}
-      />
+      />}
     </>
   )
 }

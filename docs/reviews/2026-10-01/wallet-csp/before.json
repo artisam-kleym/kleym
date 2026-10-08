@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-10-01T08:32:24.818Z",
+  "error": "Cannot read properties of null (reading 'insertRule')",
+  "violations": [
+    {
+      "directive": "style-src-elem",
+      "blocked": "inline"
+    }
+  ],
+  "noExtensionInstalled": true,
+  "noWalletSignature": true,
+  "noChainWrites": true
+}

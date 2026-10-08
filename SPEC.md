@@ -644,7 +644,7 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 
 ### 6.1 Conventions
 
-- **Auth:** session cookie (`__Host-kleym_session`, `HttpOnly`, `Secure`, `SameSite=Lax`) for the app; `Authorization: Bearer <api_key>` for the public API.
+- **Auth:** session cookie (`__Host-kleym_session`, `HttpOnly`, `Secure`, `SameSite=Lax`) for the app; `Authorization: Bearer <api_key>` for the public API. Explicitly enabled Lantern deployments use `SameSite=None; Partitioned` with exact-origin mutation checks for embedded sender sessions; see `docs/lantern-integration.md`.
 - **Validation:** every input parsed with Zod. Reject unknown keys.
 - **Idempotency:** all `POST` that touch chain state require an `Idempotency-Key` header.
   The key is scoped to the user — `@@id([userId, key])`, amended from `key @id`.

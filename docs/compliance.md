@@ -40,16 +40,34 @@ own process, so the URL is treated as hostile input:
 - **No redirects.** The request is sent with `redirect: 'error'`, deliberately: a
   redirect is a way to turn an approved public hostname into a request to somewhere
   else, and a provider that redirects is answered with a HOLD.
-- **No loopback in production.** Otherwise any organisation Owner could make Kleym
+- **No private or reserved literal addresses in production.** URL-parser-normalized
+  IPv4 (including shorthand, octal and hexadecimal), IPv6 loopback/private/link-local,
+  mapped/translation/transition ranges, documentation ranges and local hostnames
+  are refused. Only public HTTPS destinations without credentials pass; isolated
+  non-production HTTP/HTTPS loopback fixtures remain supported. Otherwise an Owner could make Kleym
   POST to whatever shares the application host — the Next.js server, a metrics
   sidecar, a co-located service.
 - **Stated limitation:** Kleym does **not** resolve the hostname before connecting.
   An HTTPS hostname that resolves — or later rebinds — to a private, link-local or
   metadata address is not detected here. Deploy so that the application host cannot
-  reach internal services over HTTPS (egress policy, a network without internal
-  HTTPS endpoints, or an egress proxy that only permits public ranges). The response
-  is not echoed except through the 300-character `reason` field, so what leaks on a
-  successful SSRF is bounded, but the request is still made.
+  reach internal services over HTTPS using an enforced egress policy/proxy that
+  validates resolved addresses and every connection. This is a Mainnet release
+  gate, not protection established by URL-parser tests. Do not rely on a one-time
+  DNS preflight: a later lookup could return a different address.
+
+The same canonical host rule applies to webhook, screening, OIDC and federation
+requests. Stored webhook/screening URLs and OIDC issuer/endpoint requests are
+revalidated when executed, so a previously accepted private HTTPS URL is refused
+without sending its payload. The shared request wrapper forces `redirect: 'error'`.
+SSO discovery caches are separated by environment; the actual `jose.customFetch`
+export routes JWKS downloads through the same wrapper. Transport errors are
+recorded using fixed categories, without echoing URLs or provider error text.
+
+The literal-range policy conservatively excludes special IPv6 protocol assignment
+ranges and admits global unicast only. Range references: [IANA IPv4](https://www.iana.org/assignments/iana-ipv4-special-registry/)
+and [IANA IPv6](https://www.iana.org/assignments/iana-ipv6-special-registry/), reviewed
+2026-10-08. Reassess the policy if an integration legitimately requires a excluded
+special-purpose range; do not bypass it with an unrestricted fetch.
 
 Deployment-wide environment:
 

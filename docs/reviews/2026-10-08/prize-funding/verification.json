@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-08",
+  "branch": "codex/app-sending-pilot",
+  "base_commit": "4163d7954bff9c1582c0c405174cddbe6951da33",
+  "candidate": "Local working tree, with preserved prior changes",
+  "unit_tests": {
+    "status": "passed",
+    "evidence": "unit-tests-qualified.log",
+    "files": 54,
+    "tests": 661
+  },
+  "focused_funding": {
+    "status": "passed",
+    "evidence": "funding-unit-tests.log",
+    "tests": 10
+  },
+  "amount_boundaries": {
+    "status": "passed",
+    "evidence": "funding-unit-tests.log",
+    "tests": 14
+  },
+  "registration_recovery": {
+    "status": "passed",
+    "evidence": "registration-tests.log",
+    "tests": 9
+  },
+  "lint": {
+    "evidence": "lint-qualified.log",
+    "status": "passed"
+  },
+  "typecheck": {
+    "evidence": "typecheck-qualified.log",
+    "status": "passed"
+  },
+  "build": {
+    "status": "passed",
+    "evidence": "build-qualified.log",
+    "command": "next build --webpack"
+  },
+  "postgres_redis_integration": {
+    "status": "not run on this candidate",
+    "evidence": "database-runtime.log",
+    "reason": "Docker Desktop startup failed on inaccessible sailor-ingest.sock",
+    "harness": "scripts/verify-sponsored-funding.ts"
+  },
+  "mainnet_identity": {
+    "qualification": "Read-only provider, issuer account and ledger identity, zero writes",
+    "status": "passed",
+    "evidence": "public-network.json"
+  },
+  "real_wallet_test": "Not performed",
+  "mainnet_release": "Not qualified",
+  "deployment": "Not performed; Railway remains paused",
+  "asset_transfers": 0,
+  "limitations": [
+    "Whole-campaign funding capacity is observed, not reserved across campaigns",
+    "Future claim/recipient sponsorship capital requires separate headroom",
+    "Later funding interruptions can still leave confirmed prizes in a partial campaign",
+    "Current Lantern package requires Kleym directory-enabled rebuild and physical-device acceptance",
+    "Operational caps, capital, backup/restore and approved rollout remain required"
+  ],
+  "source_sha256": {
+    "src/lib/stellar/amount.ts": "db4e9df9bac1adcad850b51d5715d4269abdc8440c43772525c378aa67477e4b",
+    "src/lib/api/batches.ts": "846491c72609dd04a416dce0b7a246cfe9182f3fd84f2e24be028447d947fac6",
+    "src/lib/api/campaigns.ts": "0fe71b829dd2ffdfd77a2102cfc0e2130c71955cd7cd8ccd6e7282df9c9dc4b8",
+    "src/lib/api/links.ts": "b85a3a41753e31d62cbdfe182e39a6c4fd06af46610f1ba1364d488bb6cec7db",
+    "src/lib/campaign/csv.ts": "5d15b349dbfdae810ed2d4418a77870289f214769e98b0594fe6430b5c3f1ce1",
+    "src/lib/campaign/cost.ts": "0038ab2e98791b4baaedba553d9e911b023e661509ce2fefa3c6ad10f966b604",
+    "src/app/(sender)/campaigns/new/wizard.tsx": "86531f1e503012b633878d6b18d2c2a006ad7c6c6289e4105a2047f1f098468a",
+    "src/app/(sender)/campaigns/new/steps.tsx": "76b60f1a507078f54d1df7d1336e4da391df1723a20539ab43032dd75bd26e5f",
+    "scripts/verify-sponsored-funding.ts": "fac1e14d9c110e15744a1e4a4a9fa484ef4a991793b0215bfe76a61354b5a0b5",
+    "tests/lib/api/campaigns.test.ts": "bcbaaee464903082a453357de1449c92c621929a4bdd73bc31fdde35b557ba86",
+    "tests/lib/api/prize-funding.test.ts": "02038693954928b0493686ea8feaa2be00c41d47f49f36a0ccb6db6087bda6bb",
+    "tests/lib/api/prize-registration.test.ts": "a477a25c3cbfe69c763203f7f911f4f09fe408b8767b6a2891aba733ce975c16",
+    "tests/lib/stellar/amount.test.ts": "71cf389e5b1410f59251528bbc1de716b00148a25321395d8d197ff367961903"
+  }
+}

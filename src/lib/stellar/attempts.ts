@@ -4,6 +4,7 @@ import { env } from '@/lib/config/env'
 import { horizon } from './horizon'
 import type { LedgerAttempt, Prisma } from '@/generated/prisma/client'
 import { feeChargedOf } from './fees'
+import { coordinateSource, SourceCoordinationError } from './source-coordination'
 
 export interface LedgerResult {
   hash: string
@@ -43,16 +44,20 @@ export function hasSignature(transaction: Transaction, publicKey: string): boole
 export async function prepareAttempt(
   scope: string, campaignId: string, kind: string, xdr: string, metadata: Prisma.InputJsonObject,
 ): Promise<LedgerAttempt> {
-  return prisma.$transaction(async (db) => {
+  return coordinateSource(parseAttempt(xdr), { scope }, async (db, check) => {
     await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${scope}))`
     const prior = await db.ledgerAttempt.findUnique({ where: { scope } })
     if (prior && prior.status !== 'FAILED' && prior.status !== 'CONFIRMED' && prior.status !== 'SETTLED') {
       const maxTime = Number(parseAttempt(prior.preparedXdr).timeBounds?.maxTime ?? 0)
       // An uncertain submission is never replaced, even after its timeout.
-      if (prior.status === 'SUBMITTED' || maxTime > Date.now() / 1000) return prior
+      if (prior.status === 'SUBMITTED') return prior
+      if (maxTime > Date.now() / 1000 && parseAttempt(prior.preparedXdr).sequence === parseAttempt(xdr).sequence) {
+        await check(parseAttempt(prior.preparedXdr)); return prior
+      }
     }
     const data = { campaignId, kind, preparedXdr: xdr, transactionHash: parseAttempt(xdr).hash().toString('hex'),
       metadata, submittedXdr: null, status: 'PREPARED', ledger: null, resultXdr: null, feeCharged: null }
+    await check(parseAttempt(xdr))
     return db.ledgerAttempt.upsert({ where: { scope }, create: { scope, ...data }, update: data })
   })
 }
@@ -70,9 +75,15 @@ export async function executeAttempt(
     resultXdr: attempt.resultXdr ?? undefined, feeCharged: attempt.feeCharged,
   }
   if (attempt.status === 'FAILED') throw new Error('Prepare a new transaction after the confirmed failure')
-  await prisma.ledgerAttempt.updateMany({
-    where: { scope: attempt.scope, transactionHash: attempt.transactionHash, status: 'PREPARED' },
-    data: { status: 'SUBMITTED', submittedXdr: transaction.toXDR() },
+  await coordinateSource(transaction, { scope: attempt.scope }, async (db, check) => {
+    const current = await db.ledgerAttempt.findUniqueOrThrow({ where: { scope: attempt.scope } })
+    if (current.transactionHash !== attempt.transactionHash || current.status === 'FAILED') {
+      throw new SourceCoordinationError('Preparation changed. Prepare again before signing.')
+    }
+    if (current.status !== 'PREPARED') return
+    await check(transaction)
+    await db.ledgerAttempt.update({ where: { scope: attempt.scope },
+      data: { status: 'SUBMITTED', submittedXdr: transaction.toXDR() } })
   })
   const saved = await prisma.ledgerAttempt.findUniqueOrThrow({ where: { scope: attempt.scope } })
   if (saved.transactionHash !== attempt.transactionHash || !saved.submittedXdr) throw new Error('Preparation changed')

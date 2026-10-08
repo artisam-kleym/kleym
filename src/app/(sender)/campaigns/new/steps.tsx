@@ -1,15 +1,19 @@
 'use client'
 
 import Decimal from 'decimal.js'
-import { Input, MetricCard, SolidCard } from '@/components/ui'
+import { Button, Input, MetricCard, SolidCard } from '@/components/ui'
 import type { CostBreakdown } from '@/lib/campaign/cost'
 import type { stellarMetadata } from '@/lib/stellar/network'
+import { ExpiryPicker } from './expiry-picker'
+import { isStellarAmount, MAX_STELLAR_AMOUNT } from '@/lib/stellar/amount'
+import { PrizeAmounts } from './prize-amounts'
 
 /** Step 1 — asset and amount. SPEC.md §5.3. */
 export function AssetStep({
   stellar,
   draft,
   onChange,
+  onConnect,
   balances,
   accountExists,
   checking,
@@ -22,6 +26,7 @@ export function AssetStep({
   onEmailReceipts,
 }: {
   stellar: ReturnType<typeof stellarMetadata>
+  onConnect?: () => void
   draft: { network: 'testnet' | 'public'; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; name: string }
   onChange: (patch: Partial<typeof draft>) => void
   balances: { assetCode: string; assetIssuer: string | null; balance: string }[]
@@ -96,6 +101,7 @@ export function AssetStep({
           autoComplete="off"
           required
         />
+        {onConnect && <Button variant="secondary" onClick={onConnect}>Use connected wallet as funding account</Button>}
 
         <div className="flex flex-col gap-xs">
           <label
@@ -136,7 +142,8 @@ export function AssetStep({
           value={draft.amountPerLink}
           inputMode="decimal"
           onChange={(e) => onChange({ amountPerLink: e.target.value })}
-          helper="Up to 7 decimal places."
+          helper="Default prize, up to 7 decimal places. Set individual amounts in Recipients & expiry."
+          error={draft.amountPerLink !== '' && !isStellarAmount(draft.amountPerLink) ? `Enter a positive amount with up to 7 decimal places, at most ${MAX_STELLAR_AMOUNT}.` : undefined}
           required
         />
 
@@ -219,6 +226,10 @@ export function RecipientsStep({
   labels,
   labelsDefault = '',
   amounts,
+  defaultAmount,
+  assetCode,
+  onAmount,
+  onResetAmounts,
   labelError,
   onLabels,
   reminderDays,
@@ -230,12 +241,24 @@ export function RecipientsStep({
   maxLinks,
   maxOpsPerBatch,
   affordable,
+  renewal = false,
+  expiryChoice,
+  expiryError,
+  onExpiry,
 }: {
   draft: { linkCount: number; expiresAt: string }
+  renewal?: boolean
+  expiryChoice: import('@/lib/campaign/expiry').ExpiryChoice
+  expiryError: string | null
+  onExpiry: (value: string, choice: import('@/lib/campaign/expiry').ExpiryChoice) => void
   onChange: (patch: Partial<typeof draft>) => void
   labels: string[]
-  /** Per-link amounts (#73) read from the pasted CSV; null entries take the default. */
+  /** Per-link amounts from the editor or CSV; null entries take the default. */
   amounts: (string | null)[]
+  defaultAmount: string
+  assetCode: string
+  onAmount: (index: number, value: string) => void
+  onResetAmounts: () => void
   labelError: string | null
   onLabels: (raw: string) => void
   /** A template's recipient list (#82), as the field's initial text. */
@@ -260,6 +283,7 @@ export function RecipientsStep({
         <Input
           label="Number of links"
           name="linkCount"
+          disabled={renewal}
           type="number"
           min={1}
           max={maxLinks}
@@ -269,15 +293,7 @@ export function RecipientsStep({
           required
         />
 
-        <Input
-          label="Expires at"
-          name="expiresAt"
-          type="datetime-local"
-          value={draft.expiresAt}
-          onChange={(e) => onChange({ expiresAt: e.target.value })}
-          helper="Unclaimed funds return to source."
-          required
-        />
+        <ExpiryPicker value={draft.expiresAt} choice={expiryChoice} error={expiryError} onChange={onExpiry} />
 
         <div className="flex flex-col gap-xs">
           <label
@@ -290,7 +306,7 @@ export function RecipientsStep({
             id="labels"
             name="labels"
             rows={4}
-            defaultValue={labelsDefault}
+            value={labelsDefault}
             onChange={(e) => onLabels(e.target.value)}
             placeholder={'alice\nbob\ncarol'}
             className="rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface"
@@ -300,8 +316,8 @@ export function RecipientsStep({
             each link is claimed by whoever opens it, so there is no address to record.
             To attach your own reference data, paste a CSV with a header row naming any of{' '}
             <span className="text-on-surface">label, reference, category, note</span>; other columns are ignored.
-            To pay different amounts, add an <span className="text-on-surface">amount</span> column —
-            a blank cell pays the amount per link above.
+            Use Prize amounts below to set individual prizes, or import an <span className="text-on-surface">amount</span> column.
+            A blank amount uses the default. Importing a CSV amount column replaces the current individual amounts.
           </p>
           {labelError && (
             <p role="alert" className="font-mono text-label-sm text-error">
@@ -317,6 +333,8 @@ export function RecipientsStep({
             </p>
           )}
         </div>
+
+        <PrizeAmounts count={draft.linkCount} labels={labels} amounts={amounts} defaultAmount={defaultAmount} assetCode={assetCode} onAmount={onAmount} onReset={onResetAmounts} disabled={renewal} />
 
         <fieldset className="flex flex-col gap-xs">
           <legend className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">

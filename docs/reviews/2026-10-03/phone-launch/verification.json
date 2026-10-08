@@ -1,0 +1,74 @@
+{
+  "recordedAt": "2026-10-03T15:30:31.496Z",
+  "origin": "https://kleym-web-testnet.up.railway.app",
+  "network": "testnet",
+  "base": "4163d7954bff9c1582c0c405174cddbe6951da33",
+  "candidate": "2026-10-03-phone-launch-v3",
+  "sourceDigest": "819afd7baf1930079ec2287c8c0ba277a3e5e0b45fa682677fae0f544924b0aa",
+  "fileCount": 370,
+  "changedReleaseFiles": [
+    "src/lib/wallet/phone.ts",
+    "src/app/(public)/claim/claim-flow.tsx",
+    "src/app/(public)/claim/screens.tsx"
+  ],
+  "unitTests": {
+    "passed": 48,
+    "suites": [
+      "phone",
+      "mobile",
+      "signing"
+    ]
+  },
+  "typecheck": "passed",
+  "targetedLint": "passed via installed Node entry",
+  "windowsWebpackBuild": "passed",
+  "linuxBuild": {
+    "passed": true,
+    "network": "none",
+    "verifiedContextFiles": 369,
+    "reusedQualifiedDependencies": true,
+    "baseImage": "kleym:testnet-20261003-v2",
+    "initialHarnessFailure": "Read-only source mount hid generated Prisma client; corrected by copying source into disposable image, no application change"
+  },
+  "localProductionBrowserTests": {
+    "fullPassed": 20,
+    "finalManualLaunchFocusedPassed": 1
+  },
+  "publicBrowserTests": {
+    "passed": 2,
+    "syntheticWalletFixtures": true,
+    "automaticNativeNavigation": true,
+    "explicitNativeLink": true,
+    "mobileDesktopEntryHidden": true,
+    "manualFallbackCollapsed": true,
+    "narrowDesktopExtensionPreserved": true,
+    "noClaimSubmissionOnConnect": true
+  },
+  "publicReadiness": {
+    "checkedAt": "2026-10-03T15:28:10.885Z",
+    "health": 200,
+    "ready": 200,
+    "claimCspAndNoReferrer": "passed",
+    "walletRelayConfigured": true,
+    "officialTestnetIdentity": true
+  },
+  "webDeployment": {
+    "id": "72654a8a-f7a0-4f5a-bd19-156d5882311e",
+    "status": "SUCCESS",
+    "pendingMigrations": 0
+  },
+  "workerDeployment": {
+    "id": "395027b9-21f2-4d15-ab4a-e3d03bb05b97",
+    "status": "SUCCESS",
+    "redeployed": false
+  },
+  "ledgerEvidence": "three-link-preflight.json",
+  "agentLedgerWrites": 0,
+  "physicalAndroidQualified": false,
+  "mainnetQualified": false,
+  "remaining": [
+    "Reclaim two expired USDC with sender approval and verify hash",
+    "Renew only two returned links using new expiry and private export",
+    "Verify actual Android app launch, approvals/signing, settlement and unused-link refund"
+  ]
+}

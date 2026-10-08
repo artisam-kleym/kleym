@@ -34,7 +34,7 @@ import { seedFreeString } from '@/lib/validation/stellar'
 
 /** The terms a template holds: the campaign body minus name, count and the absolute expiry. */
 export const templateTermsSchema = campaignBodySchema
-  .omit({ name: true, linkCount: true, expiresAt: true, derivationIndex: true, keyFingerprint: true, templateId: true, recipientsCsv: true })
+  .omit({ name: true, renewalOfId: true, linkCount: true, expiresAt: true, derivationIndex: true, keyFingerprint: true, templateId: true, recipientsCsv: true })
   .extend({
     /** Days from the run to expiry. The wizard's default is 30. */
     expiryDays: z.number().int().min(1).max(365),

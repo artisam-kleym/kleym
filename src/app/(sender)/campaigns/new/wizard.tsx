@@ -12,15 +12,19 @@ import { useRouter } from 'next/navigation'
 import { Button, Stepper } from '@/components/ui'
 import { deriveEphemeralKeys, publicHalves, type Attestation } from '@/lib/campaign/keygen'
 import { phraseFingerprint, randomCampaignIndex } from '@/lib/campaign/derive'
-import { parseLabels } from '@/lib/campaign/csv'
+import { parseLabels, buildRecipientListCsv, hasPrizeAmountColumn } from '@/lib/campaign/csv'
+import { isStellarAmount } from '@/lib/stellar/amount'
+import { updatePrizeAmount } from '@/lib/campaign/prize-amounts'
 import { parseReceiveAs, receiveAsErrorMessage, type ReceiveAsEntry } from '@/lib/campaign/receive-as'
 import { affordability, computeCost, type CostBreakdown } from '@/lib/campaign/cost'
 import { triggerDownload } from './download-gate'
 import { canContinuePastExport, useWizard, type WizardConfig } from './use-wizard'
 import { AssetStep, RecipientsStep } from './steps'
+import { PrizeAmounts } from './prize-amounts'
 import { ExportStep } from './export-step'
 import { useStepUp } from '@/components/mfa/use-step-up'
 import { connectWallet, signEnvelope, walletErrorMessage } from '@/lib/wallet/signing'
+import { localExpiry, expiryDescription, expiryError, presetExpiry, type ExpiryChoice } from '@/lib/campaign/expiry'
 
 const STEPS = [
   { title: 'Asset & amount' },
@@ -48,20 +52,26 @@ export function CampaignWizard(config: WizardConfig) {
   const template = config.template ?? null
   /** A prepared run's terms and list cannot change here: they are the draft's, fixed at preparation. */
   const locked = template?.draftCampaignId !== null && template?.draftCampaignId !== undefined
+  const [expiryChoice, setExpiryChoice] = useState<ExpiryChoice>(template || reissue ? 'custom' : '30d')
+  const [expiryNow, setExpiryNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = window.setInterval(() => setExpiryNow(Date.now()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
   const [draft, setDraft] = useState({
     // A reissue (#78) carries the source campaign's terms; only the expiry is new.
     // A template (#82) carries every term, and its own expiry offset.
-    name: template?.name ?? (reissue ? `${reissue.name} (reissue)` : ''),
+    name: template?.name ?? (reissue ? `${reissue.name.slice(0, 110)} (renewal)` : ''),
     network: template?.network ?? reissue?.network ?? config.stellar.network,
     senderPublicKey: template?.senderPublicKey ?? reissue?.senderPublicKey ?? '',
     assetCode: template?.assetCode ?? reissue?.assetCode ?? config.stellar.defaultAsset.assetCode,
     assetIssuer: template ? (template.assetIssuer ?? '') : reissue ? (reissue.assetIssuer ?? '') : config.stellar.defaultAsset.assetIssuer,
     amountPerLink: template?.amountPerLink ?? reissue?.amountPerLink ?? '',
     linkCount: template ? Math.max(1, template.linkCount) : reissue ? Math.max(1, reissue.outstanding) : 10,
-    expiresAt: template?.expiresAt ?? defaultExpiry(),
+    expiresAt: template ? localExpiry(new Date(template.expiresAt)) : reissue?.draftExpiry ? localExpiry(new Date(reissue.draftExpiry)) : reissue ? '' : defaultExpiry(),
   })
   /** Reminder points (#78): days before expiry at which emailed, unclaimed recipients hear again. */
-  const [reminderDays, setReminderDays] = useState<number[]>(template?.reminderDaysBefore ?? [])
+  const [reminderDays, setReminderDays] = useState<number[]>(template?.reminderDaysBefore ?? reissue?.draftReminders ?? [])
 
   /*
    * One piece of state keyed by the address it describes, rather than three
@@ -105,14 +115,14 @@ export function CampaignWizard(config: WizardConfig) {
   const [labelError, setLabelError] = useState<string | null>(null)
   const [filename, setFilename] = useState<string | null>(null)
   /** Who may claim (#79). Open unless the sender says otherwise. */
-  const [claimPolicy, setClaimPolicy] = useState<'open' | 'code' | 'email' | 'passkey'>(template?.claimPolicy ?? 'open')
+  const [claimPolicy, setClaimPolicy] = useState<'open' | 'code' | 'email' | 'passkey'>(template?.claimPolicy ?? reissue?.draftPolicy ?? 'open')
   /**
    * Receive-as (#74). The raw field is state; its parse is DERIVED from the
    * raw text AND the campaign asset, so changing the asset after typing the
    * list re-validates "differs from the campaign asset" here rather than as
    * a 400 at signing.
    */
-  const [receiveAsRaw, setReceiveAsRaw] = useState(template?.receiveAsRaw ?? '')
+  const [receiveAsRaw, setReceiveAsRaw] = useState(template?.receiveAsRaw ?? reissue?.draftReceiveAs ?? '')
   const receiveAsParsed = useMemo(
     () => parseReceiveAs(receiveAsRaw, { assetCode: draft.assetCode, assetIssuer: draft.assetIssuer }),
     [receiveAsRaw, draft.assetCode, draft.assetIssuer],
@@ -120,7 +130,7 @@ export function CampaignWizard(config: WizardConfig) {
   const receiveAs = useMemo<ReceiveAsEntry[]>(() => (receiveAsParsed.ok ? receiveAsParsed.assets : []), [receiveAsParsed])
   const receiveAsError = receiveAsParsed.ok ? null : receiveAsErrorMessage(receiveAsParsed)
   const onReceiveAs = useCallback((raw: string) => setReceiveAsRaw(raw), [])
-  const [allowExchangeDeposit, setAllowExchangeDeposit] = useState(template?.allowExchangeDeposit ?? false)
+  const [allowExchangeDeposit, setAllowExchangeDeposit] = useState(template?.allowExchangeDeposit ?? reissue?.draftExchangeDeposit ?? false)
   const [emailReceipts, setEmailReceipts] = useState(false)
 
   /*
@@ -132,13 +142,30 @@ export function CampaignWizard(config: WizardConfig) {
   const [phraseConfirmed, setPhraseConfirmed] = useState(false)
   const [derivation, setDerivation] = useState<{ index: number; fingerprint: string } | null>(null)
   const onPhrase = useCallback((value: string) => {
+    if (reissue?.keyFingerprint && phraseFingerprint(value) !== reissue.keyFingerprint) {
+      wizard.setError('Use the recovery phrase saved for this renewal draft. A different phrase cannot recover its registered links.')
+      setPhraseConfirmed(false)
+      return
+    }
     phrase.current = value
     // A fresh 31-bit index per campaign, so two campaigns from one phrase never share a path.
-    setDerivation({ index: randomCampaignIndex(), fingerprint: phraseFingerprint(value) })
+    setDerivation({ index: reissue?.derivationIndex ?? randomCampaignIndex(), fingerprint: phraseFingerprint(value) })
     setPhraseConfirmed(true)
-  }, [])
+  }, [reissue, wizard])
 
-  const patch = useCallback((next: Partial<typeof draft>) => setDraft((d) => ({ ...d, ...next })), [])
+  const patch = useCallback((next: Partial<typeof draft>) => {
+    if (next.linkCount !== undefined) setAmounts((previous) => previous.slice(0, Math.max(0, next.linkCount!)))
+    setDraft((d) => ({ ...d, ...next }))
+  }, [])
+  const onAmount = useCallback((index: number, value: string) => {
+    const next = updatePrizeAmount(amounts, index, value, draft.linkCount)
+    setAmounts(next)
+    if (hasPrizeAmountColumn(recipientsCsv)) setRecipientsCsv(buildRecipientListCsv(draft.linkCount, labels, attestations, next))
+  }, [draft.linkCount, amounts, recipientsCsv, labels, attestations])
+  const onResetAmounts = useCallback(() => {
+    setAmounts([])
+    if (hasPrizeAmountColumn(recipientsCsv)) setRecipientsCsv(buildRecipientListCsv(draft.linkCount, labels, attestations, []))
+  }, [draft.linkCount, recipientsCsv, labels, attestations])
 
   /* Live reserve. SPEC.md §3.2 — never a constant in the UI. */
   useEffect(() => {
@@ -235,7 +262,6 @@ export function CampaignWizard(config: WizardConfig) {
       if (raw.trim() === '') {
         setLabels([])
         setAttestations([])
-        setAmounts([])
         setLabelError(null)
         return
       }
@@ -243,13 +269,12 @@ export function CampaignWizard(config: WizardConfig) {
       if (parsed.ok) {
         setLabels(parsed.labels)
         setAttestations(parsed.attestations ?? [])
-        setAmounts(parsed.amounts ?? [])
+        if (hasPrizeAmountColumn(raw)) setAmounts(parsed.amounts ?? [])
         setLabelError(null)
         return
       }
       setLabels([])
       setAttestations([])
-      setAmounts([])
       setLabelError(labelErrorMessage(parsed, draft.linkCount))
     },
     [draft.linkCount],
@@ -259,6 +284,8 @@ export function CampaignWizard(config: WizardConfig) {
     wizard.setError(null)
     wizard.setPhase('generating')
     try {
+      const invalidExpiry = expiryError(draft.expiresAt)
+      if (invalidExpiry) throw new Error(`${invalidExpiry} Go back to Recipients & expiry to change it.`)
       if (claimPolicy === 'email') throw new Error('This email-policy template requires built-in delivery. Choose a supported policy in a new campaign for CSV distribution.')
       if (!phrase.current || !derivation) throw new Error('Confirm your recovery phrase first.')
       // CODE policy: a claim code is derived beside each key — from the phrase too, so a regenerated CSV carries it (#79).
@@ -268,7 +295,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('editing')
       wizard.setError(error instanceof Error ? error.message : 'Could not generate keys.')
     }
-  }, [draft.linkCount, labels, attestations, amounts, wizard, derivation, claimPolicy])
+  }, [draft.linkCount, draft.expiresAt, labels, attestations, amounts, wizard, derivation, claimPolicy])
 
   /* THE GATE. Only this can open it, and only after the file is written. */
   const onDownload = useCallback(() => {
@@ -284,6 +311,11 @@ export function CampaignWizard(config: WizardConfig) {
   const onSign = useCallback(async () => {
     if (!canContinuePastExport(wizard.downloaded, wizard.keys)) return
     wizard.setError(null)
+    const invalidExpiry = expiryError(draft.expiresAt)
+    if (invalidExpiry) {
+      wizard.setError(`${invalidExpiry} Go back to Recipients & expiry to change it.`)
+      return
+    }
     // Step-up (#47): signing moves money; a fresh second factor first, if one is enrolled.
     if (!(await stepUp.ensure())) return
     wizard.setPhase('batching')
@@ -302,13 +334,16 @@ export function CampaignWizard(config: WizardConfig) {
        * rather than to a new one. Otherwise a campaign from a template is a
        * MANUAL run, recorded as such.
        */
-      const campaignId = wizard.campaignId ?? (template?.draftCampaignId
+      const campaignId = wizard.campaignId ?? reissue?.draftCampaignId ?? (template?.draftCampaignId
         ? template.draftCampaignId
-        : await createCampaign(draft, wizard.keys.length, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template?.templateId ?? null, emailReceipts, recipientsCsv)
+        : await createCampaign(draft, wizard.keys.length, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template?.templateId ?? null, emailReceipts, buildRecipientListCsv(draft.linkCount, labels, attestations, amounts), reissue?.id ?? null)
       )
       wizard.setCampaignId(campaignId)
       if (registeredCampaign.current !== campaignId) {
-        await registerLinks(campaignId, wizard.keys)
+        const registered = reissue?.registeredPublicKeys ?? []
+        if (registered.length > 0) {
+          if (registered.length !== wizard.keys.length || wizard.keys.some((key) => !registered.includes(key.publicKey))) throw new PrepareRefused('The regenerated keys do not match this renewal draft. Use its original recovery phrase.')
+        } else await registerLinks(campaignId, wizard.keys)
         registeredCampaign.current = campaignId
       }
       // The download happened locally before this action. Record only that fact;
@@ -344,7 +379,7 @@ export function CampaignWizard(config: WizardConfig) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
     }
-  }, [wizard, draft, cost, stepUp, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template, emailReceipts, recipientsCsv])
+  }, [wizard, draft, cost, stepUp, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template, emailReceipts, labels, attestations, amounts, reissue])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -357,7 +392,7 @@ export function CampaignWizard(config: WizardConfig) {
         draft.senderPublicKey.length === 56 &&
         accountExists === true &&
         balances.some((balance) => balance.assetCode === draft.assetCode && (balance.assetIssuer ?? '') === draft.assetIssuer) &&
-        draft.amountPerLink.trim().length > 0 &&
+        isStellarAmount(draft.amountPerLink) &&
         receiveAsError === null
       )
     }
@@ -365,13 +400,13 @@ export function CampaignWizard(config: WizardConfig) {
       return (
         draft.linkCount >= 1 &&
         draft.linkCount <= config.maxLinksPerCampaign &&
-        draft.expiresAt.length > 0 &&
+        expiryError(draft.expiresAt, expiryNow) === null &&
         labelError === null &&
         cost !== null
       )
     }
     return false
-  }, [wizard.step, draft, accountExists, balances, config.maxLinksPerCampaign, labelError, cost, receiveAsError])
+  }, [wizard.step, draft, expiryNow, accountExists, balances, config.maxLinksPerCampaign, labelError, cost, receiveAsError])
 
   return (
     <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
@@ -390,11 +425,9 @@ export function CampaignWizard(config: WizardConfig) {
       {reissue && (
         // Both columns: as a plain child it would take the sidebar cell and push the stepper over.
         <div className="mb-lg rounded-lg border border-outline-variant/50 bg-surface-container p-md lg:col-span-2">
-          <p className="text-label-md font-semibold text-on-surface">Reissuing {reissue.outstanding} unclaimed {reissue.outstanding === 1 ? 'link' : 'links'} of “{reissue.name}”</p>
+          <p className="text-label-md font-semibold text-on-surface">Renewing {reissue.outstanding} returned {reissue.outstanding === 1 ? 'link' : 'links'} of “{reissue.name}”</p>
           <p className="mt-1 text-body-md text-on-surface-variant">
-            This is a NEW campaign with the same terms and a later expiry: new keys, a new signature from your wallet,
-            new balance ids, and the asset and reserve locked again. The original links stay claimable until{' '}
-            {reissue.expiresAt.slice(0, 10)} and are reclaimed after that; nothing about them changes here.
+            The original unused funds have been reclaimed. This linked round uses exactly {reissue.budget} {reissue.assetCode} returned to the same sender, with fresh links and an expiry you choose. The original links have expired. Already claimed funds are excluded. Save a new CSV and distribute only the replacement links.
           </p>
         </div>
       )}
@@ -407,12 +440,16 @@ export function CampaignWizard(config: WizardConfig) {
           * and the server would refuse anything else at registration or
           * signing. Every field in both steps is disabled; the banner says why.
           */}
-        <fieldset disabled={locked} className="contents" data-testid={locked ? 'terms-locked' : undefined}>
+        <fieldset disabled={locked || !!reissue?.draftCampaignId || (reissue !== null && wizard.step === 0)} className="contents" data-testid={locked ? 'terms-locked' : undefined}>
         {wizard.step === 0 && (
           <AssetStep
             stellar={config.stellar}
             draft={draft}
             onChange={patch}
+            onConnect={reissue || template ? undefined : async () => {
+              try { patch({ senderPublicKey: await connectWallet(draft.network) }); wizard.setError(null) }
+              catch (error) { wizard.setError(await walletErrorMessage(error)) }
+            }}
             balances={balances}
             accountExists={accountExists}
             checking={checking}
@@ -428,10 +465,21 @@ export function CampaignWizard(config: WizardConfig) {
         {wizard.step === 1 && (
           <RecipientsStep
             draft={draft}
-            labelsDefault={labelsInitial}
+            expiryChoice={expiryChoice}
+            expiryError={expiryError(draft.expiresAt, expiryNow)}
+            onExpiry={(value, choice) => {
+              patch({ expiresAt: value })
+              setExpiryChoice(choice)
+              setExpiryNow(Date.now())
+            }}
+            labelsDefault={recipientsCsv}
             onChange={patch}
             labels={labels}
             amounts={amounts}
+            defaultAmount={draft.amountPerLink}
+            assetCode={draft.assetCode}
+            onAmount={onAmount}
+            onResetAmounts={onResetAmounts}
             labelError={labelError}
             onLabels={onLabels}
             claimPolicy={claimPolicy}
@@ -443,10 +491,21 @@ export function CampaignWizard(config: WizardConfig) {
             maxLinks={config.maxLinksPerCampaign}
             maxOpsPerBatch={config.maxOpsPerBatch - (sponsored ? 2 : 0)}
             affordable={affordable}
+            renewal={reissue !== null}
           />
         )}
         </fieldset>
         {wizard.step === 2 && stepUp.panel}
+        {wizard.step === 2 && (
+          <p className="mb-md text-body-md text-on-surface-variant" role="status">
+            {config.stellar.networkLabel} · {config.stellar.valueNotice} Expiry: {expiryDescription(draft.expiresAt)}
+          </p>
+        )}
+        {wizard.step === 2 && amounts.some((amount) => amount !== null) && (
+          <div className="mb-md">
+            <PrizeAmounts count={draft.linkCount} labels={labels} amounts={amounts} defaultAmount={draft.amountPerLink} assetCode={draft.assetCode} onAmount={() => undefined} onReset={() => undefined} readOnly />
+          </div>
+        )}
         {wizard.step === 2 && (
           <ExportStep
             phase={wizard.phase}
@@ -502,7 +561,11 @@ export function CampaignWizard(config: WizardConfig) {
               icon="arrow_forward"
               disabled={!canAdvance}
               data-testid="next-step"
-              onClick={() => wizard.setStep(wizard.step + 1)}
+              onClick={() => {
+                setExpiryNow(Date.now())
+                if (wizard.step === 1 && expiryError(draft.expiresAt)) return
+                wizard.setStep(wizard.step + 1)
+              }}
             >
               Continue
             </Button>
@@ -530,12 +593,14 @@ async function createCampaign(
   templateId: string | null = null,
   emailReceipts = false,
   recipientsCsv = '',
+  renewalOfId: string | null = null,
 ): Promise<string> {
   const response = await fetch('/api/campaigns', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'idempotency-key': idempotencyKey() },
     body: JSON.stringify({
       name: draft.name,
+      ...(renewalOfId ? { renewalOfId } : {}),
       network: draft.network,
       senderPublicKey: draft.senderPublicKey,
       assetCode: draft.assetCode,
@@ -620,8 +685,7 @@ async function problemDetail(response: Response): Promise<string | null> {
 /* ── helpers ───────────────────────────────────────────────────────────── */
 
 function defaultExpiry(): string {
-  const date = new Date(Date.now() + 30 * 86_400_000)
-  return date.toISOString().slice(0, 16)
+  return presetExpiry('30d')
 }
 
 function labelErrorMessage(
@@ -638,7 +702,7 @@ function labelErrorMessage(
     case 'too-long':
       return `Line ${parsed.line}: the ${parsed.column} column is over ${parsed.allowed} characters.`
     case 'amount':
-      return `Line ${parsed.line}: "${parsed.value}" is not an amount. Use digits with up to seven decimal places, greater than zero — or leave the cell blank for the default.`
+      return `Line ${parsed.line}: the prize amount is invalid. Use a positive amount within the Stellar limit, with up to seven decimal places, or leave the cell blank for the default.`
     case 'empty':
       return 'No labels found.'
   }

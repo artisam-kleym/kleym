@@ -59,9 +59,26 @@ export async function confirmOne(batchId: string): Promise<'confirmed' | 'failed
       if (!(saved instanceof Transaction) || saved.hash().toString('hex') !== batch.transactionHash) {
         throw new Error('The stored funding envelope does not match its recorded hash.')
       }
-      await horizon().submitTransaction(saved)
+      const maxTime = Number(saved.timeBounds?.maxTime ?? 0)
+      if (maxTime > 0 && maxTime <= Date.now() / 1000) {
+        const ledgers = await horizon().ledgers().order('desc').limit(1).call()
+        const closedAt = Date.parse(ledgers.records[0]?.closed_at ?? '') / 1000
+        if (closedAt > maxTime) {
+          // Hash lookup after the closed-ledger bound is required before
+          // releasing a source reserved by an uncertain funding submission.
+          try { transaction = await horizon().transactions().transaction(batch.transactionHash).call() }
+          catch (lookupError) {
+            if ((lookupError as { response?: { status?: number } }).response?.status !== 404) throw lookupError
+            await markBatchFailed(batch.id, batch.campaignId, 'tx_too_late')
+            return 'failed'
+          }
+        }
+        if (!transaction) throw error
+      } else {
+        await horizon().submitTransaction(saved)
+      }
     }
-    throw error // Confirmation still requires a closed-ledger read on the next attempt.
+    if (!transaction) throw error // Confirmation still requires a closed-ledger read on the next attempt.
   }
 
   if (!transaction.successful) {

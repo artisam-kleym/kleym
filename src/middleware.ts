@@ -6,6 +6,7 @@
  * which handles bearer secrets.
  */
 import { NextResponse, type NextRequest } from 'next/server'
+import { embeddedMutationAllowed, lanternFrameAllowed, parseLanternOrigins } from '@/lib/wallet/lantern-config'
 
 /**
  * Routes that carry a bearer secret in the URL and must leak nothing outward.
@@ -21,6 +22,9 @@ function isFragmentSecretRoute(pathname: string): boolean {
 }
 
 export function middleware(request: NextRequest) {
+  const lanternOrigins = parseLanternOrigins(process.env.LANTERN_ORIGINS)
+  const canFrame = lanternOrigins.length > 0 && lanternFrameAllowed(request.nextUrl.pathname)
+  const phoneConnections = /^[a-f0-9]{32}$/i.test(process.env.WALLETCONNECT_PROJECT_ID ?? '') && lanternFrameAllowed(request.nextUrl.pathname)
   // 128 bits of nonce per response. Uint8Array -> base64 without Buffer, since
   // middleware runs on the edge runtime where Buffer is not guaranteed.
   const nonceBytes = crypto.getRandomValues(new Uint8Array(16))
@@ -47,8 +51,15 @@ export function middleware(request: NextRequest) {
     "style-src 'self'",
     "img-src 'self' data:",
     "font-src 'self'", // fonts are self-hosted; no CDN, on any route
-    "connect-src 'self'",
-    "frame-ancestors 'none'",
+    phoneConnections
+      ? "connect-src 'self' wss://relay.walletconnect.org https://relay.walletconnect.org https://verify.walletconnect.org https://verify.walletconnect.com"
+      : "connect-src 'self'",
+    // SDK origin attestation runs in an isolated verification frame after
+    // explicit connection. No third-party script is allowed in our document.
+    phoneConnections
+      ? 'frame-src https://verify.walletconnect.org'
+      : "frame-src 'self'",
+    canFrame ? `frame-ancestors ${lanternOrigins.join(' ')}` : "frame-ancestors 'none'",
     "form-action 'self'",
     "base-uri 'self'",
     "object-src 'none'",
@@ -66,12 +77,15 @@ export function middleware(request: NextRequest) {
    */
   requestHeaders.set('Content-Security-Policy', csp)
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } })
+  const csrfRefused = lanternOrigins.length > 0 && request.nextUrl.pathname.startsWith('/api/') && !embeddedMutationAllowed(request, process.env.APP_URL ?? request.nextUrl.origin)
+  const response = csrfRefused
+    ? NextResponse.json({ type: 'about:blank', title: 'Request refused', status: 403, detail: 'Open Kleym at its configured address and retry.', correlationId: crypto.randomUUID() }, { status: 403, headers: { 'Content-Type': 'application/problem+json' } })
+    : NextResponse.next({ request: { headers: requestHeaders } })
 
   response.headers.set('Content-Security-Policy', csp)
   response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
   response.headers.set('X-Content-Type-Options', 'nosniff')
-  response.headers.set('X-Frame-Options', 'DENY')
+  if (!canFrame) response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set(
     'Permissions-Policy',
     'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
