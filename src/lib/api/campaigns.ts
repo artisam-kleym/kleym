@@ -31,6 +31,7 @@ import { chooseSponsor } from '@/lib/stellar/sponsors'
 import { emitWebhook } from '@/lib/webhooks/emit'
 import { isClaimCode, policyFromRow, policyToRow } from './claim-policy'
 import { assertRenewalTerms, renewalSource, RenewalRefused } from './renewal'
+import { legacyBearerEmailAllowed } from '@/lib/email/delivery-policy'
 
 /**
  * Money crosses the API boundary as a STRING. AGENT.md §4.1.
@@ -130,6 +131,10 @@ export const campaignBodySchema = z
   .strict()
 
 export const createCampaignSchema = campaignBodySchema
+  .refine((v) => v.claimPolicy !== 'email' || legacyBearerEmailAllowed(), {
+    message: 'Email-only claims are disabled. Choose open, code or passkey and distribute links privately from your saved CSV.',
+    path: ['claimPolicy'],
+  })
   .refine((v) => v.network === env.STELLAR_NETWORK, {
     message: 'must match the Stellar network of this deployment',
     path: ['network'],

@@ -1,23 +1,33 @@
 /**
  * The `email-deliver` consumer. SPEC.md §6.5.
  *
- * The claim URL exists here as a local inside one function call and goes to
- * the mail provider. It is not logged, not stored, and not returned — the job
- * return value is a provider id, because BullMQ persists return values and a
- * URL in one would outlive the payload this queue is careful to delete.
+ * Current deployments hold historical bearer jobs before reading their URL.
+ * Receipt/reminder messages contain no claim URL. In the Testnet development
+ * legacy harness only, the URL goes to the injected provider from a Redis job;
+ * deleting a completed job cannot erase historical backups/provider copies.
  */
-import { Worker } from 'bullmq'
+import { Worker, DelayedError, type Job } from 'bullmq'
 import { logger } from '@/lib/config/logger'
 import { QUEUE, queueConnection } from '@/lib/queue/connection'
 import type { EmailJob } from '@/lib/queue/email'
 import { claimEmail, receiptEmail, reminderEmail } from '@/lib/email/templates'
 import { resend, type Mailer } from '@/lib/email/provider'
 import { prisma } from '@/lib/db/client'
+import { legacyBearerEmailAllowed } from '@/lib/email/delivery-policy'
+
+/** Existing Redis payloads are held explicitly, not mailed or silently purged. */
+export async function holdBlockedBearerJob(job: Pick<Job<EmailJob>, 'data' | 'id' | 'moveToDelayed'>, token?: string): Promise<void> {
+  if (job.data.kind === 'receipt' || job.data.kind === 'reminder' || legacyBearerEmailAllowed()) return
+  await job.moveToDelayed(Date.now() + 3_600_000, token)
+  logger.warn({ jobId: job.id, linkId: job.data.linkId }, 'legacy bearer email held; operator review required')
+  throw new DelayedError()
+}
 
 export function startEmailWorker(mailer: Mailer = resend): Worker<EmailJob> {
   const worker = new Worker<EmailJob>(
     QUEUE.emailDeliver,
-    async (job) => {
+    async (job, token) => {
+      await holdBlockedBearerJob(job, token)
       if (job.data.kind === 'reminder') {
         // No URL anywhere in this branch — the job has no field for one (#78).
         const reminder = job.data

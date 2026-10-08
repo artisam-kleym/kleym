@@ -155,6 +155,8 @@ const configurationSchema = z.object({
   // Email
   RESEND_API_KEY: z.string().min(1),
   EMAIL_FROM: z.email(),
+  // Off for the pilot. A disposable Testnet harness may inspect legacy behaviour.
+  LEGACY_BEARER_EMAIL_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 
   // Seed (dev only)
   SEED_ADMIN_USERNAME: z.string().optional(),

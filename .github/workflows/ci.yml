@@ -121,6 +121,11 @@ jobs:
         timeout-minutes: 5
         run: pnpm verify:email
 
+      - name: Verify local-only delivery and held legacy jobs
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
+        timeout-minutes: 5
+        run: pnpm verify:local-delivery
+
       - name: Verify campaign list and history ownership, filters and ordering
         if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
         timeout-minutes: 5

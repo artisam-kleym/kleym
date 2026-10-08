@@ -12,7 +12,7 @@ Ephemeral seeds are generated in the sender's browser, placed in URL fragments, 
 
 Before writing any line that touches a keypair, ask: *could this value reach the server, a log, a database, or a third party?* If yes, the design is wrong — stop and reconsider rather than adding a mitigation.
 
-The one deliberate exception is email delivery (SPEC §6.5), where a full link URL transits the server in memory to reach the mail provider. It is never persisted or logged, and the job payload is deleted on completion. Do not extend this exception anywhere else.
+Current deployments use local-link distribution only (#108). Bearer-link email ingress is disabled, and new email-only campaigns are refused. Historical email code persists full URLs in Redis job payloads and may have copied them into backups/provider systems; it did not provide the browser-only guarantee. A development-only Testnet flag qualifies that historical path, and cannot enable it in production or on the public network. Existing legacy jobs are held for explicit operator review, not silently deleted. Receipt/reminder messages contain no claim URL. See `docs/data-handling.md`; do not extend the historical exception.
 
 **Self-check before every commit:**
 ```bash

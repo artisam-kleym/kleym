@@ -30,6 +30,7 @@
     "verify:confirm": "tsx scripts/verify-confirm-worker.ts",
     "fixture:balance-id": "tsx scripts/make-balance-id-fixture.ts",
     "verify:email": "tsx scripts/verify-email.ts",
+    "verify:local-delivery": "tsx scripts/verify-local-delivery.ts",
     "verify:claim-policies": "tsx scripts/verify-claim-policies.ts",
     "verify:templates": "tsx scripts/verify-templates.ts",
     "verify:valuations": "tsx scripts/verify-valuations.ts",

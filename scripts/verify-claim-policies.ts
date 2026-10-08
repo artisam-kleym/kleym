@@ -161,10 +161,10 @@ async function emailPolicyRefusesUndelivered(): Promise<void> {
   console.log('\n4. EMAIL: a link the sender distributed themselves cannot be claimed')
   const f = await fixture('EMAIL')
   const none = await post(prepareClaim.POST, '/api/claims/prepare/claim', { ephemeralPublicKey: f.key, recipientPublicKey: Keypair.random().publicKey() })
-  check('refused as otp-required with no delivery row', await refusedWith(none, 'otp-required'), `${none.status}`)
+  check('refused as email-only with no delivery row', await refusedWith(none, 'email-only'), `${none.status}`)
   const token = await issueClaimToken(f.linkId)
   const withToken = await post(prepareClaim.POST, '/api/claims/prepare/claim', { ephemeralPublicKey: f.key, recipientPublicKey: Keypair.random().publicKey() }, token)
-  check('and a policy token does not substitute for the email', await refusedWith(withToken, 'otp-required'), `${withToken.status}`)
+  check('and a policy token does not substitute for the email', await refusedWith(withToken, 'email-only'), `${withToken.status}`)
 }
 
 async function resolveIsByteIdentical(): Promise<void> {

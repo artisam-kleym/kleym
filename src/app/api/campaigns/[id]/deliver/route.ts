@@ -33,6 +33,7 @@ import {
 import { conflict, notFound, serverError, validationProblem } from '@/lib/api/problems'
 import { zodErrors } from '@/lib/api/campaigns'
 import { deliverSchema, queueDeliveries } from '@/lib/api/deliver'
+import { legacyBearerEmailAllowed, LOCAL_DELIVERY_NOTICE } from '@/lib/email/delivery-policy'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -64,6 +65,8 @@ function withoutUrls(body: unknown): unknown {
 export async function POST(request: Request, { params }: Params) {
   const { user, org, response } = await requireUser('OPERATOR')
   if (!user) return response
+  // Refuse before parsing the exceptional bearer payload or reserving a retry.
+  if (!legacyBearerEmailAllowed()) return conflict(LOCAL_DELIVERY_NOTICE)
   const { id } = await params
 
   let body: unknown

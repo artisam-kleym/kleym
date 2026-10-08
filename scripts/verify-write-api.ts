@@ -224,10 +224,12 @@ async function sdkEndToEnd() {
     (await prisma.campaign.findUniqueOrThrow({ where: { id: result.campaignId } })).fundingMode === 'SPONSORED')
   const resumed = await sdk.resumeCampaignFunding({ client, campaignId: result.campaignId, senderSecret: sender.secret() })
   check('resuming confirmed funding submits nothing again', resumed.length === 0 && horizonLog.filter((line) => line.startsWith('POST /transactions')).length === 2)
+  const labelTenant = await tenant() // No webhook subscriptions: these drafts are separate fixtures.
+  const labelClient = new sdk.KleymClient({ baseUrl: 'http://kleym.test', apiKey: labelTenant.apiKey, fetch: routeFetch })
   for (const [tag, labels] of [['omitted', undefined], ['empty', []], ['partial', ['first']]] as const) {
     const terms = { name: `SDK labels ${tag}`, network: 'testnet' as const, senderPublicKey: sender.publicKey(),
       assetCode: 'USDC', assetIssuer: USDC_ISSUER, amountPerLink: '1', linkCount: 2, expiresAt: new Date(Date.now() + 86_400_000).toISOString() }
-    const draft = await sdk.createCampaignEndToEnd({ client, terms, senderSecret: sender.secret(),
+    const draft = await sdk.createCampaignEndToEnd({ client: labelClient, terms, senderSecret: sender.secret(),
       csvPath: join(dir, `${tag}.csv`), appUrl: 'https://kleym.example', sign: false,
       ...(labels === undefined ? {} : { labels: [...labels] }) })
     const registered = await prisma.claimLink.findMany({ where: { campaignId: draft.campaignId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] })
@@ -236,7 +238,7 @@ async function sdkEndToEnd() {
       (await prisma.campaign.findUniqueOrThrow({ where: { id: draft.campaignId } })).csvExportedAt !== null)
   }
   check('Horizon was asked for the sender account and given two transactions', horizonLog.filter((l) => l.startsWith('POST /transactions')).length === 2, horizonLog.join(';'))
-  check('the batch-confirm job was queued for each', (await Promise.all((await prisma.batch.findMany({ where: { campaignId: result.campaignId }, select: { id: true } })).map((b) => batchConfirmQueue().getJob(batchConfirmJobId(b.id))))).every(Boolean))
+  check('the exact-hash batch-confirm job was queued for each', (await Promise.all((await prisma.batch.findMany({ where: { campaignId: result.campaignId }, select: { id: true, transactionHash: true } })).map((b) => batchConfirmQueue().getJob(batchConfirmJobId(b.id, b.transactionHash!))))).every(Boolean))
 
   // No seed anywhere it must not be.
   check('no request the SDK sent contains a seed', sent.every((s) => !SEED.test(s.body) && !SEED.test(s.url)), `${sent.length} requests`)
