@@ -1,10 +1,10 @@
 {
-  "captured_at_utc": "2026-10-08T15:49:19.658564+00:00",
+  "captured_at_utc": "2026-10-08T15:57:32.691254+00:00",
   "text_files_scanned": 1,
   "binary_files_require_separate_review": [],
   "findings": [],
   "scope": "Changed/untracked nonignored candidate files; bounded literal patterns only, not all credentials/mnemonics or image OCR",
   "sha256": {
-    "src/app/api/claims/federation/route.ts": "33c78b911530ba9c99a3a1d1bea3ab978de73c2e0034259ccd61b78950c8f3e6"
+    ".github/workflows/ci.yml": "287afe637b384851d8dd0fddc105615aa3f49eb2003e9b89b923e32721595fc1"
   }
 }
