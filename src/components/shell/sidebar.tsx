@@ -23,7 +23,7 @@ const NAV: NavItem[] = [
   { href: '/settings', label: 'Settings', icon: 'settings' },
 ]
 
-function NavLinks({ pathname }: { pathname: string }) {
+function NavLinks({ pathname, mobile = false }: { pathname: string; mobile?: boolean }) {
   return (
     <>
       {NAV.map((item) => {
@@ -34,7 +34,10 @@ function NavLinks({ pathname }: { pathname: string }) {
             href={item.href}
             aria-current={active ? 'page' : undefined}
             className={clsx(
-              'flex items-center gap-sm rounded-full px-4 py-3 font-mono text-label-md',
+              'flex items-center font-mono',
+              mobile
+                ? 'min-h-11 min-w-0 justify-center gap-xs rounded-lg px-xs py-sm text-label-sm'
+                : 'gap-sm rounded-full px-4 py-3 text-label-md',
               'transition-all duration-200 active:scale-[0.98]',
               active
                 ? 'bg-on-primary-container/15 text-on-primary'
@@ -80,9 +83,9 @@ export function Sidebar({
       {/* Below lg, a bottom bar. */}
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-20 flex justify-around bg-primary-container px-sm py-2 lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 bg-primary-container px-sm py-2 lg:hidden"
       >
-        <NavLinks pathname={pathname} />
+        <NavLinks pathname={pathname} mobile />
       </nav>
     </>
   )

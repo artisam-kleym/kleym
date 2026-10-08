@@ -17,6 +17,35 @@ import { stellarMetadata } from '../src/lib/stellar/network'
 
 const SENDER = Keypair.random().publicKey()
 
+test.describe('mobile sender navigation', () => {
+  for (const width of [320, 393]) {
+    test(`keeps every destination within the ${width}px screen`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 740 })
+      await page.goto('/campaigns/new')
+      await expect(page.getByLabel('Campaign name')).toBeVisible()
+      const nav = page.locator('nav[aria-label="Main"]:visible')
+      const links = nav.getByRole('link')
+      await expect(links).toHaveCount(6)
+      for (const link of await links.all()) {
+        await expect(link).toBeVisible()
+        const box = await link.boundingBox()
+        expect(box).not.toBeNull()
+        expect(box!.x).toBeGreaterThanOrEqual(0)
+        expect(box!.x + box!.width).toBeLessThanOrEqual(width)
+        expect(box!.y + box!.height).toBeLessThanOrEqual(740)
+        expect(box!.height).toBeGreaterThanOrEqual(44)
+      }
+      // The fixed menu must leave enough page space to reach the last action.
+      const next = page.getByTestId('next-step')
+      await next.scrollIntoViewIfNeeded()
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      const action = await next.boundingBox()
+      const menu = await nav.boundingBox()
+      expect(action!.y + action!.height).toBeLessThanOrEqual(menu!.y)
+    })
+  }
+})
+
 /**
  * The two Horizon-backed lookups are stubbed.
  *
