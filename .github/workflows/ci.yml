@@ -83,6 +83,19 @@ jobs:
       - name: Verify claim resolve, limits and ledger authority
         run: pnpm verify:claims
 
+      - name: Verify claim policy persistence and signing receipts
+        run: |
+          pnpm verify:claim-policies
+          pnpm verify:receipts
+
+      - name: Verify sponsored funding and interrupted app settlement
+        run: |
+          pnpm verify:sponsored-funding
+          pnpm verify:app-lifecycle
+
+      - name: Verify source admission across independent processes
+        run: pnpm verify:source-coordination
+
       - name: Verify the sponsor pool, failover and alerting
         run: pnpm verify:sponsors
 

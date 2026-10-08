@@ -1,0 +1,27 @@
+# Repository-local pnpm settings prevent inheritance from another checkout.
+packages:
+  - .
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - 'argon2'
+  - 'esbuild'
+  - 'prisma'
+  - 'sharp'
+  - 'unrs-resolver'
+overrides:
+  'deepmerge-ts': '>=8.0.0'
+  'protobufjs': '>=7.5.8'
+  'axios': '>=1.20.0 <2'
+  'uuid': '>=11.1.1'
+  'mysql2': '>=3.23.1'
+  'fast-uri': '>=3.1.8 <4'
+  'stream-json': '>=3.5.0'
+  'brace-expansion@1': '>=1.1.21 <2'
+  'brace-expansion@5': '>=5.0.12 <6'
+  '@grpc/grpc-js': '>=1.14.5 <2'
+  'smol-toml': '>=1.9.0 <2'
+  'source-map-js': '>=1.2.2 <2'
+  'fast-copy': '>=4.1.0 <5'
+  'sharp': '>=0.35.5 <0.36'
+  '@next/eslint-plugin-next>fast-glob': 'npm:tinyglobby@^0.2.17'

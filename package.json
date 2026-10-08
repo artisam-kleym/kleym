@@ -86,7 +86,7 @@
     "decimal.js": "^10.6.0",
     "ioredis": "^6.0.0",
     "jose": "^6.2.12",
-    "next": "^16.3.5",
+    "next": "16.3.8",
     "pg": "^8.23.0",
     "pino": "^10.3.1",
     "react": "^19.2.8",
@@ -102,7 +102,7 @@
     "@types/react-dom": "^19.2.4",
     "dotenv": "^17.4.2",
     "eslint": "^10.8.1",
-    "eslint-config-next": "^16.3.1",
+    "eslint-config-next": "16.3.8",
     "pino-pretty": "^13.1.3",
     "postcss": "^8.5.26",
     "prisma": "^7.10.0",
@@ -124,20 +124,39 @@
     "overrides": {
       "deepmerge-ts": ">=8.0.0",
       "protobufjs": ">=7.5.8",
-      "axios": ">=1.18.0",
+      "axios": ">=1.20.0 <2",
       "uuid": ">=11.1.1",
       "mysql2": ">=3.23.1",
-      "fast-uri": ">=3.1.6 <4",
-      "stream-json": ">=3.5.0"
+      "fast-uri": ">=3.1.8 <4",
+      "stream-json": ">=3.5.0",
+      "brace-expansion@1": ">=1.1.21 <2",
+      "brace-expansion@5": ">=5.0.12 <6",
+      "@grpc/grpc-js": ">=1.14.5 <2",
+      "smol-toml": ">=1.9.0 <2",
+      "source-map-js": ">=1.2.2 <2",
+      "fast-copy": ">=4.1.0 <5",
+      "sharp": ">=0.35.5 <0.36",
+      "@next/eslint-plugin-next>fast-glob": "npm:tinyglobby@^0.2.17"
     },
     "overridesReason": {
       "deepmerge-ts": "GHSA-ggr8-5vv4-36mx (high, stack exhaustion) via prisma > @prisma/config, which still pins 7.1.5. Remove when Prisma ships a fixed release. See README.",
       "protobufjs": "GHSA arbitrary code execution (critical) plus four high advisories, via @creit.tech/stellar-wallets-kit > @trezor/connect-web, which pins 7.4.0. Patched in 7.5.8, same major — a version bump, not a suppression.",
-      "axios": "Proxy-inheritance and DoS advisories (high) via the wallet kit's Trezor and WalletConnect adapters, which pin 1.16.0. Patched in 1.18.0, same major.",
+      "axios": "October 2026 SSRF/DoS advisories through wallet adapters; patched in 1.20.0, held in the same major.",
       "uuid": "Moderate advisory via the same tree. Patched in 11.1.1, same major.",
       "mysql2": "Auth-plugin downgrade (high) and unbounded zlib inflate (moderate) via prisma, which pins 3.15.3 for a driver Kleym never loads — the datasource is Postgres. Patched in 3.23.1, same major. Remove when Prisma bumps it.",
-      "fast-uri": "Four host-confusion / SSRF advisories (high) via prisma > @prisma/dev, which pins 3.1.x. Patched in 3.1.6; held below 4 so the major the caller expects is unchanged.",
-      "stream-json": "Filter bypass (moderate) via @creit.tech/stellar-wallets-kit's Trezor adapter. Patched in 3.5.0, same major."
+      "fast-uri": "October 2026 parser advisory GHSA-hrr3-gc8f-f4qj via Prisma; patched in 3.1.8, held below 4.",
+      "stream-json": "Filter bypass (moderate) via @creit.tech/stellar-wallets-kit's Trezor adapter. Patched in 3.5.0, same major.",
+      "brace-expansion@1": "GHSA-q2hr-2g5m-vwhr and earlier ReDoS advisories; patched within each consumer's expected major.",
+      "brace-expansion@5": "GHSA-q2hr-2g5m-vwhr and earlier ReDoS advisories; patched within each consumer's expected major.",
+      "@grpc/grpc-js": "GHSA-m9gg-hp2v-232j and GHSA-f596-whhp-79r4 via telemetry; same-major patch.",
+      "smol-toml": "GHSA-r4xh-jqrq-34v2 via Prisma tooling; same-major patch.",
+      "source-map-js": "GHSA-68fv-2mgg-jv7q via CSS tooling; same-major patch.",
+      "fast-copy": "GHSA-jggr-w7fw-pc2j via pino-pretty; same-major patch.",
+      "sharp": "GHSA-wq5f-xc86-pv6w via Next image processing; patch within 0.35.",
+      "@next/eslint-plugin-next>fast-glob": "braces GHSA-vfj7-8cjw-p6xm has no patched release. Next uses only globSync(pattern, { onlyDirectories: true }); tinyglobby provides that API without braces. Scoped compatibility is tested; remove when upstream replaces fast-glob."
+    },
+    "patchedDependencies": {
+      "@next/eslint-plugin-next@16.3.8": "patches/@next__eslint-plugin-next@16.3.8.patch"
     }
   },
   "engines": {

@@ -21,7 +21,10 @@ import { startTestnetNetworkFixture } from '../tests/fixtures/horizon-network'
 import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
-const stopNetworkFixture = await startTestnetNetworkFixture({ missingAccounts: true })
+const fixtureSponsor = Keypair.fromSecret(process.env.SPONSOR_SECRET_KEY!).publicKey()
+const sourceAccount = { sequence: '100', nativeBalance: '10000.0000000' }
+const stopNetworkFixture = await startTestnetNetworkFixture({ missingAccounts: true,
+  accounts: new Map([[fixtureSponsor, sourceAccount]]), baseReserveStroops: 5_000_000 })
 
 const { prisma } = await import('../src/lib/db/client')
 const { redis } = await import('../src/lib/redis/client')
@@ -265,7 +268,10 @@ async function submitBindsToItsLink(): Promise<void> {
   const { prepareAttempt } = await import('../src/lib/stellar/attempts')
 
   /** Never reaches the network — asserts on what the row becomes. */
-  const accept = async (t: { hash: () => Buffer }) => ({ hash: t.hash().toString('hex'), successful: true })
+  const accept = async (t: { hash: () => Buffer; sequence: string }) => {
+    sourceAccount.sequence = t.sequence
+    return { hash: t.hash().toString('hex'), successful: true }
+  }
 
   async function linkWith(tag: string) {
     const oldKey = await makeLink()
@@ -286,7 +292,7 @@ async function submitBindsToItsLink(): Promise<void> {
   const tx2For = async (link: { key: string; id: string; campaignId: string; balanceId: string }) => {
     const plan = buildClaim(
       {
-        sponsorAccount: new Account(sponsor.publicKey(), '100'),
+        sponsorAccount: new Account(sponsor.publicKey(), sourceAccount.sequence),
         sponsorPublicKey: sponsor.publicKey(),
         ephemeralPublicKey: link.key,
         recipientPublicKey: attacker.publicKey(),
@@ -344,7 +350,7 @@ async function submitBindsToItsLink(): Promise<void> {
   const d = await linkWith('d')
   const mixed = buildClaim(
     {
-      sponsorAccount: new Account(sponsor.publicKey(), '100'),
+      sponsorAccount: new Account(sponsor.publicKey(), sourceAccount.sequence),
       sponsorPublicKey: sponsor.publicKey(),
       ephemeralPublicKey: a.key, // someone else's account does the spending
       recipientPublicKey: attacker.publicKey(),
@@ -370,7 +376,7 @@ async function submitBindsToItsLink(): Promise<void> {
   const tx1For = async (key: string) => {
     const built = buildMaterialise(
       {
-        sponsorAccount: new Account(sponsor.publicKey(), '100'),
+        sponsorAccount: new Account(sponsor.publicKey(), sourceAccount.sequence),
         sponsorPublicKey: sponsor.publicKey(),
         ephemeralPublicKey: key,
         recipientPublicKey: key,
@@ -396,6 +402,12 @@ async function submitBindsToItsLink(): Promise<void> {
     crossedTx1.kind === 'conflict',
     JSON.stringify(crossedTx1).slice(0, 160),
   )
+
+  // The rejected cross-link request never submitted A's preparation. Release
+  // that fixture reservation explicitly before preparing C on the same source.
+  const abandoned = await prisma.ledgerAttempt.updateMany({ where: { scope: `materialise:${a.id}`,
+    status: 'PREPARED', submittedXdr: null }, data: { status: 'FAILED' } })
+  check('the rejected TX1 remained unsubmitted', abandoned.count === 1)
 
   const ownTx1 = await submitClaim(c.key, await tx1For(c.key), 'materialise', accept)
   check('its own TX1 succeeds', ownTx1.kind === 'ok', JSON.stringify(ownTx1).slice(0, 160))

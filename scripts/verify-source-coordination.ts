@@ -10,7 +10,10 @@ import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
 assert.equal(process.env.NODE_ENV, 'test')
-assert(new URL(process.env.DATABASE_URL!).pathname.endsWith('/kleym_verify_96'), 'Use the isolated verification database')
+const verificationDb = new URL(process.env.DATABASE_URL!)
+assert(verificationDb.pathname === '/kleym_verify_96' ||
+  (process.env.CI === 'true' && verificationDb.hostname === 'localhost' && verificationDb.pathname === '/kleym'),
+  'Use the isolated verification database or the disposable CI service')
 const source = Keypair.fromSecret(process.env.SPONSOR_SECRET_KEY!), second = Keypair.random(), destination = Keypair.random().publicKey()
 const wallets = new Map([source, second].map((key) => [key.publicKey(), { sequence: '10', native: '100', selling: '0' }]))
 let chainWrites = 0
