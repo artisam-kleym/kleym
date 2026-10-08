@@ -20,6 +20,9 @@ packages/**/dist/
 !tests/env-placeholders.ts
 !package.json
 !pnpm-lock.yaml
+!pnpm-workspace.yaml
+!patches/
+!patches/*.patch
 !next.config.ts
 !tsconfig.json
 !postcss.config.mjs

@@ -13,11 +13,17 @@ const releaseRoot = resolve(source, '../../.runtime/deploy-source')
 const within = (root, path) => { const value = relative(root, path); return !!value && !value.startsWith(`..${sep}`) && value !== '..' && !isAbsolute(value) }
 if (!within(releaseRoot, output) || existsSync(output)) throw new Error('Release must be a new directory within the intended release root')
 
-const roots = new Set(['package.json', 'pnpm-lock.yaml', 'next.config.ts', 'tsconfig.json', 'postcss.config.mjs', 'prisma.config.ts', 'Dockerfile', '.dockerignore', '.railwayignore'])
+const roots = new Set(['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'next.config.ts', 'tsconfig.json', 'postcss.config.mjs', 'prisma.config.ts', 'Dockerfile', '.dockerignore', '.railwayignore'])
+// Frozen installs require the exact tracked patch files referenced by package.json.
+const packageConfig = JSON.parse(readFileSync(resolve(source, 'package.json'), 'utf8'))
+const patches = new Set(Object.values(packageConfig.pnpm?.patchedDependencies ?? {}))
+for (const path of patches) {
+  if (typeof path !== 'string' || !/^patches\/[A-Za-z0-9_@.\-]+\.patch$/.test(path)) throw new Error('Unsafe dependency patch path')
+}
 const scripts = new Set(['check-public-deployment.ts', 'check-stellar-network.ts', 'recover.ts', 'audit-verify.ts', 'audit-verify-export.ts', 'receipts-verify.ts'])
 const candidates = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: source }).toString().split('\0').filter(Boolean)
 const selected = [...new Set(candidates)].filter((path) =>
-  roots.has(path) || path === 'tests/env-placeholders.ts' || path.startsWith('src/') || path.startsWith('prisma/') || path.startsWith('packages/') || (path.startsWith('scripts/') && scripts.has(path.slice(8))),
+  roots.has(path) || patches.has(path) || path === 'tests/env-placeholders.ts' || path.startsWith('src/') || path.startsWith('prisma/') || path.startsWith('packages/') || (path.startsWith('scripts/') && scripts.has(path.slice(8))),
 ).sort()
 const entries = []
 for (const path of selected) {
@@ -31,6 +37,7 @@ for (const path of selected) {
   entries.push({ path, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') })
 }
 for (const required of roots) if (!entries.some((entry) => entry.path === required)) throw new Error(`Required build input missing: ${required}`)
+for (const required of patches) if (!entries.some((entry) => entry.path === required)) throw new Error(`Required dependency patch missing: ${required}`)
 const sourceDigest = createHash('sha256').update(JSON.stringify(entries)).digest('hex')
 // All paths and contents are checked before writing the release.
 mkdirSync(output, { recursive: true })
