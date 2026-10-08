@@ -1,0 +1,837 @@
+{
+  "checkedAt": "2026-10-08T17:43:38.343Z",
+  "conclusion": "success",
+  "headSha": "1853a5cf41df82cfb68bc2e7c511005feb01cda0",
+  "jobs": [
+    {
+      "completedAt": "2026-10-08T17:39:33Z",
+      "conclusion": "success",
+      "databaseId": 113451308586,
+      "name": "typecheck · lint · build · audit",
+      "startedAt": "2026-10-08T17:37:06Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-08T17:37:08Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-08T17:37:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:10Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-10-08T17:37:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:11Z",
+          "conclusion": "success",
+          "name": "Run pnpm/action-setup@v4",
+          "number": 3,
+          "startedAt": "2026-10-08T17:37:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:21Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 4,
+          "startedAt": "2026-10-08T17:37:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:32Z",
+          "conclusion": "success",
+          "name": "Install",
+          "number": 5,
+          "startedAt": "2026-10-08T17:37:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:47Z",
+          "conclusion": "success",
+          "name": "Typecheck",
+          "number": 6,
+          "startedAt": "2026-10-08T17:37:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:07Z",
+          "conclusion": "success",
+          "name": "Lint",
+          "number": 7,
+          "startedAt": "2026-10-08T17:37:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:45Z",
+          "conclusion": "success",
+          "name": "Unit tests",
+          "number": 8,
+          "startedAt": "2026-10-08T17:38:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:29Z",
+          "conclusion": "success",
+          "name": "Build",
+          "number": 9,
+          "startedAt": "2026-10-08T17:38:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:30Z",
+          "conclusion": "success",
+          "name": "Audit",
+          "number": 10,
+          "startedAt": "2026-10-08T17:39:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:30Z",
+          "conclusion": "success",
+          "name": "Every public write endpoint runs the seed guard",
+          "number": 11,
+          "startedAt": "2026-10-08T17:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:30Z",
+          "conclusion": "success",
+          "name": "Base reserve is not hardcoded",
+          "number": 12,
+          "startedAt": "2026-10-08T17:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:30Z",
+          "conclusion": "success",
+          "name": "CSP allows no inline or eval",
+          "number": 13,
+          "startedAt": "2026-10-08T17:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:30Z",
+          "conclusion": "success",
+          "name": "/api/echo does not come back",
+          "number": 14,
+          "startedAt": "2026-10-08T17:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:30Z",
+          "conclusion": "success",
+          "name": "Pages that need client JS are not prerendered",
+          "number": 15,
+          "startedAt": "2026-10-08T17:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:30Z",
+          "conclusion": "success",
+          "name": "No inline style attributes",
+          "number": 16,
+          "startedAt": "2026-10-08T17:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:30Z",
+          "conclusion": "success",
+          "name": "/claim gets no-referrer",
+          "number": 17,
+          "startedAt": "2026-10-08T17:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:30Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 32,
+          "startedAt": "2026-10-08T17:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:31Z",
+          "conclusion": "success",
+          "name": "Post Run pnpm/action-setup@v4",
+          "number": 33,
+          "startedAt": "2026-10-08T17:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:31Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 34,
+          "startedAt": "2026-10-08T17:39:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:31Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 35,
+          "startedAt": "2026-10-08T17:39:31Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/webnxt-2030/kleym/actions/runs/37817952364/job/113451308586"
+    },
+    {
+      "completedAt": "2026-10-08T17:40:12Z",
+      "conclusion": "success",
+      "databaseId": 113451308996,
+      "name": "concurrency guarantees (real Postgres)",
+      "startedAt": "2026-10-08T17:37:06Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-08T17:37:09Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-08T17:37:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:24Z",
+          "conclusion": "success",
+          "name": "Initialize containers",
+          "number": 2,
+          "startedAt": "2026-10-08T17:37:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:25Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 3,
+          "startedAt": "2026-10-08T17:37:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:27Z",
+          "conclusion": "success",
+          "name": "Run pnpm/action-setup@v4",
+          "number": 4,
+          "startedAt": "2026-10-08T17:37:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:37Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 5,
+          "startedAt": "2026-10-08T17:37:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:50Z",
+          "conclusion": "success",
+          "name": "Install",
+          "number": 6,
+          "startedAt": "2026-10-08T17:37:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:53Z",
+          "conclusion": "success",
+          "name": "Apply migrations",
+          "number": 7,
+          "startedAt": "2026-10-08T17:37:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:55Z",
+          "conclusion": "success",
+          "name": "Verify idempotency and link-limit concurrency",
+          "number": 8,
+          "startedAt": "2026-10-08T17:37:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:02Z",
+          "conclusion": "success",
+          "name": "Verify API keys, rate limiting and ownership",
+          "number": 9,
+          "startedAt": "2026-10-08T17:37:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:06Z",
+          "conclusion": "success",
+          "name": "Verify batch lifecycle",
+          "number": 10,
+          "startedAt": "2026-10-08T17:38:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:09Z",
+          "conclusion": "success",
+          "name": "Verify claim resolve, limits and ledger authority",
+          "number": 11,
+          "startedAt": "2026-10-08T17:38:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:14Z",
+          "conclusion": "success",
+          "name": "Verify claim policy persistence and signing receipts",
+          "number": 12,
+          "startedAt": "2026-10-08T17:38:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:21Z",
+          "conclusion": "success",
+          "name": "Verify sponsored funding and interrupted app settlement",
+          "number": 13,
+          "startedAt": "2026-10-08T17:38:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:26Z",
+          "conclusion": "success",
+          "name": "Verify source admission across independent processes",
+          "number": 14,
+          "startedAt": "2026-10-08T17:38:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:29Z",
+          "conclusion": "success",
+          "name": "Verify the sponsor pool, failover and alerting",
+          "number": 15,
+          "startedAt": "2026-10-08T17:38:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:32Z",
+          "conclusion": "success",
+          "name": "Verify email delivery and OTP",
+          "number": 16,
+          "startedAt": "2026-10-08T17:38:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:34Z",
+          "conclusion": "success",
+          "name": "Verify local-only delivery and held legacy jobs",
+          "number": 17,
+          "startedAt": "2026-10-08T17:38:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:37Z",
+          "conclusion": "success",
+          "name": "Verify campaign list and history ownership, filters and ordering",
+          "number": 18,
+          "startedAt": "2026-10-08T17:38:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:45Z",
+          "conclusion": "success",
+          "name": "Verify the dashboard is scoped, claimed-only and bounded",
+          "number": 19,
+          "startedAt": "2026-10-08T17:38:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:50Z",
+          "conclusion": "success",
+          "name": "Verify reconciliation and the expiry sweep",
+          "number": 20,
+          "startedAt": "2026-10-08T17:38:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:53Z",
+          "conclusion": "success",
+          "name": "Verify reclaim after expiry",
+          "number": 21,
+          "startedAt": "2026-10-08T17:38:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:04Z",
+          "conclusion": "success",
+          "name": "Verify the stranded ephemeral account monitor",
+          "number": 22,
+          "startedAt": "2026-10-08T17:38:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:06Z",
+          "conclusion": "success",
+          "name": "Verify the admin area and audit logging",
+          "number": 23,
+          "startedAt": "2026-10-08T17:39:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:16Z",
+          "conclusion": "success",
+          "name": "Verify the campaign detail page is bounded at MAX_LINKS_PER_CAMPAIGN",
+          "number": 24,
+          "startedAt": "2026-10-08T17:39:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:19Z",
+          "conclusion": "success",
+          "name": "Verify user provisioning by invitation",
+          "number": 25,
+          "startedAt": "2026-10-08T17:39:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:21Z",
+          "conclusion": "success",
+          "name": "Verify organisations, memberships and roles",
+          "number": 26,
+          "startedAt": "2026-10-08T17:39:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:24Z",
+          "conclusion": "success",
+          "name": "Verify delivery retention and erasure",
+          "number": 27,
+          "startedAt": "2026-10-08T17:39:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:26Z",
+          "conclusion": "success",
+          "name": "Verify dual control",
+          "number": 28,
+          "startedAt": "2026-10-08T17:39:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:30Z",
+          "conclusion": "success",
+          "name": "Verify compliance hooks (screening fail-closed, attestation, regulator export)",
+          "number": 29,
+          "startedAt": "2026-10-08T17:39:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:35Z",
+          "conclusion": "success",
+          "name": "Verify observability (traces, forced-condition metrics, status page)",
+          "number": 30,
+          "startedAt": "2026-10-08T17:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:43Z",
+          "conclusion": "success",
+          "name": "Verify the write API, webhooks and the SDK",
+          "number": 31,
+          "startedAt": "2026-10-08T17:39:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:46Z",
+          "conclusion": "success",
+          "name": "Verify SSO and SCIM (OIDC sign-in, SSO-only, deprovisioning, role mapping, no email linking, no token leaks)",
+          "number": 32,
+          "startedAt": "2026-10-08T17:39:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:50Z",
+          "conclusion": "success",
+          "name": "Verify MFA (TOTP, passkeys, policy, step-up, redaction, recovery, lockout)",
+          "number": 33,
+          "startedAt": "2026-10-08T17:39:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:55Z",
+          "conclusion": "success",
+          "name": "Verify the audit chain, checkpoints, concurrency and signed export",
+          "number": 34,
+          "startedAt": "2026-10-08T17:39:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:40:09Z",
+          "conclusion": "success",
+          "name": "Verify a backup by restoring it",
+          "number": 35,
+          "startedAt": "2026-10-08T17:39:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:40:09Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 67,
+          "startedAt": "2026-10-08T17:40:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:40:09Z",
+          "conclusion": "success",
+          "name": "Post Run pnpm/action-setup@v4",
+          "number": 68,
+          "startedAt": "2026-10-08T17:40:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:40:10Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 69,
+          "startedAt": "2026-10-08T17:40:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:40:10Z",
+          "conclusion": "success",
+          "name": "Stop containers",
+          "number": 70,
+          "startedAt": "2026-10-08T17:40:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:40:10Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 71,
+          "startedAt": "2026-10-08T17:40:10Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/webnxt-2030/kleym/actions/runs/37817952364/job/113451308996"
+    },
+    {
+      "completedAt": "2026-10-08T17:37:48Z",
+      "conclusion": "success",
+      "databaseId": 113451309027,
+      "name": "secret-handling guards",
+      "startedAt": "2026-10-08T17:37:06Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-08T17:37:09Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-08T17:37:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:10Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-10-08T17:37:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:10Z",
+          "conclusion": "success",
+          "name": "Schema stores no secrets",
+          "number": 3,
+          "startedAt": "2026-10-08T17:37:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:10Z",
+          "conclusion": "success",
+          "name": "No seed extraction in application code",
+          "number": 4,
+          "startedAt": "2026-10-08T17:37:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:10Z",
+          "conclusion": "success",
+          "name": "Browser keygen is unreachable from the server",
+          "number": 5,
+          "startedAt": "2026-10-08T17:37:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:11Z",
+          "conclusion": "success",
+          "name": "No secret-shaped NEXT_PUBLIC_ values committed",
+          "number": 6,
+          "startedAt": "2026-10-08T17:37:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:11Z",
+          "conclusion": "success",
+          "name": "Span attributes and metric labels go through the allowlist",
+          "number": 7,
+          "startedAt": "2026-10-08T17:37:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:12Z",
+          "conclusion": "success",
+          "name": "Run pnpm/action-setup@v4",
+          "number": 8,
+          "startedAt": "2026-10-08T17:37:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:25Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 9,
+          "startedAt": "2026-10-08T17:37:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:41Z",
+          "conclusion": "success",
+          "name": "Install",
+          "number": 10,
+          "startedAt": "2026-10-08T17:37:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:42Z",
+          "conclusion": "success",
+          "name": "Planted key material never survives safeAttributes",
+          "number": 11,
+          "startedAt": "2026-10-08T17:37:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:44Z",
+          "conclusion": "success",
+          "name": "Every env secret is classified and redacted",
+          "number": 12,
+          "startedAt": "2026-10-08T17:37:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:45Z",
+          "conclusion": "success",
+          "name": "No recovery phrase in application code",
+          "number": 13,
+          "startedAt": "2026-10-08T17:37:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:45Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 24,
+          "startedAt": "2026-10-08T17:37:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:45Z",
+          "conclusion": "success",
+          "name": "Post Run pnpm/action-setup@v4",
+          "number": 25,
+          "startedAt": "2026-10-08T17:37:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:46Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 26,
+          "startedAt": "2026-10-08T17:37:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:46Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 27,
+          "startedAt": "2026-10-08T17:37:46Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/webnxt-2030/kleym/actions/runs/37817952364/job/113451309027"
+    },
+    {
+      "completedAt": "2026-10-08T17:41:04Z",
+      "conclusion": "success",
+      "databaseId": 113451309058,
+      "name": "CSV gate (real browser)",
+      "startedAt": "2026-10-08T17:37:42Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-08T17:37:44Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-08T17:37:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:58Z",
+          "conclusion": "success",
+          "name": "Initialize containers",
+          "number": 2,
+          "startedAt": "2026-10-08T17:37:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:37:59Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 3,
+          "startedAt": "2026-10-08T17:37:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:00Z",
+          "conclusion": "success",
+          "name": "Run pnpm/action-setup@v4",
+          "number": 4,
+          "startedAt": "2026-10-08T17:37:59Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:10Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 5,
+          "startedAt": "2026-10-08T17:38:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:23Z",
+          "conclusion": "success",
+          "name": "Install",
+          "number": 6,
+          "startedAt": "2026-10-08T17:38:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:24Z",
+          "conclusion": "success",
+          "name": "Generate run secrets",
+          "number": 7,
+          "startedAt": "2026-10-08T17:38:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:25Z",
+          "conclusion": "success",
+          "name": "Generate throwaway sponsor key",
+          "number": 8,
+          "startedAt": "2026-10-08T17:38:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:27Z",
+          "conclusion": "success",
+          "name": "Apply migrations",
+          "number": 9,
+          "startedAt": "2026-10-08T17:38:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:38:28Z",
+          "conclusion": "success",
+          "name": "Seed the test account",
+          "number": 10,
+          "startedAt": "2026-10-08T17:38:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:39:00Z",
+          "conclusion": "success",
+          "name": "Install Chromium",
+          "number": 11,
+          "startedAt": "2026-10-08T17:38:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:40:29Z",
+          "conclusion": "success",
+          "name": "Run",
+          "number": 12,
+          "startedAt": "2026-10-08T17:39:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:40:35Z",
+          "conclusion": "success",
+          "name": "SPEC §10 acceptance matrix and header audit",
+          "number": 13,
+          "startedAt": "2026-10-08T17:40:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:41:01Z",
+          "conclusion": "success",
+          "name": "Batch path under load",
+          "number": 14,
+          "startedAt": "2026-10-08T17:40:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:41:01Z",
+          "conclusion": "skipped",
+          "name": "Run actions/upload-artifact@v4",
+          "number": 15,
+          "startedAt": "2026-10-08T17:41:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:41:01Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 27,
+          "startedAt": "2026-10-08T17:41:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:41:01Z",
+          "conclusion": "success",
+          "name": "Post Run pnpm/action-setup@v4",
+          "number": 28,
+          "startedAt": "2026-10-08T17:41:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:41:02Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 29,
+          "startedAt": "2026-10-08T17:41:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:41:02Z",
+          "conclusion": "success",
+          "name": "Stop containers",
+          "number": 30,
+          "startedAt": "2026-10-08T17:41:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-08T17:41:02Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 31,
+          "startedAt": "2026-10-08T17:41:02Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/webnxt-2030/kleym/actions/runs/37817952364/job/113451309058"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/webnxt-2030/kleym/actions/runs/37817952364"
+}

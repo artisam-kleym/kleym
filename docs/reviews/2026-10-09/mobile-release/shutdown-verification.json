@@ -1,0 +1,53 @@
+{
+  "checkedAt": "2026-10-08T17:54:22.467Z",
+  "project": "48614d0d-2e58-4848-af96-2184e3044c47",
+  "environment": "cbca2958-d44a-4ca8-8d4e-746a61584d02",
+  "services": [
+    {
+      "name": "kleym-web",
+      "id": "4d547645-da9f-4e1e-aec3-2511f6239fc3",
+      "deploymentId": "c4798e6e-7fed-477b-a658-0e789a151b8c",
+      "image": null,
+      "status": "REMOVED"
+    },
+    {
+      "name": "kleym-worker",
+      "id": "2490753a-e4ba-471c-87c9-a6dd7d74d567",
+      "deploymentId": "3c0b64b5-7ae9-44ee-bd6f-a1333a02e604",
+      "image": null,
+      "status": "REMOVED"
+    },
+    {
+      "name": "Redis",
+      "id": "45121e0c-a4e7-4961-8004-102e6dfa6d03",
+      "deploymentId": "9ec8025a-b653-4c6a-b761-0154019cd03a",
+      "image": "redis@sha256:164c759a0c342ee69d08fc99219382b0fd682181465c0df2e0e6911f4c85d73c",
+      "status": "REMOVED"
+    },
+    {
+      "name": "Postgres",
+      "id": "37702f7c-d942-4b00-96aa-16b5c4a8b58e",
+      "deploymentId": "abc1bbec-95c2-4645-a0af-f6504241a009",
+      "image": "ghcr.io/railwayapp-templates/postgres-ssl@sha256:4b89e3c89d9262f02f23e927ff9f1390a19f7c03e2483321bc05c30872a333a3",
+      "status": "REMOVED"
+    }
+  ],
+  "volumeCountRetained": 2,
+  "publicReadyHttpStatus": 404,
+  "redisShutdownSaveObserved": true,
+  "postgresCleanShutdownObserved": true,
+  "userDecision": "Leave the final campaign refund for next session and stop Railway",
+  "remainingCurrentCampaignUsdc": "1.0000000",
+  "campaignId": "cmuzrnf7200020dnzr49itmq6",
+  "walletConnect": "Project and allowed origin retained; no running Kleym service in Reown",
+  "deletedServices": 0,
+  "deletedVolumes": 0,
+  "changedVariables": 0,
+  "temporarySshRegistrationRevoked": true,
+  "resumeOrder": [
+    "Postgres",
+    "Redis",
+    "kleym-worker",
+    "kleym-web"
+  ]
+}

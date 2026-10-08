@@ -19,7 +19,7 @@ The third link expires October9,01:39Manila. Reclaim evidence is added only afte
 
 ## Foundation issue qualification
 
-The rows below identify scoped completion evidence. Closure follows fresh candidate CI and the final owner reclaim; they do not close the parent launch gate.
+The rows below identify scoped completion evidence. Fresh candidate CI passed all four required jobs in [run37817952364](https://github.com/webnxt-2030/kleym/actions/runs/37817952364) for `1853a5cf41df82cfb68bc2e7c511005feb01cda0`; PR125 merged into `develop-ade` as `994d18481525d736aed2ec5e745377e34d5ae54d`. The five foundation rows #97/#98/#99/#105/#111 are qualified. The final owner refund remains a required checkpoint for closing #100. These scoped closures do not close the parent launch gate.
 
 | Issue | Acceptance and decisive proof |
 | --- | --- |
@@ -32,8 +32,23 @@ The rows below identify scoped completion evidence. Closure follows fresh candid
 
 ## Verification and limits
 
-Local qualification: typecheck/lint pass;771tests in68files pass; audit has one low advisory and no moderate-or-higher findings;39environment fields classified,12secrets registered. Fresh PR CI must also pass real Postgres/Redis integrations, production build and real browser download gates before merge. Browser tests inspect private export content only in memory; reports contain no bearer URLs, phrases or seeds.
+Local qualification: typecheck/lint pass;771tests in68files pass; audit has one low advisory and no moderate-or-higher findings;39environment fields classified,12secrets registered. Fresh CI passed real Postgres/Redis integrations, production build and all38real browser checks. Post-deployment Android emulation verified the saved-file checkbox controls signing and all six navigation links fit320/393px; no campaign was created or funded by that UI check. Browser tests inspect private export content only in memory; reports contain no bearer URLs, phrases or seeds.
+
+The new web deployment `c4798e6e-7fed-477b-a658-0e789a151b8c` reached SUCCESS. Its391-file allowlist export digest is `dfda6c9aa4e7a1dae28397fcd5fa12ed814def80084c415b88964494a4c2ffd7`. Public readiness/privacy checks passed. A new118064-byte private Postgres backup was restored into a disposable database, with all35public-table counts matching; the restore database and remote archive were removed. Neither backup contents nor credentials are published.
 
 No arbitrary USDC campaign cap is introduced: wallet principal and liabilities determine affordability. Sponsor capital, admission reservations, release incident/refill ownership and Mainnet operational sign-off remain separate unfinished issues. Vesting and rehearsal are not fabricated as complete. Lantern0.6.2 directory integration and private-link handoff remain unqualified. Mobile campaign approval/export on physical Android is tracked separately from responsive emulation and recipient proof.
 
-Shutdown is requested after this session's tests, merge and ledger accounting. Retain all Railway volumes, configuration and source images; stopping services does not freeze on-chain expiry or return funds automatically.
+## Shutdown and next-session handoff
+
+At01:54Manila, web/worker/Redis/Postgres were independently verified REMOVED and public readiness returned404. Both volumes are retained; Redis final RDB save and clean Postgres shutdown were observed. No service, volume or variable was deleted. Temporary Railway SSH registration was revoked. Reown's public project and origin configuration remain intact.
+
+The user explicitly chose to leave the current campaign's final1USDC refund on the ledger and stop Railway. Its sender remains8USDC/native0; desktop recipient5USDC/native0; phone4USDC/native0. Keep the private CSV. Reclaim must be approved by the sender after resuming; it should return1USDC and increase the sender to9USDC. An older expired campaign has a separate unused allocation; do not mix that with this test's refund.
+
+Five issues are closed with scoped acceptance evidence: #97,#98,#99,#105,#111. Thirteen remain open. #100 remains open pending the final owner reclaim checkpoint; Mainnet release/operational, full recovery/QA, Lantern integration, vesting and rehearsal gates are not declared complete.
+
+Next session:
+
+1. Resume retained Postgres/Redis deployments, then worker, then web; check readiness and retained campaigns.
+2. Reclaim the current expired1USDC, independently verify its hash and exact accounting, then review older expired links separately.
+3. Test physical Android campaign login, private CSV saving and Freighter funding/reclaim approvals. Test a phone recipient without a USDC trustline, wallet rejection, background/resume and late/expired approval. Current physical mobile recipient proof covers an existing trustline only.
+4. Reconcile remaining issue criteria and operational sponsor capacity/ownership. Complete the Testnet QA matrix before a separately approved Mainnet deployment. Lantern integration requires its maintainer's rebuilt directory/session support.

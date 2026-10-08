@@ -1,0 +1,139 @@
+{
+  "checkedAt": "2026-10-08T17:48:28.204Z",
+  "deploymentId": "c4798e6e-7fed-477b-a658-0e789a151b8c",
+  "checks": [
+    {
+      "path": "/dashboard",
+      "viewport": 393,
+      "scrollWidth": 393
+    },
+    {
+      "path": "/campaigns",
+      "viewport": 393,
+      "scrollWidth": 393
+    },
+    {
+      "path": "campaign-asset",
+      "viewport": 393,
+      "scrollWidth": 393
+    },
+    {
+      "path": "campaign-review",
+      "viewport": 393,
+      "scrollWidth": 393
+    },
+    {
+      "path": "navigation",
+      "width": 320,
+      "allSixDestinationsVisible": true,
+      "touchTargetsPassed": true,
+      "lastActionAboveMenu": true,
+      "bounds": [
+        {
+          "label": "dashboard\nDashboard",
+          "x": 8,
+          "y": 755,
+          "width": 101.328125,
+          "height": 44
+        },
+        {
+          "label": "campaign\nCampaigns",
+          "x": 109.328125,
+          "y": 755,
+          "width": 101.328125,
+          "height": 44
+        },
+        {
+          "label": "pending_actions\nTemplates",
+          "x": 210.65625,
+          "y": 755,
+          "width": 101.34375,
+          "height": 44
+        },
+        {
+          "label": "verified_user\nApprovals",
+          "x": 8,
+          "y": 799,
+          "width": 101.328125,
+          "height": 44
+        },
+        {
+          "label": "history\nHistory",
+          "x": 109.328125,
+          "y": 799,
+          "width": 101.328125,
+          "height": 44
+        },
+        {
+          "label": "settings\nSettings",
+          "x": 210.65625,
+          "y": 799,
+          "width": 101.34375,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "path": "navigation",
+      "width": 393,
+      "allSixDestinationsVisible": true,
+      "touchTargetsPassed": true,
+      "lastActionAboveMenu": true,
+      "bounds": [
+        {
+          "label": "dashboard\nDashboard",
+          "x": 8,
+          "y": 755,
+          "width": 125.65625,
+          "height": 44
+        },
+        {
+          "label": "campaign\nCampaigns",
+          "x": 133.65625,
+          "y": 755,
+          "width": 125.671875,
+          "height": 44
+        },
+        {
+          "label": "pending_actions\nTemplates",
+          "x": 259.328125,
+          "y": 755,
+          "width": 125.65625,
+          "height": 44
+        },
+        {
+          "label": "verified_user\nApprovals",
+          "x": 8,
+          "y": 799,
+          "width": 125.65625,
+          "height": 44
+        },
+        {
+          "label": "history\nHistory",
+          "x": 133.65625,
+          "y": 799,
+          "width": 125.671875,
+          "height": 44
+        },
+        {
+          "label": "settings\nSettings",
+          "x": 259.328125,
+          "y": 799,
+          "width": 125.65625,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "path": "export",
+      "downloadStarted": true,
+      "downloadNoFailure": true,
+      "signDisabledBeforeAttestation": true,
+      "signEnabledAfterAttestation": true,
+      "revokingAttestationDisablesSigning": true
+    }
+  ],
+  "newCampaignsCreated": 0,
+  "agentLedgerWrites": 0,
+  "physicalWalletApproval": "NOT_RUN"
+}
