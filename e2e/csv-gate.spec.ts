@@ -215,6 +215,8 @@ async function reachExportStep(page: Page) {
   await next.click()
 
   await expect(page.getByRole('heading', { name: /review & create/i })).toBeVisible()
+  // Review must show the selected count before any private keys are generated.
+  await expect(page.getByTestId('review-link-count')).toHaveText('3')
 }
 
 /**
