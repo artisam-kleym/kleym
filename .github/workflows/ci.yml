@@ -302,9 +302,11 @@ jobs:
         run: |
           PASSWORD="$(openssl rand -base64 24)"
           echo "::add-mask::$PASSWORD"
-          echo "SESSION_SECRET=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
-          echo "AUDIT_SIGNING_SEED=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
-          echo "CREDENTIAL_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+          for RUN_SECRET_NAME in SESSION_SECRET AUDIT_SIGNING_SEED CREDENTIAL_ENCRYPTION_KEY; do
+            RUN_SECRET_VALUE="$(openssl rand -base64 32)"
+            echo "::add-mask::$RUN_SECRET_VALUE"
+            echo "$RUN_SECRET_NAME=$RUN_SECRET_VALUE" >> "$GITHUB_ENV"
+          done
           echo "SEED_ADMIN_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
           echo "E2E_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
 
@@ -313,11 +315,14 @@ jobs:
       - name: Generate throwaway sponsor key
         run: |
           pnpm exec tsx -e "
+            import { appendFileSync } from 'node:fs'
             import { Keypair } from '@stellar/stellar-sdk'
             const k = Keypair.random()
-            console.log('SPONSOR_PUBLIC_KEY=' + k.publicKey())
-            console.log('SPONSOR_SECRET_KEY=' + k.secret())
-          " >> "$GITHUB_ENV"
+            const secret = k.secret()
+            if (!process.env.GITHUB_ENV) throw new Error('Missing workflow environment file')
+            console.log('::add-mask::' + secret)
+            appendFileSync(process.env.GITHUB_ENV, 'SPONSOR_PUBLIC_KEY=' + k.publicKey() + '\nSPONSOR_SECRET_KEY=' + secret + '\n')
+          "
 
       - name: Apply migrations
         run: pnpm db:deploy
