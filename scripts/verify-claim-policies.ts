@@ -17,8 +17,12 @@ import { randomUUID } from 'node:crypto'
 import { Keypair } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
 import { personalOrg } from '../tests/fixtures/tenant'
+import { startTestnetNetworkFixture } from '../tests/fixtures/horizon-network'
+import { prepareProofMessage, type PrepareProofInput } from '../src/lib/claim/prepare-proof'
 
 applyEnvPlaceholders()
+const stopNetworkFixture = await startTestnetNetworkFixture({ missingAccounts: true })
+const holders = new Map<string, Keypair>()
 
 const { prisma } = await import('../src/lib/db/client')
 const { redis } = await import('../src/lib/redis/client')
@@ -48,7 +52,9 @@ async function fixture(policy: Policy, over: { status?: 'ACTIVE' | 'EXPIRED' | '
     },
     select: { id: true },
   })
-  const key = Keypair.random().publicKey()
+  const holder = Keypair.random()
+  const key = holder.publicKey()
+  holders.set(key, holder)
   const code = '0123456789ABC'
   const link = await prisma.claimLink.create({
     data: {
@@ -61,12 +67,23 @@ async function fixture(policy: Policy, over: { status?: 'ACTIVE' | 'EXPIRED' | '
   return { campaignId: campaign.id, linkId: link.id, key, code }
 }
 
+function holderHeaders(path: string, body: unknown): Record<string, string> {
+  if (!path.includes('/prepare/')) return {}
+  const input = body as PrepareProofInput
+  const expires = Math.floor(Date.now() / 1000) + 90
+  const phase = path.endsWith('/materialise') ? 'materialise' : 'claim'
+  const proof = holders.get(input.ephemeralPublicKey)!.sign(Buffer.from(prepareProofMessage(
+    new URL(process.env.APP_URL!).origin, 'testnet', phase, expires, input))).toString('base64')
+  return { 'x-kleym-proof-expires': String(expires), 'x-kleym-link-proof': proof }
+}
+
 const post = (handler: (r: Request) => Promise<Response>, path: string, body: unknown, header?: string) =>
   handler(
     new Request(`http://localhost${path}`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
+        ...holderHeaders(path, body),
         // A fresh IP per request so the per-IP limits stay out of it.
         'x-forwarded-for': `10.2.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250) + 1}`,
         ...(header ? { [POLICY_TOKEN_HEADER]: header } : {}),
@@ -178,6 +195,7 @@ async function main(): Promise<void> {
     await resolveIsByteIdentical()
   } finally {
     await prisma.$disconnect()
+    await stopNetworkFixture()
     await redis.quit().catch(() => undefined)
   }
   console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)

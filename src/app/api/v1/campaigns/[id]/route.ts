@@ -22,9 +22,10 @@ export async function GET(request: Request, { params }: Params) {
     const campaign = await prisma.campaign.findFirst({
       where: owned(id, auth.caller.organizationId),
       select: {
-        id: true, name: true, network: true, assetCode: true, assetIssuer: true,
+        id: true, name: true, network: true, senderPublicKey: true, assetCode: true, assetIssuer: true,
         amountPerLink: true, linkCount: true, expiresAt: true, status: true,
         reserveEstimate: true, csvExportedAt: true, createdAt: true, claimPolicy: true,
+        batches: { orderBy: { sequence: 'asc' }, select: { sequence: true, status: true, transactionHash: true } },
       },
     })
     if (!campaign) return apiNotFound()

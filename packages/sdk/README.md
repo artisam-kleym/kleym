@@ -22,7 +22,11 @@ const result = await createCampaignEndToEnd({
 
 CLI: `KLEYM_API_KEY=… KLEYM_URL=… KLEYM_SENDER_SECRET=… kleym create-campaign --name … --amount 250 --links 120 --expires 2026-10-12T00:00:00Z --out secrets.csv`
 
-The CLI defaults to the deployment's official USDC/network metadata, rejects a conflicting `--network`, and accepts `--asset XLM` explicitly. Test USDC has no financial value. Sender fee/reserve sponsorship is separate follow-up work (#97–#100); current funding still requires the sender's XLM fees/reserves. See `docs/stellar-network.md` for the network boundary and compatibility rules.
+The CLI defaults to the deployment's official USDC/network metadata, rejects a conflicting `--network`, and accepts `--asset XLM` explicitly. Official USDC uses sender-authorised principal with Kleym paying funding fees and reserves; legacy XLM remains sender-paid. Test USDC has no financial value. See `docs/stellar-network.md` for compatibility rules.
+
+Funding waits for each batch to be **CONFIRMED** before preparing the next one, including the final batch. A `FundingPendingError` means confirmation is still unknown; it does not mean the payment failed. Keep the existing CSV and resume that campaign with `kleym resume-campaign --id <campaign id>` or `resumeCampaignFunding({ client, campaignId, senderSecret })`. Resume does not create another campaign, regenerate keys or overwrite the export. A confirmed batch is never signed again. Default confirmation timeout is 120 seconds per batch, with a one-second poll interval; the SDK accepts positive integer overrides.
+
+Upgrade the server and SDK together: campaign detail must expose the ordered public batch statuses and the sender public key. An older server is refused before signing. CSV attestation, WRITE scope and organisation ownership continue to be required. Optional labels may be omitted, empty, partial or complete; missing entries remain null.
 
 Receiving webhooks:
 

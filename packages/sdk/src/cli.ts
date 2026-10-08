@@ -9,7 +9,7 @@
 import { readFile } from 'node:fs/promises'
 import { Keypair } from '@stellar/stellar-sdk'
 import { KleymClient } from './client.js'
-import { createCampaignEndToEnd } from './flow.js'
+import { createCampaignEndToEnd, resumeCampaignFunding } from './flow.js'
 
 function flag(args: string[], name: string): string | undefined {
   const at = args.indexOf(`--${name}`)
@@ -18,7 +18,7 @@ function flag(args: string[], name: string): string | undefined {
 
 async function main(): Promise<void> {
   const [command, ...args] = process.argv.slice(2)
-  if (command !== 'create-campaign') {
+  if (command !== 'create-campaign' && command !== 'resume-campaign') {
     console.error('usage: kleym create-campaign --name <name> --amount <per link> --links <count> --expires <iso> --out <secrets.csv> [--asset CODE:ISSUER] [--network testnet|public] [--labels <file>]')
     process.exit(2)
   }
@@ -28,6 +28,14 @@ async function main(): Promise<void> {
   if (!apiKey || !baseUrl || !senderSecret) {
     console.error('set KLEYM_API_KEY, KLEYM_URL and KLEYM_SENDER_SECRET in the environment')
     process.exit(2)
+  }
+  if (command === 'resume-campaign') {
+    const campaignId = flag(args, 'id')
+    if (!campaignId) throw new Error('usage: kleym resume-campaign --id <campaign id>')
+    const batches = await resumeCampaignFunding({ client: new KleymClient({ baseUrl, apiKey }), campaignId, senderSecret,
+      onBatch: (batch) => console.error(`batch ${batch.sequence}: ${batch.status} ${batch.transactionHash}`) })
+    console.log(JSON.stringify({ campaignId, submittedThisRun: batches.length, fundingConfirmed: true }))
+    return
   }
   const name = flag(args, 'name')
   const amount = flag(args, 'amount')

@@ -22,16 +22,19 @@ import { createServer, type Server } from 'node:http'
 import { mkdtempSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Keypair, Networks, TransactionBuilder } from '@stellar/stellar-sdk'
+import { Keypair, Networks, Transaction, TransactionBuilder } from '@stellar/stellar-sdk'
 import { applyEnvPlaceholders } from '../tests/env-placeholders'
 import { personalOrg } from '../tests/fixtures/tenant'
 
 applyEnvPlaceholders()
-process.env.MAX_OPS_PER_BATCH = '3'
+process.env.MAX_OPS_PER_BATCH = '5'
+const USDC_ISSUER = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5'
+let sdkSender: string | null = null
 
 /* ── a stand-in Horizon ────────────────────────────────────────────────── */
 
 const horizonLog: string[] = []
+const sourceSequences = new Map<string, string>()
 const horizon: Server = createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://x')
   horizonLog.push(`${req.method} ${url.pathname}`)
@@ -44,7 +47,11 @@ const horizon: Server = createServer((req, res) => {
   }
   if (req.method === 'GET' && /^\/accounts\/G[A-Z2-7]{55}$/.test(url.pathname)) {
     const id = url.pathname.slice('/accounts/'.length)
-    return json(200, { _links: {}, id, account_id: id, sequence: '1000', subentry_count: 0, balances: [{ asset_type: 'native', balance: '10000.0000000' }], data: {} })
+    return json(200, { _links: {}, id, account_id: id, sequence: sourceSequences.get(id) ?? '1000', subentry_count: id === sdkSender ? 1 : 0,
+      num_sponsored: id === sdkSender ? 3 : 0,
+      balances: [{ asset_type: 'native', balance: id === sdkSender ? '0.0000000' : '10000.0000000' },
+        ...(id === sdkSender ? [{ asset_type: 'credit_alphanum4', asset_code: 'USDC', asset_issuer: USDC_ISSUER,
+          balance: '15.0000000', limit: '100.0000000', selling_liabilities: '0.0000000' }] : [])], data: {} })
   }
   if (req.method === 'GET' && url.pathname === '/ledgers') {
     return json(200, { _links: {}, _embedded: { records: [{ base_reserve_in_stroops: 5_000_000, base_fee_in_stroops: 100 }] } })
@@ -56,6 +63,15 @@ const horizon: Server = createServer((req, res) => {
       try {
         const tx = new URLSearchParams(raw).get('tx') ?? ''
         const parsed = TransactionBuilder.fromXDR(tx, Networks.TESTNET)
+        if ('source' in parsed) {
+          sourceSequences.set(parsed.source, parsed.sequence)
+          if (sdkSender && parsed.operations.some((operation) => operation.type === 'createClaimableBalance' && operation.source === sdkSender)) {
+            for (const publicKey of [sdkSender, process.env.SPONSOR_PUBLIC_KEY!]) {
+              const verifier = Keypair.fromPublicKey(publicKey)
+              if (!parsed.signatures.some((signature) => verifier.verify(parsed.hash(), signature.signature()))) throw new Error('Required funding signature absent')
+            }
+          }
+        }
         json(200, { hash: parsed.hash().toString('hex'), ledger: 1, successful: true })
       } catch (error) {
         horizonLog.push(`decode failed: ${error instanceof Error ? error.message : String(error)}`)
@@ -135,7 +151,24 @@ const routeFetch: typeof fetch = async (input, init) => {
   const params = (id: string) => ({ params: Promise.resolve({ id }) })
   let m: RegExpExecArray | null
   if (p === '/api/v1/campaigns') return request.method === 'POST' ? campaignsRoute.POST(request) : campaignsRoute.GET(request)
-  if ((m = /^\/api\/v1\/campaigns\/([^/]+)$/.exec(p))) return campaignRoute.GET(request, params(m[1]!))
+  if ((m = /^\/api\/v1\/campaigns\/([^/]+)$/.exec(p))) {
+    // Simulate the confirmation worker after injected ledger submission.
+    // Exercise real route polling and exact operation-to-registered-key mapping.
+    const pending = await prisma.batch.findMany({ where: { campaignId: m[1]!, status: 'SUBMITTED' },
+      select: { id: true, submittedXdr: true, links: { select: { id: true, ephemeralPublicKey: true } } } })
+    for (const batch of pending) {
+      const transaction = TransactionBuilder.fromXDR(batch.submittedXdr!, Networks.TESTNET)
+      if (!(transaction instanceof Transaction)) throw new Error('Fixture expected a classic transaction')
+      const mapping = transaction.operations.flatMap((operation, index) => {
+        if (operation.type !== 'createClaimableBalance') return []
+        const link = batch.links.find((row) => row.ephemeralPublicKey === operation.claimants[0]?.destination)
+        if (!link) throw new Error('Fixture balance did not bind to a registered public key')
+        return [{ linkId: link.id, balanceId: transaction.getClaimableBalanceId(index) }]
+      })
+      await confirmBatch(batch.id, m[1]!, mapping)
+    }
+    return campaignRoute.GET(request, params(m[1]!))
+  }
   if ((m = /^\/api\/v1\/campaigns\/([^/]+)\/links$/.exec(p))) return request.method === 'POST' ? linksRoute.POST(request, params(m[1]!)) : linksRoute.GET(request, params(m[1]!))
   if ((m = /^\/api\/v1\/campaigns\/([^/]+)\/export$/.exec(p))) return exportRoute.POST(request, params(m[1]!))
   if ((m = /^\/api\/v1\/campaigns\/([^/]+)\/batches\/prepare$/.exec(p))) return prepareRoute.POST(request, params(m[1]!))
@@ -166,11 +199,12 @@ async function sdkEndToEnd() {
 
   const sender = Keypair.random()
   const client = new sdk.KleymClient({ baseUrl: 'http://kleym.test', apiKey: t.apiKey, fetch: routeFetch })
+  sdkSender = sender.publicKey()
   const csvPath = join(dir, 'secrets.csv')
   const batches: string[] = []
   const result = await sdk.createCampaignEndToEnd({
     client,
-    terms: { name: 'sdk run', network: 'testnet', senderPublicKey: sender.publicKey(), assetCode: 'XLM', amountPerLink: '2.5', linkCount: 5, expiresAt: new Date(Date.now() + 86_400_000).toISOString() },
+    terms: { name: 'sdk run', network: 'testnet', senderPublicKey: sender.publicKey(), assetCode: 'USDC', assetIssuer: USDC_ISSUER, amountPerLink: '2.5', linkCount: 5, expiresAt: new Date(Date.now() + 86_400_000).toISOString() },
     csvPath, appUrl: 'https://kleym.example', senderSecret: sender.secret(),
     labels: ['alice', 'bob', 'carol', 'dave', 'erin'],
     attestations: [{ reference: 'PAY-1', category: 'payroll', note: null }, null, null, null, null],
@@ -185,6 +219,22 @@ async function sdkEndToEnd() {
   check('and re-imports through the server\'s own parser with its attestation', back.ok && back.labels[0] === 'alice' && back.attestations?.[0]?.reference === 'PAY-1', JSON.stringify(back))
   check('the export was marked', (await prisma.campaign.findUniqueOrThrow({ where: { id: result.campaignId }, select: { csvExportedAt: true } })).csvExportedAt !== null)
   check('two batches (3 + 2) were prepared, signed locally and submitted', batches.join(',') === '1:SUBMITTED,2:SUBMITTED', batches.join(','))
+  check('the SDK waited until all batches confirmed', links.every((link) => link.batch?.status === 'CONFIRMED'))
+  check('the sender supplied USDC while Kleym paid funding fees and reserves',
+    (await prisma.campaign.findUniqueOrThrow({ where: { id: result.campaignId } })).fundingMode === 'SPONSORED')
+  const resumed = await sdk.resumeCampaignFunding({ client, campaignId: result.campaignId, senderSecret: sender.secret() })
+  check('resuming confirmed funding submits nothing again', resumed.length === 0 && horizonLog.filter((line) => line.startsWith('POST /transactions')).length === 2)
+  for (const [tag, labels] of [['omitted', undefined], ['empty', []], ['partial', ['first']]] as const) {
+    const terms = { name: `SDK labels ${tag}`, network: 'testnet' as const, senderPublicKey: sender.publicKey(),
+      assetCode: 'USDC', assetIssuer: USDC_ISSUER, amountPerLink: '1', linkCount: 2, expiresAt: new Date(Date.now() + 86_400_000).toISOString() }
+    const draft = await sdk.createCampaignEndToEnd({ client, terms, senderSecret: sender.secret(),
+      csvPath: join(dir, `${tag}.csv`), appUrl: 'https://kleym.example', sign: false,
+      ...(labels === undefined ? {} : { labels: [...labels] }) })
+    const registered = await prisma.claimLink.findMany({ where: { campaignId: draft.campaignId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] })
+    check(`${tag} labels register and export through real WRITE routes`, registered.length === 2 &&
+      registered.filter((link) => link.label !== null).length === (labels?.length ?? 0) &&
+      (await prisma.campaign.findUniqueOrThrow({ where: { id: draft.campaignId } })).csvExportedAt !== null)
+  }
   check('Horizon was asked for the sender account and given two transactions', horizonLog.filter((l) => l.startsWith('POST /transactions')).length === 2, horizonLog.join(';'))
   check('the batch-confirm job was queued for each', (await Promise.all((await prisma.batch.findMany({ where: { campaignId: result.campaignId }, select: { id: true } })).map((b) => batchConfirmQueue().getJob(batchConfirmJobId(b.id))))).every(Boolean))
 
@@ -276,9 +326,9 @@ async function signedDeliveries(ctx: { campaignId: string; orgId: string }): Pro
   const worker = startWebhookWorker()
   // Confirm one batch from "the ledger" — this raises batch.confirmed and, with the CSV marked, campaign.activated.
   const batch = await prisma.batch.findFirstOrThrow({ where: { campaignId: ctx.campaignId, sequence: 1 }, select: { id: true, links: { select: { id: true } } } })
-  await confirmBatch(batch.id, ctx.campaignId, batch.links.map((l) => ({ linkId: l.id, balanceId: `00000000${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}` })))
+  check('batch 1 was confirmed through SDK status polling', (await prisma.batch.findUniqueOrThrow({ where: { id: batch.id } })).status === 'CONFIRMED')
   const batch2 = await prisma.batch.findFirstOrThrow({ where: { campaignId: ctx.campaignId, sequence: 2 }, select: { id: true, links: { select: { id: true } } } })
-  await confirmBatch(batch2.id, ctx.campaignId, batch2.links.map((l) => ({ linkId: l.id, balanceId: `00000000${randomUUID().replace(/-/g, '')}${randomUUID().replace(/-/g, '')}` })))
+  check('batch 2 was confirmed through SDK status polling', (await prisma.batch.findUniqueOrThrow({ where: { id: batch2.id } })).status === 'CONFIRMED')
   const link = await prisma.claimLink.findFirstOrThrow({ where: { campaignId: ctx.campaignId }, select: { id: true, ephemeralPublicKey: true } })
   await emitWebhook(ctx.orgId, 'link.claimed', { campaignId: ctx.campaignId, linkId: link.id, ephemeralPublicKey: link.ephemeralPublicKey, claimedBy: Keypair.random().publicKey(), claimTxHash: 'ab'.repeat(32), claimedAt: new Date().toISOString(), claimMemoType: null, claimMemo: null, receiptId: null })
 
