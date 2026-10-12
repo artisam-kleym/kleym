@@ -216,6 +216,10 @@ Specifically: **stop and ask** if the §2 testnet spike fails, if a dependency c
 
 If something is fragile, unverified, or working around a limitation, say so in the delivery summary. Distinguish "verified by execution" from "believed correct but unchecked."
 
+### 6.6 Kleym release destination
+
+The owner approved `develop-ade` for Kleym releases; the senior's `develop` branch is separate. For authorized releases, merge only after current checks pass, then update and verify the senior-owned Railway project `57849f8f-8c9f-4565-8b88-6faf9ce085dd`, Testnet environment `72ccf46d-3e64-4bcb-bde8-9d4af62157ff`. The app is `https://kleym-testnet.up.railway.app`. Use explicit project/environment/service selectors and the source-only release exporter; check the target identity before any mutation. Do not deploy to the retired personal project or upload ignored runtime files. Keep database volumes, credentials, Mainnet disablement and pending Lantern qualification intact. Record the Git commit, deployed source identity, web readiness and worker proof. See `docs/railway.md` for service IDs and source-connection status.
+
 ---
 
 ## 7. Testing

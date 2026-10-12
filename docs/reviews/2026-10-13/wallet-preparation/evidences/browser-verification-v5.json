@@ -1,0 +1,47 @@
+{
+  "checkedAt": "2026-10-12T16:19:42.166Z",
+  "mode": "Local production components and simulated trusted Lantern parent; not APK/extension hardware acceptance",
+  "browser": "151.0.7922.34",
+  "checks": [
+    {
+      "journey": "manual creator desktop 1440px",
+      "result": "PASS",
+      "checks": "Wallet name, manual signature guidance, 3-link Review, handoff guard/release, layout and zero writes"
+    },
+    {
+      "journey": "manual creator desktop 393px",
+      "result": "PASS",
+      "checks": "Wallet name, manual signature guidance, 3-link Review, handoff guard/release, layout and zero writes"
+    },
+    {
+      "journey": "manual creator Android 393px",
+      "result": "PASS",
+      "checks": "Wallet name, manual signature guidance, 3-link Review, handoff guard/release, layout and zero writes"
+    },
+    {
+      "journey": "manual creator Android 320px",
+      "result": "PASS",
+      "checks": "Wallet name, manual signature guidance, 3-link Review, handoff guard/release, layout and zero writes"
+    },
+    {
+      "journey": "trusted Lantern sender, sandbox downloads blocked",
+      "result": "PASS",
+      "downloadObserved": false,
+      "checks": "Primary wallet, exact public-key connection, export guidance, actual Blob download behavior and saved-export signing gate; no signing/submission"
+    },
+    {
+      "journey": "trusted Lantern sender, sandbox downloads permitted",
+      "result": "PASS",
+      "downloadObserved": true,
+      "checks": "Primary wallet, exact public-key connection, export guidance, actual Blob download behavior and saved-export signing gate; no signing/submission"
+    },
+    {
+      "journey": "Android on extension-only configuration",
+      "result": "PASS",
+      "checks": "Does not offer an app handoff without the Android origin enabled"
+    }
+  ],
+  "failures": [],
+  "assetsMoved": false,
+  "privateExportRetained": false
+}

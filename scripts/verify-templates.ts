@@ -44,13 +44,15 @@ async function main(): Promise<void> {
   const source = await prisma.campaign.create({
     data: {
       userId: t.userId, organizationId: t.org.id, name: 'March contractors', network: 'testnet', senderPublicKey: sender, assetCode: 'XLM', amountPerLink: '100',
-      linkCount: 2, expiresAt: new Date(Date.now() + 30 * 86_400_000), status: 'ACTIVE', claimPolicy: 'EMAIL', reminderDaysBefore: [7, 1],
+      linkCount: 2, expiresAt: new Date(Date.now() + 30 * 86_400_000), status: 'ACTIVE', claimPolicy: 'OPEN', reminderDaysBefore: [7, 1],
       links: { create: [{ ephemeralPublicKey: Keypair.random().publicKey(), amount: '100', label: 'alice', reference: 'INV-1' }, { ephemeralPublicKey: Keypair.random().publicKey(), amount: '100', label: 'bob' }] },
     },
     select: { id: true },
   })
   const from = await templateFromCampaign(source.id, t.org.id)
-  check('terms copied: asset, amount, policy, reminders, expiry offset', from?.terms.assetCode === 'XLM' && from?.terms.amountPerLink === '100' && from?.terms.claimPolicy === 'email' && from?.terms.reminderDaysBefore?.join() === '7,1' && from?.terms.expiryDays === 30, JSON.stringify(from?.terms))
+  check('terms copied: asset, amount, policy, reminders, expiry offset', from?.terms.assetCode === 'XLM' && from?.terms.amountPerLink === '100' && (from?.terms.claimPolicy ?? 'open') === 'open' && from?.terms.reminderDaysBefore?.join() === '7,1' && from?.terms.expiryDays === 30, JSON.stringify(from?.terms))
+  const legacy = await createTemplate(actor, { name: 'Refused legacy email policy', terms: { ...from!.terms, claimPolicy: 'email' }, recipientsCsv: from!.recipientsCsv, cadence: 'monthly:1', runHour: 9, enabled: true }, 1000)
+  check('local distribution refuses a legacy email-policy template', legacy.kind !== 'ok')
   check('the links became the recipient list', from?.recipientsCsv.includes('alice') === true && from?.recipientsCsv.includes('INV-1') === true)
 
   console.log('\n2. A schedule prepares exactly one draft per due instant')

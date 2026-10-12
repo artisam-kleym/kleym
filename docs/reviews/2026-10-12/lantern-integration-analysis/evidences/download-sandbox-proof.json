@@ -1,0 +1,20 @@
+{
+  "sourceCommit": "ed512f6d3a478e4fc9eaab498627a6d0f8165d30",
+  "browser": "151.0.7922.34",
+  "scope": "Synthetic cross-origin Chromium fixture, harmless CSV, no wallet or ledger activity; not an APK test",
+  "cases": [
+    {
+      "allowDownloads": false,
+      "downloadObserved": false,
+      "downloadCompleted": false,
+      "logs": []
+    },
+    {
+      "allowDownloads": true,
+      "downloadObserved": true,
+      "downloadCompleted": true,
+      "logs": []
+    }
+  ],
+  "acceptancePassed": true
+}

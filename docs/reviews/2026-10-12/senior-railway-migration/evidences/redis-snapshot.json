@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-12T14:29:54.295Z",
+  "sourceKeys": 219,
+  "snapshotBytes": 125096,
+  "sha256": "145d3e0e2100bb7c93f10cda394f50ffd3ab30c31c2a4355593b0eb2125ffa51",
+  "privateSnapshot": true,
+  "targetWasEmpty": true,
+  "targetAutosaveDisabledDuringTransfer": true,
+  "reloadVerified": true,
+  "snapshotHashMatches": true,
+  "targetKeys": 219,
+  "keyspaceSummary": [
+    "db0:keys=219,expires=4,avg_ttl=306548989,subexpiry=0"
+  ],
+  "ttlCaveat": "Expired keys may disappear by design during the move; queue structures are separately verified before the worker starts."
+}

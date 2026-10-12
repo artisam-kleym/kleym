@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-10-09T02:25:12.927Z",
+  "branch": "codex/mobile-header-signing-fixes",
+  "deployment": "not deployed",
+  "unitTests": {
+    "checkout": "ci-issue-qualification",
+    "files": 69,
+    "passed": 775,
+    "failed": 0
+  },
+  "sourceDependencyMismatch": {
+    "passed": 774,
+    "failed": 1,
+    "test": "dependency-globs",
+    "reason": "older shared fast-glob installation; release checkout passed"
+  },
+  "lint": "pass",
+  "typecheck": "pass",
+  "productionBuild": "pass; temporary component fixtures included",
+  "browserChecks": {
+    "development": 35,
+    "production": 35,
+    "widths": [
+      320,
+      360,
+      393,
+      768,
+      1440
+    ],
+    "nativeWalletApproval": "not run",
+    "authenticatedDatabaseSuite": "not run"
+  },
+  "assetMovements": 0,
+  "railway": "unchanged, stopped",
+  "github": "unchanged, signed out"
+}

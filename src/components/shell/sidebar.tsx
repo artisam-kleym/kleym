@@ -3,6 +3,7 @@
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
 import { Icon, type IconName } from '@/components/ui'
 import { OrgSwitcher, type OrgOption } from './org-switcher'
 
@@ -23,7 +24,7 @@ const NAV: NavItem[] = [
   { href: '/settings', label: 'Settings', icon: 'settings' },
 ]
 
-function NavLinks({ pathname, mobile = false }: { pathname: string; mobile?: boolean }) {
+function NavLinks({ pathname, mobile = false, onNavigate }: { pathname: string; mobile?: boolean; onNavigate?: () => void }) {
   return (
     <>
       {NAV.map((item) => {
@@ -32,11 +33,12 @@ function NavLinks({ pathname, mobile = false }: { pathname: string; mobile?: boo
           <Link
             key={item.href}
             href={item.href}
+            onClick={onNavigate}
             aria-current={active ? 'page' : undefined}
             className={clsx(
               'flex items-center font-mono',
               mobile
-                ? 'min-h-11 min-w-0 justify-center gap-xs rounded-lg px-xs py-sm text-label-sm'
+                ? 'min-h-11 min-w-0 gap-sm rounded-lg px-sm py-sm text-label-md'
                 : 'gap-sm rounded-full px-4 py-3 text-label-md',
               'transition-all duration-200 active:scale-[0.98]',
               active
@@ -80,13 +82,45 @@ export function Sidebar({
         </div>
       </nav>
 
-      {/* Below lg, a bottom bar. */}
-      <nav
-        aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 bg-primary-container px-sm py-2 lg:hidden"
-      >
-        <NavLinks pathname={pathname} mobile />
-      </nav>
+      <MobileHeader key={pathname} pathname={pathname} organizations={organizations} activeOrganizationId={activeOrganizationId} />
     </>
+  )
+}
+
+function MobileHeader({ pathname, organizations, activeOrganizationId }: { pathname: string; organizations: OrgOption[]; activeOrganizationId: string | null }) {
+  const [open, setOpen] = useState(false)
+  const toggle = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!open) return
+    // Safari does not focus buttons after a pointer click. Escape must still
+    // dismiss the open menu when focus remains outside the header.
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setOpen(false)
+      toggle.current?.focus()
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [open])
+  return (
+    <header className="sticky top-0 z-20 border-b border-on-primary-container/20 bg-primary-container px-margin-mobile py-sm lg:hidden">
+      <div className="flex min-h-11 items-center justify-between gap-md">
+        <Link href="/dashboard" className="flex min-h-11 items-center gap-sm text-on-primary">
+          <Icon name="toll" size={24} filled /><span className="text-headline-md">Kleym</span>
+        </Link>
+        <button ref={toggle} type="button" aria-expanded={open} aria-controls="mobile-main-menu"
+          onClick={() => setOpen(!open)} className="flex min-h-11 items-center gap-sm rounded-lg px-sm font-mono text-label-md text-on-primary">
+          <Icon name={open ? 'close' : 'menu'} />{open ? 'Close menu' : 'Menu'}
+        </button>
+      </div>
+      <div id="mobile-main-menu" hidden={!open}>
+        <nav aria-label="Main" className="grid grid-cols-2 gap-xs py-sm">
+          <NavLinks pathname={pathname} mobile onNavigate={() => setOpen(false)} />
+        </nav>
+        <div className="min-w-0 border-t border-on-primary-container/20 py-sm">
+          <OrgSwitcher organizations={organizations} activeOrganizationId={activeOrganizationId} />
+        </div>
+      </div>
+    </header>
   )
 }

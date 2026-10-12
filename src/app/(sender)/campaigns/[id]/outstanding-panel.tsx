@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui'
 import type { Outstanding } from '@/lib/api/outstanding'
+import { useExpired } from '@/lib/campaign/use-expired'
 
 /**
  * Unclaimed value, managed rather than discovered (#78).
@@ -23,6 +24,7 @@ export function OutstandingPanel({ campaignId, canEdit, renewalExists = false }:
   const [points, setPoints] = useState<number[] | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const expired = useExpired(data && data !== 'error' ? data.expiresAt : '', data && data !== 'error' ? data.expired : false)
 
   useEffect(() => {
     let cancelled = false
@@ -39,7 +41,7 @@ export function OutstandingPanel({ campaignId, canEdit, renewalExists = false }:
     return () => {
       cancelled = true
     }
-  }, [campaignId])
+  }, [campaignId, expired])
 
   async function saveReminders() {
     if (!points) return
@@ -96,7 +98,7 @@ export function OutstandingPanel({ campaignId, canEdit, renewalExists = false }:
               <p className="mt-1 text-label-sm text-on-surface-variant">Summed from the ledger’s own amounts.</p>
             </div>
             <div>
-              <dt className="text-label-md text-on-surface-variant">{data.expired ? 'Expired' : 'Expires'}</dt>
+              <dt className="text-label-md text-on-surface-variant">{expired ? 'Expired' : 'Expires'}</dt>
               <dd className="mt-1 font-mono text-headline-md text-on-surface">{day(data.expiresAt)}</dd>
             </div>
           </dl>
@@ -114,9 +116,9 @@ export function OutstandingPanel({ campaignId, canEdit, renewalExists = false }:
             )}
             {data.count > 0 && (
               <p className="mt-xs text-body-md text-on-surface-variant">
-                {data.expired
-                  ? `Due${data.reclaimDueAt ? ` since ${day(data.reclaimDueAt)}` : ''}: the remaining ${data.count} can be returned now — use the reclaim panel; you sign it with your wallet.`
-                  : `Scheduled for ${day(data.reclaimScheduledFor)}. When that passes, Kleym marks it due and notifies your organisation’s webhooks; you sign the return with your wallet — Kleym cannot move the funds for you.`}
+                {expired
+                  ? `Refund ready: the remaining ${data.count} can be returned after your wallet approval. Tap Reclaim below; Kleym does not refund automatically or hold your wallet key.`
+                  : `Available to reclaim from ${new Date(data.reclaimScheduledFor).toLocaleString()}. Open this campaign then and approve Reclaim in your wallet. Expiry does not transfer the funds automatically.`}
               </p>
             )}
             {data.count === 0 && data.reclaimed.length === 0 && (
@@ -124,7 +126,7 @@ export function OutstandingPanel({ campaignId, canEdit, renewalExists = false }:
             )}
           </div>
 
-          {!data.expired && !data.suspendedAt && (
+          {!expired && !data.suspendedAt && (
             <div className="mt-md rounded-lg border border-outline-variant/50 bg-surface p-md">
               <p className="text-label-md font-semibold text-on-surface">Remind recipients</p>
               <p className="mt-xs text-body-md text-on-surface-variant">
@@ -169,7 +171,7 @@ export function OutstandingPanel({ campaignId, canEdit, renewalExists = false }:
               </p>
             </div>
           )}
-          {data.expired && data.count === 0 && data.reclaimed.length > 0 && canEdit && !renewalExists && (
+          {expired && data.count === 0 && data.reclaimed.length > 0 && canEdit && !renewalExists && (
             <Link href={`/campaigns/new?renew=${campaignId}`} className="mt-md inline-flex min-h-11 items-center rounded-lg border border-outline-variant px-4 py-3 font-mono text-label-md font-semibold text-primary">
               Renew returned funds
             </Link>

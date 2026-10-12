@@ -5,8 +5,8 @@
  * before `expiresAt`, the sender from `expiresAt` on. There is no instant at
  * which the sender can take a balance back early, so nothing Kleym does can
  * stop a link holder claiming before expiry. What Kleym CAN do is stop
- * participating — refuse to resolve or prepare the link — and make sure the
- * unclaimed funds come back the moment the sender's predicate turns true.
+ * participating — refuse to resolve or prepare the link — and announce when
+ * the unclaimed funds become available for the sender to reclaim.
  *
  * That is what suspension is: a flag that the claim path reads, plus a
  * scheduled reclaim. The reclaim itself is signed by the sender's wallet
@@ -52,8 +52,8 @@ export function suspensionDecision(
       detail: `This campaign is ${campaign.status.toLowerCase()}; there is nothing left to suspend.`,
     }
   }
-  // The row can say ACTIVE for up to an hour after expiry (the sweep is
-  // hourly). Past expiresAt the sender can reclaim, which is the real action.
+  // The row may still say ACTIVE while the minute sweep is pending or the
+  // worker is offline. The ledger expiry governs when the sender can reclaim.
   if (campaign.expiresAt.getTime() <= now.getTime()) {
     return {
       kind: 'refuse',
@@ -232,12 +232,12 @@ export interface ReclaimDueReport {
 }
 
 /**
- * The scheduled half. Runs inside the hourly expiry sweep: every campaign
+ * The scheduled half. Runs inside the minute expiry sweep: every campaign
  * whose `expiresAt` has passed with links still unclaimed — suspended or not
  * (#78 made the schedule universal, #72 introduced it) — is marked due once
  * and its organisation told that the reclaim is ready to sign. Bounded: one
  * update and one webhook per campaign, never per link; at most 200 campaigns
- * a pass, the rest next hour.
+ * a pass, the rest on a later pass.
  */
 export async function announceDueReclaims(now: Date = new Date()): Promise<ReclaimDueReport> {
   const due = await prisma.campaign.findMany({

@@ -1,0 +1,153 @@
+{
+  "at": "2026-10-12T14:28:53.140Z",
+  "tables": 35,
+  "tableCounts": [
+    {
+      "table": "ApiKey",
+      "rows": 0
+    },
+    {
+      "table": "AuditChainHead",
+      "rows": 1
+    },
+    {
+      "table": "AuditLog",
+      "rows": 9
+    },
+    {
+      "table": "Batch",
+      "rows": 4
+    },
+    {
+      "table": "Campaign",
+      "rows": 4
+    },
+    {
+      "table": "CampaignApproval",
+      "rows": 0
+    },
+    {
+      "table": "CampaignTemplate",
+      "rows": 0
+    },
+    {
+      "table": "ClaimLink",
+      "rows": 12
+    },
+    {
+      "table": "ClaimLinkPasskey",
+      "rows": 0
+    },
+    {
+      "table": "ClaimReceipt",
+      "rows": 5
+    },
+    {
+      "table": "Delivery",
+      "rows": 0
+    },
+    {
+      "table": "IdempotencyKey",
+      "rows": 16
+    },
+    {
+      "table": "Invitation",
+      "rows": 0
+    },
+    {
+      "table": "LedgerAttempt",
+      "rows": 12
+    },
+    {
+      "table": "Membership",
+      "rows": 1
+    },
+    {
+      "table": "MfaPasskey",
+      "rows": 0
+    },
+    {
+      "table": "MfaRecoveryCode",
+      "rows": 0
+    },
+    {
+      "table": "MfaTotp",
+      "rows": 0
+    },
+    {
+      "table": "Organization",
+      "rows": 1
+    },
+    {
+      "table": "ReclaimBatch",
+      "rows": 2
+    },
+    {
+      "table": "ReconciliationFinding",
+      "rows": 0
+    },
+    {
+      "table": "ScimGroup",
+      "rows": 0
+    },
+    {
+      "table": "ScimGroupMember",
+      "rows": 0
+    },
+    {
+      "table": "ScimToken",
+      "rows": 0
+    },
+    {
+      "table": "Session",
+      "rows": 16
+    },
+    {
+      "table": "SsoConnection",
+      "rows": 0
+    },
+    {
+      "table": "SsoGroupMapping",
+      "rows": 0
+    },
+    {
+      "table": "SsoIdentity",
+      "rows": 0
+    },
+    {
+      "table": "StrandedAccount",
+      "rows": 0
+    },
+    {
+      "table": "TemplateRun",
+      "rows": 0
+    },
+    {
+      "table": "User",
+      "rows": 1
+    },
+    {
+      "table": "Valuation",
+      "rows": 7
+    },
+    {
+      "table": "WebhookDelivery",
+      "rows": 0
+    },
+    {
+      "table": "WebhookEndpoint",
+      "rows": 0
+    },
+    {
+      "table": "_prisma_migrations",
+      "rows": 33
+    }
+  ],
+  "allRowDigestsMatch": true,
+  "allIndexAndConstraintDefinitionsMatch": true,
+  "archiveBytes": 119166,
+  "archiveSHA256": "557638c86ca2bda8e0f6dabfdee042f05a2f19ea99f95465d4ff15368ad3f776",
+  "archivePrivate": true,
+  "sourceUnmodified": true,
+  "seedOrReset": false
+}

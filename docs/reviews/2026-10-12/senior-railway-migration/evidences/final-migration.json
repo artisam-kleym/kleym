@@ -1,0 +1,107 @@
+{
+  "at": "2026-10-12T15:15:52.702Z",
+  "project": "57849f8f-8c9f-4565-8b88-6faf9ce085dd",
+  "environment": "72ccf46d-3e64-4bcb-bde8-9d4af62157ff",
+  "origin": "https://kleym-testnet.up.railway.app",
+  "services": {
+    "id": "57849f8f-8c9f-4565-8b88-6faf9ce085dd",
+    "name": "kleym",
+    "environment": [
+      {
+        "id": "72ccf46d-3e64-4bcb-bde8-9d4af62157ff",
+        "name": "testnet",
+        "services": [
+          {
+            "id": "ef86046b-954d-43ec-959d-13ab401b3e12",
+            "name": "Redis",
+            "active": [
+              {
+                "id": "755a9b3b-4c10-4969-94f4-942a8cb9abdd",
+                "status": "SUCCESS"
+              }
+            ],
+            "domains": []
+          },
+          {
+            "id": "c56db078-2554-46fe-9d5c-1fec9c99618b",
+            "name": "Postgres",
+            "active": [
+              {
+                "id": "fac75115-3c1e-4188-aa7f-483a286ef805",
+                "status": "SUCCESS"
+              }
+            ],
+            "domains": []
+          },
+          {
+            "id": "1449f6c7-2843-4dfa-820f-7c49d87a1fba",
+            "name": "kleym-worker",
+            "active": [
+              {
+                "id": "cc8588a8-c2b7-40bc-b99e-0fbe7b6b4201",
+                "status": "SUCCESS"
+              }
+            ],
+            "domains": []
+          },
+          {
+            "id": "d0149eaa-d1c4-4c64-a3e8-4a659362714c",
+            "name": "kleym-web",
+            "active": [
+              {
+                "id": "c59e613e-3211-4a5d-9a14-130973c36b25",
+                "status": "SUCCESS"
+              }
+            ],
+            "domains": [
+              "kleym-testnet.up.railway.app"
+            ]
+          }
+        ],
+        "volumes": [
+          {
+            "id": "33b79a5b-0a7d-4e8f-a28c-0a36a8bfb9ec",
+            "mountPath": "/var/lib/postgresql/data",
+            "serviceId": "c56db078-2554-46fe-9d5c-1fec9c99618b",
+            "state": "READY",
+            "deletedAt": null,
+            "isPendingDeletion": false
+          },
+          {
+            "id": "3cdb1f58-a3d2-40e5-8130-137dfcc4c3b8",
+            "mountPath": "/data",
+            "serviceId": "ef86046b-954d-43ec-959d-13ab401b3e12",
+            "state": "READY",
+            "deletedAt": null,
+            "isPendingDeletion": false
+          }
+        ]
+      }
+    ]
+  },
+  "oldAllStopped": true,
+  "oldVolumesRetained": true,
+  "unusedProductionEnvironmentInactive": true,
+  "checks": [
+    {
+      "service": "kleym-web",
+      "runtimeAppUrlCorrect": true,
+      "cryptoAndSponsorValuesMatchSource": true,
+      "network": "testnet",
+      "mainnetDisabled": true,
+      "seedDisabled": true,
+      "lanternDisabled": true
+    },
+    {
+      "service": "kleym-worker",
+      "runtimeAppUrlCorrect": true,
+      "cryptoAndSponsorValuesMatchSource": true,
+      "network": "testnet",
+      "mainnetDisabled": true,
+      "seedDisabled": true,
+      "lanternDisabled": true
+    }
+  ],
+  "migrationVerified": true,
+  "physicalAndroidCreator": "Owner reported Android funding; exact Testnet operations/signatures independently verified"
+}

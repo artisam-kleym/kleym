@@ -9,6 +9,8 @@
  */
 export const RECONCILE_EVERY_MINUTES = 5
 export const WATCH_EVERY_MINUTES = 15
+/** Promptly mark unused allocations ready for owner approval; never auto-sign refunds. */
+export const EXPIRY_EVERY_MINUTES = 1
 
 export const RECONCILE_INTERVAL_MS = RECONCILE_EVERY_MINUTES * 60_000
 export const WATCH_INTERVAL_MS = WATCH_EVERY_MINUTES * 60_000

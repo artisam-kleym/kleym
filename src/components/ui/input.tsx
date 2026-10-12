@@ -16,7 +16,7 @@ export function Input({ label, helper, total, error, className, id, ...props }: 
   const helperId = `${inputId}-helper`
 
   return (
-    <div className="flex flex-col gap-xs">
+    <div className="flex min-w-0 flex-col gap-xs">
       <label
         htmlFor={inputId}
         className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant"
@@ -32,7 +32,7 @@ export function Input({ label, helper, total, error, className, id, ...props }: 
           // identifies the control, so it needs 3:1 (WCAG 1.4.11).
           // outline-variant measures 1.55:1 here; outline measures 4.06:1.
           'input-glow rounded-lg border border-outline bg-surface-container-low',
-          'px-4 py-3 font-mono text-label-md text-on-surface',
+          'min-h-11 w-full min-w-0 max-w-full px-4 py-3 font-mono text-body-md text-on-surface md:text-label-md',
           'transition-colors duration-200',
           error && 'border-error',
           className,

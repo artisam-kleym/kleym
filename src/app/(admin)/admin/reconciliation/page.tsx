@@ -195,7 +195,7 @@ export default async function ReconciliationPage() {
                     <TableCell>
                       <StellarAddress value={finding.link.ephemeralPublicKey} />
                     </TableCell>
-                    <TableCell className="max-w-md whitespace-normal">{finding.detail}</TableCell>
+                    <TableCell className="max-w-[28rem] whitespace-normal">{finding.detail}</TableCell>
                     <TableCell>{finding.firstSeenAt.toISOString().slice(0, 16).replace('T', ' ')}</TableCell>
                   </TableRow>
                 ))}

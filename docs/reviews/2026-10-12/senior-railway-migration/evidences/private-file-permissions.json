@@ -1,0 +1,42 @@
+[
+  {
+    "name": "admin-login.txt",
+    "ownerOnly": true
+  },
+  {
+    "name": "campaign-query-error-private.log",
+    "ownerOnly": true
+  },
+  {
+    "name": "session-private.json",
+    "ownerOnly": true
+  },
+  {
+    "name": "source-database-proof.json",
+    "ownerOnly": true
+  },
+  {
+    "name": "source-postgres.dump",
+    "ownerOnly": true
+  },
+  {
+    "name": "source-redis.rdb",
+    "ownerOnly": true
+  },
+  {
+    "name": "state.json",
+    "ownerOnly": true
+  },
+  {
+    "name": "v2-build-private.log",
+    "ownerOnly": true
+  },
+  {
+    "name": "v2-fixture-build-private.log",
+    "ownerOnly": true
+  },
+  {
+    "name": "v2-unit-private.log",
+    "ownerOnly": true
+  }
+]

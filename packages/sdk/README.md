@@ -1,5 +1,7 @@
 # @kleym/sdk
 
+Private CSV exports use exclusive file creation: POSIX mode `0600`, or a Windows owner-only ACL set atomically when the file is created. Windows requires built-in Windows PowerShell/.NET tools. Paths and CSV contents use stdin, never command arguments; permission failures are reported without writing secrets. Existing files are never overwritten.
+
 Drive Kleym without a browser, without weakening anything: link keys are
 generated on **your** machine, the secrets file is written to **your** disk,
 and only public keys cross the network. Batches are signed locally with the

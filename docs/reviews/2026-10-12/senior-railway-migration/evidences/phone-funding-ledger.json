@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-12T15:12:46.190Z",
+  "campaignId": "cmv5da4zl00040dlj8q3hjkkp",
+  "network": "testnet",
+  "hash": "c77fec9f34d20866752fe2d20f5c88d4148a17691911c74f8d0257701b073f5a",
+  "successful": true,
+  "ledger": 5158585,
+  "sender": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+  "links": 3,
+  "amountPerLink": "1.0000000",
+  "feeChargedStroops": "500",
+  "sponsorPaidFee": true,
+  "senderAndSponsorSignaturesVerified": true,
+  "senderAfter": {
+    "native": "0.0000000",
+    "usdc": "6.0000000"
+  },
+  "ownerReportedDevice": "Android Chrome / Freighter 1.26.29",
+  "deviceContext": "Reported by user; transaction contents independently read from Horizon",
+  "idempotencyMessage": "Owner saw an in-progress error after wallet approval; funds verified separately; no resubmission by agent"
+}

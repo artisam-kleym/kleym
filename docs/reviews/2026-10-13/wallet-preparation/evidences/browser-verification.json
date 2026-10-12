@@ -1,0 +1,22 @@
+{
+  "checkedAt": "2026-10-12T16:14:11.610Z",
+  "mode": "Local production components and simulated trusted Lantern parent; not APK/extension hardware acceptance",
+  "browser": "151.0.7922.34",
+  "checks": [
+    {
+      "journey": "manual creator desktop 1440px",
+      "result": "PASS",
+      "checks": "Wallet name, manual signature guidance, 3-link Review, handoff guard/release, layout and zero writes"
+    },
+    {
+      "journey": "manual creator desktop 393px",
+      "result": "PASS",
+      "checks": "Wallet name, manual signature guidance, 3-link Review, handoff guard/release, layout and zero writes"
+    }
+  ],
+  "failures": [
+    "expect(locator).toBeVisible() failed\n\nLocator: getByRole('link', { name: 'Open in Lantern', exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for getByRole('link', { name: 'Open in Lantern', exact: true })\n"
+  ],
+  "assetsMoved": false,
+  "privateExportRetained": false
+}

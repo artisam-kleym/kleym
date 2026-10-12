@@ -42,7 +42,7 @@ export function SuspendLinkButton({ campaignId, linkId, expiresAt }: { campaignI
 
   return (
     <div className="flex flex-col gap-xs">
-      <p className="max-w-xs text-label-sm text-on-surface-variant">
+      <p className="max-w-[20rem] text-label-sm text-on-surface-variant">
         Kleym stops serving this link. Its holder can still claim on the ledger until {expiresAt.slice(0, 10)}; the
         balance returns to you in the reclaim after that.
       </p>

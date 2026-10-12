@@ -21,6 +21,21 @@ describe('Lantern embedding headers and session policy', () => {
     expect(response.headers.get('content-security-policy')).toContain('frame-ancestors https://android.golantern.xyz')
     expect(sessionCookieOptions(new Date())).toMatchObject({httpOnly:true,secure:true,sameSite:'none',partitioned:true,path:'/'})
   })
+  it.each(['/templates', '/templates/example', '/approvals', '/history'])('permits trusted Lantern navigation to %s', (path) => {
+    vi.stubEnv('LANTERN_ORIGINS', 'https://android.golantern.xyz')
+    const response = middleware(new NextRequest(`https://kleym.example${path}`))
+    expect(response.headers.get('x-frame-options')).toBeNull()
+    expect(response.headers.get('content-security-policy')).toContain('frame-ancestors https://android.golantern.xyz')
+    vi.stubEnv('LANTERN_ORIGINS', '')
+    const disabled = middleware(new NextRequest(`https://kleym.example${path}`))
+    expect(disabled.headers.get('x-frame-options')).toBe('DENY')
+  })
+  it.each(['/templates-evil', '/approvals-evil', '/history-evil', '/api/templates', '/admin/templates'])('does not expand framing to %s', (path) => {
+    vi.stubEnv('LANTERN_ORIGINS', 'https://android.golantern.xyz')
+    const response = middleware(new NextRequest(`https://kleym.example${path}`))
+    expect(response.headers.get('x-frame-options')).toBe('DENY')
+    expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'none'")
+  })
   it('keeps administrative routes unframeable and secrets no-referrer', () => {
     vi.stubEnv('LANTERN_ORIGINS','https://android.golantern.xyz')
     const admin=middleware(new NextRequest('https://kleym.example/admin'))

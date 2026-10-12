@@ -1,0 +1,20 @@
+{
+  "unitTests": 797,
+  "unitFiles": 72,
+  "recoveryUnitCases": 9,
+  "focusedWalletTests": 57,
+  "hostedManualMobileChecks": 15,
+  "liveReceiptChecks": 7,
+  "deployedRecoveryBrowser": "PASS",
+  "typecheck": "PASS",
+  "focusedLint": "PASS",
+  "productionBuild": "PASS (local and actual Railway Docker build)",
+  "gitDiffWhitespace": "PASS",
+  "sourceSecretGuards": "PASS",
+  "sourceFiles": 394,
+  "sourceDigest": "4a64a52b752e1228707ae736cf095a2470e09a2d23f2aaf2f99831ad34daecf8",
+  "canonicalMatchesDeployedExport": true,
+  "workerCodeUnchanged": true,
+  "ownerPhoneFundingVerified": true,
+  "qualification": "Physical Android creator run reported by owner and ledger independently verified; browser recovery uses signing/network stubs; not all devices or Mainnet."
+}

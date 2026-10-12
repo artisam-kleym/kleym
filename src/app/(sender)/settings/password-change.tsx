@@ -16,33 +16,33 @@ export function PasswordChange() {
 
     const form = event.currentTarget
     const data = new FormData(form)
-    const response = await fetch('/api/auth/password', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        current: String(data.get('current') ?? ''),
-        next: String(data.get('next') ?? ''),
-      }),
-    })
-
-    if (response.ok) {
-      form.reset()
-      setDone(true)
-      setPending(false)
-      return
-    }
-
-    const problem = await response.json().catch(() => null)
-    setError(
-      response.status === 429
+    try {
+      const response = await fetch('/api/auth/password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          current: String(data.get('current') ?? ''),
+          next: String(data.get('next') ?? ''),
+        }),
+      })
+      if (response.ok) {
+        form.reset()
+        setDone(true)
+        return
+      }
+      const problem = await response.json().catch(() => null)
+      setError(response.status === 429
         ? 'Too many attempts. Wait a few minutes and try again.'
-        : (problem?.detail ?? 'That password could not be changed. Check the current password.'),
-    )
-    setPending(false)
+        : (problem?.detail ?? 'That password could not be changed. Check the current password.'))
+    } catch {
+      setError('Connection lost. Check your connection and try changing the password again.')
+    } finally {
+      setPending(false)
+    }
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-lg flex max-w-md flex-col gap-md">
+    <form onSubmit={onSubmit} className="mt-lg flex w-full min-w-0 max-w-[28rem] flex-col gap-md">
       <Input label="Current password" name="current" type="password" autoComplete="current-password" required />
       <Input
         label="New password"
@@ -65,7 +65,7 @@ export function PasswordChange() {
         </p>
       )}
 
-      <Button type="submit" disabled={pending} className="self-start">
+      <Button type="submit" disabled={pending} className="w-full sm:w-auto sm:self-start">
         {pending ? 'Changing…' : 'Change password'}
       </Button>
     </form>

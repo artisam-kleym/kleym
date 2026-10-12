@@ -20,6 +20,8 @@ import { PhrasePanel } from './phrase-panel'
 import type { CostBreakdown } from '@/lib/campaign/cost'
 import type { EphemeralKey } from '@/lib/campaign/keygen'
 import type { BatchProgress, Phase } from './use-wizard'
+import { useSyncExternalStore } from 'react'
+import { lanternSnapshot, subscribeLantern } from '@/lib/wallet/lantern'
 
 export function ExportStep({
   phase,
@@ -61,6 +63,7 @@ export function ExportStep({
   phraseConfirmed: boolean
   onPhrase: (phrase: string) => void
 }) {
+  const inLantern = useSyncExternalStore(subscribeLantern, lanternSnapshot, () => false)
   const generated = keys.length > 0
 
   return (
@@ -79,6 +82,8 @@ export function ExportStep({
           until the campaign expires and you reclaim them.
         </WarningPanel>
       </div>
+
+      {inLantern && <p className="mt-md text-body-md text-on-surface-variant" data-testid="lantern-export-guidance">Before signing in Lantern, find the downloaded CSV in your device&apos;s files. If no file was saved, stop here: keep this page open and do not approve funding.</p>}
 
       {!generated && (
         <div className="mt-lg">
