@@ -1,0 +1,25 @@
+{
+  "campaigns": [
+    {
+      "id": "cmv5da4zl00040dlj8q3hjkkp",
+      "name": "Kleym Mobile Migration Oct 12",
+      "status": "ACTIVE",
+      "batches": [
+        {
+          "hash": "c77fec9f34d20866752fe2d20f5c88d4148a17691911c74f8d0257701b073f5a",
+          "status": "CONFIRMED",
+          "sequence": 1,
+          "confirmedAt": "2026-10-12T14:48:34.478",
+          "submittedAt": "2026-10-12T14:48:30.537"
+        }
+      ],
+      "createdAt": "2026-10-12T14:48:21.441",
+      "expiresAt": "2026-10-12T15:47:00",
+      "linkCount": 3,
+      "amountPerLink": "1.0000000",
+      "senderPublicKey": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+    }
+  ],
+  "inflightIdempotency": 0,
+  "at": "2026-10-12T15:12:44.680Z"
+}

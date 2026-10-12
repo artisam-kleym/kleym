@@ -13,6 +13,7 @@ import { SuspendLinkButton } from './links/suspend-link-button'
 import { ApprovalPanel } from './approval-panel'
 import { approvalStatus, selfApproving } from '@/lib/api/approvals'
 import { roleAtLeast } from '@/lib/api/session-guard'
+import { FundingTransactions } from './funding-transactions'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,6 +52,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       <div className="flex flex-wrap items-start justify-between gap-md">
         <div>
           <h1 className="text-display-lg text-primary max-md:text-headline-md">{campaign.name}</h1>
+          <p className="mt-sm break-all font-mono text-label-md text-on-surface-variant">Campaign ID: <span data-testid="campaign-public-id">{campaign.id}</span></p>
           <p className="mt-sm font-mono text-label-md text-on-surface-variant">
             {campaign.linkCount} links ·{' '}
             {campaign.variableAmounts
@@ -69,6 +71,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           )}
         </div>
       </div>
+
+      <FundingTransactions key={campaign.id} campaignId={campaign.id} network={campaign.network} />
 
       {campaign.allowExchangeDeposit && (
         // Exchange deposit (#75): recipients may claim to an address plus a memo; the memo is recorded beside the claimant.

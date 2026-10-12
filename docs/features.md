@@ -355,7 +355,7 @@ the ledger.
 
 Suspending schedules the reclaim. The suspended panel shows what is still outstanding and
 what it is worth in the campaign's asset, and names the date the return is scheduled for.
-When that date passes, the hourly expiry sweep marks the reclaim due and fires
+When that date passes, the minute expiry sweep marks the reclaim due and fires
 `campaign.reclaim_due` to the organisation's webhooks (with `campaign.suspended` at the
 moment of suspension). The sender still signs the return with their wallet: Kleym holds no
 key that can move the money, so "scheduled" means announced and ready, not submitted.
@@ -1357,7 +1357,7 @@ not a unit check. Stated rather than implied, per `AGENT.md` §6.5.
 
 The database no longer has the last word on whether a link was claimed. A sweep runs
 every five minutes comparing every ACTIVE link against the ledger and correcting the
-row in the chain's favour, and an hourly sweep expires links and campaigns past their
+row in the chain's favour, and a minute sweep expires links and campaigns past their
 date. Senders see nothing new; admins get `/admin/reconciliation`, a drift report with
 severity and a "Resync now" button.
 

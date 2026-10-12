@@ -1,5 +1,31 @@
 # Railway public Testnet deployment
 
+## Default release destination — October 13
+
+The owner requests that verified Kleym releases be merged into **develop-ade** and kept current in the senior's Railway project. Use this destination for subsequent authorized releases:
+
+| Setting | Value |
+| --- | --- |
+| Project | `57849f8f-8c9f-4565-8b88-6faf9ce085dd` |
+| Testnet environment | `72ccf46d-3e64-4bcb-bde8-9d4af62157ff` |
+| Web service | `d0149eaa-d1c4-4c64-a3e8-4a659362714c` |
+| Worker service | `1449f6c7-2843-4dfa-820f-7c49d87a1fba` |
+| Public origin | `https://kleym-testnet.up.railway.app` |
+
+Merge qualified PRs into `develop-ade`, deploy the exact release to these services and verify web readiness, the changed browser behavior and worker consumption. Preserve current database/Redis volumes and credentials. The old personal project is retired. Source connection/autodeploy must be verified in Railway; a Git push alone is not deployment proof. Mainnet and Lantern enablement still require their own acceptance gates.
+
+## Latest October 12: migrated to the senior developer's project
+
+The approved project is [kleym](https://railway.com/project/57849f8f-8c9f-4565-8b88-6faf9ce085dd), in the shared workspace. Use **https://kleym-testnet.up.railway.app** for the app; the project URL opens Railway administration. The separate `testnet` environment has web, worker, Postgres and Redis running. Its unused `production` environment is inactive; Mainnet remains disabled. The owner selected this cleaner generated Railway hostname and confirmed its Reown origin allowlist.
+
+All 35 database tables were restored with matching row counts/content digests and index/constraint definitions. Redis reloaded the verified snapshot with 219 keys. The old personal project's four services are stopped; original volumes and private backups are retained. No seed/reset or volume deletion occurred. Runtime migration and updated mobile recovery/receipt UI are deployed. See `D:/kleym/docs/reviews/2026-10-12/senior-railway-migration/README.md` for verified targets, scope and rollback constraints. Old source IDs/domains below are historical; do not run their commands without checking the target.
+
+## Historical October 9: services resumed and mobile fixes deployed
+
+At the owner's request, web, worker, Postgres and Redis were resumed in the existing Testnet environment with the original database volumes. The public URL remains https://kleym-web-testnet.up.railway.app. Mobile header navigation, Settings layout, phone handoff, expiry tracking and the Templates/Approvals/History embedding allowlist are included in this release. Mainnet is disabled; GitHub remains signed out. Earlier shutdown records below are historical.
+
+See [the October 9 navigation release report](reviews/2026-10-09/lantern-navigation-release/README.md) for exact deployment identities, live checks and remaining physical-wallet/Lantern gates. The current campaign's unused 1 USDC has now been independently verified as reclaimed; no further refund is due for that campaign. Expiry alone still does not authorize an automatic refund.
+
 ## Latest October 6: all services stopped at user request
 
 Web, worker, Postgres and Redis are fully stopped; both environments have zero active deployments. Original volumes remain retained, Redis final disk save and Postgres clean shutdown passed, and public readiness is 404. Configuration/domain and qualified web v6 source are preserved. Resume only when requested using [the pause runbook](reviews/2026-10-06/paused-services/runbook.md). Prior online descriptions below are historical. Retained volume storage remains billable and the trial expiry clock continues: [pricing](https://docs.railway.com/pricing/plans), [trial terms](https://docs.railway.com/pricing/free-trial).

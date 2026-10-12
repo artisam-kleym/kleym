@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { freighterPairingLink, isPhoneBrowser } from '@/lib/wallet/phone'
+import { describe, expect, it, vi } from 'vitest'
+import { freighterPairingLink, isPhoneBrowser, openFreighterApp } from '@/lib/wallet/phone'
 
 const pairing = `wc:${'a'.repeat(64)}@2?relay-protocol=irn&symKey=${'b'.repeat(64)}&expiryTimestamp=1791040000`
 
@@ -24,5 +24,17 @@ describe('phone connection routing', () => {
   })
   it.each(['javascript:alert(1)', 'https://kleym.example/claim#private', `${pairing}#private`, pairing.replace('@2', '@1'), pairing.replace('relay-protocol=irn', 'relay-protocol=other'), pairing.replace('b'.repeat(64), 'short'), `${pairing}&symKey=${'c'.repeat(64)}`])('refuses malformed or substituted connection data without echoing it', uri => {
     expect(() => freighterPairingLink(uri)).toThrow('The phone connection code is invalid.')
+  })
+  it('does not open a substituted app route or a private claim URL', () => {
+    const open = vi.fn()
+    vi.stubGlobal('window', { open })
+    try {
+      for (const link of ['https://kleym.example/claim#private', 'javascript:alert(1)', freighterPairingLink(pairing).replace('wc-redirect', 'other-route')]) {
+        expect(() => openFreighterApp(link)).toThrow()
+      }
+      expect(open).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

@@ -1,13 +1,13 @@
 /**
  * The scheduled maintenance queues. SPEC.md §7.1.
  *
- * `reconcile` every 5 minutes, `expiry-sweep` hourly. Producer side only — the
+ * `reconcile` every 5 minutes, `expiry-sweep` every minute. Producer side only — the
  * consumers live in src/workers so a slow Horizon sweep never runs inside a
  * request.
  */
 import { Queue } from 'bullmq'
 import { QUEUE, queueConnection } from './connection'
-import { RECONCILE_EVERY_MINUTES, REMINDER_CRON, RETENTION_CRON, VALUATION_CRON, TEMPLATE_CRON, WATCH_EVERY_MINUTES, everyMinutes } from './schedule'
+import { EXPIRY_EVERY_MINUTES, RECONCILE_EVERY_MINUTES, REMINDER_CRON, RETENTION_CRON, VALUATION_CRON, TEMPLATE_CRON, WATCH_EVERY_MINUTES, everyMinutes } from './schedule'
 
 /**
  * A fixed job id per schedule.
@@ -126,7 +126,9 @@ export function templateJobs(): Queue {
 /** Installs every schedule. Safe to call on every worker start. */
 export async function scheduleMaintenance(): Promise<void> {
   await reconcileJobs().upsertJobScheduler(RECONCILE_SCHEDULE, { pattern: everyMinutes(RECONCILE_EVERY_MINUTES) })
-  await expiryJobs().upsertJobScheduler(EXPIRY_SCHEDULE, { pattern: '17 * * * *' })
+  // Keep the existing scheduler ID so restarting updates it instead of leaving
+  // both the former hourly sweep and the new minute sweep installed.
+  await expiryJobs().upsertJobScheduler(EXPIRY_SCHEDULE, { pattern: everyMinutes(EXPIRY_EVERY_MINUTES) })
   await ephemeralWatchJobs().upsertJobScheduler(EPHEMERAL_SCHEDULE, { pattern: everyMinutes(WATCH_EVERY_MINUTES) })
   await retentionJobs().upsertJobScheduler(RETENTION_SCHEDULE, { pattern: RETENTION_CRON })
   await reminderJobs().upsertJobScheduler(REMINDER_SCHEDULE, { pattern: REMINDER_CRON })

@@ -8,6 +8,9 @@ import { ExpiryPicker } from './expiry-picker'
 import { isStellarAmount, MAX_STELLAR_AMOUNT } from '@/lib/stellar/amount'
 import { PrizeAmounts } from './prize-amounts'
 import { NetworkPicker } from './network-picker'
+import { useSyncExternalStore } from 'react'
+import { lanternSnapshot, subscribeLantern } from '@/lib/wallet/lantern'
+import { phoneBrowserSnapshot, subscribePhoneBrowser } from '@/lib/wallet/phone'
 
 /** Step 1 — asset and amount. SPEC.md §5.3. */
 export function AssetStep({
@@ -50,6 +53,8 @@ export function AssetStep({
   emailReceipts: boolean
   onEmailReceipts: (send: boolean) => void
 }) {
+  const inLantern = useSyncExternalStore(subscribeLantern, lanternSnapshot, () => false)
+  const phoneBrowser = useSyncExternalStore(subscribePhoneBrowser, phoneBrowserSnapshot, () => false)
   const native = balances.find((b) => b.assetIssuer === null)
   const usdc = stellar.defaultAsset
   const selectableBalances = balances.filter((b) => b.assetCode !== 'USDC' || b.assetIssuer === usdc.assetIssuer)
@@ -91,7 +96,8 @@ export function AssetStep({
           autoComplete="off"
           required
         />
-        {onConnect && <Button variant="secondary" onClick={onConnect}>Use connected wallet as funding account</Button>}
+        {onConnect && <Button variant="secondary" onClick={onConnect} data-testid="sender-connect-wallet">{inLantern ? 'Connect Lantern' : phoneBrowser ? 'Connect Freighter on phone' : 'Connect Freighter'}</Button>}
+        <p className="text-body-md text-on-surface-variant" data-testid="funding-address-guidance">Connect to use your wallet address, or enter it above to check its balance. Funding and reclaim still need approval from that account&apos;s wallet.</p>
         {lookupFailed && onRetryBalance && <Button variant="secondary" onClick={onRetryBalance}>Retry balance check</Button>}
 
         <div className="flex flex-col gap-xs">

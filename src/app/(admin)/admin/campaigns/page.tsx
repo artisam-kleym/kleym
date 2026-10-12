@@ -31,6 +31,8 @@ export default async function AdminCampaignsPage() {
             <TableRow key={campaign.id}>
               <TableCell>
                 {campaign.name}
+                <p className="mt-xs break-all font-mono text-label-sm text-on-surface-variant">Campaign ID: {campaign.id}</p>
+                {campaign.fundingHash && <a className="mt-xs block max-w-xs break-all font-mono text-label-sm text-primary underline" href={`https://stellar.expert/explorer/${campaign.network === 'public' ? 'public' : 'testnet'}/tx/${campaign.fundingHash}`} target="_blank" rel="noopener noreferrer">Latest funding transaction: {campaign.fundingHash}</a>}
                 <span className="ml-sm font-mono text-label-sm text-on-surface-variant">
                   {campaign.variableAmounts ? 'varies' : campaign.amountPerLink} {campaign.assetCode}
                 </span>

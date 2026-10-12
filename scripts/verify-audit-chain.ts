@@ -158,13 +158,13 @@ async function signedExportVerifiesAlone(): Promise<void> {
   const dir = mkdtempSync(join(tmpdir(), 'kleym-audit-'))
   const file = join(dir, 'export.json')
   writeFileSync(file, json.body)
-  const ok = spawnSync('pnpm', ['exec', 'tsx', 'scripts/audit-verify-export.ts', file, json.signature, json.publicKey], { encoding: 'utf8', env: { ...process.env, DATABASE_URL: 'postgresql://nobody@127.0.0.1:1/none' } })
+  const ok = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/audit-verify-export.ts', file, json.signature, json.publicKey], { encoding: 'utf8', env: { ...process.env, DATABASE_URL: 'postgresql://nobody@127.0.0.1:1/none' } })
   check('the CLI verifies it with the public key alone', ok.status === 0 && /signature: VALID/.test(ok.stdout) && /row hashes: VALID/.test(ok.stdout), ok.stdout + ok.stderr)
   const doc = JSON.parse(json.body.toString()) as { rows: { action: string }[] }
   doc.rows[0]!.action = 'campaign.cancel'
   const edited = join(dir, 'edited.json')
   writeFileSync(edited, canonicalJson(doc))
-  const bad = spawnSync('pnpm', ['exec', 'tsx', 'scripts/audit-verify-export.ts', edited, json.signature, json.publicKey], { encoding: 'utf8' })
+  const bad = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/audit-verify-export.ts', edited, json.signature, json.publicKey], { encoding: 'utf8' })
   check('an edited file fails both the signature and the row hashes', bad.status !== 0 && /signature: INVALID/.test(bad.stdout) && /row hashes: INVALID/.test(bad.stdout), bad.stdout)
 }
 

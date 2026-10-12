@@ -1,0 +1,84 @@
+{
+  "ClientDate": "2026-10-13",
+  "CheckedAtUtc": "2026-10-12T16:21:34.5651201Z",
+  "Branch": "codex/mobile-header-signing-fixes",
+  "UnitTests": 801,
+  "UnitFiles": 73,
+  "FocusedWalletTestsInitially": 91,
+  "Types": "PASS",
+  "FocusedLint": "PASS",
+  "ProductionBuild": "PASS",
+  "BrowserJourneys": 7,
+  "ProductionPolicyChecks": 14,
+  "VisualReview": "320px phone and 1440px desktop screenshots inspected",
+  "SourceProof": [
+    {
+      "File": "src/lib/wallet/handoff.ts",
+      "NormalizedSha256": "1937c3c2acb0fca6bcbe1c5f630fda5537df350ff3beb4386f19aee811e4c288",
+      "QaMatching": true
+    },
+    {
+      "File": "src/lib/wallet/lantern.ts",
+      "NormalizedSha256": "856161a35d3b65e42267c2f5434c7fa6234a34521bbd1ff642ed74d8f9d48577",
+      "QaMatching": true
+    },
+    {
+      "File": "src/components/wallet-environment.tsx",
+      "NormalizedSha256": "ebff6757f0ed67e0b4bd38c326f14cb4bdd59846a19796a82ebd740ba146bd41",
+      "QaMatching": true
+    },
+    {
+      "File": "src/app/(sender)/campaigns/new/wizard.tsx",
+      "NormalizedSha256": "776cdec91d0981d7fac5168c8228e1d11e4dea1a35734453bcff0070ef2c8abf",
+      "QaMatching": true
+    },
+    {
+      "File": "src/app/(sender)/campaigns/new/steps.tsx",
+      "NormalizedSha256": "f76e66caef2b5c302a1db02bf7703463586bfab9c89c5ef610983459bfc4cd77",
+      "QaMatching": true
+    },
+    {
+      "File": "src/app/(sender)/campaigns/new/export-step.tsx",
+      "NormalizedSha256": "eea0aa469d21dc3d6ad3bcc2dc73c00f83df900f8d21b563f41b7d56c4f6f567",
+      "QaMatching": true
+    },
+    {
+      "File": "src/app/(public)/claim/screens.tsx",
+      "NormalizedSha256": "248c75876b588fc5b9c2d4671a6a3908a4ae5ecf6453700a355bce399310c72b",
+      "QaMatching": true
+    },
+    {
+      "File": "tests/lib/wallet/handoff.test.ts",
+      "NormalizedSha256": "a3553c2111533cd3ed30c5bdd6dd13c5f0f0e44b12632a78df097dea4fce0e00",
+      "QaMatching": true
+    },
+    {
+      "File": "tests/lib/wallet/lantern.test.ts",
+      "NormalizedSha256": "fa3f8f648b7c4b47f56dc69573ad7c925af714c6a699e31e97f7589988e4c854",
+      "QaMatching": true
+    },
+    {
+      "File": "tests/lib/wallet/claim-screen.test.ts",
+      "NormalizedSha256": "f3ac6f0ffd9296b645be25d4d3279ef2c563f94891e9d9d9ebccf1f63ec69056",
+      "QaMatching": true
+    },
+    {
+      "File": "e2e/claim-page.spec.ts",
+      "NormalizedSha256": "354086125d7f1c1f0b3a5ed5c2a74f778e40531d9b4a2fcc036d0109f34e7c0a",
+      "QaMatching": true
+    }
+  ],
+  "AssetsMoved": false,
+  "Deployed": false,
+  "GitHubWrites": false,
+  "Scope": "Local production component fixture, simulated Lantern parent, no native APK/extension approval; canonical source remains uncommitted",
+  "HarnessRepairs": [
+    "v1/v2 used excluded QA URL instead of the public campaign path; corrected fixture without changing application policy",
+    "v3 checks passed but route prefetch cleanup failed after context close; v4/v5 drain routes and exit cleanly"
+  ],
+  "Remaining": [
+    "Native Lantern directory/download-capable rebuild and actual device transaction acceptance",
+    "Private Chrome-to-Lantern recipient-link delivery",
+    "General address-only recipient claim policy and implementation"
+  ]
+}

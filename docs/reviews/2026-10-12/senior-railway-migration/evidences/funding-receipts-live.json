@@ -1,0 +1,56 @@
+{
+  "at": "2026-10-12T15:14:03.791Z",
+  "checks": [
+    {
+      "path": "sender campaign",
+      "width": 320,
+      "idVisible": true,
+      "fullFundingHashVisible": true,
+      "correctNetworkExplorer": true,
+      "noRootOverflow": true
+    },
+    {
+      "path": "admin campaigns",
+      "width": 320,
+      "idVisible": true,
+      "latestFundingHashVisible": true,
+      "noRootOverflow": true
+    },
+    {
+      "path": "sender campaign",
+      "width": 393,
+      "idVisible": true,
+      "fullFundingHashVisible": true,
+      "correctNetworkExplorer": true,
+      "noRootOverflow": true
+    },
+    {
+      "path": "admin campaigns",
+      "width": 393,
+      "idVisible": true,
+      "latestFundingHashVisible": true,
+      "noRootOverflow": true
+    },
+    {
+      "path": "sender campaign",
+      "width": 1440,
+      "idVisible": true,
+      "fullFundingHashVisible": true,
+      "correctNetworkExplorer": true,
+      "noRootOverflow": true
+    },
+    {
+      "path": "admin campaigns",
+      "width": 1440,
+      "idVisible": true,
+      "latestFundingHashVisible": true,
+      "noRootOverflow": true
+    },
+    {
+      "case": "funding receipts retain authentication",
+      "status": 401
+    }
+  ],
+  "pageErrors": [],
+  "mode": "Live migrated database and deployed UI; public hashes only; no signing or asset writes"
+}

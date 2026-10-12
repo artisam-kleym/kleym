@@ -1,0 +1,36 @@
+{
+  "at": "2026-10-12T14:25:32.433Z",
+  "project": "57849f8f-8c9f-4565-8b88-6faf9ce085dd",
+  "environment": "72ccf46d-3e64-4bcb-bde8-9d4af62157ff",
+  "origin": "https://kleym-testnet.up.railway.app",
+  "services": {
+    "Postgres": "c56db078-2554-46fe-9d5c-1fec9c99618b",
+    "Redis": "ef86046b-954d-43ec-959d-13ab401b3e12",
+    "kleym-web": "d0149eaa-d1c4-4c64-a3e8-4a659362714c",
+    "kleym-worker": "1449f6c7-2843-4dfa-820f-7c49d87a1fba"
+  },
+  "checks": [
+    {
+      "service": "kleym-web",
+      "testnet": true,
+      "mainnetEnabled": false,
+      "seedDisabled": true,
+      "cryptoAndSponsorConfigurationPreserved": true,
+      "privateDatabaseAndRedisReferences": true,
+      "walletConnectConfigured": true
+    },
+    {
+      "service": "kleym-worker",
+      "testnet": true,
+      "mainnetEnabled": false,
+      "seedDisabled": true,
+      "cryptoAndSponsorConfigurationPreserved": true,
+      "privateDatabaseAndRedisReferences": true,
+      "walletConnectConfigured": false
+    }
+  ],
+  "newEmptyDatabaseCredentials": true,
+  "oldDataNotDeleted": true,
+  "previousOrigin": "https://kleym-web-testnet-dd5d.up.railway.app",
+  "originUpdatedAt": "2026-10-12T14:35:25.991Z"
+}

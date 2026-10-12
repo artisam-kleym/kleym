@@ -1,0 +1,25 @@
+{
+  "at": "2026-10-12T15:04:58.800Z",
+  "origin": "https://kleym-testnet.up.railway.app",
+  "checks": [
+    "Existing operator credentials authenticate on the migrated site",
+    "New public site is Testnet; Mainnet remains unavailable",
+    "Actual hosted funding-address lookup returns the sender Testnet USDC balance",
+    "Manual-address campaign reaches three-link Review at 320px using real hosted account reads; invalid address refused",
+    "Manual-address campaign reaches three-link Review at 393px using real hosted account reads; invalid address refused",
+    "Manual-address campaign reaches three-link Review at 1440px using real hosted account reads; invalid address refused",
+    "Prior settled campaign, claim/refund journals and public reclaim hash retained",
+    "Mobile navigation: Dashboard",
+    "Mobile navigation: Campaigns",
+    "Mobile navigation: Templates",
+    "Mobile navigation: Approvals",
+    "Mobile navigation: History",
+    "Mobile navigation: Settings",
+    "New web/database/Redis readiness passes",
+    "New claim route preserves no-referrer protection"
+  ],
+  "pageErrors": [],
+  "mode": "Real hosted authenticated UI, actual public sender/Horizon reads, mobile touch widths and desktop. No wallet app approval, key generation, campaign creation or asset transaction.",
+  "senderUSDC": "6.0000000",
+  "physicalAndroidFunding": "Pending owner test"
+}

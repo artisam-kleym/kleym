@@ -1,0 +1,15 @@
+{
+  "CheckedAtUtc": "2026-10-12T15:49:28.2715016Z",
+  "GithubAccount": "Adealix",
+  "CredentialStorage": "system keyring",
+  "CentientCommit": "875a5fef020e13cc3fa1b1f7e0f7e011681c57e1",
+  "LanternCommit": "ed512f6d3a478e4fc9eaab498627a6d0f8165d30",
+  "FocusedTests": 27,
+  "TestFiles": 2,
+  "Status": "passed",
+  "CanonicalQaMatch": "Matched after CRLF normalization",
+  "Scope": "Read-only repository inspection and mocked bridge/header/signature tests",
+  "DeviceApprovalVerified": false,
+  "DeploymentChanged": false,
+  "GithubConnectorChanged": false
+}

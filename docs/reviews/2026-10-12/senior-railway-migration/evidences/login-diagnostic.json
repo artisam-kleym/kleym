@@ -1,0 +1,36 @@
+{
+  "at": "2026-10-12T14:50:11.796Z",
+  "events": [
+    {
+      "time": "2026-10-12T14:38:10.142527609Z",
+      "event": "login succeeded",
+      "reason": null,
+      "securityEvent": null
+    },
+    {
+      "time": "2026-10-12T14:41:31.560721663Z",
+      "event": "login succeeded",
+      "reason": null,
+      "securityEvent": null
+    },
+    {
+      "time": "2026-10-12T14:43:21.500350774Z",
+      "event": "login failed",
+      "reason": "bad_password",
+      "securityEvent": "LOGIN_FAILED"
+    },
+    {
+      "time": "2026-10-12T14:43:41.347429083Z",
+      "event": "login succeeded",
+      "reason": null,
+      "securityEvent": null
+    },
+    {
+      "time": "2026-10-12T14:49:02.871730200Z",
+      "event": "login failed",
+      "reason": "bad_password",
+      "securityEvent": "LOGIN_FAILED"
+    }
+  ],
+  "credentialsAndIPExcluded": true
+}

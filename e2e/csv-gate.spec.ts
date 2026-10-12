@@ -23,6 +23,11 @@ test.describe('mobile sender navigation', () => {
       await page.setViewportSize({ width, height: 740 })
       await page.goto('/campaigns/new')
       await expect(page.getByLabel('Campaign name')).toBeVisible()
+      const menuToggle = page.getByRole('button', { name: 'Menu', exact: true })
+      await expect(menuToggle).toHaveAttribute('aria-expanded', 'false')
+      const header = page.locator('header:visible')
+      expect((await header.boundingBox())!.y).toBe(0)
+      await menuToggle.click()
       const nav = page.locator('nav[aria-label="Main"]:visible')
       const links = nav.getByRole('link')
       await expect(links).toHaveCount(6)
@@ -35,13 +40,16 @@ test.describe('mobile sender navigation', () => {
         expect(box!.y + box!.height).toBeLessThanOrEqual(740)
         expect(box!.height).toBeGreaterThanOrEqual(44)
       }
-      // The fixed menu must leave enough page space to reach the last action.
+      await page.keyboard.press('Escape')
+      await expect(menuToggle).toHaveAttribute('aria-expanded', 'false')
+      // The top menu must not cover the last action when the page is scrolled.
       const next = page.getByTestId('next-step')
       await next.scrollIntoViewIfNeeded()
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
       const action = await next.boundingBox()
-      const menu = await nav.boundingBox()
-      expect(action!.y + action!.height).toBeLessThanOrEqual(menu!.y)
+      const menu = await header.boundingBox()
+      expect(action!.y).toBeGreaterThanOrEqual(menu!.y + menu!.height)
+      expect(action!.y + action!.height).toBeLessThanOrEqual(740)
     })
   }
 })

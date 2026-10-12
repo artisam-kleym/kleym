@@ -7,7 +7,7 @@
  * The only thing that crosses to the server is `publicHalves` — the G…
  * addresses — plus the campaign's own metadata (AGENT.md §1).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { StrKey } from '@stellar/stellar-sdk'
 import { Button, Stepper } from '@/components/ui'
@@ -26,6 +26,8 @@ import { ExportStep } from './export-step'
 import { useStepUp } from '@/components/mfa/use-step-up'
 import { connectWallet, signEnvelope, walletErrorMessage } from '@/lib/wallet/signing'
 import { localExpiry, expiryDescription, expiryError, presetExpiry, type ExpiryChoice } from '@/lib/campaign/expiry'
+import { submitFundingBatch } from '@/lib/campaign/funding-submit'
+import { holdWalletHandoff } from '@/lib/wallet/handoff'
 
 const STEPS = [
   { title: 'Asset & amount' },
@@ -41,12 +43,22 @@ interface Balance {
 
 /** Stable identity, so a memo keyed on it does not invalidate every render. */
 const EMPTY_BALANCES: Balance[] = []
+const subscribeHydration = () => () => {}
+const hydratedClient = () => true
+const hydratedServer = () => false
 
 export function CampaignWizard(config: WizardConfig) {
+  const hydrated = useSyncExternalStore(subscribeHydration, hydratedClient, hydratedServer)
   const router = useRouter()
   const wizard = useWizard()
   const stepUp = useStepUp()
   const registeredCampaign = useRef<string | null>(null)
+  const signingInProgress = useRef(false)
+
+  // A public app-opening link restarts in another document; it cannot move keys.
+  useEffect(() => {
+    if (wizard.step === 2 && wizard.phase !== 'complete') return holdWalletHandoff()
+  }, [wizard.step, wizard.phase])
 
   const reissue = config.reissue ?? null
   /** Template (#82): terms and list prefilled; for a prepared run the campaign already exists. */
@@ -316,19 +328,19 @@ export function CampaignWizard(config: WizardConfig) {
   }, [wizard, draft.name, config.appUrl])
 
   const onSign = useCallback(async () => {
-    if (!canContinuePastExport(wizard.downloaded, wizard.keys, wizard.exportConfirmed)) return
+    if (signingInProgress.current || !canContinuePastExport(wizard.downloaded, wizard.keys, wizard.exportConfirmed)) return
     wizard.setError(null)
     const invalidExpiry = expiryError(draft.expiresAt)
     if (invalidExpiry) {
       wizard.setError(`${invalidExpiry} Go back to Recipients & expiry to change it.`)
       return
     }
-    // Step-up (#47): signing moves money; a fresh second factor first, if one is enrolled.
-    if (!(await stepUp.ensure())) return
-    wizard.setPhase('batching')
-
+    signingInProgress.current = true
     try {
-      const address = await connectWallet(draft.network)
+      // Claim synchronously before step-up/network awaits, so double taps cannot start another run.
+      if (!(await stepUp.ensure())) return
+      wizard.setPhase('batching')
+      const address = await connectWallet(draft.network, { reuseSession: true })
       if (address !== draft.senderPublicKey) {
         wizard.setPhase('awaiting-download')
         wizard.setError('That wallet is signed in to a different account than the funding account.')
@@ -368,7 +380,7 @@ export function CampaignWizard(config: WizardConfig) {
         if (!prepared) break // exhausted: every batch already submitted
         try {
           const signedXdr = await signEnvelope(prepared.xdr, draft.network, draft.senderPublicKey)
-          await submitBatch(campaignId, prepared.sequence, signedXdr)
+          await submitFundingBatch({ campaignId, sequence: prepared.sequence, signedXdr, network: draft.network })
           signed += 1
           wizard.setProgress({ signed, total, failed })
           await waitForBatchConfirmation(campaignId, prepared.sequence)
@@ -381,10 +393,13 @@ export function CampaignWizard(config: WizardConfig) {
         wizard.setProgress({ signed, total, failed })
       }
 
+      if (failed === 0) wizard.setError(null)
       wizard.setPhase(failed > 0 ? 'partial' : 'complete')
     } catch (error) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
+    } finally {
+      signingInProgress.current = false
     }
   }, [wizard, draft, cost, stepUp, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template, emailReceipts, labels, attestations, amounts, reissue])
 
@@ -441,7 +456,7 @@ export function CampaignWizard(config: WizardConfig) {
       )}
       <Stepper steps={summarise(STEPS, draft, cost, amounts.some((a) => a !== null))} current={wizard.step} />
 
-      <div>
+      <fieldset disabled={!hydrated} aria-busy={!hydrated} data-testid="wizard-interactive" className="min-w-0">
         {/*
           * A prepared run (#82): the draft's terms and list are fixed — the
           * link count, policy, sender and asset are already the campaign's
@@ -585,7 +600,7 @@ export function CampaignWizard(config: WizardConfig) {
             </Button>
           )}
         </div>
-      </div>
+      </fieldset>
     </div>
   )
 }
@@ -665,15 +680,6 @@ async function prepareBatch(campaignId: string): Promise<{ sequence: number; xdr
   if (!response.ok) throw new PrepareRefused((await problemDetail(response)) ?? 'The batch could not be prepared. No new signing request was made.')
   const body = await response.json()
   return { sequence: body.sequence, xdr: body.xdr }
-}
-
-async function submitBatch(campaignId: string, sequence: number, signedXdr: string): Promise<void> {
-  const response = await fetch(`/api/campaigns/${campaignId}/batches/submit`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'idempotency-key': idempotencyKey() },
-    body: JSON.stringify({ sequence, signedXdr }),
-  })
-  if (!response.ok) throw new Error((await problemDetail(response)) ?? 'The batch was rejected.')
 }
 
 /** Do not request another sequence while the preceding payment is uncertain. */

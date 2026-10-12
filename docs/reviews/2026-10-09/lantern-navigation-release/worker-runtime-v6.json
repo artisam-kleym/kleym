@@ -1,0 +1,56 @@
+{
+  "checkedAt": "2026-10-09T02:50:58.211Z",
+  "deploymentId": "e5198ef4-4c1e-442a-8c3f-d6f43d3b6655",
+  "records": [
+    {
+      "timestamp": "2026-10-09T02:46:18.289660030Z",
+      "message": "expiry sweep completed",
+      "manual": null,
+      "critical": null,
+      "checked": null,
+      "corrected": null,
+      "linksExpired": 4,
+      "campaignsExpired": 2
+    },
+    {
+      "timestamp": "2026-10-09T02:46:18.289663240Z",
+      "message": "expiry sweep completed",
+      "manual": null,
+      "critical": null,
+      "checked": null,
+      "corrected": null,
+      "linksExpired": 4,
+      "campaignsExpired": 2
+    },
+    {
+      "timestamp": "2026-10-09T02:46:18.294322282Z",
+      "message": "worker started",
+      "manual": null,
+      "critical": null,
+      "checked": null,
+      "corrected": null,
+      "linksExpired": null,
+      "campaignsExpired": null
+    },
+    {
+      "timestamp": "2026-10-09T02:46:18.674556121Z",
+      "message": "reconciliation completed",
+      "manual": true,
+      "critical": 0,
+      "checked": null,
+      "corrected": 0,
+      "linksExpired": null,
+      "campaignsExpired": null
+    },
+    {
+      "timestamp": "2026-10-09T02:50:10.405461197Z",
+      "message": "reconciliation completed",
+      "manual": false,
+      "critical": 0,
+      "checked": null,
+      "corrected": 0,
+      "linksExpired": null,
+      "campaignsExpired": null
+    }
+  ]
+}

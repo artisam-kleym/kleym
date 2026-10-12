@@ -5,6 +5,7 @@ import { useState } from 'react'
 import Decimal from 'decimal.js'
 import { Button, WarningPanel } from '@/components/ui'
 import { connectWallet, signEnvelope, walletErrorMessage } from '@/lib/wallet/signing'
+import { useExpired, useExpiryTime } from '@/lib/campaign/use-expired'
 
 /**
  * Reclaim, with the confirmation BRAND.md §5.7 reserves a warning panel for.
@@ -27,7 +28,7 @@ export function ReclaimPanel({
   senderPublicKey,
   assetCode,
   expiresAt,
-  expired,
+  expired: serverExpired,
   outstanding,
   alreadyReclaimed,
   sponsored = false,
@@ -38,17 +39,16 @@ export function ReclaimPanel({
   assetCode: string
   expiresAt: string
   /**
-   * Decided on the server, not from `Date.now()` here.
-   *
-   * This component renders on the server first and then hydrates, so reading
-   * the clock in its body invites the two renders to disagree about an
-   * expiry that falls between them.
+   * The initial server snapshot hydrates unchanged. After hydration the UI
+   * observes the deadline; server/ledger checks remain authoritative.
    */
   expired: boolean
   outstanding: number
   alreadyReclaimed: Done[]
   sponsored?: boolean
 }) {
+  const expired = useExpired(expiresAt, serverExpired)
+  const expiryTime = useExpiryTime(expiresAt)
   const [phase, setPhase] = useState<Phase>('idle')
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<Done[]>(alreadyReclaimed)
@@ -73,7 +73,7 @@ export function ReclaimPanel({
     if (!(await stepUp.ensure())) return
     setPhase('reclaiming')
     try {
-      const address = await connectWallet(network)
+      const address = await connectWallet(network, { reuseSession: true })
       if (address !== senderPublicKey) {
         setError(
           `That wallet is ${address.slice(0, 8)}…, but this campaign was funded by ${senderPublicKey.slice(0, 8)}…. Connect the funding wallet to reclaim.`,
@@ -138,7 +138,7 @@ export function ReclaimPanel({
           {done.reduce((n, d) => n + d.balanceCount, 0) === 1 ? 'link' : 'links'} returned{' '}
           {reclaimedTotal} {assetCode} to {senderPublicKey.slice(0, 8)}….
         </p>
-        <ul className="mt-md space-y-1 font-mono text-label-sm text-on-surface-variant">
+        <ul className="mt-md space-y-1 break-all font-mono text-label-sm text-on-surface-variant">
           {done.map((d) => (
             <li key={d.transactionHash}>{d.transactionHash}</li>
           ))}
@@ -160,10 +160,14 @@ export function ReclaimPanel({
     <section className="mt-lg rounded-lg border border-outline-variant/50 bg-surface-container p-lg">
       <h2 className="text-headline-md text-on-surface">Reclaim unclaimed funds</h2>
       <p className="mt-sm max-w-2xl text-body-md text-on-surface-variant">
-        This campaign expired on {expiresAt.slice(0, 10)}. Up to {outstanding} unclaimed{' '}
+        This campaign expired at <time dateTime={expiresAt}>{expiryTime}</time>. Up to {outstanding} unclaimed{' '}
         {outstanding === 1 ? 'link' : 'links'} can be returned to {senderPublicKey.slice(0, 8)}…. The
         exact number comes from the ledger when you confirm, so it may be lower if someone claimed
         recently.
+      </p>
+
+      <p className="mt-sm text-body-md text-on-surface-variant" role="status">
+        Refund ready — your wallet approval is required. Expiry does not send funds automatically. Tap Reclaim to review and sign their return.
       </p>
 
       {sponsored && <p className="mt-sm text-body-md text-on-surface-variant">Kleym pays the network fee. Your wallet authorizes the USDC refund and needs no XLM top-up.</p>}

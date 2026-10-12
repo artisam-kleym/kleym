@@ -34,7 +34,7 @@ export function EraseForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-lg flex max-w-xl flex-wrap items-end gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
+    <form onSubmit={onSubmit} className="mt-lg flex max-w-[36rem] flex-wrap items-end gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
       <div className="min-w-[16rem] flex-1">
         <Input label="Address to erase" name="email" type="email" autoComplete="off" required />
       </div>

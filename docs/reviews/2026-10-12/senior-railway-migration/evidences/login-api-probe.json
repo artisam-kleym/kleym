@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-12T15:02:52.325Z",
+  "status": 200,
+  "type": null,
+  "title": null,
+  "next": null,
+  "retryAfter": null,
+  "transport": "Direct same-origin HTTPS JSON POST; credentials never placed in URL",
+  "dashboardStatus": "Session issued and dashboard requested",
+  "path": "/dashboard"
+}

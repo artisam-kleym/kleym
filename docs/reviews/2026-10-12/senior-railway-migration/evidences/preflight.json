@@ -1,0 +1,72 @@
+{
+  "at": "2026-10-12T14:24:35.441Z",
+  "old": {
+    "id": "48614d0d-2e58-4848-af96-2184e3044c47",
+    "name": "kleym-testnet",
+    "environment": [
+      {
+        "id": "cbca2958-d44a-4ca8-8d4e-746a61584d02",
+        "name": "testnet",
+        "services": [
+          {
+            "id": "37702f7c-d942-4b00-96aa-16b5c4a8b58e",
+            "name": "Postgres",
+            "active": [],
+            "domains": []
+          },
+          {
+            "id": "45121e0c-a4e7-4961-8004-102e6dfa6d03",
+            "name": "Redis",
+            "active": [],
+            "domains": []
+          },
+          {
+            "id": "4d547645-da9f-4e1e-aec3-2511f6239fc3",
+            "name": "kleym-web",
+            "active": [],
+            "domains": [
+              "kleym-web-testnet.up.railway.app"
+            ]
+          },
+          {
+            "id": "2490753a-e4ba-471c-87c9-a6dd7d74d567",
+            "name": "kleym-worker",
+            "active": [],
+            "domains": []
+          }
+        ],
+        "volumes": [
+          {
+            "id": "38b09453-d0b2-4446-8e9c-e795a874bcca",
+            "mountPath": "/data",
+            "serviceId": "45121e0c-a4e7-4961-8004-102e6dfa6d03",
+            "state": "READY",
+            "deletedAt": null,
+            "isPendingDeletion": false
+          },
+          {
+            "id": "73798d01-f324-42dc-bee7-5d08a3648688",
+            "mountPath": "/var/lib/postgresql/data",
+            "serviceId": "37702f7c-d942-4b00-96aa-16b5c4a8b58e",
+            "state": "READY",
+            "deletedAt": null,
+            "isPendingDeletion": false
+          }
+        ]
+      }
+    ]
+  },
+  "target": {
+    "id": "57849f8f-8c9f-4565-8b88-6faf9ce085dd",
+    "name": "kleym",
+    "environment": [
+      {
+        "id": "d87dfd89-dbe1-4b31-bcdf-447b6f5fd2e8",
+        "name": "production",
+        "services": [],
+        "volumes": []
+      }
+    ]
+  },
+  "oldWritersStopped": true
+}

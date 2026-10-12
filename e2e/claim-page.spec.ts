@@ -49,7 +49,8 @@ test.describe('Android wallet connection UI', () => {
   test.skip(!process.env.MOBILE_WALLET_E2E, 'Requires the configured mobile production fixture server')
   test.use({ userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36' })
 
-  test('pairs through the bundled SDK at phone width, without committing funds, and cancels safely', async ({ page }) => {
+  test('pairs through the bundled SDK at phone width, without committing funds, and cancels safely', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'Deep-link navigation instrumentation uses Chromium CDP; actual Android Chrome remains covered.')
     await page.setViewportSize({ width: 393, height: 851 })
     const posts: string[] = []
     const requests = record(page)
@@ -72,7 +73,7 @@ test.describe('Android wallet connection UI', () => {
     await stubResolve(page, CLAIMABLE)
     await page.goto(`/claim#s=${SEED}`)
     await expect(page.getByTestId('claim-connect-mobile')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Connect wallet', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Connect Freighter', exact: true })).toHaveCount(0)
     expect(requests.filter((r) => !r.url().startsWith(new URL(page.url()).origin))).toEqual([])
     const navigation = await page.context().newCDPSession(page)
     await navigation.send('Page.enable')
@@ -113,7 +114,7 @@ test('a narrow desktop keeps extension connection available', async ({ page }) =
   await page.setViewportSize({ width: 393, height: 851 })
   await stubResolve(page, CLAIMABLE)
   await page.goto(`/claim#s=${SEED}`)
-  await expect(page.getByRole('button', { name: 'Connect wallet', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Connect Freighter', exact: true })).toBeVisible()
   await expect(page.getByTestId('claim-connect-mobile')).toHaveCount(0)
 })
 
@@ -170,7 +171,7 @@ test.describe('deliberate claim commitment', () => {
     await page.getByTestId('claim-connect').click()
     await expect(page.getByTestId('ready-error')).toContainText('wallet account changed')
     expect(posts).toEqual([])
-    await expect(page.getByTestId('claim-connect')).toHaveText('Connect wallet')
+    await expect(page.getByTestId('claim-connect')).toHaveText('Connect Freighter')
   })
 
   test('claim preparation carries a holder signature bound to its reviewed destination', async ({ page }) => {

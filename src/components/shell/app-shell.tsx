@@ -16,7 +16,7 @@ export function AppShell({
     <>
       <AmbientOrbs variant="dashboard" />
       <Sidebar organizations={organizations} activeOrganizationId={activeOrganizationId} />
-      <main className="mx-auto max-w-[1440px] px-margin-mobile py-xl pb-32 md:px-lg lg:ml-64 lg:pb-xl">
+      <main className="mx-auto min-w-0 max-w-[1440px] px-margin-mobile py-lg md:px-lg md:py-xl lg:ml-64">
         {children}
       </main>
     </>

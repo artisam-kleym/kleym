@@ -1,0 +1,26 @@
+{
+  "checkedAt": "2026-10-09T02:59:40.002Z",
+  "deploymentId": "323f6286-5ad4-429a-8cf3-4773d31b2837",
+  "records": [
+    {
+      "timestamp": "2026-10-09T02:57:00.036749094Z",
+      "message": "worker started",
+      "manual": null,
+      "critical": null,
+      "checked": null,
+      "corrected": null,
+      "linksExpired": null,
+      "campaignsExpired": null
+    },
+    {
+      "timestamp": "2026-10-09T02:59:30.847246196Z",
+      "message": "reconciliation completed",
+      "manual": true,
+      "critical": 0,
+      "checked": null,
+      "corrected": 0,
+      "linksExpired": null,
+      "campaignsExpired": null
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "checkedAt": "2026-10-09T02:57:28.045Z",
+  "project": "48614d0d-2e58-4848-af96-2184e3044c47",
+  "environment": "cbca2958-d44a-4ca8-8d4e-746a61584d02",
+  "services": [
+    {
+      "name": "Postgres",
+      "id": "37702f7c-d942-4b00-96aa-16b5c4a8b58e",
+      "image": "ghcr.io/railwayapp-templates/postgres-ssl@sha256:4b89e3c89d9262f02f23e927ff9f1390a19f7c03e2483321bc05c30872a333a3",
+      "active": [
+        {
+          "id": "8b8cd6a7-6aee-4b6f-9879-454150aaa59e",
+          "status": "SUCCESS"
+        }
+      ],
+      "domain": []
+    },
+    {
+      "name": "Redis",
+      "id": "45121e0c-a4e7-4961-8004-102e6dfa6d03",
+      "image": "redis@sha256:164c759a0c342ee69d08fc99219382b0fd682181465c0df2e0e6911f4c85d73c",
+      "active": [
+        {
+          "id": "bdb39b02-cb8a-4b52-bf9e-904358d855c2",
+          "status": "SUCCESS"
+        }
+      ],
+      "domain": []
+    },
+    {
+      "name": "kleym-web",
+      "id": "4d547645-da9f-4e1e-aec3-2511f6239fc3",
+      "image": null,
+      "active": [
+        {
+          "id": "7febef41-3122-4136-8290-70c1cda57d32",
+          "status": "SUCCESS"
+        }
+      ],
+      "domain": [
+        "kleym-web-testnet.up.railway.app"
+      ]
+    },
+    {
+      "name": "kleym-worker",
+      "id": "2490753a-e4ba-471c-87c9-a6dd7d74d567",
+      "image": null,
+      "active": [
+        {
+          "id": "323f6286-5ad4-429a-8cf3-4773d31b2837",
+          "status": "SUCCESS"
+        }
+      ],
+      "domain": []
+    }
+  ],
+  "volumeIds": [
+    "38b09453-d0b2-4446-8e9c-e795a874bcca",
+    "73798d01-f324-42dc-bee7-5d08a3648688"
+  ],
+  "configurations": [
+    {
+      "service": "kleym-web",
+      "network": "testnet",
+      "appUrl": "https://kleym-web-testnet.up.railway.app",
+      "lanternEnabled": false,
+      "walletConnectConfigured": true,
+      "databaseConfigured": true,
+      "redisConfigured": true,
+      "sponsorConfigured": true,
+      "allowProdSeed": "false"
+    },
+    {
+      "service": "kleym-worker",
+      "network": "testnet",
+      "appUrl": "https://kleym-web-testnet.up.railway.app",
+      "lanternEnabled": false,
+      "walletConnectConfigured": false,
+      "databaseConfigured": true,
+      "redisConfigured": true,
+      "sponsorConfigured": true,
+      "allowProdSeed": "false"
+    }
+  ]
+}

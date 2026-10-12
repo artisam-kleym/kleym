@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-const mobile=vi.hoisted(()=>({connectMobile:vi.fn(),signMobile:vi.fn()}))
+const mobile=vi.hoisted(()=>({connectMobile:vi.fn(),signMobile:vi.fn(),mobileAddress:vi.fn()}))
 vi.mock('@/lib/wallet/mobile',()=>mobile)
 const uri=`wc:${'a'.repeat(64)}@2?relay-protocol=irn&symKey=${'b'.repeat(64)}`
 beforeEach(()=>{
   vi.resetModules();vi.clearAllMocks()
-  const win={navigator:{userAgent:'Android'},location:{href:'https://kleym.test/campaigns/new'}}
+  mobile.mobileAddress.mockImplementation(()=>{throw new Error('Reconnect')})
+  const win={navigator:{userAgent:'Android'},location:{href:'https://kleym.test/campaigns/new'},open:vi.fn()}
   vi.stubGlobal('window',win)
 })
 afterEach(()=>vi.unstubAllGlobals())
@@ -13,19 +14,36 @@ it('uses phone pairing for campaign senders and publishes a retry link without c
   const m=await import('@/lib/wallet/signing');m.configureSenderMobile('a'.repeat(32))
   expect(await m.connectWallet('testnet')).toBe('selected-account')
   expect(mobile.connectMobile.mock.calls[0][0]).toBe('testnet')
-  expect(window.location.href).toContain('freighterwallet://wc-redirect?uri=')
-  expect(window.location.href).not.toContain('kleym.test')
+  expect(window.open).toHaveBeenCalledWith(expect.stringContaining('freighterwallet://wc-redirect?uri='),'_blank','noopener,noreferrer')
+  expect(window.location.href).toBe('https://kleym.test/campaigns/new')
   expect(m.senderMobileSnapshot()).toBe('')
-  mobile.signMobile.mockImplementation(async(xdr,network,address,sent)=>{expect(network).toBe('testnet');expect(address).toBe('selected-account');expect(window.location.href).not.toBe('freighterwallet://wc-redirect');sent();return xdr+'-signed'})
+  mobile.signMobile.mockImplementation(async(xdr,network,address,sent)=>{expect(network).toBe('testnet');expect(address).toBe('selected-account');expect(window.open).toHaveBeenCalledTimes(1);sent();return xdr+'-signed'})
   expect(await m.signEnvelope('reviewed','testnet','selected-account')).toBe('reviewed-signed')
   expect(mobile.signMobile).toHaveBeenCalledWith('reviewed','testnet','selected-account',expect.any(Function))
-  expect(window.location.href).toBe('freighterwallet://wc-redirect')
+  expect(window.open).toHaveBeenLastCalledWith('freighterwallet://wc-redirect','_blank','noopener,noreferrer')
+  expect(window.location.href).toBe('https://kleym.test/campaigns/new')
   expect(m.senderMobileSnapshot()).toBe('')
 })
 it('refuses an unconfigured phone before starting pairing',async()=>{
   const m=await import('@/lib/wallet/signing')
   await expect(m.connectWallet('testnet')).rejects.toThrow('not configured')
   expect(mobile.connectMobile).not.toHaveBeenCalled()
+})
+it('reuses a validated phone session for signing instead of asking to connect again',async()=>{
+  const m=await import('@/lib/wallet/signing');m.configureSenderMobile('a'.repeat(32))
+  mobile.mobileAddress.mockReturnValue('selected-account')
+  expect(await m.connectWallet('testnet',{reuseSession:true})).toBe('selected-account')
+  expect(mobile.mobileAddress).toHaveBeenCalledWith('testnet')
+  expect(mobile.connectMobile).not.toHaveBeenCalled()
+  expect(window.open).not.toHaveBeenCalled()
+  mobile.signMobile.mockResolvedValue('signed')
+  expect(await m.signEnvelope('reviewed','testnet','selected-account')).toBe('signed')
+})
+it('starts a fresh pairing when the existing session is invalid',async()=>{
+  const m=await import('@/lib/wallet/signing');m.configureSenderMobile('a'.repeat(32))
+  mobile.connectMobile.mockResolvedValue('new-account')
+  expect(await m.connectWallet('testnet',{reuseSession:true})).toBe('new-account')
+  expect(mobile.connectMobile).toHaveBeenCalledTimes(1)
 })
 it('allows cancellation and refuses concurrent sender pairing',async()=>{
   mobile.connectMobile.mockImplementation(async(_network,_config,onUri,signal)=>{onUri(uri);return new Promise((_resolve,reject)=>signal.addEventListener('abort',()=>reject(new Error('cancelled'))))})

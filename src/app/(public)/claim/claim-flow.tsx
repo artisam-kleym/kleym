@@ -48,6 +48,7 @@ export function ClaimFlow({ network, mobileWallet }: { network: 'testnet' | 'pub
   const inLantern = useSyncExternalStore(subscribeLantern, lanternSnapshot, () => false)
   const phoneBrowser = useSyncExternalStore(subscribePhoneBrowser, phoneBrowserSnapshot, () => false)
   const [state, setState] = useState<ClaimState>('loading')
+  const [resolveAttempt, setResolveAttempt] = useState(0)
   const [link, setLink] = useState<LinkDetails | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
@@ -123,28 +124,27 @@ export function ClaimFlow({ network, mobileWallet }: { network: 'testnet' | 'pub
     let cancelled = false
 
     void (async () => {
-      const fragment = readFragment(window.location.hash)
-
-      // Cleared whether or not it parsed — a malformed fragment is still
-      // something that should not sit in the address bar.
-      clearFragment()
-
-      if (!fragment.ok) {
-        if (!cancelled) setState('invalid')
-        return
+      // Retries and Strict Mode keep the original keys only in these refs.
+      // The address bar has already been cleared; rereading it would lose them.
+      if (!seed.current || !ephemeral.current) {
+        const fragment = readFragment(window.location.hash)
+        clearFragment()
+        if (!fragment.ok) {
+          if (!cancelled) setState('invalid')
+          return
+        }
+        seed.current = fragment.secret
+        ephemeral.current = fragment.ephemeralPublicKey
       }
-
-      seed.current = fragment.secret
-      ephemeral.current = fragment.ephemeralPublicKey
 
       try {
         const response = await fetch(
-          `/api/claims/resolve?pk=${encodeURIComponent(fragment.ephemeralPublicKey)}`,
+          `/api/claims/resolve?pk=${encodeURIComponent(ephemeral.current)}`,
           { headers: claimTraceHeaders() },
         )
         if (cancelled) return
 
-        if (!response.ok) return setState('invalid')
+        if (!response.ok) throw new Error('Link lookup unavailable')
         const body = await response.json()
         if (cancelled) return
 
@@ -183,14 +183,17 @@ export function ClaimFlow({ network, mobileWallet }: { network: 'testnet' | 'pub
         else if (policy === 'passkey') setState('passkey_required')
         else setState('ready')
       } catch {
-        if (!cancelled) setState('invalid')
+        if (!cancelled) {
+          setError('We could not check this link. Check your connection and try again.')
+          setState('failed')
+        }
       }
     })()
 
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [resolveAttempt])
 
   /** Reads problem+json without ever echoing what was sent. */
   const problem = useCallback(async (response: Response) => {
@@ -464,10 +467,16 @@ export function ClaimFlow({ network, mobileWallet }: { network: 'testnet' | 'pub
    * reserves, which §3.3.2 says Kleym cannot recover.
    */
   const onRetry = useCallback(() => {
+    if (!link) {
+      setState('loading')
+      setError(null)
+      setResolveAttempt((attempt) => attempt + 1)
+      return
+    }
     const target = retryTarget(materialised.current)
     setState(target)
     void run(target)
-  }, [run])
+  }, [run, link])
 
   /** Exchange deposit (#75): commit to an address and memo, then run the same flow with no wallet. */
   const onDeposit = useCallback(

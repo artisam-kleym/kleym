@@ -1,0 +1,8 @@
+{
+  "CheckedAtUtc": "2026-10-12T15:45:08.1655102Z",
+  "Url": "https://kleym-testnet.up.railway.app/login",
+  "HttpStatus": 200,
+  "FrameAncestors": "'none'",
+  "XFrameOptions": "DENY",
+  "Note": "Read-only live response; no framing configuration changed"
+}

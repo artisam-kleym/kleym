@@ -47,8 +47,22 @@ try {
   await ctx.close()
   const claim=await fetch('http://127.0.0.1:3230/claim');assert(claim.headers.get('content-security-policy').includes('frame-ancestors https://android.golantern.xyz'));assert.equal(claim.headers.get('x-frame-options'),null);assert.equal(claim.headers.get('referrer-policy'),'no-referrer')
   checks.push('Runtime embedding CSP and claim no-referrer headers match policy')
+  for (const path of ['/templates', '/templates/example', '/approvals', '/history']) {
+    // These authenticated routes can redirect to login without a database fixture.
+    // Check the route's own production headers, not the redirect target's headers.
+    const response = await fetch('http://127.0.0.1:3230' + path, { redirect: 'manual' })
+    assert.equal(response.headers.get('x-frame-options'), null)
+    assert(response.headers.get('content-security-policy').includes('frame-ancestors https://android.golantern.xyz'))
+    checks.push(`Production ${path} permits only the trusted Lantern ancestor`)
+  }
+  for (const path of ['/api/templates', '/admin', '/templates-evil', '/approvals-evil', '/history-evil']) {
+    const response = await fetch('http://127.0.0.1:3230' + path, { redirect: 'manual' })
+    assert.equal(response.headers.get('x-frame-options'), 'DENY')
+    assert(response.headers.get('content-security-policy').includes("frame-ancestors 'none'"))
+    checks.push(`Production ${path} remains unframeable`)
+  }
   const denied=await fetch('http://127.0.0.1:3230/api/auth/login',{method:'POST',headers:{origin:'https://evil.test','content-type':'application/json'},body:'{}'});assert.equal(denied.status,403);assert.equal((await denied.json()).status,403)
   checks.push('Production middleware refuses cross-origin authentication mutation')
-  writeFileSync(out+'/browser-verification.json',JSON.stringify({date:'2026-10-08',network:'No chain calls',mode:'Production app; mocked parent and resolve API; not an actual Lantern wallet',checks},null,2))
+  writeFileSync(out+'/browser-verification.json',JSON.stringify({checkedAt:new Date().toISOString(),network:'No chain calls',mode:'Production app; mocked parent and resolve API; not an actual Lantern wallet; authenticated route coverage checks original response headers, not data-backed page content',checks},null,2))
   console.log(JSON.stringify({passed:checks.length,checks}))
 } finally {if(browser)await browser.close();server.kill()}

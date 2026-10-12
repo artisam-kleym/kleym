@@ -10,7 +10,7 @@ export function GlassCard({ children, className }: { children: ReactNode; classN
 /** §5.2 solid card — wizard. */
 export function SolidCard({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={clsx('rounded-xl border border-outline-variant bg-surface-container-lowest p-lg', className)}>
+    <div className={clsx('min-w-0 rounded-xl border border-outline-variant bg-surface-container-lowest p-md sm:p-lg', className)}>
       {children}
     </div>
   )
