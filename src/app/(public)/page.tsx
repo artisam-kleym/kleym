@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Icon } from '@/components/ui'
 import { env } from '@/lib/config/env'
 import { PrizeIllustration } from './prize-illustration'
+import { HomeMotion } from './home-motion'
 import s from './home.module.css'
 
 // Preserve per-request rendering: the strict CSP requires a nonce on RSC payloads.
@@ -60,7 +61,8 @@ const QUESTIONS = [
 export default function Home() {
   const testnet = env.STELLAR_NETWORK === 'testnet'
   return (
-    <div className={s.home} id="top">
+    <div className={s.home} id="top" data-home-motion-root>
+      <HomeMotion />
       <a href="#main-content" className={s.skip}>
         Skip to content
       </a>
@@ -233,6 +235,7 @@ export default function Home() {
         </div>
         <section
           id="campaigns"
+          data-home-reveal
           className={`${s.wrap} ${s.campaigns} ${s.section}`}
           aria-labelledby="campaigns-title"
         >
@@ -300,7 +303,7 @@ export default function Home() {
           className={s.how}
           aria-labelledby="how-title"
         >
-          <div className={`${s.wrap} ${s.section}`}>
+          <div className={`${s.wrap} ${s.section}`} data-home-reveal>
             <div className={s.howHeading}>
               <div>
                 <p className={s.sectionLabel}>How it works</p>
@@ -323,7 +326,7 @@ export default function Home() {
           </div>
         </section>
         <section className={s.recipient} aria-labelledby="recipient-title">
-          <div className={`${s.wrap} ${s.recipientInner}`}>
+          <div className={`${s.wrap} ${s.recipientInner}`} data-home-reveal>
             <div>
               <p className={s.sectionLabel}>For recipients</p>
               <h2 id="recipient-title">
@@ -404,7 +407,7 @@ export default function Home() {
           className={`${s.wrap} ${s.finalSection}`}
           aria-labelledby="start-title"
         >
-          <div className={s.finalCta}>
+          <div className={s.finalCta} data-home-reveal>
             <div>
               <h2 id="start-title">Make your next prize a link.</h2>
               <p>
