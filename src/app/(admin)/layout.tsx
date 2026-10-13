@@ -6,7 +6,11 @@ import { AppShell } from '@/components/shell/app-shell'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AdminLayout({ children }: { children: ReactNode }) {
+export default async function AdminLayout({
+  children,
+}: {
+  children: ReactNode
+}) {
   const user = await getSessionUser()
   if (!user) redirect('/login')
 
@@ -16,5 +20,5 @@ export default async function AdminLayout({ children }: { children: ReactNode })
    */
   if (user.role !== 'ADMIN') notFound()
 
-  return <AppShell>{children}</AppShell>
+  return <AppShell isAdmin>{children}</AppShell>
 }

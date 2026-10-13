@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import { DELIVERY_RETENTION_DAYS } from '@/lib/api/privacy'
 import { EraseForm } from './erase-form'
 
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic'
 export default function AdminPrivacyPage() {
   return (
     <>
-      <h1 className="text-display-lg text-primary max-md:text-headline-md">Privacy</h1>
+      <PageHeading icon="verified_user" tone="pink">Privacy</PageHeading>
       <p className="mt-md max-w-2xl text-body-md text-on-surface-variant">
         The only recipient data Kleym holds is the address a link was emailed to. It is
         redacted automatically {DELIVERY_RETENTION_DAYS} days after the link or its campaign

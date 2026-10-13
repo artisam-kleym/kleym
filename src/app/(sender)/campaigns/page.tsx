@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import Link from 'next/link'
 import { pageScope } from '@/lib/api/session-guard'
 import { StatusChip, Table, TableCell, TableHead, TableRow, ProgressCell, type Status } from '@/components/ui'
@@ -32,7 +33,7 @@ export default async function CampaignsPage({
     <>
       <div className="flex flex-wrap items-end justify-between gap-md">
         <div>
-          <h1 className="text-display-lg text-primary max-md:text-headline-md">Campaigns</h1>
+          <PageHeading icon="campaign" tone="yellow">Campaigns</PageHeading>
           <p className="mt-md text-body-md text-on-surface-variant">
             Everything you have created, newest first.
           </p>

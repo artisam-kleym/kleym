@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import Link from 'next/link'
 import { pageScope, roleAtLeast } from '@/lib/api/session-guard'
 import { approvalQueue } from '@/lib/api/approvals'
@@ -18,7 +19,7 @@ export default async function ApprovalsPage() {
 
   return (
     <>
-      <h1 className="text-display-lg text-primary max-md:text-headline-md">Approvals</h1>
+      <PageHeading icon="verified_user" tone="mint">Approvals</PageHeading>
       <p className="mt-md max-w-2xl text-body-md text-on-surface-variant">
         {org.approvalThreshold === null
           ? 'Dual control is off for this organisation: campaigns can be signed without a second approval. An owner can turn it on under Settings.'

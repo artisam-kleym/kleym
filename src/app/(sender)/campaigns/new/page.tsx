@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import { pageScope } from '@/lib/api/session-guard'
 import { env } from '@/lib/config/env'
 import { stellarMetadata } from '@/lib/stellar/network'
@@ -38,7 +39,7 @@ export default async function NewCampaignPage({ searchParams }: { searchParams: 
 
   return (
     <>
-      <h1 className="text-display-lg text-primary max-md:text-headline-md">New campaign</h1>
+      <PageHeading icon="add" tone="mint">New campaign</PageHeading>
       {refused && (
         <p role="alert" className="mt-md max-w-2xl text-body-md text-error">{refused}</p>
       )}

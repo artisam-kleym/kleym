@@ -1,14 +1,37 @@
 import { clsx } from 'clsx'
 import type { ReactNode } from 'react'
+import { Icon } from './icon'
 
 /** §5.5. Wrapped in overflow-x-auto with min-w so it scrolls rather than squashing. */
-export function Table({ children, className }: { children: ReactNode; className?: string }) {
+export function Table({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
   return (
-    <div className="table-scroll">
-      <table className={clsx('w-full min-w-[800px] border-collapse text-left', className)}>
-        {children}
-      </table>
-    </div>
+    <>
+      <div
+        className="table-scroll"
+        tabIndex={0}
+        role="region"
+        aria-label="Scrollable table"
+      >
+        <table
+          className={clsx(
+            'w-full min-w-[800px] border-collapse text-left',
+            className,
+          )}
+        >
+          {children}
+        </table>
+      </div>
+      <p className="table-hint">
+        <Icon name="arrow_forward" size={16} />
+        Scroll sideways to see all columns.
+      </p>
+    </>
   )
 }
 
@@ -38,8 +61,18 @@ export function TableRow({ children }: { children: ReactNode }) {
   )
 }
 
-export function TableCell({ children, className }: { children: ReactNode; className?: string }) {
-  return <td className={clsx('px-lg py-4 font-mono text-label-md', className)}>{children}</td>
+export function TableCell({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <td className={clsx('px-lg py-4 font-mono text-label-md', className)}>
+      {children}
+    </td>
+  )
 }
 
 /** §5.5 progress cell. `expired` swaps the fill to outline-variant. */
@@ -92,10 +125,23 @@ export function ProgressCell({
  * Never render a raw 56-character key inline — it destroys the layout and is
  * unreadable anyway.
  */
-export function StellarAddress({ value, className }: { value: string; className?: string }) {
-  const short = value.length > 12 ? `${value.slice(0, 4)}…${value.slice(-4)}` : value
+export function StellarAddress({
+  value,
+  className,
+}: {
+  value: string
+  className?: string
+}) {
+  const short =
+    value.length > 12 ? `${value.slice(0, 4)}…${value.slice(-4)}` : value
   return (
-    <span className={clsx('font-mono text-label-sm text-on-surface-variant', className)} title={value}>
+    <span
+      className={clsx(
+        'font-mono text-label-sm text-on-surface-variant',
+        className,
+      )}
+      title={value}
+    >
       {short}
     </span>
   )

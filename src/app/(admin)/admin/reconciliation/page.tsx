@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import { openFindings, findingsValue } from '@/lib/api/reconcile'
 import { lastPassReports, type PassJob, type PassReport } from '@/lib/queue/pass-report'
 import { operatorStatus } from '@/lib/observability/status'
@@ -88,7 +89,7 @@ export default async function ReconciliationPage() {
     <>
       <div className="flex items-start justify-between gap-md">
         <div>
-          <h1 className="text-display-lg text-primary max-md:text-headline-md">Reconciliation</h1>
+          <PageHeading icon="refresh" tone="mint">Reconciliation</PageHeading>
           <p className="mt-md max-w-2xl text-body-md text-on-surface-variant">
             What the database says, against what the ledger says. Every disagreement is
             resolved in the ledger&rsquo;s favour — except one, which is never corrected

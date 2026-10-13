@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import { listAllCampaigns } from '@/lib/api/admin'
 import { StatusChip, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
 
@@ -19,7 +20,7 @@ export default async function AdminCampaignsPage() {
 
   return (
     <>
-      <h1 className="text-display-lg text-primary max-md:text-headline-md">Campaigns</h1>
+      <PageHeading icon="campaign" tone="yellow">Campaigns</PageHeading>
       <p className="mt-md text-body-md text-on-surface-variant">
         The {campaigns.length} most recent, across every account.
       </p>

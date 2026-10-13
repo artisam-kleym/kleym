@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { pageScope, roleAtLeast } from '@/lib/api/session-guard'
@@ -27,7 +28,7 @@ export default async function TemplatePage({ params }: { params: Promise<{ id: s
       <p className="font-mono text-label-md text-on-surface-variant">
         <Link href="/templates" className="text-primary underline-offset-4 hover:underline">Templates</Link> / {template.name}
       </p>
-      <h1 className="mt-sm text-display-lg text-primary max-md:text-headline-md">{template.name}</h1>
+      <PageHeading icon="pending_actions" tone="pink">{template.name}</PageHeading>
       <p className="mt-md font-mono text-label-md text-on-surface-variant" data-testid="template-terms">
         {String(terms.amountPerLink)} {String(terms.assetCode)} per link · {String(terms.network)} · expires {String(terms.expiryDays)} days after each run · claim policy{' '}
         {String(terms.claimPolicy ?? 'open')} · from {String(terms.senderPublicKey).slice(0, 6)}…{String(terms.senderPublicKey).slice(-4)}

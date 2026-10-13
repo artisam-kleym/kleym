@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import { pageScope } from '@/lib/api/session-guard'
 import Link from 'next/link'
 import { listApiKeys } from '@/lib/auth/api-key'
@@ -32,7 +33,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="settings-content min-w-0">
-      <h1 className="text-display-lg text-primary max-md:text-headline-md">Settings</h1>
+      <PageHeading icon="settings" tone="pink">Settings</PageHeading>
       <p className="mt-md font-mono text-label-md text-on-surface-variant">
         Signed in as {user.username} · {org.name}
       </p>

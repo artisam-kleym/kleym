@@ -1,5 +1,6 @@
 import { env } from '@/lib/config/env'
 import { ClaimFlow } from './claim-flow'
+import { Icon } from '@/components/ui/icon'
 
 /**
  * REQUIRED, not an optimisation choice.
@@ -28,16 +29,30 @@ export const dynamic = 'force-dynamic'
  */
 export default function ClaimPage() {
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-surface-base px-md py-2xl">
+    <main className="product-ui claim-page relative flex min-h-dvh items-center justify-center overflow-hidden bg-surface-base px-md py-2xl">
       {/*
         BRAND.md §5.8. Decorative only, and hidden from assistive technology;
         §7 turns the motion off under prefers-reduced-motion.
       */}
-      <div aria-hidden="true" className="orb-claim pointer-events-none absolute" />
+      <div
+        aria-hidden="true"
+        className="orb-claim pointer-events-none absolute"
+      />
 
       <div className="relative w-full max-w-[520px]">
+        <div className="claim-brand">
+          <Icon name="toll" size={24} filled />
+          Kleym
+        </div>
         <h1 className="sr-only">Claim your funds</h1>
-        <ClaimFlow network={env.STELLAR_NETWORK} mobileWallet={env.WALLETCONNECT_PROJECT_ID ? { projectId: env.WALLETCONNECT_PROJECT_ID } : undefined} />
+        <ClaimFlow
+          network={env.STELLAR_NETWORK}
+          mobileWallet={
+            env.WALLETCONNECT_PROJECT_ID
+              ? { projectId: env.WALLETCONNECT_PROJECT_ID }
+              : undefined
+          }
+        />
 
         <footer className="mt-lg text-center">
           <p className="text-body-md text-on-surface-variant">

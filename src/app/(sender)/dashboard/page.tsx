@@ -1,8 +1,9 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import Link from 'next/link'
 import { pageScope } from '@/lib/api/session-guard'
 import { distributedLabel, loadDashboard } from '@/lib/api/dashboard'
 import { MetricCard, ProgressCell, StatusChip, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
-import { formatDate } from '@/components/list/filters'
+import { EmptyState, formatDate } from '@/components/list/filters'
 import { pendingRuns } from '@/lib/api/templates'
 
 export const dynamic = 'force-dynamic'
@@ -28,7 +29,10 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <h1 className="text-display-lg text-primary max-md:text-headline-md">Dashboard</h1>
+      <div className="dashboard-heading">
+        <PageHeading icon="dashboard" tone="mint">Dashboard</PageHeading>
+        <Link href="/campaigns/new" className="product-create-link">Create campaign</Link>
+      </div>
       <p className="mt-md font-mono text-label-md text-on-surface-variant">
         Signed in as {user.username}
       </p>
@@ -85,13 +89,13 @@ export default async function DashboardPage() {
         </Link>
       </div>
       {recent.length === 0 ? (
-        <p className="mt-md rounded-xl border border-dashed border-outline-variant p-lg text-center text-body-md text-on-surface-variant">
+        <EmptyState>
           No campaigns yet.{' '}
           <Link href="/campaigns/new" className="text-primary underline-offset-4 hover:underline">
             Create one
           </Link>
           .
-        </p>
+        </EmptyState>
       ) : (
         <Table className="mt-md">
           <TableHead columns={['Campaign', 'Status', 'Per link', 'Claimed', 'Created']} />

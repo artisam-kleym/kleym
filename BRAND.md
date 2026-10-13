@@ -314,3 +314,10 @@ Port the mock's inline config into `tailwind.config.ts` verbatim, then:
 - Move `.glass-card`, `.glass-panel`, `.input-glow`, `.text-gradient`, `.ambient-glow`, and `.pulse-ring` into `globals.css` under `@layer components`.
 - Replace font CDN links with `next/font/local`.
 - Resolve dark mode (correction 8).
+
+## 12. Product screens (October 2026)
+
+The homepage's navy, mint, yellow and pink identity extends to account, sender,
+administrator and recipient screens. See `docs/product-design.md` for the shared
+components, route coverage and interaction constraints. Operational pages use
+compact headers and legible forms; the homepage remains the marketing surface.

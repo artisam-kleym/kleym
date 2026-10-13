@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import Decimal from 'decimal.js'
 import { env } from '@/lib/config/env'
 import { sponsorStatuses } from '@/lib/api/sponsor-status'
@@ -31,7 +32,7 @@ export default async function AdminPage() {
 
   return (
     <>
-      <h1 className="text-display-lg text-primary max-md:text-headline-md">Admin</h1>
+      <PageHeading icon="dashboard" tone="mint">Admin</PageHeading>
 
       <dl className="mt-lg grid grid-cols-1 gap-md sm:grid-cols-3">
         <div className="rounded-lg border border-outline-variant/50 bg-surface-container p-md">
