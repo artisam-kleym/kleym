@@ -43,7 +43,7 @@ The first CI run caught a genuine Settings layout regression: the new mobile
 panel's border and padding reduced each password field to two pixels below the
 existing `viewport minus 64px` minimum. Mobile Settings panels now use 12px
 padding, preserving that width contract. The test threshold was not weakened;
-logout and the other 52 browser tests passed in that initial run.
+52 browser tests, including logout, passed in that initial run.
 
 ## Limits
 
