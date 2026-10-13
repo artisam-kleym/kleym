@@ -1,131 +1,402 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Button, Icon, AmbientOrbs } from '@/components/ui'
-import { Footer } from '@/components/shell/footer'
+import { Icon } from '@/components/ui'
+import { env } from '@/lib/config/env'
+import s from './home.module.css'
 
-/**
- * Landing page. Copy follows BRAND.md §8 and the §9 corrections — notably
- * correction 1, which is a security-model fix rather than a wording preference.
- */
-
-/**
- * Same constraint as /claim: prerendered HTML carries an inline RSC flight
- * payload that cannot hold a per-request nonce, so under this CSP it is refused
- * and the page never hydrates — serving correct markup while being inert and
- * logging a React #412 on every visit.
- *
- * This costs the static optimisation for the landing page. The alternative is
- * 'unsafe-inline', which AGENT.md §5.3 forbids outright, so it is not a real
- * option. See docs/design-system.md.
- */
+// Preserve per-request rendering: the strict CSP requires a nonce on RSC payloads.
 export const dynamic = 'force-dynamic'
+export const metadata: Metadata = {
+  title: 'Kleym — Send prizes with a link',
+  description:
+    'Create a Stellar asset campaign, set an amount for each recipient, and share individual claim links. Manage funding, claims and expired links in Kleym.',
+}
+
+const PRIZES = [
+  { label: 'First place', amount: '20', tone: s.yellow },
+  { label: 'Second place', amount: '15', tone: s.pink },
+  { label: 'Third place', amount: '10', tone: s.mint },
+  { label: 'Participant 1', amount: '5', tone: s.slate },
+  { label: 'Participant 2', amount: '5', tone: s.slate },
+]
 const STEPS = [
   {
-    icon: 'account_balance_wallet' as const,
-    title: 'Fund campaign',
-    // §9.1: the mock said "Deposit assets via smart contract". Kleym v1 uses
-    // native claimable balances, not a contract — shipping that line would
-    // misdescribe the security model.
-    body: 'Assets locked in claimable balances.',
+    title: 'Set up your campaign',
+    body: 'Choose your funding wallet, asset and expiry. Give every link the same amount, or set individual prizes.',
   },
   {
-    icon: 'link' as const,
-    title: 'Generate links',
-    body: 'One-time links created in your browser. Keys never reach our servers.',
+    title: 'Save your links. Sign the funding.',
+    body: 'Download your private CSV and keep your recovery phrase safe. Review the total, then approve the funding batches in your wallet.',
   },
   {
-    icon: 'redeem' as const,
-    title: 'Share',
-    body: 'Recipients claim with any Stellar wallet. No XLM needed.',
+    title: 'Share each person’s link',
+    body: 'Send recipients only their own link. They connect a supported wallet and claim. Follow confirmations from your campaign.',
   },
 ]
-
-const VALUE_PROPS = [
+const QUESTIONS = [
   {
-    icon: 'verified_user' as const,
-    title: 'Non-custodial',
-    body: 'Keys are generated in your browser and never leave it. A breach of our database cannot drain a campaign.',
+    title: 'Do I need recipients’ wallet addresses?',
+    body: 'You can create and share open claim links without collecting addresses first. Each recipient connects their own supported wallet when claiming. Treat each link like a key: anyone who has it can claim under an open claim policy.',
   },
   {
-    icon: 'account_balance_wallet' as const,
-    title: 'No address collection',
-    body: 'Send to people, not to spreadsheets. Recipients connect a wallet when they claim.',
+    title: 'Can different people receive different amounts?',
+    body: 'Yes. Set a default amount for the campaign, then assign custom amounts to individual links. For example, award 20, 15 and 10 USDC to prize winners, and 5 USDC to each remaining participant. Review the total before funding.',
   },
   {
-    icon: 'refresh' as const,
-    title: 'Unclaimed funds return',
-    body: 'Set an expiry. Anything unclaimed comes back to you in one action.',
+    title: 'Can I use Kleym on my phone?',
+    body: 'Yes. You can create campaigns and open claim links in Android Chrome with Freighter Mobile. On desktop, use the Freighter extension. Return to the original browser tab after wallet approval to follow the result. Lantern integration is being prepared and will be available after its wallet release is verified.',
+  },
+  {
+    title: 'What happens when a link expires?',
+    body: 'An expired link can no longer be claimed by its recipient. The funding owner can reclaim eligible unclaimed funds from the campaign by approving a transaction in their wallet. Expiry makes funds reclaimable; it does not automatically send them back.',
+  },
+  {
+    title: 'What should I save before sharing?',
+    body: 'Keep the complete secrets CSV and your recovery phrase private and securely backed up. The link keys are generated in your browser and are not sent to Kleym’s servers. Kleym cannot recover them for you. Share only each recipient’s individual claim URL.',
   },
 ]
 
 export default function Home() {
+  const testnet = env.STELLAR_NETWORK === 'testnet'
   return (
-    <>
-      <AmbientOrbs variant="dashboard" />
-      <div className="mx-auto flex min-h-screen max-w-[1280px] flex-col px-margin-mobile md:px-lg">
-        <header className="flex items-center justify-between py-lg">
-          <span className="flex items-center gap-sm text-primary">
-            <Icon name="toll" size={24} filled />
-            <span className="text-headline-md">Kleym</span>
-          </span>
-          <Link href="/login">
-            <Button variant="secondary">Sign in</Button>
+    <div className={s.home} id="top">
+      <a href="#main-content" className={s.skip}>
+        Skip to content
+      </a>
+      <header className={s.header}>
+        <div className={`${s.wrap} ${s.headerInner}`}>
+          <Link href="/" className={s.brand} aria-label="Kleym home">
+            <Icon name="toll" size={32} filled />
+            <span>Kleym</span>
           </Link>
-        </header>
-
-        <main className="flex-1">
-          <section className="py-xl">
-            <h1 className="max-w-3xl text-display-lg text-primary max-md:text-headline-md">
-              Distribute Stellar assets with a link.
-            </h1>
-            <p className="mt-md max-w-2xl text-body-lg text-on-surface-variant">
-              No wallet address required.
+          <nav className={s.nav} aria-label="Homepage">
+            <a href="#how-it-works">How it works</a>
+            <a href="#campaigns">Campaigns</a>
+            <a href="#questions">Questions</a>
+          </nav>
+          <Link href="/login" className={s.signIn}>
+            Sign in <Icon name="arrow_forward" size={16} />
+          </Link>
+        </div>
+      </header>
+      <main id="main-content" tabIndex={-1}>
+        <section className={`${s.wrap} ${s.hero}`} aria-labelledby="hero-title">
+          <div className={s.heroCopy}>
+            <p className={s.network}>
+              <span className={s.networkDot} aria-hidden="true" />
+              {testnet ? 'Testnet preview' : 'Stellar Mainnet'}
             </p>
-            <div className="mt-xl flex flex-wrap gap-md">
-              <Link href="/login">
-                <Button icon="add">Create a campaign</Button>
+            <h1 id="hero-title">
+              A prize for everyone.
+              <br />A link for each.
+            </h1>
+            <p className={s.lead}>
+              Send USDC or XLM to your winners, contributors and community. Set
+              the amounts, fund a campaign, and share a personal claim link with
+              each recipient.
+            </p>
+            <div className={s.heroActions}>
+              <Link href="/login" className={s.primary}>
+                Create a campaign <Icon name="arrow_forward" size={18} />
               </Link>
+              <a href="#how-it-works" className={s.textLink}>
+                See how it works <Icon name="expand_more" size={18} />
+              </a>
             </div>
-          </section>
-
-          <section aria-labelledby="how" className="py-xl">
-            <h2 id="how" className="text-headline-lg text-primary">
-              How it works
-            </h2>
-            <ol className="mt-lg grid grid-cols-1 gap-md md:grid-cols-3">
-              {STEPS.map((step, index) => (
-                <li key={step.title} className="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-[50%] border border-accent-yellow/50 bg-accent-yellow/20 text-tertiary">
-                    <Icon name={step.icon} size={24} />
-                  </span>
-                  <p className="mt-md font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">
-                    Step {index + 1}
+            <p className={s.heroNote}>
+              {testnet
+                ? 'Try it with test assets. Test USDC has no financial value.'
+                : 'Check the asset, network and amounts before approving funding.'}
+            </p>
+          </div>
+          <figure
+            className={s.preview}
+            aria-label="Illustrative campaign with five custom prize amounts"
+          >
+            <div className={s.campaignPreview}>
+              <div className={s.previewTop}>
+                <span className={s.previewMark}>
+                  <Icon name="campaign" size={20} />
+                </span>
+                <span>Community prize campaign</span>
+                <span className={s.example}>Example</span>
+              </div>
+              <div className={s.previewHeading}>
+                <div>
+                  <p>Total to distribute</p>
+                  <p className={s.total}>
+                    55 <span>USDC</span>
                   </p>
-                  <h3 className="mt-1 text-headline-sm text-primary">{step.title}</h3>
-                  <p className="mt-sm text-body-md text-on-surface-variant">{step.body}</p>
+                </div>
+                <span className={s.linkCount}>
+                  <Icon name="link" size={16} />5 individual links
+                </span>
+              </div>
+              <table className={s.prizes}>
+                <caption className={s.visuallyHidden}>
+                  Example prize allocations
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Recipient label</th>
+                    <th scope="col">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {PRIZES.map((prize, index) => (
+                    <tr key={prize.label}>
+                      <th scope="row">
+                        <span className={`${s.prizeNumber} ${prize.tone}`}>
+                          {index + 1}
+                        </span>
+                        {prize.label}
+                      </th>
+                      <td>
+                        {prize.amount}
+                        <span> USDC</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className={s.previewBottom}>
+                <Icon name="download" size={18} />
+                <span>One private export. A link for every recipient.</span>
+              </div>
+            </div>
+            <div className={s.claimPreview}>
+              <span className={s.claimIcon}>
+                <Icon name="redeem" size={24} />
+              </span>
+              <div>
+                <p>Your first-place prize</p>
+                <p className={s.claimAmount}>
+                  20 <span>USDC</span>
+                </p>
+                <p className={s.claimCaption}>From a link to your wallet</p>
+              </div>
+              <Icon name="arrow_forward" size={20} />
+            </div>
+            <figcaption>
+              Illustrative example. No funds are transferred here.
+            </figcaption>
+          </figure>
+        </section>
+        <div className={s.factStrip}>
+          <div className={s.wrap}>
+            <span>
+              <Icon name="toll" size={20} />
+              Built on Stellar
+            </span>
+            <span>
+              <Icon name="link" size={20} />
+              Individual claim links
+            </span>
+            <span>
+              <Icon name="account_balance_wallet" size={20} />
+              Wallet-approved funding
+            </span>
+          </div>
+        </div>
+        <section
+          id="campaigns"
+          className={`${s.wrap} ${s.campaigns} ${s.section}`}
+          aria-labelledby="campaigns-title"
+        >
+          <div className={s.sectionIntro}>
+            <p className={s.sectionLabel}>For campaign creators</p>
+            <h2 id="campaigns-title">
+              Your distribution.
+              <br />
+              Your way.
+            </h2>
+            <p>
+              One campaign for the whole group, with the flexibility to make
+              every prize different.
+            </p>
+            <Link href="/login" className={s.textLink}>
+              Sign in to create a campaign{' '}
+              <Icon name="arrow_forward" size={18} />
+            </Link>
+          </div>
+          <div className={s.features}>
+            <article>
+              <Icon name="redeem" size={24} />
+              <h3>Amounts that fit the occasion</h3>
+              <p>
+                Use a fixed amount for everyone or customise individual links
+                for winners and participants.
+              </p>
+            </article>
+            <article>
+              <Icon name="history" size={24} />
+              <h3>A clear expiry</h3>
+              <p>
+                Choose when claiming ends. Reclaim eligible unused funds with
+                your funding wallet’s approval.
+              </p>
+            </article>
+            <article>
+              <Icon name="download" size={24} />
+              <h3>Links you keep privately</h3>
+              <p>
+                Generate keys in your browser and save the CSV before funding.
+                You control who receives each link.
+              </p>
+            </article>
+            <article>
+              <Icon name="check_circle" size={24} />
+              <h3>Confirmation you can follow</h3>
+              <p>
+                See funding and claim status in your campaign, with public
+                transaction receipts for ledger confirmation.
+              </p>
+            </article>
+          </div>
+        </section>
+        <section
+          id="how-it-works"
+          className={s.how}
+          aria-labelledby="how-title"
+        >
+          <div className={`${s.wrap} ${s.section}`}>
+            <div className={s.howHeading}>
+              <div>
+                <p className={s.sectionLabel}>How it works</p>
+                <h2 id="how-title">From campaign to wallet.</h2>
+              </div>
+              <p>
+                Review the amounts, save your export, and let each recipient
+                claim their own prize.
+              </p>
+            </div>
+            <ol className={s.steps}>
+              {STEPS.map((step, index) => (
+                <li key={step.title}>
+                  <span className={s.stepNumber}>{index + 1}</span>
+                  <h3>{step.title}</h3>
+                  <p>{step.body}</p>
                 </li>
               ))}
             </ol>
-          </section>
-
-          <section aria-labelledby="why" className="py-xl">
-            <h2 id="why" className="text-headline-lg text-primary">
-              Why Kleym
-            </h2>
-            <div className="mt-lg grid grid-cols-1 gap-md md:grid-cols-3">
-              {VALUE_PROPS.map((prop) => (
-                <div key={prop.title} className="glass-card p-lg">
-                  <Icon name={prop.icon} size={24} className="text-primary" />
-                  {/* §9.9: headline-sm now exists in the type scale. */}
-                  <h3 className="mt-md text-headline-sm text-primary">{prop.title}</h3>
-                  <p className="mt-sm text-body-md text-on-surface-variant">{prop.body}</p>
-                </div>
-              ))}
+          </div>
+        </section>
+        <section className={s.recipient} aria-labelledby="recipient-title">
+          <div className={`${s.wrap} ${s.recipientInner}`}>
+            <div>
+              <p className={s.sectionLabel}>For recipients</p>
+              <h2 id="recipient-title">
+                Got a link?
+                <br />
+                Your prize starts there.
+              </h2>
+              <p>
+                Open your personal claim link on desktop or Android. Check the
+                asset and amount, connect your wallet, then choose Claim.
+              </p>
+              <p className={s.recipientNote}>
+                Use Freighter’s desktop extension or mobile app. Eligible
+                sponsored claims cover network fees and required wallet setup
+                without an XLM top-up.
+              </p>
             </div>
-          </section>
-        </main>
-
-        <Footer />
-      </div>
-    </>
+            <ol className={s.recipientSteps}>
+              <li>
+                <Icon name="link" size={24} />
+                <div>
+                  <h3>Open your link</h3>
+                  <p>Use the complete URL shared by the creator.</p>
+                </div>
+              </li>
+              <li>
+                <Icon name="account_balance_wallet" size={24} />
+                <div>
+                  <h3>Connect your wallet</h3>
+                  <p>Check the receiving address and network.</p>
+                </div>
+              </li>
+              <li>
+                <Icon name="check_circle" size={24} />
+                <div>
+                  <h3>Claim and check the receipt</h3>
+                  <p>
+                    Follow any wallet approval, then return to the claim page
+                    for confirmation.
+                  </p>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </section>
+        <section
+          id="questions"
+          className={`${s.wrap} ${s.section} ${s.faq}`}
+          aria-labelledby="questions-title"
+        >
+          <div>
+            <p className={s.sectionLabel}>Before you begin</p>
+            <h2 id="questions-title">A few useful answers.</h2>
+            <p>
+              Know what to save, which wallet to use, and what happens to unused
+              links.
+            </p>
+          </div>
+          <div className={s.questions}>
+            {QUESTIONS.map((question) => (
+              <details key={question.title}>
+                <summary>
+                  {question.title}
+                  <Icon name="add" size={20} />
+                </summary>
+                <p>{question.body}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+        <section
+          className={`${s.wrap} ${s.finalSection}`}
+          aria-labelledby="start-title"
+        >
+          <div className={s.finalCta}>
+            <div>
+              <h2 id="start-title">Make your next prize a link.</h2>
+              <p>
+                {testnet
+                  ? 'Start with a Testnet campaign and try the complete flow.'
+                  : 'Review your campaign and approve funding from your wallet.'}
+              </p>
+            </div>
+            <Link href="/login" className={s.primary}>
+              Open Kleym <Icon name="arrow_forward" size={18} />
+            </Link>
+          </div>
+        </section>
+      </main>
+      <footer className={s.footer}>
+        <div className={`${s.wrap} ${s.footerTop}`}>
+          <div>
+            <Link href="/" className={s.brand}>
+              <Icon name="toll" size={24} filled />
+              <span>Kleym</span>
+            </Link>
+            <p>Stellar assets. Personal claim links.</p>
+            <p>A product by Artisam Labs.</p>
+          </div>
+          <nav aria-label="Footer">
+            <a href="#how-it-works">How it works</a>
+            <a href="#questions">Questions</a>
+            <Link href="/login">Sign in</Link>
+          </nav>
+        </div>
+        <div className={`${s.wrap} ${s.footerBottom}`}>
+          <span>© {new Date().getFullYear()} Kleym</span>
+          <span>
+            {testnet
+              ? 'Testnet preview · Test assets only'
+              : 'Built on Stellar'}
+          </span>
+        </div>
+      </footer>
+    </div>
   )
 }
