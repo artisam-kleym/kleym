@@ -66,7 +66,7 @@ export type ReceiveAsQuote =
   | { status: 'unavailable'; detail: string }
 
 function Centred({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col items-center gap-md text-center">{children}</div>
+  return <div className="claim-state flex flex-col items-center gap-md text-center">{children}</div>
 }
 
 /**
@@ -93,7 +93,7 @@ function Waiting({ heading, detail }: { heading: string; detail?: string }) {
 /** The amount, as the one thing the recipient is actually here for. */
 function Amount({ amount, assetCode }: { amount: string; assetCode: string }) {
   return (
-    <p className="flex items-baseline justify-center gap-2">
+    <p className="claim-amount flex items-baseline justify-center gap-2">
       <span className="text-display-lg text-primary">{amount}</span>
       <span className="text-headline-md text-on-surface-variant">{assetCode}</span>
     </p>

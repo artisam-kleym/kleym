@@ -432,7 +432,7 @@ export function CampaignWizard(config: WizardConfig) {
   }, [wizard.step, draft, expiryNow, accountExists, balances, config.maxLinksPerCampaign, labelError, cost, affordable, receiveAsError])
 
   return (
-    <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
+    <div className="campaign-workflow grid">
       {template && (
         <div className="mb-lg rounded-lg border border-outline-variant/50 bg-surface-container p-md lg:col-span-2" data-testid="template-banner">
           <p className="text-label-md font-semibold text-on-surface">

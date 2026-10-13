@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import Link from 'next/link'
 import { pageScope } from '@/lib/api/session-guard'
 import { StatusChip, StellarAddress, Table, TableCell, TableHead, TableRow } from '@/components/ui'
@@ -33,7 +34,7 @@ export default async function HistoryPage({
 
   return (
     <>
-      <h1 className="text-display-lg text-primary max-md:text-headline-md">History</h1>
+      <PageHeading icon="history" tone="yellow">History</PageHeading>
       <p className="mt-md text-body-md text-on-surface-variant">
         Every claim and reclaim across your campaigns, newest first.
       </p>

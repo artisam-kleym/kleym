@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { pageScope } from '@/lib/api/session-guard'
@@ -53,7 +54,7 @@ export default async function CampaignLinksPage({
           {campaign.name}
         </Link>
       </p>
-      <h1 className="mt-xs text-display-lg text-primary max-md:text-headline-md">Links</h1>
+      <PageHeading icon="link" tone="pink">Links</PageHeading>
       <p className="mt-md text-body-md text-on-surface-variant">
         {campaign.linkCount} links ·{' '}
         {campaign.variableAmounts

@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { pageScope } from '@/lib/api/session-guard'
@@ -51,7 +52,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     <>
       <div className="flex flex-wrap items-start justify-between gap-md">
         <div>
-          <h1 className="text-display-lg text-primary max-md:text-headline-md">{campaign.name}</h1>
+          <PageHeading icon="campaign" tone="yellow">{campaign.name}</PageHeading>
           <p className="mt-sm break-all font-mono text-label-md text-on-surface-variant">Campaign ID: <span data-testid="campaign-public-id">{campaign.id}</span></p>
           <p className="mt-sm font-mono text-label-md text-on-surface-variant">
             {campaign.linkCount} links ·{' '}

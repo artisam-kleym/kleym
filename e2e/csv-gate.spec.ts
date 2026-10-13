@@ -30,7 +30,8 @@ test.describe('mobile sender navigation', () => {
       await menuToggle.click()
       const nav = page.locator('nav[aria-label="Main"]:visible')
       const links = nav.getByRole('link')
-      await expect(links).toHaveCount(6)
+      // The seeded account is an administrator; its seventh destination is Admin.
+      await expect(links).toHaveCount(7)
       for (const link of await links.all()) {
         await expect(link).toBeVisible()
         const box = await link.boundingBox()

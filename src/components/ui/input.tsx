@@ -10,7 +10,15 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string
 }
 
-export function Input({ label, helper, total, error, className, id, ...props }: InputProps) {
+export function Input({
+  label,
+  helper,
+  total,
+  error,
+  className,
+  id,
+  ...props
+}: InputProps) {
   const generated = useId()
   const inputId = id ?? generated
   const helperId = `${inputId}-helper`
@@ -19,7 +27,7 @@ export function Input({ label, helper, total, error, className, id, ...props }: 
     <div className="flex min-w-0 flex-col gap-xs">
       <label
         htmlFor={inputId}
-        className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant"
+        className="input-label font-mono text-label-sm uppercase tracking-wider text-on-surface-variant"
       >
         {label}
       </label>
@@ -40,8 +48,13 @@ export function Input({ label, helper, total, error, className, id, ...props }: 
         {...props}
       />
       {(helper || error || total) && (
-        <div id={helperId} className="flex justify-between font-mono text-label-sm">
-          <span className={error ? 'text-error' : 'text-on-surface-variant'}>{error ?? helper}</span>
+        <div
+          id={helperId}
+          className="flex justify-between font-mono text-label-sm"
+        >
+          <span className={error ? 'text-error' : 'text-on-surface-variant'}>
+            {error ?? helper}
+          </span>
           {total && <span className="text-primary">{total}</span>}
         </div>
       )}
