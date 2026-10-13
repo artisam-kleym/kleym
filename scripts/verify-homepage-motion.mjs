@@ -4,6 +4,9 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve, basename } from 'node:path'
 
 const base = new URL(process.argv[2] ?? 'http://127.0.0.1:3226')
+const staticSite = process.argv[4] === 'static'
+const appBase = new URL(process.argv[5] ?? base)
+const compatibility = process.argv[6] === 'compatibility'
 assert(
   base.protocol === 'https:' ||
     ['127.0.0.1', 'localhost'].includes(base.hostname),
@@ -137,10 +140,17 @@ try {
         path: resolve(out, `${profile.name}-reduced.png`),
         fullPage: true,
       })
-      await page
-        .getByRole('link', { name: 'Create a campaign', exact: true })
-        .click()
-      await expect(page).toHaveURL(new URL('/login', base).href)
+      if (staticSite) {
+        const [app] = await Promise.all([page.waitForEvent('popup'), page.getByRole('link', { name: 'Create a campaign', exact: true }).click()])
+        if (compatibility) await app.getByRole('link', { name: 'Create a campaign', exact: true }).click()
+        await expect(app).toHaveURL(new URL('/login', appBase).href)
+        await app.close()
+        // Exercise document cleanup separately: Open App intentionally leaves the website open.
+        await page.goto(new URL('/login', appBase).href)
+      } else {
+        await page.getByRole('link', { name: 'Create a campaign', exact: true }).click()
+        await expect(page).toHaveURL(new URL('/login', base).href)
+      }
       assert.equal(await page.locator('[data-home-motion-root]').count(), 0)
       assert.equal(
         await page.evaluate(

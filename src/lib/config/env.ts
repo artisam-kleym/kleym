@@ -29,6 +29,8 @@ const configurationSchema = z.object({
   // Core
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_URL: z.url(),
+  // Activate app entry only after the separate public website is ready.
+  MARKETING_SITE_URL: z.string().default('').refine((v) => v === '' || workspaceOrigin(v) !== null, 'must be a public HTTPS origin without a path, credentials or query'),
   // Public navigation only; each deployment keeps its own database/queues/sponsor keys.
   TESTNET_APP_URL: z.string().default('').refine((v) => v === '' || workspaceOrigin(v) !== null, 'must be a public HTTPS origin without a path, credentials or query'),
   MAINNET_APP_URL: z.string().default('').refine((v) => v === '' || workspaceOrigin(v) !== null, 'must be a public HTTPS origin without a path, credentials or query'),

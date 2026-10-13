@@ -27,3 +27,5 @@ src/generated/
 /blob-report/
 /e2e/.auth/
 packages/*/dist
+# Generated public site; source and shared design are tracked.
+landing/dist/

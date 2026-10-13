@@ -276,6 +276,8 @@ holds ephemeral seeds in memory, exactly as the sender's browser does.
 
 ## Branch model
 
+For the current two-service website/application deployment and senior developer's domain handoff, see [Website and app architecture](docs/website-app-architecture.md). The owner-authorized release branch is `develop-ade`; the senior developer's `develop` remains separate.
+
 | Branch | Role |
 |---|---|
 | `main` | Released state |

@@ -5,6 +5,9 @@ import { resolve } from 'node:path'
 
 // Public, read-only checks. No login, wallet requests, campaign creation or secrets.
 const base = new URL(process.argv[2] ?? 'http://127.0.0.1:3226')
+const staticSite = process.argv[4] === 'static'
+const appBase = new URL(process.argv[5] ?? base)
+const compatibility = process.argv[6] === 'compatibility'
 assert(
   base.protocol === 'https:' ||
     ['localhost', '127.0.0.1'].includes(base.hostname),
@@ -60,7 +63,7 @@ try {
       assert.equal(response.status(), 200)
       assert.match(
         response.headers()['content-security-policy'] ?? '',
-        /script-src[^;]*'nonce-/,
+        staticSite ? /script-src 'self'/ : /script-src[^;]*'nonce-/,
       )
       await expect(page).toHaveTitle('Kleym — Send prizes with a link')
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
@@ -83,7 +86,7 @@ try {
           document.querySelector('h1').getBoundingClientRect().top -
           document.querySelector('header').getBoundingClientRect().bottom,
         primaryActionBottom: document
-          .querySelector('main a[href="/login"]')
+          .querySelector('main a[data-home-app-link]')
           .getBoundingClientRect().bottom,
         brokenAnchors: [...document.querySelectorAll('a[href^="#"]')]
           .map((a) => a.getAttribute('href').slice(1))
@@ -163,13 +166,19 @@ try {
       ).toBeFocused()
       await page.keyboard.press('Enter')
       await expect(page.getByRole('main')).toBeFocused()
-      await page
-        .getByRole('link', { name: 'Create a campaign', exact: true })
-        .click()
-      await expect(page).toHaveURL(new URL('/login', base).href)
+      const destination = staticSite
+        ? (await Promise.all([page.waitForEvent('popup'), page.getByRole('link', { name: 'Create a campaign', exact: true }).click()]))[0]
+        : page
+      if (!staticSite) await page.getByRole('link', { name: 'Create a campaign', exact: true }).click()
+      if (staticSite && compatibility) {
+        await expect(destination.getByRole('heading', { level: 1 })).toContainText('A prize for everyone')
+        await destination.getByRole('link', { name: 'Create a campaign', exact: true }).click()
+      }
+      await expect(destination).toHaveURL(new URL('/login', appBase).href)
       await expect(
-        page.getByRole('heading', { name: /Sign in/i }),
+        destination.getByRole('heading', { name: /Sign in/i }),
       ).toBeVisible()
+      if (staticSite) await destination.close()
       assert.deepEqual(errors, [], 'Browser/CSP errors')
       assert.deepEqual(
         externalRequests,
@@ -203,6 +212,7 @@ try {
       {
         at: new Date().toISOString(),
         url: base.href,
+        appEntryMode: compatibility ? 'compatibility homepage → login' : 'direct app login',
         results,
         failures,
         scope:

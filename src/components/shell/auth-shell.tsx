@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { Icon } from '@/components/ui/icon'
 import { LogoutButton } from './logout-button'
+import { env } from '@/lib/config/env'
 
 /** Shared public/account shell. Decorative art never contains campaign data. */
 export function AuthShell({
@@ -13,19 +14,20 @@ export function AuthShell({
   wide?: boolean
   authenticated?: boolean
 }) {
+  const homeHref = env.MARKETING_SITE_URL || '/'
   return (
     <div className={`product-ui auth-shell ${wide ? 'auth-shell-wide' : ''}`}>
       <header className="auth-header">
-        <Link href="/" className="auth-brand">
+        <a href={homeHref} className="auth-brand">
           <Icon name="toll" size={32} filled />
           Kleym
-        </Link>
+        </a>
         {authenticated ? (
           <LogoutButton />
         ) : (
-          <Link href="/" className="auth-home">
+          <a href={homeHref} className="auth-home">
             Back to home
-          </Link>
+          </a>
         )}
       </header>
       <main className="auth-layout">
