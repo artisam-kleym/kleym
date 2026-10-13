@@ -62,7 +62,7 @@
   background: #faf9fc;
 }
 .headerInner {
-  min-height: 88px;
+  min-height: 72px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -111,33 +111,23 @@
 .signIn:hover {
   background: #e9eff7;
 }
+.heroBand {
+  background:
+    radial-gradient(ellipse at 88% 15%, #bcebd7 0, transparent 52%),
+    radial-gradient(ellipse at 5% 100%, #fff0bb 0, transparent 46%), #f7faf8;
+}
 .hero {
   display: grid;
   grid-template-columns: 1.06fr 1fr;
-  gap: 64px;
-  align-items: center;
-  padding-block: 80px 70px;
+  gap: 48px;
+  align-items: start;
+  padding-block: 36px 40px;
 }
 .heroCopy {
   min-width: 0;
 }
-.network {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-secondary);
-  margin-bottom: 24px !important;
-}
-.networkDot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-}
 .hero h1 {
-  font-size: clamp(42px, 4.1vw, 60px);
+  font-size: clamp(40px, 4.1vw, 58px);
   line-height: 1.08;
   letter-spacing: -0.052em;
   font-weight: 700;
@@ -186,21 +176,60 @@
   font-size: 12px;
   color: var(--color-on-surface-variant);
   max-width: 400px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.heroNote > span {
+  flex-shrink: 0;
+  color: var(--color-secondary);
+}
+.occasions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  list-style: none;
+  margin: 30px 0 0;
+  padding: 20px 0 0;
+  border-top: 1px solid #bbcdbf;
+}
+.occasions li {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.occasions li > span {
+  display: inline-flex;
+  padding: 9px;
+  border: 1px solid #354f6e20;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.occasions strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.occasions p {
+  font-size: 12px;
+  color: var(--color-on-surface-variant);
+  margin-top: 4px;
 }
 .preview {
   position: relative;
   margin: 0;
-  padding: 20px 14px 0;
+  padding: 0 14px;
   min-width: 0;
 }
-.preview::before {
-  content: '';
-  position: absolute;
-  inset: -20px -30px 40px;
-  background:
-    radial-gradient(ellipse at 85% 25%, #a2f3d23d, transparent 65%),
-    radial-gradient(ellipse at 10% 65%, #ffea883d, transparent 65%);
-  pointer-events: none;
+.illustration {
+  height: 120px;
+  margin-top: -18px;
+  position: relative;
+}
+.illustration svg {
+  width: 100%;
+  height: 100%;
 }
 .campaignPreview {
   position: relative;
@@ -213,10 +242,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 18px 22px;
+  padding: 12px 22px;
   font-size: 12px;
   font-weight: 600;
-  border-bottom: 1px solid #e9edf1;
+  border-bottom: 1px solid #b2d8c5;
+  background: #e3f7ec;
+  border-radius: 8px 8px 0 0;
 }
 .previewMark {
   display: flex;
@@ -229,7 +260,7 @@
   color: var(--color-on-surface-variant);
 }
 .previewHeading {
-  padding: 24px 22px 18px;
+  padding: 14px 22px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -275,7 +306,7 @@
 }
 .prizes th,
 .prizes td {
-  padding: 12px 22px;
+  padding: 7px 22px;
 }
 .prizes th:last-child,
 .prizes td {
@@ -302,8 +333,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   border-radius: 4px;
   font-family: var(--font-mono);
   font-size: 11px;
@@ -326,7 +357,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 16px 22px;
+  padding: 10px 22px;
   font-size: 10px;
   color: var(--color-on-surface-variant);
 }
@@ -337,7 +368,7 @@
   gap: 16px;
   background: var(--color-primary);
   color: white;
-  padding: 18px 22px;
+  padding: 12px 20px;
   border-radius: 8px;
   width: 90%;
   margin: -6px 0 0 auto;
@@ -345,7 +376,7 @@
 }
 .claimIcon {
   display: inline-flex;
-  padding: 12px;
+  padding: 10px;
   border-radius: 4px;
   color: #002116;
   background: #a2f3d2;
@@ -359,7 +390,7 @@
 }
 .claimAmount {
   font-family: var(--font-mono);
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 500;
   line-height: 1.5 !important;
 }
@@ -379,14 +410,15 @@
 }
 .factStrip {
   border-block: 1px solid #e1e5e9;
+  background: #e3eef7;
 }
 .factStrip > div {
   display: flex;
   justify-content: space-between;
   gap: 24px;
-  padding-block: 22px;
+  padding-block: 18px;
 }
-.factStrip span {
+.factStrip > div > span {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -394,7 +426,7 @@
   color: var(--color-primary);
 }
 .section {
-  padding-block: 90px;
+  padding-block: 56px;
 }
 .sectionLabel {
   font-size: 13px;
@@ -405,7 +437,7 @@
 .campaigns {
   display: grid;
   grid-template-columns: 0.82fr 1.3fr;
-  gap: 100px;
+  gap: 48px;
 }
 .sectionIntro > p:not(.sectionLabel),
 .faq > div:first-child > p:last-child {
@@ -420,14 +452,35 @@
 .features {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 32px;
+  gap: 16px;
 }
 .features article {
-  border-top: 1px solid #ccd4de;
-  padding-top: 20px;
+  border: 1px solid #cbd8d0;
+  border-radius: 8px;
+  padding: 20px;
+  background: #eff8f2;
+}
+.features article:nth-child(2) {
+  background: #fff5d8;
+  border-color: #e4d5a4;
+}
+.features article:nth-child(3) {
+  background: #fcebf3;
+  border-color: #e4c7d4;
+}
+.features article:nth-child(4) {
+  background: #eaf1fa;
+  border-color: #c4d3e6;
 }
 .features article > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--color-primary);
+  padding: 10px;
+  background: white;
+  border: 1px solid #354f6e20;
+  border-radius: 8px;
 }
 .features h3 {
   margin-top: 12px;
@@ -438,7 +491,7 @@
   font-size: 14px;
 }
 .how {
-  background: #f0f3f7;
+  background: #eaf3f8;
   border-block: 1px solid #e1e5e9;
 }
 .howHeading {
@@ -455,13 +508,24 @@
 .steps {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 40px;
+  gap: 24px;
   padding: 0;
-  margin: 44px 0 0;
+  margin: 28px 0 0;
   list-style: none;
 }
 .steps li {
   min-width: 0;
+  background: #ffffff;
+  border: 1px solid #c4d3e6;
+  border-top: 4px solid #354f6e;
+  border-radius: 8px;
+  padding: 22px;
+}
+.steps li:nth-child(2) {
+  border-top-color: #ac8d00;
+}
+.steps li:nth-child(3) {
+  border-top-color: #126b51;
 }
 .stepNumber {
   display: flex;
@@ -469,8 +533,8 @@
   height: 36px;
   align-items: center;
   justify-content: center;
-  background: white;
-  border: 1px solid #c3c6ce;
+  background: #d8e5f6;
+  border: 1px solid #a7bcd4;
   border-radius: 4px;
   font-family: var(--font-mono);
   font-size: 14px;
@@ -483,14 +547,15 @@
   margin-top: 12px;
 }
 .recipient {
-  background: var(--color-primary);
+  background:
+    radial-gradient(ellipse at 5% 0, #4d6787, transparent 70%), #253e5b;
   color: white;
 }
 .recipientInner {
-  padding-block: 72px;
+  padding-block: 52px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 110px;
+  gap: 60px;
   align-items: center;
 }
 .recipient .sectionLabel {
@@ -530,6 +595,22 @@
   border: 1px solid #8295ac;
   border-radius: 4px;
   color: #a2f3d2;
+  background: #ffffff12;
+}
+.recipientSteps li:first-child > span {
+  background: #fff0bb;
+  color: #7a5900;
+  border-color: #fff0bb;
+}
+.recipientSteps li:nth-child(2) > span {
+  background: #fbe0ed;
+  color: #8c315e;
+  border-color: #fbe0ed;
+}
+.recipientSteps li:nth-child(3) > span {
+  background: #a2f3d2;
+  color: #126b51;
+  border-color: #a2f3d2;
 }
 .recipientSteps h3 {
   font-size: 17px;
@@ -542,7 +623,7 @@
 .faq {
   display: grid;
   grid-template-columns: 0.8fr 1.25fr;
-  gap: 100px;
+  gap: 48px;
 }
 .questions {
   border-top: 1px solid #ccd4de;
@@ -579,17 +660,17 @@
   color: var(--color-on-surface-variant);
 }
 .finalSection {
-  padding-bottom: 80px;
+  padding-bottom: 48px;
 }
 .finalCta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 32px;
-  padding: 44px;
+  padding: 32px;
   border-radius: 8px;
   border: 1px solid #cad8d3;
-  background: #ecf6f1;
+  background: linear-gradient(110deg, #d4f6e6, #fff0bb);
 }
 .finalCta h2 {
   font-size: clamp(24px, 3vw, 32px);
@@ -686,14 +767,11 @@
   }
   .hero {
     grid-template-columns: 1fr;
-    padding-block: 44px;
-    gap: 36px;
+    padding-block: 28px 32px;
+    gap: 24px;
   }
   .hero h1 {
     font-size: clamp(36px, 8vw, 52px);
-  }
-  .network {
-    margin-bottom: 18px !important;
   }
   .lead {
     font-size: 16px;
@@ -706,16 +784,13 @@
   .preview {
     width: min(100%, 470px);
     margin-inline: auto;
-    padding-top: 0;
-  }
-  .preview::before {
-    inset: -16px 0 40px;
+    padding: 0;
   }
   .previewTop {
     font-size: 11px;
   }
   .previewHeading {
-    padding-top: 20px;
+    padding-top: 14px;
   }
   .factStrip > div {
     flex-wrap: wrap;
@@ -723,11 +798,26 @@
     gap: 14px 28px;
     padding-block: 20px;
   }
-  .factStrip span {
+  .factStrip > div > span {
     font-size: 12px;
   }
+  .occasions {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .occasions li {
+    display: block;
+  }
+  .occasions li > span {
+    margin-bottom: 8px;
+  }
+  .occasions strong {
+    font-size: 12px;
+  }
+  .occasions p {
+    font-size: 11px;
+  }
   .section {
-    padding-block: 56px;
+    padding-block: 40px;
   }
   .campaigns,
   .faq {
@@ -739,7 +829,10 @@
     max-width: 500px;
   }
   .features {
-    gap: 24px;
+    gap: 12px;
+  }
+  .features article {
+    padding: 16px;
   }
   .features h3 {
     font-size: 16px;
@@ -753,17 +846,17 @@
   }
   .steps {
     grid-template-columns: 1fr;
-    gap: 28px;
-    margin-top: 32px;
+    gap: 16px;
+    margin-top: 24px;
   }
   .steps li {
     position: relative;
-    padding-left: 56px;
+    padding: 18px 18px 18px 68px;
   }
   .stepNumber {
     position: absolute;
-    left: 0;
-    top: 0;
+    left: 16px;
+    top: 18px;
   }
   .steps p {
     margin-top: 8px;
@@ -771,7 +864,7 @@
   .recipientInner {
     grid-template-columns: 1fr;
     gap: 36px;
-    padding-block: 56px;
+    padding-block: 40px;
   }
   .recipientInner > div > p:not(.sectionLabel) {
     max-width: 500px;
@@ -783,12 +876,12 @@
     padding-right: 0;
   }
   .finalSection {
-    padding-bottom: 56px;
+    padding-bottom: 40px;
   }
   .finalCta {
     flex-direction: column;
     align-items: start;
-    padding: 28px;
+    padding: 24px;
     gap: 24px;
   }
   .footerTop {
@@ -818,6 +911,17 @@
     align-items: start;
     gap: 6px;
   }
+  .occasions {
+    gap: 8px;
+    margin-top: 20px;
+    padding-top: 16px;
+  }
+  .occasions p {
+    font-size: 10px;
+  }
+  .occasions strong {
+    font-size: 11px;
+  }
   .features {
     grid-template-columns: 1fr;
   }
@@ -841,7 +945,7 @@
   }
   .claimPreview {
     width: 94%;
-    padding: 16px;
+    padding: 12px;
     gap: 12px;
   }
   .previewBottom {

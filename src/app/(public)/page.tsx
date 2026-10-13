@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Icon } from '@/components/ui'
 import { env } from '@/lib/config/env'
+import { PrizeIllustration } from './prize-illustration'
 import s from './home.module.css'
 
 // Preserve per-request rendering: the strict CSP requires a nonce on RSC payloads.
@@ -80,108 +81,140 @@ export default function Home() {
         </div>
       </header>
       <main id="main-content" tabIndex={-1}>
-        <section className={`${s.wrap} ${s.hero}`} aria-labelledby="hero-title">
-          <div className={s.heroCopy}>
-            <p className={s.network}>
-              <span className={s.networkDot} aria-hidden="true" />
-              {testnet ? 'Testnet preview' : 'Stellar Mainnet'}
-            </p>
-            <h1 id="hero-title">
-              A prize for everyone.
-              <br />A link for each.
-            </h1>
-            <p className={s.lead}>
-              Send USDC or XLM to your winners, contributors and community. Set
-              the amounts, fund a campaign, and share a personal claim link with
-              each recipient.
-            </p>
-            <div className={s.heroActions}>
-              <Link href="/login" className={s.primary}>
-                Create a campaign <Icon name="arrow_forward" size={18} />
-              </Link>
-              <a href="#how-it-works" className={s.textLink}>
-                See how it works <Icon name="expand_more" size={18} />
-              </a>
-            </div>
-            <p className={s.heroNote}>
-              {testnet
-                ? 'Try it with test assets. Test USDC has no financial value.'
-                : 'Check the asset, network and amounts before approving funding.'}
-            </p>
-          </div>
-          <figure
-            className={s.preview}
-            aria-label="Illustrative campaign with five custom prize amounts"
+        <div className={s.heroBand}>
+          <section
+            className={`${s.wrap} ${s.hero}`}
+            aria-labelledby="hero-title"
           >
-            <div className={s.campaignPreview}>
-              <div className={s.previewTop}>
-                <span className={s.previewMark}>
-                  <Icon name="campaign" size={20} />
-                </span>
-                <span>Community prize campaign</span>
-                <span className={s.example}>Example</span>
+            <div className={s.heroCopy}>
+              <h1 id="hero-title">
+                A prize for everyone.
+                <br />A link for each.
+              </h1>
+              <p className={s.lead}>
+                Send USDC or XLM to your winners, contributors and community.
+                Set the amounts, fund a campaign, and share a personal claim
+                link with each recipient.
+              </p>
+              <div className={s.heroActions}>
+                <Link href="/login" className={s.primary}>
+                  Create a campaign <Icon name="arrow_forward" size={18} />
+                </Link>
+                <a href="#how-it-works" className={s.textLink}>
+                  See how it works <Icon name="expand_more" size={18} />
+                </a>
               </div>
-              <div className={s.previewHeading}>
-                <div>
-                  <p>Total to distribute</p>
-                  <p className={s.total}>
-                    55 <span>USDC</span>
-                  </p>
+              <p className={s.heroNote}>
+                <Icon name="check_circle" size={16} />
+                No recipient addresses to collect before sharing.
+              </p>
+              <ul className={s.occasions} aria-label="Ways to use Kleym">
+                <li>
+                  <span className={s.yellow}>
+                    <Icon name="redeem" size={24} />
+                  </span>
+                  <div>
+                    <strong>Prize winners</strong>
+                    <p>Make every place count.</p>
+                  </div>
+                </li>
+                <li>
+                  <span className={s.pink}>
+                    <Icon name="verified_user" size={24} />
+                  </span>
+                  <div>
+                    <strong>Contributors</strong>
+                    <p>Reward their contribution.</p>
+                  </div>
+                </li>
+                <li>
+                  <span className={s.mint}>
+                    <Icon name="campaign" size={24} />
+                  </span>
+                  <div>
+                    <strong>Your community</strong>
+                    <p>Share something back.</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <figure
+              className={s.preview}
+              aria-label="Illustrative campaign with five custom prize amounts"
+            >
+              <div className={s.illustration}>
+                <PrizeIllustration />
+              </div>
+              <div className={s.campaignPreview}>
+                <div className={s.previewTop}>
+                  <span className={s.previewMark}>
+                    <Icon name="campaign" size={20} />
+                  </span>
+                  <span>Community prize campaign</span>
+                  <span className={s.example}>Example</span>
                 </div>
-                <span className={s.linkCount}>
-                  <Icon name="link" size={16} />5 individual links
-                </span>
-              </div>
-              <table className={s.prizes}>
-                <caption className={s.visuallyHidden}>
-                  Example prize allocations
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Recipient label</th>
-                    <th scope="col">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {PRIZES.map((prize, index) => (
-                    <tr key={prize.label}>
-                      <th scope="row">
-                        <span className={`${s.prizeNumber} ${prize.tone}`}>
-                          {index + 1}
-                        </span>
-                        {prize.label}
-                      </th>
-                      <td>
-                        {prize.amount}
-                        <span> USDC</span>
-                      </td>
+                <div className={s.previewHeading}>
+                  <div>
+                    <p>Total to distribute</p>
+                    <p className={s.total}>
+                      55 <span>USDC</span>
+                    </p>
+                  </div>
+                  <span className={s.linkCount}>
+                    <Icon name="link" size={16} />5 individual links
+                  </span>
+                </div>
+                <table className={s.prizes}>
+                  <caption className={s.visuallyHidden}>
+                    Example prize allocations
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Recipient label</th>
+                      <th scope="col">Amount</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className={s.previewBottom}>
-                <Icon name="download" size={18} />
-                <span>One private export. A link for every recipient.</span>
+                  </thead>
+                  <tbody>
+                    {PRIZES.map((prize, index) => (
+                      <tr key={prize.label}>
+                        <th scope="row">
+                          <span className={`${s.prizeNumber} ${prize.tone}`}>
+                            {index + 1}
+                          </span>
+                          {prize.label}
+                        </th>
+                        <td>
+                          {prize.amount}
+                          <span> USDC</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className={s.previewBottom}>
+                  <Icon name="download" size={18} />
+                  <span>One private export. A link for every recipient.</span>
+                </div>
               </div>
-            </div>
-            <div className={s.claimPreview}>
-              <span className={s.claimIcon}>
-                <Icon name="redeem" size={24} />
-              </span>
-              <div>
-                <p>Your first-place prize</p>
-                <p className={s.claimAmount}>
-                  20 <span>USDC</span>
-                </p>
-                <p className={s.claimCaption}>From a link to your wallet</p>
+              <div className={s.claimPreview}>
+                <span className={s.claimIcon}>
+                  <Icon name="redeem" size={24} />
+                </span>
+                <div>
+                  <p>Your first-place prize</p>
+                  <p className={s.claimAmount}>
+                    20 <span>USDC</span>
+                  </p>
+                  <p className={s.claimCaption}>From a link to your wallet</p>
+                </div>
+                <Icon name="arrow_forward" size={20} />
               </div>
-              <Icon name="arrow_forward" size={20} />
-            </div>
-            <figcaption>
-              Illustrative example. No funds are transferred here.
-            </figcaption>
-          </figure>
-        </section>
+              <figcaption>
+                Illustrative example. No funds are transferred here.
+              </figcaption>
+            </figure>
+          </section>
+        </div>
         <div className={s.factStrip}>
           <div className={s.wrap}>
             <span>
@@ -221,7 +254,9 @@ export default function Home() {
           </div>
           <div className={s.features}>
             <article>
-              <Icon name="redeem" size={24} />
+              <span>
+                <Icon name="redeem" size={24} />
+              </span>
               <h3>Amounts that fit the occasion</h3>
               <p>
                 Use a fixed amount for everyone or customise individual links
@@ -229,7 +264,9 @@ export default function Home() {
               </p>
             </article>
             <article>
-              <Icon name="history" size={24} />
+              <span>
+                <Icon name="history" size={24} />
+              </span>
               <h3>A clear expiry</h3>
               <p>
                 Choose when claiming ends. Reclaim eligible unused funds with
@@ -237,7 +274,9 @@ export default function Home() {
               </p>
             </article>
             <article>
-              <Icon name="download" size={24} />
+              <span>
+                <Icon name="download" size={24} />
+              </span>
               <h3>Links you keep privately</h3>
               <p>
                 Generate keys in your browser and save the CSV before funding.
@@ -245,7 +284,9 @@ export default function Home() {
               </p>
             </article>
             <article>
-              <Icon name="check_circle" size={24} />
+              <span>
+                <Icon name="check_circle" size={24} />
+              </span>
               <h3>Confirmation you can follow</h3>
               <p>
                 See funding and claim status in your campaign, with public
@@ -302,21 +343,27 @@ export default function Home() {
             </div>
             <ol className={s.recipientSteps}>
               <li>
-                <Icon name="link" size={24} />
+                <span>
+                  <Icon name="link" size={24} />
+                </span>
                 <div>
                   <h3>Open your link</h3>
                   <p>Use the complete URL shared by the creator.</p>
                 </div>
               </li>
               <li>
-                <Icon name="account_balance_wallet" size={24} />
+                <span>
+                  <Icon name="account_balance_wallet" size={24} />
+                </span>
                 <div>
                   <h3>Connect your wallet</h3>
                   <p>Check the receiving address and network.</p>
                 </div>
               </li>
               <li>
-                <Icon name="check_circle" size={24} />
+                <span>
+                  <Icon name="check_circle" size={24} />
+                </span>
                 <div>
                   <h3>Claim and check the receipt</h3>
                   <p>
@@ -392,7 +439,7 @@ export default function Home() {
           <span>© {new Date().getFullYear()} Kleym</span>
           <span>
             {testnet
-              ? 'Testnet preview · Test assets only'
+              ? 'Stellar Testnet · Test assets have no monetary value'
               : 'Built on Stellar'}
           </span>
         </div>
