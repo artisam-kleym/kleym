@@ -1,8 +1,11 @@
 import { env } from '@/lib/config/env'
+import { connection } from 'next/server'
 import { AuthShell } from '@/components/shell/auth-shell'
 import { PageHeading } from '@/components/ui/page-heading'
 
-export default function NotFound() {
+export default async function NotFound() {
+  // Next's standalone 404 build must not load application secrets.
+  await connection()
   return (
     <AuthShell wide>
       <PageHeading icon="info" tone="yellow">
