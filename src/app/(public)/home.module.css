@@ -712,6 +712,144 @@
   font-size: 11px;
   color: var(--color-on-surface-variant);
 }
+
+/* Motion stays on the public homepage. No hidden base state or inline styles. */
+@keyframes heroEnter {
+  from {
+    opacity: 0.9;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes previewEnter {
+  from {
+    opacity: 0.9;
+    transform: translateY(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes prizeSettle {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  25% {
+    transform: translateY(-6px) rotate(-1deg);
+  }
+  60% {
+    transform: translateY(2px) rotate(0.5deg);
+  }
+}
+@keyframes sectionEnter {
+  from {
+    opacity: 0.92;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes answerEnter {
+  from {
+    opacity: 0.9;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.home) {
+    scroll-behavior: smooth;
+  }
+  .heroCopy > h1 {
+    animation: heroEnter 600ms cubic-bezier(0.2, 0.7, 0.25, 1) both;
+  }
+  .lead {
+    animation: heroEnter 600ms 80ms cubic-bezier(0.2, 0.7, 0.25, 1) both;
+  }
+  .heroActions {
+    animation: heroEnter 600ms 150ms cubic-bezier(0.2, 0.7, 0.25, 1) both;
+  }
+  .heroNote,
+  .occasions {
+    animation: heroEnter 600ms 220ms cubic-bezier(0.2, 0.7, 0.25, 1) both;
+  }
+  .campaignPreview {
+    animation: previewEnter 750ms 100ms cubic-bezier(0.2, 0.7, 0.25, 1) both;
+  }
+  .claimPreview {
+    animation: previewEnter 750ms 240ms cubic-bezier(0.2, 0.7, 0.25, 1) both;
+  }
+  /* One finite decorative gesture; no perpetual animation or pause control needed. */
+  .illustration svg {
+    animation: prizeSettle 4200ms 1 ease-in-out;
+    transform-origin: 50% 65%;
+  }
+  .scrollEnter {
+    animation: sectionEnter 650ms cubic-bezier(0.2, 0.7, 0.25, 1) both;
+  }
+  .questions details[open] > p {
+    animation: answerEnter 200ms ease-out;
+  }
+  .primary,
+  .signIn {
+    transition:
+      transform 180ms ease,
+      background-color 180ms ease,
+      box-shadow 180ms ease;
+  }
+  .primary > span,
+  .signIn > span {
+    transition: transform 180ms ease;
+  }
+  .questions summary > span {
+    transition: transform 180ms ease;
+  }
+  .features article,
+  .occasions li > span {
+    transition:
+      transform 220ms ease,
+      box-shadow 220ms ease;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .primary:hover,
+    .signIn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 14px #354f6e18;
+    }
+    .primary:hover > span,
+    .signIn:hover > span {
+      transform: translateX(3px);
+    }
+    .features article:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px #354f6e12;
+    }
+    .occasions li:hover > span {
+      transform: rotate(-4deg);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:has(.home) {
+    scroll-behavior: auto;
+  }
+  .home *,
+  .home *::before,
+  .home *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
 @media (max-width: 1050px) {
   .hero {
     gap: 32px;

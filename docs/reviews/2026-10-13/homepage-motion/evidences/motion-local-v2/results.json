@@ -1,0 +1,60 @@
+{
+  "at": "2026-10-13T07:58:31.385Z",
+  "url": "http://127.0.0.1:3226/",
+  "results": [
+    {
+      "profile": "desktop-motion",
+      "video": "videos/page@8ecf34c6d08eb3e68fe4e64601fd7475.webm",
+      "passed": true,
+      "start": {
+        "heroAnimation": "home_heroEnter__cLf5U",
+        "pictureAnimation": "home_prizeSettle__oxyIU",
+        "pictureIterations": "1",
+        "inlineStyles": 0
+      },
+      "reducedMotionStopsAllEffects": true,
+      "homepageNavigationCleanup": true
+    },
+    {
+      "profile": "android-motion",
+      "video": "videos/page@d2640c6b895270177f4f686db54e48b5.webm",
+      "passed": true,
+      "start": {
+        "heroAnimation": "home_heroEnter__cLf5U",
+        "pictureAnimation": "home_prizeSettle__oxyIU",
+        "pictureIterations": "1",
+        "inlineStyles": 0
+      },
+      "reducedMotionStopsAllEffects": true,
+      "homepageNavigationCleanup": true
+    },
+    {
+      "profile": "observer-unavailable",
+      "video": "videos/page@1a8b99f2aa203794c31bb2a6f11dd90e.webm",
+      "passed": true,
+      "start": {
+        "heroAnimation": "home_heroEnter__cLf5U",
+        "pictureAnimation": "home_prizeSettle__oxyIU",
+        "pictureIterations": "1",
+        "inlineStyles": 0
+      },
+      "reducedMotionStopsAllEffects": true,
+      "homepageNavigationCleanup": true
+    },
+    {
+      "profile": "no-javascript-motion",
+      "video": "videos/page@c9812875e74487f50ddbad3bfe852b40.webm",
+      "passed": true,
+      "start": {
+        "heroAnimation": "home_heroEnter__cLf5U",
+        "pictureAnimation": "home_prizeSettle__oxyIU",
+        "pictureIterations": "1",
+        "inlineStyles": 0
+      },
+      "reducedMotionStopsAllEffects": true,
+      "homepageNavigationCleanup": true
+    }
+  ],
+  "failures": [],
+  "scope": "Public-page motion, fallback and accessibility checks; no login or wallet requests"
+}
