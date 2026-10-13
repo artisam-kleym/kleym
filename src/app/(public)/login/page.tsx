@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
-import { getSessionUser } from '@/lib/auth/session'
+import { resolveSession } from '@/lib/auth/session'
+import { appEntryPath } from '@/lib/config/app-entry'
 import { LoginForm } from './login-form'
 import { AuthShell } from '@/components/shell/auth-shell'
 
@@ -7,7 +8,8 @@ export const dynamic = 'force-dynamic'
 
 export default async function LoginPage() {
   // Already signed in — no reason to show a login form.
-  if (await getSessionUser()) redirect('/dashboard')
+  const session = await resolveSession()
+  if (session) redirect(appEntryPath(session.state))
 
   return (
     <AuthShell>

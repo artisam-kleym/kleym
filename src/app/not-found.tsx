@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { env } from '@/lib/config/env'
 import { AuthShell } from '@/components/shell/auth-shell'
 import { PageHeading } from '@/components/ui/page-heading'
 
@@ -11,9 +11,12 @@ export default function NotFound() {
       <p className="mt-lg text-body-md text-on-surface-variant">
         This page may have moved, or the address may be incorrect.
       </p>
-      <Link href="/" className="product-create-link mt-lg">
+      <a
+        href={env.MARKETING_SITE_URL || '/'}
+        className="product-create-link mt-lg"
+      >
         Go to home
-      </Link>
+      </a>
     </AuthShell>
   )
 }

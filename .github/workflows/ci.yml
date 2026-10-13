@@ -271,6 +271,7 @@ jobs:
     env:
       NODE_ENV: production
       APP_URL: http://127.0.0.1:3210
+      MARKETING_SITE_URL: https://kleym-landing.test
       DATABASE_URL: postgresql://kleym:kleym@localhost:5432/kleym
       REDIS_URL: redis://localhost:6379
       STELLAR_NETWORK: testnet
@@ -409,6 +410,13 @@ jobs:
       # starts requiring them, that decoupling has regressed.
       - name: Build
         run: pnpm build
+
+      # Public marketing assets must build without the app's database/wallet secrets.
+      - name: Build standalone static homepage
+        run: pnpm build:landing
+
+      - name: Verify standalone website boundaries
+        run: pnpm verify:landing
 
       - name: Audit
         run: pnpm audit --audit-level=moderate

@@ -1,0 +1,60 @@
+{
+  "at": "2026-10-13T14:45:00.544Z",
+  "url": "http://127.0.0.1:3228/",
+  "results": [
+    {
+      "profile": "desktop-motion",
+      "video": "videos/page@a58b45dec66c38d2173fd76153447e6c.webm",
+      "passed": true,
+      "start": {
+        "heroAnimation": "heroEnter",
+        "pictureAnimation": "prizeSettle",
+        "pictureIterations": "1",
+        "inlineStyles": 0
+      },
+      "reducedMotionStopsAllEffects": true,
+      "homepageNavigationCleanup": true
+    },
+    {
+      "profile": "android-motion",
+      "video": "videos/page@751088114b8c187eeb939aab712ddbe4.webm",
+      "passed": true,
+      "start": {
+        "heroAnimation": "heroEnter",
+        "pictureAnimation": "prizeSettle",
+        "pictureIterations": "1",
+        "inlineStyles": 0
+      },
+      "reducedMotionStopsAllEffects": true,
+      "homepageNavigationCleanup": true
+    },
+    {
+      "profile": "observer-unavailable",
+      "video": "videos/page@4f49019fb0c199418d835bf3487fc21b.webm",
+      "passed": true,
+      "start": {
+        "heroAnimation": "heroEnter",
+        "pictureAnimation": "prizeSettle",
+        "pictureIterations": "1",
+        "inlineStyles": 0
+      },
+      "reducedMotionStopsAllEffects": true,
+      "homepageNavigationCleanup": true
+    },
+    {
+      "profile": "no-javascript-motion",
+      "video": "videos/page@c03391907b8502ea3eca550ed42206b7.webm",
+      "passed": true,
+      "start": {
+        "heroAnimation": "heroEnter",
+        "pictureAnimation": "prizeSettle",
+        "pictureIterations": "1",
+        "inlineStyles": 0
+      },
+      "reducedMotionStopsAllEffects": true,
+      "homepageNavigationCleanup": true
+    }
+  ],
+  "failures": [],
+  "scope": "Public-page motion, fallback and accessibility checks; no login or wallet requests"
+}

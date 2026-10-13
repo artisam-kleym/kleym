@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:landing": "tsx scripts/build-landing.ts",
+    "start:landing": "node landing/server.mjs",
+    "verify:landing": "node scripts/verify-landing.mjs",
     "start": "next start",
     "lint": "eslint src scripts tests packages",
     "typecheck": "tsc --noEmit",
