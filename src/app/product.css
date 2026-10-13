@@ -595,8 +595,9 @@
     height: 48px;
     border-radius: 12px 12px 12px 4px;
   }
-  .product-ui .settings-content section {
-    padding: 16px;
+  .product-ui .settings-content section,
+  .product-ui .settings-content section section {
+    padding: 12px;
   }
   .product-ui .product-section {
     padding: 16px;
