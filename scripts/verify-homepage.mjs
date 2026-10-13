@@ -20,6 +20,7 @@ const profiles = [
   { name: 'phone-landscape', width: 852, height: 393, phone: true },
   { name: 'tablet-768', width: 768, height: 1024 },
   { name: 'desktop-1024', width: 1024, height: 768 },
+  { name: 'desktop-compact-1280', width: 1280, height: 576 },
   { name: 'desktop-1440', width: 1440, height: 1000 },
   { name: 'wide-1920', width: 1920, height: 1080 },
   // Narrow effective viewport represents 200% zoom on a 1280px desktop.
@@ -65,11 +66,25 @@ try {
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(
         page.getByText('Testnet preview', { exact: true }),
-      ).toBeVisible()
+      ).toHaveCount(0)
+      await expect(page.getByRole('contentinfo')).toContainText(
+        'Stellar Testnet',
+      )
       assert.equal(await page.locator('a button, button a').count(), 0)
       const layout = await page.evaluate(() => ({
         viewport: innerWidth,
         scrollWidth: document.documentElement.scrollWidth,
+        heroHeight: document
+          .querySelector('h1')
+          .closest('section')
+          .getBoundingClientRect().height,
+        pageHeight: document.documentElement.scrollHeight,
+        headlineGap:
+          document.querySelector('h1').getBoundingClientRect().top -
+          document.querySelector('header').getBoundingClientRect().bottom,
+        primaryActionBottom: document
+          .querySelector('main a[href="/login"]')
+          .getBoundingClientRect().bottom,
         brokenAnchors: [...document.querySelectorAll('a[href^="#"]')]
           .map((a) => a.getAttribute('href').slice(1))
           .filter((id) => !document.getElementById(id)),
@@ -82,13 +97,22 @@ try {
           .map((el) => el.textContent.trim()),
       }))
       assert(layout.scrollWidth <= layout.viewport + 1, 'Horizontal overflow')
+      assert(
+        layout.headlineGap <= 48,
+        'Headline must start close to the header',
+      )
+      if (profile.width >= 1024)
+        assert(
+          layout.primaryActionBottom < profile.height,
+          'Primary action should be above the fold',
+        )
       assert.deepEqual(layout.brokenAnchors, [])
       assert.deepEqual(layout.smallTargets, [])
       await page.screenshot({
         path: resolve(out, `${profile.name}.png`),
         fullPage: true,
       })
-      if (profile.width === 1440 || profile.width === 393) {
+      if ([1280, 1440, 393].includes(profile.width)) {
         await page.screenshot({
           path: resolve(out, `${profile.name}-hero.png`),
         })
