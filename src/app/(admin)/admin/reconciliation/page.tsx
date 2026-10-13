@@ -87,7 +87,7 @@ export default async function ReconciliationPage() {
 
   return (
     <>
-      <div className="flex items-start justify-between gap-md">
+      <div className="flex flex-wrap items-start justify-between gap-md">
         <div>
           <PageHeading icon="refresh" tone="mint">Reconciliation</PageHeading>
           <p className="mt-md max-w-2xl text-body-md text-on-surface-variant">
