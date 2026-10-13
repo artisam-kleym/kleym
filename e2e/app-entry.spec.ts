@@ -39,3 +39,15 @@ test('anonymous app root opens login with the separate home backlink', async ({
     await context.close()
   }
 })
+
+test('unknown app paths keep the configured website home link', async ({
+  page,
+}) => {
+  await page.goto('/website-split-missing-page')
+  await expect(
+    page.getByRole('heading', { name: 'Page not found', exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: 'Go to home', exact: true }),
+  ).toHaveAttribute('href', website!)
+})
