@@ -63,6 +63,7 @@ enum CampaignStatus {
 /// bound to that device. None of these identifies a person; they bind a link
 /// to a channel or a device.
 enum ClaimPolicy {
+  WALLET
   OPEN
   CODE
   EMAIL
@@ -702,6 +703,8 @@ model ClaimLink {
   /// Ephemeral PUBLIC key (G...). The private half NEVER touches this system —
   /// it exists only in the sender's browser and the CSV they download.
   ephemeralPublicKey String @unique
+  /// WALLET policy: actual on-chain claimant. Immutable after registration.
+  recipientPublicKey String?
 
   balanceId   String?    @unique // set once the batch confirms
   /// What THIS link pays (#73). Decimal(23,7), never Float (SPEC.md §4.1).

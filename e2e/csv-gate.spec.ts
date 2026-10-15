@@ -567,3 +567,58 @@ test.describe('CSV gate', () => {
     await expect(page.getByTestId('next-step')).toBeEnabled()
   })
 })
+
+
+test.describe('wallet-bound recipient CSV', () => {
+  for (const width of [320, 1440]) {
+    test(`imports ordered wallets, prizes and safe template at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await stubLookups(page)
+      await page.goto('/campaigns/new')
+      await page.getByLabel('Campaign name').fill('Wallet CSV test')
+      await page.getByLabel('Funding account').fill(SENDER)
+      await page.getByLabel('Amount per link').fill('5')
+      await page.getByTestId('next-step').click()
+      await page.locator('input[name="claimPolicy"][value="wallet"]').check()
+      await expect(page.getByTestId('next-step')).toBeDisabled()
+      const downloadEvent = page.waitForEvent('download')
+      await page.getByRole('button', { name: 'Download CSV template', exact: true }).click()
+      const download = await downloadEvent
+      const stream = await download.createReadStream()
+      const chunks: Buffer[] = []; for await (const chunk of stream!) chunks.push(Buffer.from(chunk))
+      const header = Buffer.concat(chunks).toString('utf8').split(/\r?\n/)[0]!
+      expect(header).toBe('label,public_key,secret,claim_url,reference,category,note,amount,claim_code,Wallet Address')
+      const wallets = Array.from({ length: 5 }, () => Keypair.random().publicKey())
+      const upload = (body: string, name = 'workers.csv') => page.getByLabel('Insert recipient CSV', { exact: true }).setInputFiles({ name, mimeType: 'text/csv', buffer: Buffer.from(body) })
+      await upload(header + '\nWorker,,,,,,,20,,not-an-address')
+      await expect(page.getByRole('alert').filter({ hasText: 'valid Stellar G-address' })).toBeVisible()
+      await expect(page.getByTestId('next-step')).toBeDisabled()
+      await upload([header, ...wallets.map((wallet, i) => [`Worker ${i + 1}`, '', '', '', '', '', '', ['20', '15', '10', '', ''][i], '', wallet].join(','))].join('\r\n'))
+      await expect(page.getByLabel('Number of links')).toHaveValue('5')
+      await expect(page.getByLabel('Number of links')).toBeDisabled()
+      const items = page.locator('ol li').filter({ hasText: /Link [1-5]/ })
+      await expect(items).toHaveCount(5)
+      for (let index = 0; index < 5; index++) await expect(items.nth(index)).toContainText(wallets[index]!)
+      await expect(page.getByLabel('Prize for Worker 1 (link 1) in USDC')).toHaveValue('20')
+      await expect(page.getByLabel('Prize for Worker 2 (link 2) in USDC')).toHaveValue('15')
+      await page.getByLabel('Prize for Worker 4 (link 4) in USDC').fill('7')
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+      await expect(page.getByTestId('next-step')).toBeEnabled()
+      await page.getByTestId('next-step').click()
+      await expect(page.getByTestId('review-link-count')).toHaveText('5')
+      await expect(page.getByText('Wallet-bound claims:', { exact: false })).toBeVisible()
+      await expect(page.getByLabel('Prize for Worker 4 (link 4) in USDC')).toHaveValue('7')
+      if (process.env.E2E_EVIDENCE_DIR) {
+        await page.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur(); window.scrollTo(0, 0) })
+        await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/wallet-review-${width}.png`, fullPage: true })
+      }
+      await page.getByRole('button', { name: 'Back', exact: true }).click()
+      await upload(header + '\n', 'workers.xlsx')
+      await expect(page.getByRole('alert').filter({ hasText: 'Insert a CSV file.' })).toBeVisible()
+      await expect(page.getByTestId('next-step')).toBeDisabled()
+      await page.locator('input[name="claimPolicy"][value="open"]').check()
+      await expect(page.getByTestId('next-step')).toBeEnabled()
+      await expect(page.getByLabel('Number of links')).toBeEnabled()
+    })
+  }
+})

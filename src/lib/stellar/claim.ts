@@ -24,6 +24,7 @@ import {
   TransactionBuilder,
   type Account,
 } from '@stellar/stellar-sdk'
+import { buildWalletClaim } from './wallet-claim'
 import { toMemo, type DepositMemo } from './memo'
 
 /** How long the recipient has to sign before the envelope expires. */
@@ -40,6 +41,7 @@ export interface LedgerFacts {
 export interface ClaimContext {
   /** Earliest ledger for TX2, after ephemeral account creation. */
   minimumClaimLedger?: number
+  walletBound?: boolean
   sponsorAccount: Account
   sponsorPublicKey: string
   ephemeralPublicKey: string
@@ -170,6 +172,7 @@ export interface ClaimPlan {
  * XLM from the sponsor account.
  */
 export function buildClaim(context: ClaimContext, facts: LedgerFacts): ClaimPlan {
+  if (context.walletBound) return buildWalletClaim(context, facts)
   const nonNative = !context.asset.isNative()
   /*
    * The trustline the RECIPIENT needs is for what they RECEIVE (#74). With a

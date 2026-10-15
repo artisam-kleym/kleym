@@ -17,7 +17,7 @@ import { QUEUE, queueConnection } from '@/lib/queue/connection'
 import type { BatchConfirmJob } from '@/lib/queue/batch-confirm'
 import { confirmBatch, markBatchFailed } from '@/lib/api/batches'
 import { LINK_ORDER } from '@/lib/api/link-order'
-import { balanceIdsFromResultXdr } from '@/lib/stellar/batch'
+import { balanceIdsFromResultXdr, balanceIdsOf } from '@/lib/stellar/batch'
 import { horizon } from '@/lib/stellar/horizon'
 import { Transaction, TransactionBuilder } from '@stellar/stellar-sdk'
 import { env } from '@/lib/config/env'
@@ -38,7 +38,7 @@ export async function confirmOne(batchId: string): Promise<'confirmed' | 'failed
     select: {
       id: true, campaignId: true, sequence: true, status: true, transactionHash: true, submittedXdr: true,
       campaign: { select: { network: true, sponsorPublicKey: true } },
-      links: { select: { id: true, ephemeralPublicKey: true }, orderBy: LINK_ORDER },
+      links: { select: { id: true, ephemeralPublicKey: true, recipientPublicKey: true, amount: true }, orderBy: LINK_ORDER },
     },
   })
   if (!batch) throw new Error(`batch ${batchId} no longer exists`)
@@ -115,6 +115,26 @@ export async function confirmOne(batchId: string): Promise<'confirmed' | 'failed
   const balances = await Promise.all(
     balanceIds.map((balanceId) => horizon().claimableBalances().claimableBalance(balanceId).call()),
   )
+
+  if (batch.links.some((link) => link.recipientPublicKey)) {
+    if (!batch.submittedXdr || batch.links.some((link) => !link.recipientPublicKey)) throw new Error('Wallet funding requires its complete signed envelope and assignments.')
+    const signed = TransactionBuilder.fromXDR(batch.submittedXdr, env.NETWORK_PASSPHRASE)
+    if (!(signed instanceof Transaction) || signed.hash().toString('hex') !== batch.transactionHash) throw new Error('Funding envelope hash mismatch.')
+    const expected = balanceIdsOf(signed, batch.links.map((link) => ({ ...link, amount: link.amount.toString() })))
+    const seen = new Map(balances.map((balance) => [balance.id, balance]))
+    for (const [index, pair] of expected.entries()) {
+      const balance = seen.get(pair.balanceId)
+      const link = batch.links[index]!
+      const operation = signed.operations.filter((op) => op.type === 'createClaimableBalance')[index]
+      if (!balance || !operation || operation.type !== 'createClaimableBalance' ||
+        operation.claimants[0]?.destination !== link.recipientPublicKey ||
+        balance.claimants[0]?.destination !== link.recipientPublicKey ||
+        balance.amount !== link.amount.toFixed(7)) throw new Error('Wallet funding does not match its registered recipient and prize.')
+    }
+    await confirmBatch(batch.id, batch.campaignId, expected)
+    logger.info({ batchId, sequence: batch.sequence, links: expected.length }, 'batch confirmed')
+    return 'confirmed'
+  }
 
   const byEphemeralKey = new Map(batch.links.map((link) => [link.ephemeralPublicKey, link.id]))
   const pairs: { linkId: string; balanceId: string }[] = []

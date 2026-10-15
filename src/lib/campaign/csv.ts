@@ -77,13 +77,18 @@ export function buildCsv(rows: CsvRow[], options: { requireCodes?: boolean } = {
   // reason. Amount blank when the link pays the campaign default; code blank
   // unless the policy is code. With a code column the file is more sensitive
   // still: link AND code together.
-  const header = ['label', 'public_key', 'secret', 'claim_url', 'reference', 'category', 'note', 'amount', 'claim_code'].join(',')
+  const walletBound = rows.some(({ key }) => key.recipientPublicKey != null)
+  if (walletBound && rows.some(({ key }) => !key.recipientPublicKey || !StrKey.isValidEd25519PublicKey(key.recipientPublicKey))) {
+    throw new Error('Every wallet-bound link needs its assigned wallet before export.')
+  }
+  const header = ['label', 'public_key', 'secret', 'claim_url', 'reference', 'category', 'note', 'amount', 'claim_code', ...(walletBound ? ['Wallet Address'] : [])].join(',')
   const lines = rows.map(({ key, url }) =>
     [
       quote(key.label ?? ''), quote(key.publicKey), quote(key.secret), quote(url),
       quote(key.attestation?.reference ?? ''), quote(key.attestation?.category ?? ''), quote(key.attestation?.note ?? ''),
       quote(key.amount ?? ''),
       quote(key.code ?? ''),
+      ...(walletBound ? [quote(key.recipientPublicKey!)] : []),
     ].join(','),
   )
   // Trailing newline: without it, some tools drop the final row.

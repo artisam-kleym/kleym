@@ -56,7 +56,7 @@ export interface TemplatePrefill {
   assetIssuer: string | null
   amountPerLink: string
   expiresAt: string
-  claimPolicy: 'open' | 'code' | 'email' | 'passkey'
+  claimPolicy: 'open' | 'code' | 'email' | 'passkey' | 'wallet'
   reminderDaysBefore: number[]
   /** One per line, `XLM` or `CODE:ISSUER` — the raw the receive-as field takes. */
   receiveAsRaw: string

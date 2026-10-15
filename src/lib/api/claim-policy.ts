@@ -28,8 +28,8 @@ import { OTP_MAX_ATTEMPTS, otpSatisfied } from './otp'
 import { claimConflict } from './claim-problems'
 import type { ClaimConflictReason } from '@/lib/claim/problem-types'
 
-export type ClaimPolicy = 'open' | 'code' | 'email' | 'passkey'
-export const CLAIM_POLICIES: readonly ClaimPolicy[] = ['open', 'code', 'email', 'passkey'] as const
+export type ClaimPolicy = 'open' | 'code' | 'email' | 'passkey' | 'wallet'
+export const CLAIM_POLICIES: readonly ClaimPolicy[] = ['open', 'code', 'email', 'passkey', 'wallet'] as const
 
 export function policyFromRow(row: PrismaClaimPolicy): ClaimPolicy {
   return row.toLowerCase() as ClaimPolicy
@@ -94,6 +94,9 @@ export function policyDecision(
   facts: { emailed: boolean; tokenOk: boolean; otpOk: boolean },
 ): PolicyRefusal | null {
   switch (policy) {
+    // WALLET is enforced by on-chain claimant rules and the recipient signature.
+    case 'wallet':
+      return null
     case 'open':
       /*
        * An OPEN campaign whose link was nonetheless emailed keeps the OTP gate:

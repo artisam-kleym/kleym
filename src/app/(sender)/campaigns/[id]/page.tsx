@@ -239,7 +239,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         <tbody>
           {campaign.links.map((link) => (
             <TableRow key={link.id}>
-              <TableCell>{link.label ?? '—'}</TableCell>
+              <TableCell>{link.label ?? '—'}{link.recipientPublicKey && <span className="mt-xs block">Assigned: <StellarAddress value={link.recipientPublicKey} /></span>}</TableCell>
               <TableCell className="font-mono">{link.amount.toFixed()} {campaign.assetCode}</TableCell>
               <TableCell>
                 <StatusChip status={CHIP[link.status] ?? 'pending'} />

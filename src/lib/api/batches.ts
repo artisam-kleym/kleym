@@ -76,7 +76,7 @@ async function loadCampaign(campaignId: string, organizationId: string) {
       assetCode: true, assetIssuer: true, amountPerLink: true, linkCount: true,
       expiresAt: true, csvExportedAt: true,
       sponsorPublicKey: true,
-      fundingMode: true,
+      fundingMode: true, claimPolicy: true,
     },
   })
 }
@@ -211,7 +211,7 @@ export async function prepareBatch(
   const batches = await prisma.batch.findMany({
     where: { campaignId: campaign.id },
     orderBy: { sequence: 'asc' },
-    select: { id: true, sequence: true, status: true, preparedXdr: true, links: { select: { id: true, ephemeralPublicKey: true, amount: true }, orderBy: LINK_ORDER } },
+    select: { id: true, sequence: true, status: true, preparedXdr: true, links: { select: { id: true, ephemeralPublicKey: true, recipientPublicKey: true, amount: true }, orderBy: LINK_ORDER } },
   })
   if (batches.length === 0) {
     return conflict('This campaign has no registered links to batch.')
@@ -234,6 +234,9 @@ export async function prepareBatch(
   }
   if (target.status === 'SUBMITTED' || target.status === 'CONFIRMED') {
     return conflict(`Batch ${target.sequence} is already ${target.status.toLowerCase()}.`)
+  }
+  if (target.links.some((link) => (campaign.claimPolicy === 'WALLET') !== !!link.recipientPublicKey)) {
+    return conflict('The recipient assignments are incomplete or inconsistent. No funding transaction was prepared.')
   }
   if (target.links.length === 0) {
     return conflict(`Batch ${target.sequence} has no links.`)
@@ -377,7 +380,7 @@ export async function submitBatch(
     where: { campaignId: campaign.id, sequence: input.sequence },
     select: {
       id: true, sequence: true, status: true, transactionHash: true, preparedXdr: true,
-      links: { select: { id: true, ephemeralPublicKey: true, amount: true }, orderBy: LINK_ORDER },
+      links: { select: { id: true, ephemeralPublicKey: true, recipientPublicKey: true, amount: true }, orderBy: LINK_ORDER },
     },
   })
   if (!batch) return { kind: 'not-found' }
