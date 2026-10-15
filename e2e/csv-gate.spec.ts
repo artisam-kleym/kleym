@@ -18,6 +18,10 @@ import { splitCsvLine } from '../src/lib/campaign/csv'
 
 const SENDER = Keypair.random().publicKey()
 
+// Wizard tests generate private material. Automatic artifacts must stay off;
+// Playwright requires these worker-level settings at file scope.
+test.use({ trace: 'off', screenshot: 'off', video: 'off' })
+
 test.describe('mobile sender navigation', () => {
   for (const width of [320, 393]) {
     test(`keeps every destination within the ${width}px screen`, async ({ page }) => {
@@ -274,8 +278,6 @@ async function confirmPhrase(page: Page): Promise<string[]> {
 }
 
 test.describe('code-protected CSV export', () => {
-  // Private generated material is inspected in memory, never captured in traces.
-  test.use({ trace: 'off', screenshot: 'off', video: 'off' })
   for (const width of [320, 1440]) {
     test(`exports one code per link and preserves the save gate at ${width}px`, async ({
       page,
