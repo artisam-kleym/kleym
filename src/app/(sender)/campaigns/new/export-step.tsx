@@ -106,6 +106,9 @@ export function ExportStep({
             through a separate channel. Anyone holding both can claim. Keep the
             complete CSV private because it contains both links and codes.
           </p>
+          <p className="mt-sm text-body-md text-on-surface-variant">
+            This code check applies in Kleym. Someone who extracts the link&apos;s Stellar signing key could claim directly on Stellar, so the link must still be kept private.
+          </p>
         </section>
       )}
 

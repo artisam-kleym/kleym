@@ -340,7 +340,7 @@ export function RecipientsStep({
           {(
             [
               ['open', 'Anyone with the link', 'The link is the credential. Right for most distributions; a leaked link is claimable by whoever holds it.'],
-              ['code', 'Anyone with the link AND a claim code', 'Each link gets a 13-character code, written into your secrets file. Hand it over through a second channel — chat, a call, a card — and a forwarded link is useless without it. The file then holds link and code together, so guard it accordingly.'],
+              ['code', 'Anyone with the link AND a claim code', 'Kleym requires each link’s separate 13-character code before processing a claim. The code is included in your private CSV. Send it through a separate channel. This is a Kleym check, not an extra Stellar signing requirement: keep the link private too.'],
               ['email', 'Email verification (unavailable)', 'This requires Kleym email delivery. The current app uses your private CSV for distribution; choose another claim policy.'],
               ['passkey', 'Only the first device that claims', 'The first person to open the link registers a passkey on their device, and only that device can finish the claim. A copy made afterwards is useless.'],
             ] as const
