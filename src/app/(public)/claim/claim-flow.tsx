@@ -159,7 +159,7 @@ export function ClaimFlow({ network, mobileWallet }: { network: 'testnet' | 'pub
           return setState('invalid')
         }
 
-        const policy: LinkDetails['policy'] = ['open', 'code', 'email', 'passkey'].includes(body.policy) ? body.policy : 'open'
+        const policy: LinkDetails['policy'] = ['open', 'code', 'email', 'passkey', 'wallet'].includes(body.policy) ? body.policy : 'open'
         setLink({
           amount: body.amount,
           assetCode: body.assetCode,
@@ -168,6 +168,7 @@ export function ClaimFlow({ network, mobileWallet }: { network: 'testnet' | 'pub
           network: body.network,
           policy,
           passkeyBound: body.passkeyBound === true,
+          recipientPublicKey: body.policy === 'wallet' ? body.recipientPublicKey : null,
           receiveAs: Array.isArray(body.receiveAs) ? body.receiveAs : [],
           exchangeDeposit: body.exchangeDeposit === true,
         })
@@ -258,7 +259,7 @@ export function ClaimFlow({ network, mobileWallet }: { network: 'testnet' | 'pub
 
     const sign = (xdr: string, extra?: Keypair) => {
       const tx = TransactionBuilder.fromXDR(xdr, passphrase) as Transaction
-      tx.sign(ephemeralKeypair)
+      if (link?.policy !== 'wallet') tx.sign(ephemeralKeypair)
       if (extra) tx.sign(extra)
       return tx.toXDR()
     }
@@ -306,6 +307,10 @@ export function ClaimFlow({ network, mobileWallet }: { network: 'testnet' | 'pub
           setError('The wallet account changed. Connect again and review the destination before claiming.')
           return setState('ready')
         }
+      }
+
+      if (link?.policy === 'wallet' && recipientKey !== link.recipientPublicKey) {
+        setError('Connect the wallet assigned to this link. A different wallet cannot claim it.'); return setState('ready')
       }
 
       /* TX1. Skipped on a resume: the ephemeral account is already on the ledger. */
@@ -459,7 +464,7 @@ export function ClaimFlow({ network, mobileWallet }: { network: 'testnet' | 'pub
       setError(await walletErrorMessage(caught))
       setState('failed')
     }
-  }, [network, problem, receiveAs, quote, phoneBrowser])
+  }, [network, problem, receiveAs, quote, phoneBrowser, link])
 
   /*
    * Retry resumes at TX2 when TX1 has landed. Restarting from `ready` would

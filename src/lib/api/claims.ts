@@ -128,6 +128,7 @@ export interface ResolvedLink {
    * unknown key from a policy-bound one (SPEC.md §6.4).
    */
   policy: ClaimPolicy
+  recipientPublicKey?: string | null
   /** PASSKEY policy: a device is already bound, so the page asserts rather than registers. False on every unavailable answer. */
   passkeyBound: boolean
   /** Receive-as (#74): assets the sender lets this recipient convert into. Empty when not offered. */
@@ -176,6 +177,7 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
     where: { ephemeralPublicKey },
     select: {
       status: true,
+      recipientPublicKey: true,
       amount: true,
       suspendedAt: true,
       delivery: { select: { id: true } },
@@ -215,6 +217,7 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
      */
     otpRequired: link.delivery !== null,
     policy: policyFromRow(link.campaign.claimPolicy),
+    ...(link.campaign.claimPolicy === 'WALLET' ? { recipientPublicKey: link.recipientPublicKey } : {}),
     passkeyBound: link.passkey !== null,
     receiveAs: receiveAsAssets(link.campaign.receiveAsAssets).map(assetFields),
     exchangeDeposit: link.campaign.allowExchangeDeposit,
@@ -222,6 +225,7 @@ async function resolveLinkUnobserved(ephemeralPublicKey: string): Promise<Resolv
 }
 
 interface LinkForClaim {
+  recipientPublicKey: string | null
   id: string
   balanceId: string
   campaignId: string
@@ -263,9 +267,9 @@ export async function loadClaimable(
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
     select: {
-      id: true, status: true, balanceId: true, campaignId: true, amount: true, suspendedAt: true,
+      id: true, status: true, balanceId: true, campaignId: true, amount: true, suspendedAt: true, recipientPublicKey: true,
       campaign: {
-        select: { network: true, assetCode: true, assetIssuer: true, expiresAt: true, status: true, sponsorPublicKey: true, suspendedAt: true, receiveAsAssets: true, allowExchangeDeposit: true },
+        select: { network: true, assetCode: true, assetIssuer: true, expiresAt: true, status: true, sponsorPublicKey: true, suspendedAt: true, receiveAsAssets: true, allowExchangeDeposit: true, claimPolicy: true, senderPublicKey: true },
       },
     },
   })
@@ -276,6 +280,9 @@ export async function loadClaimable(
   if (link.campaign.status === 'CANCELLED') return { kind: 'not-found' }
   if (link.suspendedAt || link.campaign.suspendedAt) return { kind: 'not-found' }
 
+  if ((link.campaign.claimPolicy === 'WALLET') !== !!link.recipientPublicKey) {
+    return { kind: 'unavailable', detail: 'This link has inconsistent recipient terms. Contact the sender.' }
+  }
   const networkProblem = campaignContextProblem(link.campaign)
   if (networkProblem) return { kind: 'unavailable', detail: 'Claims are temporarily unavailable. Try again shortly.' }
 
@@ -294,6 +301,20 @@ export async function loadClaimable(
       'link is ACTIVE but its balance is not on the ledger',
     )
     return conflict('This link has already been claimed.', 'already-claimed')
+  }
+
+  if (link.recipientPublicKey) {
+    const expiry = Math.floor(link.campaign.expiresAt.getTime() / 1000)
+    const before = (predicate: unknown) => {
+      const p = predicate as { abs_before?: string; abs_before_epoch?: string } | null
+      return !!p && (p.abs_before_epoch !== undefined ? p.abs_before_epoch === String(expiry) : Date.parse(p.abs_before ?? '') === expiry * 1000)
+    }
+    const recipient = onChain.claimants.find((c) => c.destination === link.recipientPublicKey)
+    const sender = onChain.claimants.find((c) => c.destination === link.campaign.senderPublicKey)
+    if (onChain.claimants.length !== 2 || !recipient || !sender || !before(recipient.predicate) ||
+      !before((sender.predicate as { not?: unknown } | null)?.not)) {
+      return conflict('The on-chain recipient rules do not match this link. Contact the sender.')
+    }
   }
 
   // The campaign's sponsor must still be in the pool; a removed seed is a
@@ -342,6 +363,7 @@ export async function loadClaimable(
     kind: 'ok',
     value: {
       id: link.id,
+      recipientPublicKey: link.recipientPublicKey,
       balanceId: link.balanceId,
       campaignId: link.campaignId,
       asset,
@@ -411,6 +433,7 @@ async function claimContext(
   return {
     sponsorAccount: new Account(sponsor.accountId(), sponsor.sequenceNumber()),
     sponsorPublicKey: link.sponsorPublicKey,
+    walletBound: !!link.recipientPublicKey,
     ephemeralPublicKey,
     recipientPublicKey,
     asset: link.asset,
@@ -434,6 +457,7 @@ async function resolveConversion(
   wanted: { assetCode: string; assetIssuer: string | null; destMin?: string } | undefined,
   quote: QuoteReader,
 ): Promise<Outcome<{ destAsset: Asset; quote: Quote } | null>> {
+  if (link.recipientPublicKey && wanted) return conflict('Wallet-bound links receive the original asset in the assigned wallet.')
   if (!wanted) return { kind: 'ok', value: null }
   const destAsset = parseAssetRef(wanted.assetCode === 'XLM' ? 'XLM' : `${wanted.assetCode}:${wanted.assetIssuer ?? ''}`)
   if (!destAsset) return conflict('That is not an asset this link can be received as.')
@@ -515,6 +539,8 @@ async function prepareMaterialiseUnobserved(ephemeralPublicKey: string): Promise
   const sponsor = await guardSponsor(loaded.value.sponsorPublicKey)
   if (sponsor.kind !== 'ok') return sponsor
 
+  // Direct wallet claims have no temporary account and need no TX1.
+  if (loaded.value.recipientPublicKey) return { kind: 'ok', value: { alreadyExists: true, xdr: null, operations: 0 } }
   if (await accountExists(ephemeralPublicKey)) {
     return { kind: 'ok', value: { alreadyExists: true, xdr: null, operations: 0 } }
   }
@@ -563,6 +589,21 @@ async function prepareClaimUnobserved(
 
   const loaded = await loadClaimable(ephemeralPublicKey)
   if (loaded.kind !== 'ok') return loaded
+
+  if (loaded.value.recipientPublicKey) {
+    if (recipientPublicKey !== loaded.value.recipientPublicKey) return conflict('Connect the wallet assigned to this link. A different wallet cannot claim it.')
+    if (receiveAs || memoInput) return conflict('Wallet-bound links receive the original asset in the assigned wallet.')
+    const sponsor = await guardSponsor(loaded.value.sponsorPublicKey)
+    if (sponsor.kind !== 'ok') return sponsor
+    const [exists, trusts] = await Promise.all([accountExists(recipientPublicKey), hasTrustline(recipientPublicKey, loaded.value.asset)])
+    const context = await claimContext(loaded.value, ephemeralPublicKey, recipientPublicKey)
+    const plan = buildClaim(context, { ephemeralExists: false, ephemeralTrusts: false, recipientExists: exists, recipientTrusts: exists && trusts })
+    const attempt = await prepareAttempt(`claim:${loaded.value.id}`, loaded.value.campaignId, 'CLAIM',
+      signAsSponsor(plan.xdr, env.NETWORK_PASSPHRASE, sponsorSecret(loaded.value.sponsorPublicKey)),
+      { needsRecipientSignature: true, operations: plan.operations, conversion: null, memo: null,
+        requiredSigners: [loaded.value.sponsorPublicKey, recipientPublicKey] })
+    return { kind: 'ok', value: { ...attempt.metadata as unknown as Omit<ClaimPrepared, 'xdr'>, xdr: attempt.preparedXdr } }
+  }
 
   /*
    * Exchange deposit (#75). The memo is checked BEFORE anything is built or
@@ -707,12 +748,15 @@ async function submitClaimUnobserved(
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
     select: {
-      id: true, status: true, campaignId: true, claimTxHash: true, claimedBy: true, balanceId: true, suspendedAt: true,
-      campaign: { select: { network: true, sponsorPublicKey: true, suspendedAt: true, expiresAt: true, claimPolicy: true, organizationId: true } },
+      id: true, recipientPublicKey: true, amount: true, status: true, campaignId: true, claimTxHash: true, claimedBy: true, balanceId: true, suspendedAt: true,
+      campaign: { select: { network: true, sponsorPublicKey: true, suspendedAt: true, expiresAt: true, assetCode: true, assetIssuer: true, claimPolicy: true, organizationId: true } },
     },
   })
   if (!link) return { kind: 'not-found' }
 
+  if ((link.campaign.claimPolicy === 'WALLET') !== !!link.recipientPublicKey) {
+    return { kind: 'unavailable', detail: 'This link has inconsistent recipient terms. Contact the sender.' }
+  }
   const networkProblem = campaignContextProblem(link.campaign)
   if (networkProblem) return { kind: 'unavailable', detail: 'Claims are temporarily unavailable. Try again shortly.' }
 
@@ -766,7 +810,7 @@ async function submitClaimUnobserved(
    * Reproduced before this check existed; scripts/verify-claims.ts §4 keeps it
    * reproduced.
    */
-  const binding = envelopeBinding(transaction, phase, link.balanceId, ephemeralPublicKey)
+  const binding = envelopeBinding(transaction, phase, link.balanceId, ephemeralPublicKey, link.recipientPublicKey)
   if (!binding.ok) return conflict(binding.detail)
 
   const hash = transaction.hash().toString('hex')
@@ -851,7 +895,9 @@ async function submitClaimUnobserved(
   if (phase === 'claim') {
     const recipient = recipientOf(transaction)
     const memo = memoOf(transaction.memo)
-    const delivered = deliveredOf(transaction, result.resultXdr)
+    const delivered = link.recipientPublicKey
+      ? { asset: link.campaign.assetCode === 'XLM' ? 'XLM' : `${link.campaign.assetCode}:${link.campaign.assetIssuer}`, amount: link.amount.toString() }
+      : deliveredOf(transaction, result.resultXdr)
     const claimedAt = ledgerSettlementTime(result.settledAt)
     const observedAt = new Date()
     const claimed = await prisma.claimLink.update({
@@ -941,9 +987,16 @@ function envelopeBinding(
   phase: 'materialise' | 'claim',
   balanceId: string | null,
   ephemeralPublicKey: string,
+  recipientPublicKey?: string | null,
 ): { ok: true } | { ok: false; detail: string } {
   const wrong = { ok: false as const, detail: 'That transaction is not for this link.' }
 
+  if (recipientPublicKey) {
+    const claims = transaction.operations.filter((op) => op.type === 'claimClaimableBalance')
+    return phase === 'claim' && claims.length === 1 && claims[0]!.balanceId === balanceId && claims[0]!.source === recipientPublicKey &&
+      !transaction.operations.some((op) => op.type === 'payment' || op.type === 'pathPaymentStrictSend' || op.type === 'accountMerge')
+      ? { ok: true } : wrong
+  }
   if (phase === 'materialise') {
     const creates = transaction.operations.some(
       (op) => op.type === 'createAccount' && op.destination === ephemeralPublicKey,
@@ -990,6 +1043,9 @@ export function recipientOf(transaction: Transaction): string | null {
   }
   for (const operation of transaction.operations) {
     if (operation.type === 'accountMerge') return operation.destination
+  }
+  for (const operation of transaction.operations) {
+    if (operation.type === 'claimClaimableBalance') return operation.source ?? transaction.source
   }
   return null
 }

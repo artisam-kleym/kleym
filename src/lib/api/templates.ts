@@ -24,6 +24,7 @@ import Decimal from 'decimal.js'
 import type { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/db/client'
 import { logger } from '@/lib/config/logger'
+import { parseWalletRecipients, walletRecipientSnapshot } from '@/lib/campaign/wallet-recipients'
 import { parseLabels } from '@/lib/campaign/csv'
 import { emitWebhook } from '@/lib/webhooks/emit'
 import { recordAudit } from './audit'
@@ -76,6 +77,7 @@ export function refusedTerms(terms: TemplateTerms): { path: string; message: str
 export const templatePatchSchema = templateSchema.partial().strict()
 
 export interface Recipients {
+  wallets?: string[]
   labels: string[]
   attestations?: ({ reference: string | null; category: string | null; note: string | null } | null)[]
   amounts?: (string | null)[]
@@ -84,6 +86,10 @@ export interface Recipients {
 /** The recipient list a template holds, parsed as the wizard parses it; refused with the same reasons. */
 export function parseRecipients(csv: string, allowed: number): { ok: true; recipients: Recipients } | { ok: false; detail: string } {
   if (csv.trim() === '') return { ok: true, recipients: { labels: [] } }
+  if (/wallet[ _]address/i.test(csv.split(/\r?\n/)[0] ?? '')) {
+    try { return { ok: true, recipients: parseWalletRecipients(csv, allowed) } }
+    catch (error) { return { ok: false, detail: error instanceof Error ? error.message : 'Invalid recipient CSV.' } }
+  }
   const parsed = parseLabels(csv, allowed)
   if (!parsed.ok) {
     const detail = {
@@ -153,6 +159,7 @@ export async function createTemplate(
 ): Promise<TemplateOutcome<TemplateRow>> {
   const recipients = parseRecipients(input.recipientsCsv, maxLinks)
   if (!recipients.ok) return { kind: 'invalid', detail: recipients.detail }
+  if (input.terms.claimPolicy === 'wallet' && !recipients.recipients.wallets?.length) return { kind: 'invalid', detail: 'Wallet-bound templates require an assigned-wallet CSV.' }
   const refused = refusedTerms(input.terms)
   if (refused) return { kind: 'invalid', detail: refused.map((e) => `${e.path}: ${e.message}`).join('; '), errors: refused }
   const now = new Date()
@@ -179,6 +186,10 @@ export async function updateTemplate(
 ): Promise<TemplateOutcome<TemplateRow>> {
   const existing = await loadTemplate(id, actor.org.id)
   if (!existing) return { kind: 'not-found' }
+  if ((patch.terms ?? termsOf(existing)).claimPolicy === 'wallet') {
+    const recipients = parseRecipients(patch.recipientsCsv ?? existing.recipientsCsv, maxLinks)
+    if (!recipients.ok || !recipients.recipients.wallets?.length) return { kind: 'invalid', detail: 'Wallet-bound templates require an assigned-wallet CSV.' }
+  }
   if (patch.recipientsCsv !== undefined) {
     const recipients = parseRecipients(patch.recipientsCsv, maxLinks)
     if (!recipients.ok) return { kind: 'invalid', detail: recipients.detail }
@@ -228,7 +239,7 @@ export async function templateFromCampaign(campaignId: string, organizationId: s
     select: {
       name: true, network: true, senderPublicKey: true, assetCode: true, assetIssuer: true, amountPerLink: true, expiresAt: true, createdAt: true,
       claimPolicy: true, reminderDaysBefore: true, receiveAsAssets: true, allowExchangeDeposit: true, variableAmounts: true,
-      links: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { label: true, amount: true, reference: true, category: true, note: true } },
+      links: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { label: true, recipientPublicKey: true, amount: true, reference: true, category: true, note: true } },
     },
   })
   if (!campaign) return null
@@ -240,7 +251,7 @@ export async function templateFromCampaign(campaignId: string, organizationId: s
     ...(campaign.assetIssuer ? { assetIssuer: campaign.assetIssuer } : {}),
     amountPerLink: serialiseAmount(campaign.amountPerLink),
     expiryDays: days,
-    ...(campaign.claimPolicy !== 'OPEN' ? { claimPolicy: campaign.claimPolicy.toLowerCase() as 'code' | 'email' | 'passkey' } : {}),
+    ...(campaign.claimPolicy !== 'OPEN' ? { claimPolicy: campaign.claimPolicy.toLowerCase() as 'code' | 'email' | 'passkey' | 'wallet' } : {}),
     ...(campaign.reminderDaysBefore.length > 0 ? { reminderDaysBefore: campaign.reminderDaysBefore } : {}),
     ...(campaign.receiveAsAssets.length > 0
       ? { receiveAs: campaign.receiveAsAssets.map((ref) => (ref === 'XLM' ? { assetCode: 'XLM' } : { assetCode: ref.split(':')[0]!, assetIssuer: ref.split(':')[1]! })) }
@@ -255,7 +266,9 @@ export async function templateFromCampaign(campaignId: string, organizationId: s
   for (const l of campaign.links) {
     lines.push([cell(l.label), campaign.variableAmounts ? serialiseAmount(l.amount) : '', cell(l.reference), cell(l.category), cell(l.note)].join(','))
   }
-  return { name: campaign.name, terms, recipientsCsv: campaign.links.length > 0 ? lines.join('\n') + '\n' : '' }
+  return { name: campaign.name, terms, recipientsCsv: campaign.claimPolicy === 'WALLET' && campaign.links.length > 0
+    ? walletRecipientSnapshot({ wallets: campaign.links.map((row) => row.recipientPublicKey ?? ''), labels: campaign.links.map((row) => row.label ?? ''), amounts: campaign.links.map((row) => row.amount.toString()), attestations: campaign.links.map((row) => ({ reference: row.reference, category: row.category, note: row.note })) })
+    : campaign.links.length > 0 ? lines.join('\n') + '\n' : '' }
 }
 
 /* ── Runs ───────────────────────────────────────────────────────────────── */
@@ -290,6 +303,7 @@ export async function prepareRun(
   const recipients = parseRecipients(template.recipientsCsv, maxLinks)
   if (!recipients.ok) return { kind: 'invalid', detail: recipients.detail }
   if (recipients.recipients.labels.length === 0) return { kind: 'invalid', detail: 'The template has no recipients; add a list before running it.' }
+  if (terms.claimPolicy === 'wallet' && !recipients.recipients.wallets?.length) return { kind: 'invalid', detail: 'Wallet-bound templates require an assigned-wallet CSV.' }
   const { expiryDays, ...body } = terms
   const input = createCampaignSchema.safeParse({
     ...body,
@@ -437,7 +451,7 @@ export interface TemplatePrefill {
   assetIssuer: string | null
   amountPerLink: string
   expiresAt: string
-  claimPolicy: 'open' | 'code' | 'email' | 'passkey'
+  claimPolicy: 'open' | 'code' | 'email' | 'passkey' | 'wallet'
   reminderDaysBefore: number[]
   receiveAsRaw: string
   allowExchangeDeposit: boolean

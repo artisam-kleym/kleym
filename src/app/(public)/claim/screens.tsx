@@ -24,7 +24,8 @@ export interface LinkDetails {
   expiresAt: string
   network: string
   /** Who may claim (#79), told before the recipient commits to anything. */
-  policy: 'open' | 'code' | 'email' | 'passkey'
+  recipientPublicKey?: string | null
+  policy: 'open' | 'code' | 'email' | 'passkey' | 'wallet'
   /** PASSKEY policy: whether a device has already been bound to this link. */
   passkeyBound?: boolean
   /** Receive-as (#74): what the sender lets this recipient convert into. Empty when not offered. */
@@ -48,6 +49,7 @@ export interface DepositDraft {
 
 /** What each policy means for the person reading, in their words. */
 export const POLICY_COPY: Record<LinkDetails['policy'], string> = {
+  wallet: 'This prize is locked to the assigned wallet. Connect that wallet and approve its claim; a different wallet cannot receive it.',
   open: 'Anyone who has this link can claim it — keep it to yourself.',
   code: 'This link is bound to a claim code the sender gave you separately. You will be asked for it.',
   email: 'This link was sent to an email address and can only be claimed with the code sent to that address.',
@@ -262,6 +264,7 @@ export function ClaimScreen({
           {link && (
             <p className="text-center text-body-md text-on-surface-variant" data-testid="claim-policy" data-policy={link.policy}>
               {POLICY_COPY[link.policy]}
+              {link.policy === 'wallet' && link.recipientPublicKey && <span className="mt-sm block break-all font-mono" data-testid="assigned-wallet">Assigned wallet: {link.recipientPublicKey}</span>}
             </p>
           )}
 

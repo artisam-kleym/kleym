@@ -7,9 +7,10 @@ import { isStellarAmount } from '@/lib/stellar/amount'
 const PAGE_SIZE = 10
 
 /** An indexed editor: row N is the same person as key/export/operation N. */
-export function PrizeAmounts({ count, labels, amounts, defaultAmount, assetCode, disabled = false, readOnly = false, onAmount, onReset }: {
+export function PrizeAmounts({ count, labels, wallets, amounts, defaultAmount, assetCode, disabled = false, readOnly = false, onAmount, onReset }: {
   count: number
   labels: string[]
+  wallets?: string[]
   amounts: (string | null)[]
   defaultAmount: string
   assetCode: string
@@ -28,7 +29,7 @@ export function PrizeAmounts({ count, labels, amounts, defaultAmount, assetCode,
   const currentPage = Math.min(page, totalPages - 1)
   const start = currentPage * PAGE_SIZE
   const end = Math.min(count, start + PAGE_SIZE)
-  const visible = expanded || custom > 0
+  const visible = expanded || custom > 0 || !!wallets?.length
 
   return (
     <section aria-labelledby={`${id}-title`} className="rounded-lg border border-outline-variant/50 bg-surface-container-low p-md">
@@ -59,6 +60,7 @@ export function PrizeAmounts({ count, labels, amounts, defaultAmount, assetCode,
                 <li key={index} className="grid min-w-0 gap-sm rounded-lg border border-outline-variant/50 p-md sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-center">
                   <div className="min-w-0">
                     <p className="break-words text-label-md font-semibold text-on-surface">{name}</p>
+                    {wallets?.[index] && <p className="break-all font-mono text-body-sm text-on-surface-variant">{wallets[index]}</p>}
                     <p className="text-body-sm text-on-surface-variant">Link {index + 1} · {amount === null ? 'Default amount' : 'Custom amount'}</p>
                   </div>
                   <Input label={`Prize for ${name} (link ${index + 1}) in ${assetCode}`} name={`prize-${index + 1}`} inputMode="decimal" className="w-full min-w-0" value={amount ?? ''} placeholder={defaultAmount} disabled={disabled} readOnly={readOnly}

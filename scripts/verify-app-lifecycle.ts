@@ -65,7 +65,9 @@ function apply(transaction: Transaction) {
     if (operation.type === 'createClaimableBalance') {
       assert.equal(source, sender.publicKey())
       const id = transaction.getClaimableBalanceId(index)
-      balances.set(id, { id, asset, amount: operation.amount, sponsor: sponsor.publicKey(), claimants: operation.claimants.map((claimant) => ({ destination: claimant.destination, predicate: claimant.predicate })) })
+      balances.set(id, { id, asset, amount: operation.amount, sponsor: sponsor.publicKey(), claimants: operation.claimants.map((claimant) => ({ destination: claimant.destination, predicate: claimant.predicate.switch().name === 'claimPredicateBeforeAbsoluteTime'
+        ? { abs_before_epoch: claimant.predicate.absBefore().toString() }
+        : { not: { abs_before_epoch: claimant.predicate.notPredicate()!.absBefore().toString() } } })) })
       const account = accounts.get(source)!
       account.usdc = new Decimal(account.usdc).minus(operation.amount).toFixed(7)
     } else if (operation.type === 'createAccount') {
@@ -338,6 +340,73 @@ try {
         (await prisma.ledgerAttempt.findUniqueOrThrow({ where: { scope: attempt.scope } })).status === 'FAILED')
       check('expired attempt never reaches network submission', submissions === beforeExpiryCheck)
     }
+    ledger++
+  }
+  // WALLET: real database + HTTP Horizon simulation. No claim seed can sign
+  // for the assigned wallet, and no temporary account is created.
+  const { registerLinks } = await import('../src/lib/api/links')
+  for (const mode of ['absent', 'no-trustline', 'trusted'] as const) {
+    const recipient = Keypair.random(), leaked = Keypair.random(), unused = Keypair.random(), wrong = Keypair.random()
+    if (mode !== 'absent') accounts.set(recipient.publicKey(), { sequence: '100', usdc: '0', trusts: mode === 'trusted', native: '0', sponsored: mode === 'trusted' ? 3 : 2 })
+    const campaign = await prisma.campaign.create({ data: { userId: user.id, organizationId, name: `Wallet lifecycle ${mode}`, network: 'testnet', fundingMode: 'SPONSORED',
+      claimPolicy: 'WALLET', sponsorPublicKey: sponsor.publicKey(), senderPublicKey: sender.publicKey(), assetCode: 'USDC', assetIssuer: issuer,
+      amountPerLink: '1', linkCount: 2, expiresAt: new Date(Date.now() + 3600000), csvExportedAt: new Date() } })
+    const keys = [leaked.publicKey(), unused.publicKey()]
+    check(`wallet ${mode}: missing recipient assignments refused`, (await registerLinks(campaign.id, organizationId, keys)).kind === 'budget')
+    check(`wallet ${mode}: sender cannot be its own recipient`, (await registerLinks(campaign.id, organizationId, keys, undefined, undefined, ['2', '1'], undefined, [sender.publicKey(), recipient.publicKey()])).kind === 'budget')
+    check(`wallet ${mode}: ordered different prizes to repeated wallet register`, (await registerLinks(campaign.id, organizationId, keys, ['First', 'Second'], undefined, ['2', '1'], undefined, [recipient.publicKey(), recipient.publicKey()])).kind === 'ok')
+    check(`wallet ${mode}: registration retries cannot change destination`, (await registerLinks(campaign.id, organizationId, keys, ['First', 'Second'], undefined, ['2', '1'], undefined, [wrong.publicKey(), recipient.publicKey()])).kind === 'budget')
+    const initial = new Decimal(accounts.get(sender.publicKey())!.usdc)
+    const funding = await prepareBatch(campaign.id, organizationId, {})
+    assert(funding.kind === 'ok')
+    const envelope = parseAttempt(funding.value.xdr)
+    check(`wallet ${mode}: no exported link key is an on-chain claimant`, envelope.operations.filter((op) => op.type === 'createClaimableBalance').every((op) => op.claimants[0]!.destination === recipient.publicKey()))
+    assert((await submitBatch(campaign.id, organizationId, { sequence: funding.value.sequence, signedXdr: signed(funding.value.xdr, sender) })).kind === 'ok')
+    const batch = await prisma.batch.findFirstOrThrow({ where: { campaignId: campaign.id } })
+    assert.equal(await confirmOne(batch.id), 'confirmed')
+    const rows = await prisma.claimLink.findMany({ where: { campaignId: campaign.id }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] })
+    check(`wallet ${mode}: duplicate wallet balances map to their original prize rows`, rows.every((row, index) => balances.get(row.balanceId!)?.amount === ['2.0000000', '1.0000000'][index]))
+    const materialise = await prepareMaterialise(leaked.publicKey())
+    check(`wallet ${mode}: no temporary materialisation or reserve leak`, materialise.kind === 'ok' && materialise.value.alreadyExists && materialise.value.xdr === null && !accounts.has(leaked.publicKey()))
+    const beforeInvalid = submissions
+    check(`wallet ${mode}: different destination refused`, (await prepareClaim(leaked.publicKey(), wrong.publicKey())).kind === 'conflict')
+    check(`wallet ${mode}: conversion refused`, (await prepareClaim(leaked.publicKey(), recipient.publicKey(), { assetCode: 'XLM', assetIssuer: null })).kind === 'conflict')
+    check(`wallet ${mode}: exchange memo refused`, (await prepareClaim(leaked.publicKey(), recipient.publicKey(), undefined, { type: 'text', value: 'memo' })).kind === 'conflict')
+    const chainBalance = balances.get(rows[0]!.balanceId!)!
+    const originalClaimants = chainBalance.claimants
+    chainBalance.claimants = [{ destination: leaked.publicKey(), predicate: { unconditional: true } }]
+    check(`wallet ${mode}: incorrect on-chain claimant rules refused`, (await prepareClaim(leaked.publicKey(), recipient.publicKey())).kind === 'conflict')
+    chainBalance.claimants = originalClaimants
+    const claim = await prepareClaim(leaked.publicKey(), recipient.publicKey())
+    assert(claim.kind === 'ok')
+    check(`wallet ${mode}: recipient approval always required`, claim.value.needsRecipientSignature)
+    check(`wallet ${mode}: repeat prepare preserves identical envelope`, (await prepareClaim(leaked.publicKey(), recipient.publicKey())).kind === 'ok')
+    check(`wallet ${mode}: leaked link signature cannot claim`, (await submitClaim(leaked.publicKey(), signed(claim.value.xdr, leaked), 'claim')).kind === 'conflict')
+    check(`wallet ${mode}: unrelated wallet signature cannot claim`, (await submitClaim(leaked.publicKey(), signed(claim.value.xdr, wrong), 'claim')).kind === 'conflict')
+    check(`wallet ${mode}: invalid requests do not submit`, submissions === beforeInvalid)
+    const signedClaim = signed(claim.value.xdr, recipient)
+    loseResponse = true; hideRecords = true
+    check(`wallet ${mode}: interrupted submit stays pending`, (await submitClaim(leaked.publicKey(), signedClaim, 'claim')).kind === 'unavailable')
+    hideRecords = false
+    await (await import('../src/workers/ledger-attempts')).recoverLedgerAttempts(campaign.id)
+    const settled = await prisma.claimLink.findUniqueOrThrow({ where: { id: rows[0]!.id } })
+    check(`wallet ${mode}: worker recovers by link identity, not claimant source`, settled.status === 'CLAIMED' && settled.claimedBy === recipient.publicKey() && settled.deliveredAmount?.equals(2))
+    const after = submissions
+    check(`wallet ${mode}: retry returns receipt without another payment`, (await submitClaim(leaked.publicKey(), signedClaim, 'claim')).kind === 'ok' && submissions === after)
+    check(`wallet ${mode}: exact prize, zero XLM and no temporary account`, new Decimal(accounts.get(recipient.publicKey())!.usdc).equals(2) && accounts.get(recipient.publicKey())!.native === '0' && !accounts.has(leaked.publicKey()))
+    check(`wallet ${mode}: sender provided exactly the three prize USDC`, initial.minus(accounts.get(sender.publicKey())!.usdc).equals(3))
+    await prisma.campaign.update({ where: { id: campaign.id }, data: { expiresAt: new Date(Date.now() - 1000), status: 'EXPIRED' } })
+    check(`wallet ${mode}: expired wallet link cannot prepare`, (await prepareClaim(unused.publicKey(), recipient.publicKey())).kind === 'conflict')
+    const reclaimDeps = {
+      readBalances: async () => new Map([...balances].map(([id, balance]) => [id, balance.amount])),
+      loadAccount: async (key: string) => { const account = accounts.get(key); return account ? new Account(key, account.sequence) : null },
+      submit: async (transaction: Transaction) => { const { horizon } = await import('../src/lib/stellar/horizon'); const result = await horizon().submitTransaction(transaction); return { feeCharged: (await import('../src/lib/stellar/fees')).feeChargedOf(result.result_xdr) } },
+      lookup: (await import('../src/lib/stellar/attempts')).lookupAttempt,
+    }
+    const reclaim = await prepareReclaim(campaign.id, organizationId, reclaimDeps)
+    assert(reclaim.kind === 'ok')
+    assert((await submitReclaim(campaign.id, organizationId, { signedXdr: signed(reclaim.value.xdr, sender) }, reclaimDeps)).kind === 'ok')
+    check(`wallet ${mode}: unused USDC returns to sender and claimed prize stays untouched`, initial.minus(accounts.get(sender.publicKey())!.usdc).equals(2) && balances.size === 0 && new Decimal(accounts.get(recipient.publicKey())!.usdc).equals(2))
     ledger++
   }
   console.log(`${checks} app lifecycle checks passed (simulated Horizon; no chain writes).`)

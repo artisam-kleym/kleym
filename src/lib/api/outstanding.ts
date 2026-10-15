@@ -107,7 +107,7 @@ export interface ReissueSource {
   derivationIndex: number | null
   keyFingerprint: string | null
   registeredPublicKeys: string[]
-  draftPolicy: 'open' | 'code' | 'email' | 'passkey' | null
+  draftPolicy: 'open' | 'code' | 'email' | 'passkey' | 'wallet' | null
   draftReminders: number[]
   draftReceiveAs: string
   draftExchangeDeposit: boolean

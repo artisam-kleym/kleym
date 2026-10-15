@@ -86,7 +86,7 @@ export default async function CampaignLinksPage({
               {links.map((link, i) => (
                 <TableRow key={link.id}>
                   <TableCell className="text-on-surface-variant">{(page - 1) * perPage + i + 1}</TableCell>
-                  <TableCell>{link.label ?? '—'}</TableCell>
+                  <TableCell>{link.label ?? '—'}{link.recipientPublicKey && <span className="mt-xs block">Assigned: <StellarAddress value={link.recipientPublicKey} /></span>}</TableCell>
                   <TableCell className="text-on-surface-variant">
                     {link.reference ?? '—'}
                     {link.category && <span className="ml-sm text-label-sm">{link.category}</span>}

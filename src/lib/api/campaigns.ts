@@ -100,7 +100,7 @@ export const campaignBodySchema = z
     linkCount: z.number().int().positive().refine(withinLinkLimit, { message: linkLimitMessage() }),
     expiresAt: z.iso.datetime(),
     /** Who may claim (#79). Open unless said; applied to every link of the campaign. */
-    claimPolicy: z.enum(['open', 'code', 'email', 'passkey']).optional(),
+    claimPolicy: z.enum(['open', 'code', 'email', 'passkey', 'wallet']).optional(),
     /**
      * Reminders (#78): days before expiry at which email-delivered, unclaimed
      * recipients are reminded. At most five points; none means no reminders.
@@ -132,6 +132,10 @@ export const campaignBodySchema = z
   .strict()
 
 export const createCampaignSchema = campaignBodySchema
+  .refine((v) => v.claimPolicy !== 'wallet' || (!v.allowExchangeDeposit && !v.receiveAs?.length), {
+    message: 'Wallet-bound campaigns receive the original asset in the assigned wallet; exchange deposits and conversion are unavailable.',
+    path: ['claimPolicy'],
+  })
   .superRefine((v, ctx) => {
     const problem = newFundingProblem(v.network, v.assetCode === 'USDC' ? 'SPONSORED' : 'SENDER')
     if (problem) ctx.addIssue({ code: 'custom', path: ['network'], message: problem })
@@ -224,9 +228,13 @@ export const registerLinksSchema = z
      * on arrival and never stored or logged in the clear; required — every
      * entry — when the campaign's policy is `code`, refused otherwise.
      */
+    recipientPublicKeys: z.array(stellarPublicKey).min(1).optional(),
     codes: z.array(z.string().min(1).max(32).refine(isClaimCode, { message: 'must be a 13-character claim code' })).optional(),
   })
   .strict()
+  .refine((v) => v.recipientPublicKeys === undefined || v.recipientPublicKeys.length === v.publicKeys.length, {
+    message: 'recipientPublicKeys must have one entry per link', path: ['recipientPublicKeys'],
+  })
   .refine((v) => v.codes === undefined || v.codes.length === v.publicKeys.length, {
     message: 'codes must have one entry per public key',
     path: ['codes'],

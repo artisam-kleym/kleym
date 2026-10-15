@@ -47,7 +47,7 @@ export async function GET(request: Request, { params }: Params) {
         skip: (page - 1) * perPage,
         take: perPage,
         select: {
-          id: true, ephemeralPublicKey: true, balanceId: true, status: true,
+          id: true, ephemeralPublicKey: true, recipientPublicKey: true, balanceId: true, status: true,
           label: true, claimedBy: true, claimedAt: true, claimTxHash: true, claimMemoType: true, claimMemo: true,
           // Attestation fields and the link's own amount (#73) ride along so a
           // regenerated CSV (#77) round-trips them.
@@ -98,7 +98,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!idempotency.reserved) return idempotency.response
 
   try {
-    const outcome = await registerLinks(id, org.id, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations, parsed.data.amounts, parsed.data.codes)
+    const outcome = await registerLinks(id, org.id, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations, parsed.data.amounts, parsed.data.codes, parsed.data.recipientPublicKeys)
 
     if (outcome.kind !== 'ok') {
       await releaseIdempotency(request, context)

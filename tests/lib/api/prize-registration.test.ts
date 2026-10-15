@@ -13,7 +13,7 @@ vi.mock('@/lib/db/client', () => ({ prisma: db }))
 const key = Keypair.random().publicKey()
 const extra = Keypair.random().publicKey()
 let campaign: { id: string; status: string; linkCount: number; amountPerLink: Decimal; variableAmounts: boolean; claimPolicy: string; renewalOfId: null }
-const recorded = () => ({ ephemeralPublicKey: key, amount: new Decimal('1'), label: 'Winner', codeHash: null as string | null, reference: null as string | null, category: null, note: null })
+const recorded = () => ({ ephemeralPublicKey: key, recipientPublicKey: null, amount: new Decimal('1'), label: 'Winner', codeHash: null as string | null, reference: null as string | null, category: null, note: null })
 
 beforeEach(() => {
   vi.clearAllMocks()

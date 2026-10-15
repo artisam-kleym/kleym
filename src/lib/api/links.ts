@@ -6,6 +6,7 @@
  * handler can only be tested through a session, and so tends not to be.
  */
 import Decimal from 'decimal.js'
+import { StrKey } from '@stellar/stellar-sdk'
 import { prisma } from '@/lib/db/client'
 import { owned } from './session-guard'
 import { hashClaimCode } from './claim-policy'
@@ -41,12 +42,13 @@ export async function registerLinks(
   /** Per-link amounts (#73); `null` or absent means the campaign default. */
   amounts?: (string | null)[],
   codes?: string[],
+  recipientPublicKeys?: string[],
 ): Promise<RegisterOutcome> {
   return prisma.$transaction(
     async (tx) => {
       const campaign = await tx.campaign.findFirst({
         where: owned(campaignId, organizationId),
-        select: { id: true, status: true, linkCount: true, amountPerLink: true, variableAmounts: true, claimPolicy: true, renewalOfId: true },
+        select: { id: true, status: true, linkCount: true, amountPerLink: true, variableAmounts: true, claimPolicy: true, senderPublicKey: true, renewalOfId: true },
       })
       if (!campaign) return { kind: 'not-found' }
 
@@ -64,6 +66,15 @@ export async function registerLinks(
       const variable = campaign.variableAmounts || resolved.some((amount) => !amount.equals(fallback))
       if (campaign.renewalOfId && variable) return { kind: 'budget', detail: 'A renewal must preserve each returned link amount; variable amounts would change its refunded budget.' }
 
+      if (campaign.claimPolicy === 'WALLET') {
+        if (!recipientPublicKeys || recipientPublicKeys.length !== publicKeys.length ||
+          recipientPublicKeys.some((key) => !StrKey.isValidEd25519PublicKey(key) || key === campaign.senderPublicKey || publicKeys.includes(key))) {
+          return { kind: 'budget', detail: 'Register one valid assigned wallet address per link.' }
+        }
+      } else if (recipientPublicKeys) {
+        return { kind: 'budget', detail: 'Assigned wallets require the wallet-bound claim policy.' }
+      }
+
       // The policy decides whether codes are required or refused; never both silently.
       if (campaign.claimPolicy === 'CODE' && (!codes || codes.length !== publicKeys.length)) {
         return { kind: 'codes', detail: 'This campaign binds every link to a claim code; register one code per public key.' }
@@ -80,6 +91,7 @@ export async function registerLinks(
       const desired = publicKeys.map((publicKey, index) => ({
         campaignId,
         ephemeralPublicKey: publicKey,
+        recipientPublicKey: recipientPublicKeys?.[index] ?? null,
         amount: resolved[index]!.toFixed(),
         label: labels?.[index] ?? null,
         codeHash: codes ? hashClaimCode(codes[index]!) : null,
@@ -95,13 +107,13 @@ export async function registerLinks(
       // produce an export that disagrees with the funded prize.
       const recorded = await tx.claimLink.findMany({
         where: { campaignId, ephemeralPublicKey: { in: publicKeys } },
-        select: { ephemeralPublicKey: true, amount: true, label: true, codeHash: true, reference: true, category: true, note: true },
+        select: { ephemeralPublicKey: true, recipientPublicKey: true, amount: true, label: true, codeHash: true, reference: true, category: true, note: true },
       })
       const byKey = new Map(recorded.map((row) => [row.ephemeralPublicKey, row]))
       for (const prize of desired) {
         const row = byKey.get(prize.ephemeralPublicKey)
         if (row && (!new Decimal(row.amount.toString()).equals(prize.amount) ||
-          row.label !== prize.label || row.codeHash !== prize.codeHash ||
+          row.recipientPublicKey !== prize.recipientPublicKey || row.label !== prize.label || row.codeHash !== prize.codeHash ||
           row.reference !== prize.reference || row.category !== prize.category || row.note !== prize.note)) {
           return { kind: 'budget', detail: 'A registered prize link has different terms. Keep its original export; registration retries cannot change its amount, label, code or recipient details.' }
         }
