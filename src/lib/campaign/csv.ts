@@ -52,7 +52,26 @@ export function claimUrl(appUrl: string, secret: string): string {
   return `${appUrl.replace(/\/$/, '')}/claim#s=${secret}`
 }
 
-export function buildCsv(rows: CsvRow[]): string {
+export function buildCsv(rows: CsvRow[], options: { requireCodes?: boolean } = {}): string {
+  // Validate before constructing the file: a partial code export cannot unlock
+  // every funded link. Never include a credential in an error message.
+  if (options.requireCodes || rows.some(({ key }) => key.code !== null)) {
+    const codes = rows.map(({ key }) => key.code)
+    if (
+      codes.some(
+        (code) => !code || !/^[0-9ABCDEFGHJKMNPQRSTVWXYZ]{13}$/.test(code),
+      )
+    ) {
+      throw new Error(
+        'Every code-protected link must have a valid claim code before export. Keep this tab open and regenerate the keys before funding.',
+      )
+    }
+    if (new Set(codes).size !== codes.length) {
+      throw new Error(
+        'Each link must have its own claim code. Keep this tab open and regenerate the keys before funding.',
+      )
+    }
+  }
   // Attestation columns come LAST so anything reading the first four by position
   // still works; `amount` (#73) and `claim_code` (#79) after them, for the same
   // reason. Amount blank when the link pays the campaign default; code blank

@@ -41,6 +41,7 @@ export function ExportStep({
   screening,
   phraseConfirmed,
   onPhrase,
+  withCodes = false,
 }: {
   phase: Phase
   linkCount: number
@@ -62,6 +63,7 @@ export function ExportStep({
   /** Recovery phrase (#77): the keys are derived from it, so it comes first. */
   phraseConfirmed: boolean
   onPhrase: (phrase: string) => void
+  withCodes?: boolean
 }) {
   const inLantern = useSyncExternalStore(subscribeLantern, lanternSnapshot, () => false)
   const generated = keys.length > 0
@@ -84,6 +86,28 @@ export function ExportStep({
       </div>
 
       {inLantern && <p className="mt-md text-body-md text-on-surface-variant" data-testid="lantern-export-guidance">Before signing in Lantern, find the downloaded CSV in your device&apos;s files. If no file was saved, stop here: keep this page open and do not approve funding.</p>}
+
+      {withCodes && (
+        <section
+          className="mt-lg rounded-lg border border-outline-variant bg-surface-container p-md"
+          aria-label="Claim code protection"
+          data-testid="claim-code-export-guidance"
+        >
+          <h3 className="text-title-md text-on-surface">Link + claim code</h3>
+          <p className="mt-sm text-body-md text-on-surface-variant">
+            Each link gets its own 13-character code. Your CSV includes a{' '}
+            <span className="font-mono">claim_code</span> column beside the
+            existing link information.
+            {generated &&
+              ` All ${keys.length} links have codes ready for export.`}
+          </p>
+          <p className="mt-sm text-body-md text-on-surface-variant">
+            Send each recipient their own claim URL, then send the matching code
+            through a separate channel. Anyone holding both can claim. Keep the
+            complete CSV private because it contains both links and codes.
+          </p>
+        </section>
+      )}
 
       {!generated && (
         <div className="mt-lg">
@@ -215,7 +239,9 @@ export function ExportStep({
               They exist in this tab and in the file you downloaded. Nowhere else.
             </WarningPanel>
             <p className="text-body-md text-on-surface-variant">
-              After the campaign shows funded links, send each recipient only their own claim URL from your saved CSV. Keep the complete CSV private.
+              After the campaign shows funded links, send each recipient only their own claim URL from your saved CSV.
+              {withCodes && ' Send that row’s claim_code separately; the recipient must enter it before claiming.'}
+              {' '}Keep the complete CSV private.
             </p>
             <div className="flex gap-md">
               <Button type="button" variant="secondary" icon="download" onClick={onDownload}>

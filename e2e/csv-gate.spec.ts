@@ -1,6 +1,7 @@
 import { test, expect, type Page, type Request } from '@playwright/test'
 import { Keypair } from '@stellar/stellar-sdk'
 import { stellarMetadata } from '../src/lib/stellar/network'
+import { splitCsvLine } from '../src/lib/campaign/csv'
 
 /**
  * The CSV hard gate, in a real browser. SPEC.md §5.3 step 3, §10.11.
@@ -236,7 +237,7 @@ function recordTraffic(page: Page): { requests: Request[] } {
   return { requests }
 }
 
-async function reachExportStep(page: Page) {
+async function reachExportStep(page: Page, policy: 'open' | 'code' = 'open') {
   await stubLookups(page)
   await page.goto('/campaigns/new')
 
@@ -249,6 +250,7 @@ async function reachExportStep(page: Page) {
   await next.click()
 
   await page.getByLabel('Number of links').fill('3')
+  await page.locator(`input[name="claimPolicy"][value="${policy}"]`).check()
   await expect(next).toBeEnabled()
   await next.click()
 
@@ -270,6 +272,64 @@ async function confirmPhrase(page: Page): Promise<string[]> {
   await page.getByTestId('phrase-confirm').click()
   return words.map((w) => w.replace(/^\d+\.\s*/, '').trim())
 }
+
+test.describe('code-protected CSV export', () => {
+  // Private generated material is inspected in memory, never captured in traces.
+  test.use({ trace: 'off', screenshot: 'off', video: 'off' })
+  for (const width of [320, 1440]) {
+    test(`exports one code per link and preserves the save gate at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      const traffic = recordTraffic(page)
+      await reachExportStep(page, 'code')
+      await expect(
+        page.getByTestId('claim-code-export-guidance'),
+      ).toContainText('separate channel')
+      await confirmPhrase(page)
+      await page.getByTestId('generate-keys').click()
+      await expect(
+        page.getByTestId('claim-code-export-guidance'),
+      ).toContainText('All 3 links have codes ready')
+      await expect(page.getByTestId('sign-batches')).toBeDisabled()
+      const download = page.waitForEvent('download')
+      await page.getByTestId('download-secrets').click()
+      const file = await download
+      const stream = await file.createReadStream()
+      expect(stream !== null).toBe(true)
+      const chunks: Buffer[] = []
+      for await (const chunk of stream!) chunks.push(Buffer.from(chunk))
+      const rows = Buffer.concat(chunks)
+        .toString('utf8')
+        .trimEnd()
+        .split('\n')
+        .map(splitCsvLine)
+      expect(rows.length).toBe(4)
+      expect(rows[0]![8]).toBe('claim_code')
+      const codes = rows.slice(1).map((row) => row[8]!)
+      expect(
+        codes.every((code) => /^[0-9ABCDEFGHJKMNPQRSTVWXYZ]{13}$/.test(code)),
+      ).toBe(true)
+      expect(new Set(codes).size).toBe(3)
+      expect(rows.slice(1).every((row) => !row[3]!.includes(row[8]!))).toBe(
+        true,
+      )
+      const sent = traffic.requests
+        .map((request) => request.url() + (request.postData() ?? ''))
+        .join('\n')
+      expect(rows.slice(1).every((row) => !sent.includes(row[2]!))).toBe(true)
+      await expect(page.getByTestId('sign-batches')).toBeDisabled()
+      await page.getByTestId('confirm-export-saved').check()
+      await expect(page.getByTestId('sign-batches')).toBeEnabled()
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true)
+      // Stop before signing: no wallet approval, API registration or ledger write.
+    })
+  }
+})
 
 test.describe('recovery phrase (#77)', () => {
   test('keys cannot be generated before the phrase is confirmed, and the trade is stated', async ({ page }) => {

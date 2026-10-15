@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { Keypair, StrKey } from '@stellar/stellar-sdk'
 import Decimal from 'decimal.js'
 import { generateEphemeralKeys, publicHalves } from '@/lib/campaign/keygen'
-import { buildCsv, claimUrl, csvFilename, parseLabels } from '@/lib/campaign/csv'
+import { buildCsv, claimUrl, csvFilename, parseLabels, splitCsvLine } from '@/lib/campaign/csv'
 import { affordability, computeCost } from '@/lib/campaign/cost'
 
 describe('keygen', () => {
@@ -54,6 +54,59 @@ describe('keygen', () => {
     const keys = generateEphemeralKeys(1, ['a'], [], [], { withCodes: true })
     const row = buildCsv(keys.map((key) => ({ key, url: 'https://kleym.app/claim#x' }))).trimEnd().split('\n')[1]!
     expect(row.endsWith(`"${keys[0]!.code}"`)).toBe(true)
+  })
+
+  it('exports one matching code per labelled link without putting it in the URL', () => {
+    const keys = generateEphemeralKeys(
+      3,
+      ['First', 'Second', 'Third'],
+      [],
+      ['20', '15', '5'],
+      { withCodes: true },
+    )
+    const rows = keys.map((key) => ({
+      key,
+      url: claimUrl('https://example.test', key.secret),
+    }))
+    const lines = buildCsv(rows, { requireCodes: true })
+      .trimEnd()
+      .split('\n')
+      .map(splitCsvLine)
+    expect(lines[0]![8]).toBe('claim_code')
+    expect(
+      lines
+        .slice(1)
+        .every(
+          (row, i) =>
+            row[0] === keys[i]!.label &&
+            row[7] === keys[i]!.amount &&
+            row[8] === keys[i]!.code,
+        ),
+    ).toBe(true)
+    expect(lines.slice(1).every((row) => !row[3]!.includes(row[8]!))).toBe(true)
+  })
+
+  it('refuses missing, malformed and duplicate codes without exposing credentials', () => {
+    const keys = generateEphemeralKeys(2, [], [], [], { withCodes: true })
+    const exportKeys =
+      (changed: typeof keys, requireCodes = true) =>
+      () =>
+        buildCsv(
+          changed.map((key) => ({ key, url: 'https://example.test/claim' })),
+          { requireCodes },
+        )
+    expect(exportKeys(keys.map((key) => ({ ...key, code: null })))).toThrow(
+      'Every code-protected link must have a valid claim code',
+    )
+    expect(exportKeys([keys[0]!, { ...keys[1]!, code: null }], false)).toThrow(
+      'Every code-protected link must have a valid claim code',
+    )
+    expect(exportKeys([keys[0]!, { ...keys[1]!, code: 'bad-code' }])).toThrow(
+      'Every code-protected link must have a valid claim code',
+    )
+    expect(
+      exportKeys([keys[0]!, { ...keys[1]!, code: keys[0]!.code }]),
+    ).toThrow('Each link must have its own claim code')
   })
 
   it('aligns amounts by index (#73) and publicHalves carries them only when set', () => {

@@ -95,7 +95,7 @@ const post = (handler: (r: Request) => Promise<Response>, path: string, body: un
 const refusedWith = async (response: Response, reason: keyof typeof CLAIM_CONFLICT_TYPE) =>
   response.status === 409 && ((await response.clone().json()) as { type?: string }).type === CLAIM_CONFLICT_TYPE[reason]
 
-async function gateOnEveryAction(label: string, key: string, token: string, reason: keyof typeof CLAIM_CONFLICT_TYPE): Promise<void> {
+async function gateOnEveryAction(label: string, key: string, token: string, reason: keyof typeof CLAIM_CONFLICT_TYPE, otherLinkToken?: string): Promise<void> {
   const routes: [string, (r: Request) => Promise<Response>, unknown][] = [
     ['/api/claims/prepare/materialise', materialise.POST, { ephemeralPublicKey: key }],
     ['/api/claims/prepare/claim', prepareClaim.POST, { ephemeralPublicKey: key, recipientPublicKey: Keypair.random().publicKey() }],
@@ -106,6 +106,10 @@ async function gateOnEveryAction(label: string, key: string, token: string, reas
     check(`${label}: ${path} with no credential is refused (${reason})`, await refusedWith(none, reason), `${none.status}`)
     const wrong = await post(handler, path, body, 'x'.repeat(64))
     check(`${label}: ${path} with a wrong token is refused (${reason})`, await refusedWith(wrong, reason), `${wrong.status}`)
+    if (otherLinkToken) {
+      const other = await post(handler, path, body, otherLinkToken)
+      check(`${label}: ${path} refuses a valid token belonging to another link`, await refusedWith(other, reason), `${other.status}`)
+    }
     // With the right token the GATE lets it through; what happens next (no ledger here) is not the point.
     const right = await post(handler, path, body, token)
     check(`${label}: ${path} with the right token gets past the gate`, !(await refusedWith(right, reason)), `${right.status}`)
@@ -138,7 +142,12 @@ async function codePolicy(): Promise<void> {
   const right = await verifyClaimCode(f.key, f.code.toLowerCase(), '203.0.113.1')
   if (!right.ok) return check('the right code earns a token (case-insensitively)', false, JSON.stringify(right))
   check('the right code earns a token (case-insensitively)', true)
-  await gateOnEveryAction('code', f.key, right.token, 'code-required')
+  const otherLink = await fixture('CODE')
+  await prisma.claimLink.update({ where: { id: otherLink.linkId }, data: { codeHash: hashClaimCode('ZYXWVTSRQPNMK') } })
+  const swapped = await verifyClaimCode(otherLink.key, f.code, '203.0.113.3')
+  check('another link’s code cannot unlock this link', !swapped.ok && swapped.reason === 'wrong')
+  const otherLinkToken = await issueClaimToken(otherLink.linkId)
+  await gateOnEveryAction('code', f.key, right.token, 'code-required', otherLinkToken)
 
   console.log('\n2b. CODE: lockout is per caller, so a passer-by reading the ledger cannot hold the link shut')
   const g = await fixture('CODE')
