@@ -319,13 +319,13 @@ export function CampaignWizard(config: WizardConfig) {
   /* THE GATE. Only this can open it, and only after the file is written. */
   const onDownload = useCallback(() => {
     try {
-      const result = triggerDownload(wizard.keys, draft.name, config.appUrl)
+      const result = triggerDownload(wizard.keys, draft.name, config.appUrl, claimPolicy === 'code')
       setFilename(result.filename)
       if (result.fired) wizard.markDownloaded()
     } catch (error) {
       wizard.setError(error instanceof Error ? error.message : 'The export did not complete.')
     }
-  }, [wizard, draft.name, config.appUrl])
+  }, [wizard, draft.name, config.appUrl, claimPolicy])
 
   const onSign = useCallback(async () => {
     if (signingInProgress.current || !canContinuePastExport(wizard.downloaded, wizard.keys, wizard.exportConfirmed)) return
@@ -534,6 +534,7 @@ export function CampaignWizard(config: WizardConfig) {
         )}
         {wizard.step === 2 && (
           <ExportStep
+            withCodes={claimPolicy === 'code'}
             phase={wizard.phase}
             linkCount={draft.linkCount}
             keys={wizard.keys}

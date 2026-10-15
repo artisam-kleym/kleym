@@ -84,7 +84,7 @@ export function RegenerateCsv({
         throw new Error(`${mismatched} of ${rows.length} derived keys do not match this campaign’s links. Nothing was written.`)
       }
 
-      const result = triggerDownload(keys, campaignName, appUrl)
+      const result = triggerDownload(keys, campaignName, appUrl, withCodes)
       setFilename(result.filename)
       setPhrase('')
       setPhase('done')
