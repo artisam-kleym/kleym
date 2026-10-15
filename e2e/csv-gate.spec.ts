@@ -608,7 +608,10 @@ test.describe('wallet-bound recipient CSV', () => {
       await expect(page.getByTestId('review-link-count')).toHaveText('5')
       await expect(page.getByText('Wallet-bound claims:', { exact: false })).toBeVisible()
       await expect(page.getByLabel('Prize for Worker 4 (link 4) in USDC')).toHaveValue('7')
-      if (process.env.E2E_EVIDENCE_DIR) await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/wallet-review-${width}.png`, fullPage: true })
+      if (process.env.E2E_EVIDENCE_DIR) {
+        await page.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur(); window.scrollTo(0, 0) })
+        await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/wallet-review-${width}.png`, fullPage: true })
+      }
       await page.getByRole('button', { name: 'Back', exact: true }).click()
       await upload(header + '\n', 'workers.xlsx')
       await expect(page.getByRole('alert').filter({ hasText: 'Insert a CSV file.' })).toBeVisible()
