@@ -102,6 +102,8 @@ Run `pnpm exec tsx scripts/check-public-deployment.ts https://YOUR_GENERATED_HOS
 
 After the public Testnet claim, expiry refund, worker recovery and backup/restore pass, prepare a separately reviewed Mainnet environment with separate database, Redis and keys. Agree real-USDC totals, recipients, reserve capital and incident/refill ownership before real transfers. See [Mainnet pilot](mainnet-pilot.md). Changing this Testnet environment to Mainnet would strand its current obligations.
 
-### Static-service configuration isolation
+### Static-service Dockerfile selection
 
-Set the landing service's Railway Config File to `/landing/railway.json`. Its explicit Dockerfile path, `/health` check and dependency-free static start command must be selected together. Leaving this service on the root app configuration can build the app image and then try to run the static server from `/app`, where `server.mjs` does not exist. Web uses the root configuration; worker retains its existing worker configuration. Do not add app credentials or migrations to the landing service.
+Keep the shared configuration's builder explicit, but leave its Dockerfile path unspecified. Railway's existing service settings select `Dockerfile` for web/worker and `landing/Dockerfile` for the static homepage. A root `dockerfilePath: Dockerfile` overrides the static service's setting and builds the wrong image, which cannot start `server.mjs` from its app working directory. Preserve the static service's `/health` check, `node server.mjs` command, empty pre-deploy commands and public-only environment. Do not add app credentials or migrations to it.
+
+Railway rejects new legacy Config File selectors under its deprecation policy. This correction uses existing per-service settings; plan the separate IaC migration before the provider's December 1 cutoff.
