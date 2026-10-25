@@ -101,3 +101,9 @@ CLI uploads use a newly exported source-only directory, never the repository par
 Run `pnpm exec tsx scripts/check-public-deployment.ts https://YOUR_GENERATED_HOST` for read-only HTTP/readiness/claim-header proof. Then perform the [Android claim test](mobile-claims.md) with test USDC on the public URL. Share only public receipts, never full private claim URLs or CSVs. Existing local funded links remain local; do not replace their hosts or copy private database/configuration files into the new project.
 
 After the public Testnet claim, expiry refund, worker recovery and backup/restore pass, prepare a separately reviewed Mainnet environment with separate database, Redis and keys. Agree real-USDC totals, recipients, reserve capital and incident/refill ownership before real transfers. See [Mainnet pilot](mainnet-pilot.md). Changing this Testnet environment to Mainnet would strand its current obligations.
+
+### Static-service Dockerfile selection
+
+Keep the shared configuration's builder explicit, but leave its Dockerfile path unspecified. Railway's existing service settings select `Dockerfile` for web/worker and `landing/Dockerfile` for the static homepage. A root `dockerfilePath: Dockerfile` overrides the static service's setting and builds the wrong image, which cannot start `server.mjs` from its app working directory. Preserve the static service's `/health` check, `node server.mjs` command, empty pre-deploy commands and public-only environment. Do not add app credentials or migrations to it.
+
+Railway rejects new legacy Config File selectors under its deprecation policy. This correction uses existing per-service settings; plan the separate IaC migration before the provider's December 1 cutoff.
