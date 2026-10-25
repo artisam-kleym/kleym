@@ -1,0 +1,14 @@
+﻿ID,Expected,Status,Actual
+KZ-01,Invalid email CSV blocks progress,PASS,Malformed email rejected at CSV row 2; Continue disabled.
+KZ-02,Email and prize order stays aligned,PASS,"3 recipients in input order; prizes 20, 15, default 5 USDC; total 40."
+KZ-03,Phone-width creator layout fits,PASS,Viewport 390px; document scrollWidth 375px; visible prize input widths about 242.67px.
+KZ-04,Review preserves emails and link count,PASS,"Read-only breakdown kept email/prize alignment; Links 3, Total 40."
+KZ-05,OTP request prevents duplicate clicks and reports pending delivery,PASS,Request and verification buttons disabled during synthetic async request; generic request notice after completion.
+KZ-06,Incomplete and non-numeric codes cannot submit,PASS,ab12345 normalized to five digits; Verify code disabled.
+KZ-07,Wrong code feedback is inline,PASS,Fixture callback displayed wrong-code error and 4 remaining attempts.
+KZ-08,Valid fixture code continues,PASS,Valid synthetic code transitioned to Resolving the link. This is not a wallet/ledger claim.
+KZ-09,Unavailable mail setup blocks policy selection,PASS,Email option disabled in the unconfigured CampaignWizard fixture.
+KZ-10,Live Zender API OTP delivery,BLOCKED,No approved existing application API credential was provided/configured; no live send attempted.
+KZ-11,Actual Android wallet claim after OTP,NOT RUN,Requires configured mail and user-controlled wallet approval; viewport simulation does not prove Android app behavior.
+KZ-12,Real PostgreSQL registration and OTP races,NOT RUN,Unit tests exercise conditions with database doubles; no real-database concurrency run in this task.
+KZ-13,Mainnet asset movement,NOT RUN,No real assets moved; Mainnet readiness is not established by this feature work.

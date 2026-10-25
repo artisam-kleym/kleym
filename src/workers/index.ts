@@ -8,6 +8,7 @@
 import { logger } from '@/lib/config/logger'
 import { startBatchConfirmWorker } from './batch-confirm'
 import { startEmailWorker } from './email'
+import { startEmailStatusWorker } from './email-status'
 import { startWebhookWorker } from './webhooks'
 import {
   startEphemeralWatchWorker,
@@ -37,6 +38,7 @@ async function main() {
   const workers = [
     startBatchConfirmWorker(),
     startEmailWorker(),
+    startEmailStatusWorker(),
     startWebhookWorker(),
     startReconcileWorker(),
     startExpiryWorker(),
@@ -58,7 +60,7 @@ async function main() {
   logger.info(
     {
       service: 'kleym-worker',
-      queues: ['batch-confirm', 'email-deliver', 'webhook-deliver', 'reconcile', 'expiry-sweep', 'ephemeral-watch', 'delivery-retention', 'reminders', 'templates', 'valuations'],
+      queues: ['batch-confirm', 'email-deliver', 'email-status', 'webhook-deliver', 'reconcile', 'expiry-sweep', 'ephemeral-watch', 'delivery-retention', 'reminders', 'templates', 'valuations'],
     },
     'worker started',
   )

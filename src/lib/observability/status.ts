@@ -26,21 +26,26 @@ import { redis } from '@/lib/redis/client'
 import { QUEUE } from '@/lib/queue/connection'
 import { batchConfirmQueue } from '@/lib/queue/batch-confirm'
 import { deliveryJobs } from '@/lib/queue/email'
+import { emailStatusJobs } from '@/lib/queue/email-status'
 import { ephemeralWatchJobs, expiryJobs, reconcileJobs, retentionJobs } from '@/lib/queue/maintenance'
 import { lastPassReports, type PassJob } from '@/lib/queue/pass-report'
 import { sponsorStatuses } from '@/lib/api/sponsor-status'
 import type { SpendableReader } from '@/lib/stellar/sponsors'
 import type { DependencyReading, PassReading, QueueReading, SponsorReading, StrandedReading } from './metrics'
 
-/** Bounded so a hung dependency cannot hold a probe open. Same bound as /api/ready. */
+/** Bounded so a hung dependency cannot hold readiness or status open. */
 export const PROBE_TIMEOUT_MS = 3_000
+// Horizon's identity request already aborts at five seconds. Let it finish
+// before the outer guard declares a healthy-but-slow response unavailable.
+export const HORIZON_PROBE_TIMEOUT_MS = 6_000
 export const STATUS_TTL_MS = 15_000
 
 function withTimeout<T>(work: Promise<T>, name: string, ms = PROBE_TIMEOUT_MS): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
   return Promise.race([
     work,
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${name} did not answer in ${ms}ms`)), ms)),
-  ])
+    new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`${name} did not answer in ${ms}ms`)), ms) }),
+  ]).finally(() => { if (timer !== undefined) clearTimeout(timer) })
 }
 
 export interface Probe {
@@ -51,22 +56,22 @@ export interface Probe {
   detail: string
 }
 
-async function probe(name: Probe['name'], work: () => Promise<unknown>): Promise<Probe> {
+async function probe(name: Probe['name'], work: () => Promise<unknown>, ms = PROBE_TIMEOUT_MS): Promise<Probe> {
   const started = Date.now()
   try {
-    await withTimeout(Promise.resolve(work()), name)
+    await withTimeout(Promise.resolve(work()), name, ms)
     return { name, ok: true, latencyMs: Date.now() - started, detail: 'ok' }
   } catch (error) {
     return { name, ok: false, latencyMs: Date.now() - started, detail: error instanceof Error ? error.message : 'unreachable' }
   }
 }
 
-/** Postgres, Redis and Horizon, each within the bound. Shared with /api/ready. */
+/** Postgres/Redis within 3s; Horizon within its 5s request + 1s guard margin. */
 export function probeDependencies(): Promise<Probe[]> {
   return Promise.all([
     probe('postgres', () => prisma.$queryRaw`SELECT 1`),
     probe('redis', () => redis.ping()),
-    probe('horizon', assertHorizonNetwork),
+    probe('horizon', assertHorizonNetwork, HORIZON_PROBE_TIMEOUT_MS),
   ])
 }
 
@@ -76,7 +81,7 @@ export async function dependencyReadings(): Promise<DependencyReading[]> {
 
 /** Depth and the oldest waiting job per queue — a worker that died quietly shows as both growing. */
 export async function queueReadings(now: Date = new Date()): Promise<QueueReading[]> {
-  const queues = [batchConfirmQueue(), deliveryJobs(), reconcileJobs(), expiryJobs(), ephemeralWatchJobs(), retentionJobs()]
+  const queues = [batchConfirmQueue(), deliveryJobs(), emailStatusJobs(), reconcileJobs(), expiryJobs(), ephemeralWatchJobs(), retentionJobs()]
   return Promise.all(
     queues.map(async (q) => {
       const counts = await withTimeout(q.getJobCounts('waiting', 'active', 'delayed', 'failed'), q.name)

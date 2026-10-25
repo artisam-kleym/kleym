@@ -1,0 +1,20 @@
+{
+  "runtime": "v24.22.1",
+  "clientBundlesScanned": 152,
+  "apiKeyInClientBundle": false,
+  "providerStatus": "delivered",
+  "finalWorkerStatusJob": "completed",
+  "transportHash": "ee0c7c93ef1854eda8b5d915e278967ab6553f07219da3a15200059dac826e4c",
+  "sourceHashes": {
+    "src/lib/email/zender.ts": "ee0c7c93ef1854eda8b5d915e278967ab6553f07219da3a15200059dac826e4c",
+    "src/workers/email-status.ts": "75a5b672a129bd52f886a5e0882971ed9199583fdcfa92ed150e87a21db998c4",
+    "src/lib/queue/email-status.ts": "52810ed7c5794cddc6e5280c725d2bbb0c496c44bf644d8f3827abd723c543ad",
+    "src/app/api/claims/otp/request/route.ts": "49248268d073c394024c0dc7412372ae008352f62253b1188bea2e195fa0469e",
+    "src/lib/api/otp.ts": "82be25466c8b9c5da5a73850e50dffcef86421ce83d14dcf58c1631e5e0f1c52",
+    "src/lib/api/links.ts": "c5d0a318de5ef3aec91b776ec761bb6df5d33ebbbdfecd3c177e133326b44257",
+    "src/app/(sender)/campaigns/new/wizard.tsx": "be34cfd4897c1804c2b999fa22a6cbfbcb99e570b5c725dc7e7a50a4313ddfe9",
+    "src/app/(sender)/campaigns/new/email-recipients.tsx": "5d03964ec57dfe87ca16e7add78b6d46de8eecb85824f84f1b44d5535519a4b3"
+  },
+  "emailSends": 0,
+  "assetTransactions": 0
+}

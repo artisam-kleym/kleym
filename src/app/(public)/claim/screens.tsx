@@ -52,7 +52,7 @@ export const POLICY_COPY: Record<LinkDetails['policy'], string> = {
   wallet: 'This prize is locked to the assigned wallet. Connect that wallet and approve its claim; a different wallet cannot receive it.',
   open: 'Anyone who has this link can claim it — keep it to yourself.',
   code: 'This link is bound to a claim code the sender gave you separately. You will be asked for it.',
-  email: 'This link was sent to an email address and can only be claimed with the code sent to that address.',
+  email: 'Kleym requires a verification code sent to the email assigned to this link. Keep the link private too.',
   passkey: 'This link is bound to a passkey. The first time, you register one on this device; after that only that device can claim.',
 }
 
@@ -236,10 +236,10 @@ export function ClaimScreen({
       return (
         <Centred>
           <Icon name="warning" size={32} className="text-on-surface-variant" />
-          <p className="text-headline-sm text-on-surface">This link can only be claimed by email</p>
+          <p className="text-headline-sm text-on-surface">Recipient email setup is incomplete</p>
           <p className="text-body-md text-on-surface-variant" data-testid="email-only">
-            The sender bound it to an email address, but it was not sent from Kleym. Ask the sender to send it
-            to you by email; the message will carry the code that unlocks it.
+            This link requires email verification but has no assigned email. Ask the campaign creator to
+            check its setup. Requesting a code cannot fix a missing assignment.
           </p>
         </Centred>
       )
@@ -804,19 +804,23 @@ function OtpPanel({
 }) {
   const [code, setCode] = useState('')
   const complete = /^[0-9]{6}$/.test(code)
+  const [busy, setBusy] = useState(false)
+  const [requested, setRequested] = useState(false)
 
   return (
     <form
       className="flex flex-col items-center gap-md text-center"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault()
-        if (complete) onVerify(code)
+        if (!complete || busy) return
+        setBusy(true)
+        try { await onVerify(code) } finally { setBusy(false) }
       }}
     >
-      <p className="text-headline-sm text-on-surface">Enter the code we emailed you</p>
+      <p className="text-headline-sm text-on-surface">Verify your email to continue</p>
       <p className="text-body-md text-on-surface-variant">
-        Six digits, valid for ten minutes. This link was sent by email, so the code confirms
-        it reached the right person.
+        Request a six-digit code using the button below, then enter it here. Codes are valid for ten minutes.
+        We send only to the email assigned by the campaign creator. Check spam too.
       </p>
 
       <label className="sr-only" htmlFor="otp">
@@ -841,17 +845,23 @@ function OtpPanel({
         </p>
       )}
 
-      <Button type="submit" disabled={!complete}>
-        Claim
+      <Button type="submit" disabled={!complete || busy}>
+        Verify code
       </Button>
 
       <button
         type="button"
-        onClick={onResend}
+        disabled={busy}
+        onClick={async () => {
+          if (busy) return
+          setBusy(true); setRequested(false); setCode('')
+          try { await onResend(); setRequested(true) } finally { setBusy(false) }
+        }}
         className="text-label-md text-on-surface-variant underline underline-offset-4"
       >
-        Send a new code
+        Send verification code
       </button>
+      {requested && !error && <p role="status" className="text-body-md text-on-surface-variant">If this link has an assigned email, a code has been requested. Allow a moment for delivery and check spam. If none arrives, ask the campaign creator to check email delivery.</p>}
     </form>
   )
 }

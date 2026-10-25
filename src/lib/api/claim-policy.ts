@@ -110,7 +110,7 @@ export function policyDecision(
     case 'email':
       if (!facts.emailed) {
         // Not "enter the code": there is no code coming. The page shows this as a dead end, not an OTP panel.
-        return { reason: 'email-only', detail: 'This link can only be claimed from the email it is sent in. Ask the sender to send it.' }
+        return { reason: 'email-only', detail: 'This link needs an assigned recipient email. Ask the campaign creator to check its setup.' }
       }
       if (!facts.otpOk) {
         return { reason: 'otp-required', detail: 'This link was sent by email, so it needs the six-digit code from that message.' }

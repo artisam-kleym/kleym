@@ -6,6 +6,7 @@ export const PUBLIC_ENV_KEYS = [
   'TESTNET_APP_URL', // Public Testnet workspace origin, no credentials.
   'MAINNET_APP_URL', // Public Mainnet workspace origin, no credentials.
   'HORIZON_URL', // Public network provider URL; never embed credentials.
+  'ZENDER_BASE_URL', // Public API endpoint; configuration rejects embedded credentials.
   'SEED_ADMIN_USERNAME', // Development account name, not its password.
   'ALLOW_PROD_SEED', // Bootstrap switch, not signing material.
 ] as const

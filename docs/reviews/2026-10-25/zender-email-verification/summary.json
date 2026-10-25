@@ -1,0 +1,35 @@
+{
+  "checkedAt": "2026-10-25T05:30:44.154175+00:00",
+  "baseCommit": "a7db0ae7a4dcf3e0fb6b6abd2662ff3eda9cac95",
+  "branch": "codex/security-136-landing",
+  "workingTree": "uncommitted implementation",
+  "runtime": "Node 24.22.1",
+  "dependencyInstall": "pnpm 10.6.4, frozen lockfile, no dependency source changes",
+  "unitSuite": {
+    "filesPassed": 84,
+    "testsPassed": 904,
+    "failed": 0,
+    "durationSeconds": 48.69,
+    "workers": 2,
+    "vitest": "4.1.12"
+  },
+  "gates": {
+    "productionBuild": "PASS: Next.js 16.4.3",
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "diffCheck": "PASS"
+  },
+  "uiCatalog": {
+    "pass": 9,
+    "blocked": 1,
+    "notRun": 3
+  },
+  "externalSideEffects": {
+    "liveEmailSent": false,
+    "assetsMoved": false,
+    "zenderApplicationsCreated": 0,
+    "credentialsCreated": 0,
+    "deployed": false,
+    "pushed": false
+  }
+}

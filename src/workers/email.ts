@@ -39,7 +39,7 @@ export function startEmailWorker(mailer: Mailer = resend): Worker<EmailJob> {
           expiresAt: new Date(reminder.expiresAt),
           sentAt: new Date(reminder.sentAt),
         })
-        const { id } = await mailer({ to: reminder.email, ...message })
+        const { id } = await mailer({ to: reminder.email, ...message, idempotencyKey: `reminder:${reminder.deliveryId}:${reminder.point}` })
         logger.info({ deliveryId: reminder.deliveryId, point: reminder.point, providerId: id }, 'reminder email sent')
         return { providerId: id }
       }
@@ -59,7 +59,7 @@ export function startEmailWorker(mailer: Mailer = resend): Worker<EmailJob> {
           signature: receipt.signature,
           publicKey: receipt.publicKey,
         })
-        const { id } = await mailer({ to: receipt.email, ...message })
+        const { id } = await mailer({ to: receipt.email, ...message, idempotencyKey: `receipt:${receipt.receiptId}` })
         logger.info({ deliveryId: receipt.deliveryId, receiptId: receipt.receiptId, providerId: id }, 'receipt email sent')
         return { providerId: id }
       }

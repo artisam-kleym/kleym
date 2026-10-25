@@ -157,6 +157,7 @@ export async function createTemplate(
   input: TemplateInput,
   maxLinks: number,
 ): Promise<TemplateOutcome<TemplateRow>> {
+  if (input.terms.claimPolicy === 'email') return { kind: 'invalid', detail: 'Create email-verification campaigns directly with a fresh recipient CSV. Reusable email recipient templates are not supported.' }
   const recipients = parseRecipients(input.recipientsCsv, maxLinks)
   if (!recipients.ok) return { kind: 'invalid', detail: recipients.detail }
   if (input.terms.claimPolicy === 'wallet' && !recipients.recipients.wallets?.length) return { kind: 'invalid', detail: 'Wallet-bound templates require an assigned-wallet CSV.' }
@@ -186,6 +187,7 @@ export async function updateTemplate(
 ): Promise<TemplateOutcome<TemplateRow>> {
   const existing = await loadTemplate(id, actor.org.id)
   if (!existing) return { kind: 'not-found' }
+  if ((patch.terms ?? termsOf(existing)).claimPolicy === 'email') return { kind: 'invalid', detail: 'Create email-verification campaigns directly with a fresh recipient CSV. Reusable email recipient templates are not supported.' }
   if ((patch.terms ?? termsOf(existing)).claimPolicy === 'wallet') {
     const recipients = parseRecipients(patch.recipientsCsv ?? existing.recipientsCsv, maxLinks)
     if (!recipients.ok || !recipients.recipients.wallets?.length) return { kind: 'invalid', detail: 'Wallet-bound templates require an assigned-wallet CSV.' }
@@ -300,6 +302,7 @@ export async function prepareRun(
   now: Date = new Date(),
 ): Promise<TemplateOutcome<RunResult>> {
   const terms = termsOf(template)
+  if (terms.claimPolicy === 'email') return { kind: 'invalid', detail: 'Create a new email-verification campaign with a fresh recipient CSV instead of running an email template.' }
   const recipients = parseRecipients(template.recipientsCsv, maxLinks)
   if (!recipients.ok) return { kind: 'invalid', detail: recipients.detail }
   if (recipients.recipients.labels.length === 0) return { kind: 'invalid', detail: 'The template has no recipients; add a list before running it.' }

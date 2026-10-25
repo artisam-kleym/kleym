@@ -1,15 +1,8 @@
 /**
- * OTP gating for email-delivered links. SPEC.md §6.4, §6.5.
- *
- * Why a code at all, when the recipient already holds the link? Because email
- * delivery is the one path where the link leaves the sender's hands through a
- * channel Kleym does not control — a forwarded message, a shared inbox, a mail
- * server's archive. §12 calls a leaked link a bearer instrument; the code
- * re-binds it to the ADDRESS the sender chose, so a copy of the URL alone is
- * no longer enough.
- *
- * Links the sender distributed themselves have no Delivery row and are not
- * gated. Kleym never saw those URLs and has nothing to bind them to.
+ * OTP application gate for creator-assigned recipient email bindings.
+ * Claim URLs remain in the private browser export. Only codes are emailed.
+ * This gate is enforced by Kleym, not an extra on-chain signing condition;
+ * possession of a link key still permits constructing Stellar transactions.
  */
 import { createHash, randomInt, randomUUID, timingSafeEqual } from 'node:crypto'
 import argon2 from 'argon2'
@@ -49,22 +42,22 @@ export type OtpOutcome =
   | { kind: 'locked'; detail: string }
 
 /**
- * Whether this link is email-delivered, and to which address. `email` is
- * null once the address has been redacted (#50): the link stays gated —
- * it WAS emailed, and the gate is what stops a forwarded URL being enough —
- * but there is no longer anywhere to send a code.
+ * Whether this link has an email binding, and its assigned address. `email`
+ * is null after redaction (#50): the link stays gated, but no code can be sent.
  */
 export async function gateFor(ephemeralPublicKey: string): Promise<{
   linkId: string
   deliveryId: string
   email: string | null
+  claimable: boolean
 } | null> {
   const link = await prisma.claimLink.findUnique({
     where: { ephemeralPublicKey },
-    select: { id: true, status: true, delivery: { select: { id: true, email: true } } },
+    select: { id: true, status: true, suspendedAt: true, campaign: { select: { expiresAt: true, suspendedAt: true, status: true } }, delivery: { select: { id: true, email: true } } },
   })
   if (!link?.delivery) return null
-  return { linkId: link.id, deliveryId: link.delivery.id, email: link.delivery.email }
+  return { linkId: link.id, deliveryId: link.delivery.id, email: link.delivery.email,
+    claimable: link.status === 'ACTIVE' && !link.suspendedAt && !link.campaign.suspendedAt && link.campaign.status !== 'CANCELLED' && link.campaign.expiresAt.getTime() > Date.now() }
 }
 
 /**
@@ -111,7 +104,7 @@ export async function verifyOtp(
   now: Date = new Date(),
 ): Promise<VerifyResult> {
   const gate = await gateFor(ephemeralPublicKey)
-  if (!gate) return { ok: false, reason: 'none-issued', attemptsLeft: 0 }
+  if (!gate || !gate.email || !gate.claimable) return { ok: false, reason: 'none-issued', attemptsLeft: 0 }
 
   const delivery = await prisma.delivery.findUniqueOrThrow({
     where: { id: gate.deliveryId },
@@ -138,14 +131,17 @@ export async function verifyOtp(
     return { ok: false, reason: 'expired', attemptsLeft: OTP_MAX_ATTEMPTS - delivery.otpAttempts }
   }
 
-  const { otpAttempts } = await prisma.delivery.update({
-    where: { id: gate.deliveryId },
+  // Reserve a guess atomically against THIS challenge. Concurrent requests
+  // cannot exceed five attempts or spend a replacement code's attempt budget.
+  const reserved = await prisma.delivery.updateMany({
+    where: { id: gate.deliveryId, otpHash: delivery.otpHash, otpExpires: { gt: now }, otpAttempts: { lt: OTP_MAX_ATTEMPTS } },
     data: { otpAttempts: { increment: 1 } },
-    select: { otpAttempts: true },
   })
+  if (!reserved.count) return { ok: false, reason: 'locked', attemptsLeft: 0 }
 
   if (!(await argon2.verify(delivery.otpHash, code).catch(() => false))) {
-    const left = Math.max(0, OTP_MAX_ATTEMPTS - otpAttempts)
+    const current = await prisma.delivery.findUniqueOrThrow({ where: { id: gate.deliveryId }, select: { otpAttempts: true } })
+    const left = Math.max(0, OTP_MAX_ATTEMPTS - current.otpAttempts)
     if (left === 0) {
       /*
        * Spent codes are DESTROYED, not merely counted out.
@@ -154,8 +150,8 @@ export async function verifyOtp(
        * bug, or a manual counter reset, silently re-enables a code an attacker
        * has already been grinding against.
        */
-      await prisma.delivery.update({
-        where: { id: gate.deliveryId },
+      await prisma.delivery.updateMany({
+        where: { id: gate.deliveryId, otpHash: delivery.otpHash, otpAttempts: { gte: OTP_MAX_ATTEMPTS } },
         data: { otpHash: null, otpExpires: null },
       })
       logger.warn({ deliveryId: gate.deliveryId }, 'otp invalidated after too many attempts')
@@ -167,10 +163,11 @@ export async function verifyOtp(
    * A single-use code. Consuming it on success stops a forwarded email being
    * replayed by a second reader while the ten minutes are still running.
    */
-  await prisma.delivery.update({
-    where: { id: gate.deliveryId },
+  const consumed = await prisma.delivery.updateMany({
+    where: { id: gate.deliveryId, otpHash: delivery.otpHash, otpExpires: { gt: now } },
     data: { otpHash: null, otpExpires: null, otpAttempts: 0, openedAt: now },
   })
+  if (!consumed.count) return { ok: false, reason: 'none-issued', attemptsLeft: 0 }
 
   return { ok: true, token: await issueToken(gate.linkId) }
 }
@@ -195,8 +192,8 @@ const tokenKey = (token: string) => `otp:token:${createHash('sha256').update(tok
 /**
  * Whether this request may act on this link.
  *
- * Returns true for links that are not gated at all — a sender-distributed link
- * has no Delivery row, and Kleym has no address to bind it to.
+ * Returns true for links with no email binding. EMAIL policy additionally
+ * refuses a missing binding in claim-policy.ts; it cannot downgrade to OPEN.
  *
  * Fails CLOSED when Redis is unreachable, for the same reason the rate limiter
  * does: an unavailable check that answers "allowed" removes the control at the

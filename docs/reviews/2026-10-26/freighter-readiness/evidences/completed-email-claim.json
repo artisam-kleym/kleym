@@ -1,0 +1,117 @@
+{
+  "network": "testnet",
+  "campaign": "cmvo10tax00010dp1cq013vhx",
+  "hash": "b7315cbab094c6a81c70e69ecfc959ef008acb31ff7d4bb5067c6230ebd06743",
+  "successful": true,
+  "ledger": 5384271,
+  "feeChargedStroops": "400",
+  "source": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+  "operations": [
+    {
+      "type": "claim_claimable_balance",
+      "source": "GA57R6UU5I4Q5O3YUEG4FU3XSMV7EPARWYJ7CYA2SGLIHIF7UIAMFC3B",
+      "from": null,
+      "to": null,
+      "amount": null,
+      "asset": null,
+      "issuer": null,
+      "account": null,
+      "into": null,
+      "balance_id": "000000007c372cc5448f0061f7f6bbdcb848c6c23c2c27d551694c3edc76ebbaacb87b30"
+    },
+    {
+      "type": "payment",
+      "source": "GA57R6UU5I4Q5O3YUEG4FU3XSMV7EPARWYJ7CYA2SGLIHIF7UIAMFC3B",
+      "from": "GA57R6UU5I4Q5O3YUEG4FU3XSMV7EPARWYJ7CYA2SGLIHIF7UIAMFC3B",
+      "to": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "amount": "1.0000000",
+      "asset": "USDC",
+      "issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "account": null,
+      "into": null,
+      "balance_id": null
+    },
+    {
+      "type": "change_trust",
+      "source": "GA57R6UU5I4Q5O3YUEG4FU3XSMV7EPARWYJ7CYA2SGLIHIF7UIAMFC3B",
+      "from": null,
+      "to": null,
+      "amount": null,
+      "asset": "USDC",
+      "issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "account": null,
+      "into": null,
+      "balance_id": null
+    },
+    {
+      "type": "account_merge",
+      "source": "GA57R6UU5I4Q5O3YUEG4FU3XSMV7EPARWYJ7CYA2SGLIHIF7UIAMFC3B",
+      "from": null,
+      "to": null,
+      "amount": null,
+      "asset": null,
+      "issuer": null,
+      "account": "GA57R6UU5I4Q5O3YUEG4FU3XSMV7EPARWYJ7CYA2SGLIHIF7UIAMFC3B",
+      "into": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "balance_id": null
+    }
+  ],
+  "effects": [
+    {
+      "type": "claimable_balance_claimed",
+      "account": "GA57R6UU5I4Q5O3YUEG4FU3XSMV7EPARWYJ7CYA2SGLIHIF7UIAMFC3B",
+      "amount": "1.0000000",
+      "asset_code": null,
+      "asset_issuer": null,
+      "balance_id": "000000007c372cc5448f0061f7f6bbdcb848c6c23c2c27d551694c3edc76ebbaacb87b30"
+    },
+    {
+      "type": "account_credited",
+      "account": "GA57R6UU5I4Q5O3YUEG4FU3XSMV7EPARWYJ7CYA2SGLIHIF7UIAMFC3B",
+      "amount": "1.0000000",
+      "asset_code": "USDC",
+      "asset_issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "balance_id": null
+    },
+    {
+      "type": "account_credited",
+      "account": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "amount": "1.0000000",
+      "asset_code": "USDC",
+      "asset_issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "balance_id": null
+    },
+    {
+      "type": "account_debited",
+      "account": "GA57R6UU5I4Q5O3YUEG4FU3XSMV7EPARWYJ7CYA2SGLIHIF7UIAMFC3B",
+      "amount": "1.0000000",
+      "asset_code": "USDC",
+      "asset_issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "balance_id": null
+    },
+    {
+      "type": "account_debited",
+      "account": "GA57R6UU5I4Q5O3YUEG4FU3XSMV7EPARWYJ7CYA2SGLIHIF7UIAMFC3B",
+      "amount": "0.0000000",
+      "asset_code": null,
+      "asset_issuer": null,
+      "balance_id": null
+    },
+    {
+      "type": "account_credited",
+      "account": "GAI3YINEC6REIMIUYBYV4FRE4MPUS3BA7KKXQTDPUVB7SKGNCG5LDHWW",
+      "amount": "0.0000000",
+      "asset_code": null,
+      "asset_issuer": null,
+      "balance_id": null
+    },
+    {
+      "type": "account_removed",
+      "account": "GA57R6UU5I4Q5O3YUEG4FU3XSMV7EPARWYJ7CYA2SGLIHIF7UIAMFC3B",
+      "amount": null,
+      "asset_code": null,
+      "asset_issuer": null,
+      "balance_id": null
+    }
+  ]
+}

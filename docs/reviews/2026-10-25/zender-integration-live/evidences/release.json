@@ -1,0 +1,31 @@
+{
+  "mainnetActivated": false,
+  "temporarySshKeyRevoked": true,
+  "deployments": [
+    {
+      "id": "0fd44f55-cba9-4c97-b9b1-1f03bb3eda88",
+      "service": "kleym-web",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "18aaa089-b305-4bab-8d7d-f6b0c3d7bda2",
+      "service": "kleym-worker",
+      "status": "SUCCESS"
+    }
+  ],
+  "sourceDigest": "6618c9b7a7a8e433bcf9194c1b81335a8d69f828c1b914e8156ae092549a0b5f",
+  "checked_at": "2026-10-25T23:10:08.7022157+08:00",
+  "health": [
+    {
+      "path": "/api/health",
+      "status": 200
+    },
+    {
+      "path": "/api/ready",
+      "status": 200
+    }
+  ],
+  "earlierProbe": "One postflight non-200 response; status not captured. Bounded application logs contain one Horizon timeout with PostgreSQL and Redis OK. Two subsequent health/readiness pairs returned HTTP 200.",
+  "temporarySshKeyCopiesRemoved": true,
+  "project": "57849f8f-8c9f-4565-8b88-6faf9ce085dd"
+}

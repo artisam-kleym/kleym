@@ -1,0 +1,10 @@
+{
+  "runtime": "v24.22.1",
+  "clientBundlesScanned": 152,
+  "apiKeyInClientBundle": false,
+  "providerStatus": "delivered",
+  "finalWorkerStatusJob": "completed",
+  "transportHash": "ee0c7c93ef1854eda8b5d915e278967ab6553f07219da3a15200059dac826e4c",
+  "emailSends": 0,
+  "assetTransactions": 0
+}

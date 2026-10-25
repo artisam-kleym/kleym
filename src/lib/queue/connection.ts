@@ -24,6 +24,7 @@ export function queueConnection(): ConnectionOptions {
 export const QUEUE = {
   batchConfirm: 'batch-confirm',
   emailDeliver: 'email-deliver',
+  emailStatus: 'email-status',
   reconcile: 'reconcile',
   expirySweep: 'expiry-sweep',
   ephemeralWatch: 'ephemeral-watch',

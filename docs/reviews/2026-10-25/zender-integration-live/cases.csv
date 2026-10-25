@@ -1,0 +1,25 @@
+ID,Check,Result,Evidence
+ZE01,Application credential and send/read scopes,PASS,Earlier credential checks and live sends
+ZE02,Quickstart same-event replay creates no extra message,PASS,../zender-api-quickstart/README.md
+ZE03,Immutable email binding and concurrent registration on PostgreSQL,PASS,Isolated Railway database integration run
+ZE04,Expired and replaced OTPs refused,PASS,Isolated Railway database integration run
+ZE05,Concurrent wrong guesses bounded at five,PASS,Isolated Railway database integration run
+ZE06,Concurrent correct verification produces one scoped token,PASS,Isolated Railway database and Redis integration run
+ZE07,Actual adapter OTP delivered to authorized inbox,PASS,Provider message cmvny6v25001s0tmpfh6b6lpv
+ZE08,Wrong then correct then replay at actual verify handler,PASS,Isolated Railway database integration run
+ZE09,Deployed background delivery-status job completes,PASS,Initial integration and final-worker postflight
+ZE10,Transient retries preserve body and identity and respect Retry-After,PASS,Transport regression tests
+ZE11,Suppression and permanent HTTP failures fail closed,PASS,Transport regression tests
+ZE12,Terminal status failure stops without resending,PASS,Email-status regression tests
+ZE13,Live public API validation and generic unknown-link response,PASS,evidences/public-endpoint-checks.json
+ZE14,Desktop email CSV import and ordered prize review,PASS,evidences/creator-desktop.png
+ZE15,Phone-width email CSV import and ordered prize review,PASS,evidences/creator-mobile.png
+ZE16,Invalid replacement blocks Continue and valid replacement restores it,PASS,evidences/creator-mobile-restored.png
+ZE17,Full regression suite and production build,PASS,920 tests across 85 files and successful build
+ZE18,Physical desktop email-gated funded wallet claim,NOT RUN,User agreed to perform after rollout
+ZE19,Physical Android email-gated funded wallet claim,NOT RUN,Requires phone wallet approval and mailbox interaction
+ZE20,Provider open/click tracking disabled,UNVERIFIED,Requires Zender/provider operator confirmation
+ZE21,Webhook receiver signature and deduplication,NOT APPLICABLE,Polling chosen; no webhook receiver installed
+ZE22,Plain delivery check to newly authorized personal Gmail recipient,PASS,evidences/owned-inbox-delivery.json
+ZE23,Personal Gmail recipient confirms test message arrival,PASS,User reported Yes in Spam
+ZE24,Plain delivery check lands in Gmail Inbox,FAIL,User reported the message arrived in Spam; cause not established

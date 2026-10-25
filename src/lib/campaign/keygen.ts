@@ -47,6 +47,7 @@ export interface EphemeralKey {
    * sent to the server only as a hash. Null for every other policy.
    */
   code: string | null
+  recipientEmail?: string | null
   recipientPublicKey?: string | null
 }
 
@@ -80,8 +81,9 @@ export function generateEphemeralKeys(
   labels: string[] = [],
   attestations: (Attestation | null)[] = [],
   amounts: (string | null)[] = [],
-  options: { withCodes?: boolean; recipientPublicKeys?: string[] } = {},
+  options: { withCodes?: boolean; recipientPublicKeys?: string[]; recipientEmails?: string[] } = {},
 ): EphemeralKey[] {
+  if (options.recipientEmails && options.recipientEmails.length !== count) throw new Error('One recipient email is required per link.')
   if (options.recipientPublicKeys && (options.recipientPublicKeys.length !== count || options.recipientPublicKeys.some((key) => !StrKey.isValidEd25519PublicKey(key)))) throw new Error('One valid recipient wallet is required per link.')
   if (!Number.isInteger(count) || count < 1) {
     throw new Error(`link count must be a positive integer, got ${count}`)
@@ -96,6 +98,7 @@ export function generateEphemeralKeys(
       attestation: attestations[index] ?? null,
       amount: amounts[index] ?? null,
       code: options.withCodes ? generateClaimCode() : null,
+      ...(options.recipientEmails ? { recipientEmail: options.recipientEmails[index] } : {}),
       ...(options.recipientPublicKeys ? { recipientPublicKey: options.recipientPublicKeys[index] } : {}),
     }
   })
@@ -115,8 +118,9 @@ export function deriveEphemeralKeys(
   labels: string[] = [],
   attestations: (Attestation | null)[] = [],
   amounts: (string | null)[] = [],
-  options: { withCodes?: boolean; recipientPublicKeys?: string[] } = {},
+  options: { withCodes?: boolean; recipientPublicKeys?: string[]; recipientEmails?: string[] } = {},
 ): EphemeralKey[] {
+  if (options.recipientEmails && options.recipientEmails.length !== count) throw new Error('One recipient email is required per link.')
   if (options.recipientPublicKeys && (options.recipientPublicKeys.length !== count || options.recipientPublicKeys.some((key) => !StrKey.isValidEd25519PublicKey(key)))) throw new Error('One valid recipient wallet is required per link.')
   if (!Number.isInteger(count) || count < 1) {
     throw new Error(`link count must be a positive integer, got ${count}`)
@@ -129,6 +133,7 @@ export function deriveEphemeralKeys(
     amount: amounts[index] ?? null,
     // Derived beside the key (#79), so a regenerated CSV carries the code too.
     code: options.withCodes ? code : null,
+    ...(options.recipientEmails ? { recipientEmail: options.recipientEmails[index] } : {}),
     ...(options.recipientPublicKeys ? { recipientPublicKey: options.recipientPublicKeys[index] } : {}),
   }))
 }
@@ -141,12 +146,14 @@ export function publicHalves(keys: EphemeralKey[]): {
   amounts?: (string | null)[]
   codes?: string[]
   recipientPublicKeys?: string[]
+  recipientEmails?: string[]
 } {
   const attestations = keys.map((key) => key.attestation)
   const amounts = keys.map((key) => key.amount)
   const codes = keys.map((key) => key.code)
   return {
     ...(keys.some((key) => key.recipientPublicKey) ? { recipientPublicKeys: keys.map((key) => key.recipientPublicKey ?? '') } : {}),
+    ...(keys.some((key) => key.recipientEmail) ? { recipientEmails: keys.map((key) => key.recipientEmail ?? '') } : {}),
     publicKeys: keys.map((key) => key.publicKey),
     labels: keys.map((key) => key.label),
     // Omitted entirely when nobody set one, so the request is what it always was.

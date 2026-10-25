@@ -6,6 +6,7 @@ import type { CostBreakdown } from '@/lib/campaign/cost'
 import type { stellarMetadata } from '@/lib/stellar/network'
 import { ExpiryPicker } from './expiry-picker'
 import { isStellarAmount, MAX_STELLAR_AMOUNT } from '@/lib/stellar/amount'
+import { EmailRecipients } from './email-recipients'
 import { WalletRecipients } from './wallet-recipients'
 import { PrizeAmounts } from './prize-amounts'
 import { NetworkPicker } from './network-picker'
@@ -206,7 +207,7 @@ export function AssetStep({
               Email each recipient a signed receipt when they claim
             </span>
             <span className="font-mono text-label-sm text-on-surface-variant">
-              Only recipients you deliver to by email have an address. The receipt names the address that claimed,
+              Recipients assigned an email for verification can receive one. The receipt names the wallet that claimed,
               the amount, the time and the transaction — never the link — and verifies with Kleym’s public key alone.
               Every claim gets a receipt you can download regardless.
             </span>
@@ -235,6 +236,7 @@ export function RecipientsStep({
   claimPolicy,
   onClaimPolicy,
   wallets = [], onWalletImport, onWalletPending,
+  emails = [], onEmailImport, emailAvailable = false,
   cost,
   reserveSource,
   maxLinks,
@@ -266,6 +268,9 @@ export function RecipientsStep({
   reminderDays: number[]
   onReminderDays: (days: number[]) => void
   /** Who may claim (#79). */
+  emails?: string[]
+  emailAvailable?: boolean
+  onEmailImport: (rows: import('@/lib/campaign/email-recipients').EmailRecipients) => void
   wallets?: string[]
   onWalletImport: (rows: import('@/lib/campaign/wallet-recipients').WalletRecipients) => void
   onWalletPending: (error: string | null) => void
@@ -291,7 +296,7 @@ export function RecipientsStep({
               ['open', 'Anyone with the link', 'The link is the credential. Right for most distributions; a leaked link is claimable by whoever holds it.'],
               ['code', 'Anyone with the link AND a claim code', 'Kleym requires each link’s separate 13-character code before processing a claim. The code is included in your private CSV. Send it through a separate channel. This is a Kleym check, not an extra Stellar signing requirement: keep the link private too.'],
               ['wallet', 'Only the assigned wallet address', 'Import a CSV of recipient wallets. Each link is locked on Stellar to its assigned wallet; a leaked link cannot send the prize to a different wallet.'],
-              ['email', 'Email verification (unavailable)', 'This requires Kleym email delivery. The current app uses your private CSV for distribution; choose another claim policy.'],
+              ['email', emailAvailable ? 'Anyone with the link AND email verification' : 'Email verification (unavailable here)', emailAvailable ? 'Assign recipient emails by CSV. The recipient must enter a six-digit code sent through Zender. Keep claim links private; this is a Kleym check, not an on-chain wallet lock.' : 'Available for new campaigns after Zender is configured. Reusable email-recipient templates are not supported.'],
               ['passkey', 'Only the first device that claims', 'The first person to open the link registers a passkey on their device, and only that device can finish the claim. A copy made afterwards is useless.'],
             ] as const
           ).map(([value, title, detail]) => (
@@ -301,7 +306,7 @@ export function RecipientsStep({
                 name="claimPolicy"
                 value={value}
                 checked={claimPolicy === value}
-                disabled={value === 'email'}
+                disabled={value === 'email' && !emailAvailable}
                 onChange={() => onClaimPolicy(value)}
                 className="mt-1 h-5 w-5"
               />
@@ -316,12 +321,13 @@ export function RecipientsStep({
           </p>
         </fieldset>
 
+        {claimPolicy === 'email' && <EmailRecipients count={draft.linkCount} maxLinks={maxLinks} onImport={onEmailImport} onPending={onWalletPending} />}
         {claimPolicy === 'wallet' && <WalletRecipients count={draft.linkCount} maxLinks={maxLinks} onImport={onWalletImport} onPending={onWalletPending} />}
 
         <Input
           label="Number of links"
           name="linkCount"
-          disabled={renewal || claimPolicy === 'wallet'}
+          disabled={renewal || claimPolicy === 'wallet' || claimPolicy === 'email'}
           type="number"
           min={1}
           max={maxLinks}
@@ -333,7 +339,7 @@ export function RecipientsStep({
 
         <ExpiryPicker value={draft.expiresAt} choice={expiryChoice} error={expiryError} onChange={onExpiry} />
 
-        {claimPolicy !== 'wallet' && <div className="flex flex-col gap-xs">
+        {claimPolicy !== 'wallet' && claimPolicy !== 'email' && <div className="flex flex-col gap-xs">
           <label
             htmlFor="labels"
             className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant"
@@ -372,11 +378,11 @@ export function RecipientsStep({
           )}
         </div>}
 
-        <PrizeAmounts wallets={claimPolicy === 'wallet' ? wallets : undefined} count={draft.linkCount} labels={labels} amounts={amounts} defaultAmount={defaultAmount} assetCode={assetCode} onAmount={onAmount} onReset={onResetAmounts} disabled={renewal} />
+        <PrizeAmounts wallets={claimPolicy === 'wallet' ? wallets : claimPolicy === 'email' ? emails : undefined} count={draft.linkCount} labels={labels} amounts={amounts} defaultAmount={defaultAmount} assetCode={assetCode} onAmount={onAmount} onReset={onResetAmounts} disabled={renewal} />
 
 
 
-        <fieldset className="flex flex-col gap-xs">
+        <fieldset className="flex flex-col gap-xs" disabled={claimPolicy === 'email'}>
           <legend className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">
             Remind by email (optional)
           </legend>
@@ -395,9 +401,9 @@ export function RecipientsStep({
             ))}
           </div>
           <p className="font-mono text-label-sm text-on-surface-variant">
-            Only recipients you deliver to by email can be reminded, and a reminder never repeats the link — Kleym does
+            {claimPolicy === 'email' ? 'OTP-only verification does not send invitations or expiry reminders. Share each link privately and tell the recipient its deadline.' : <>Only recipients you deliver to by email can be reminded, and a reminder never repeats the link — Kleym does
             not keep it. It names you, the amount and the expiry, and points at the original message. One email per
-            address per day at most.
+            address per day at most.</>}
           </p>
         </fieldset>
       </div>
