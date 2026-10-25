@@ -1,8 +1,8 @@
 # Railway public Testnet deployment
 
-## Default release destination — October 13
+## Default release destination — October 25
 
-The owner requests that verified Kleym releases be merged into **develop-ade** and kept current in the senior's Railway project. Use this destination for subsequent authorized releases:
+The owner requests that verified Kleym releases be merged into **develop** and kept current in the senior's Railway project. Use this destination for subsequent authorized releases:
 
 | Setting | Value |
 | --- | --- |
@@ -12,7 +12,11 @@ The owner requests that verified Kleym releases be merged into **develop-ade** a
 | Worker service | `1449f6c7-2843-4dfa-820f-7c49d87a1fba` |
 | Public origin | `https://kleym-testnet.up.railway.app` |
 
-Merge qualified PRs into `develop-ade`, deploy the exact release to these services and verify web readiness, the changed browser behavior and worker consumption. Preserve current database/Redis volumes and credentials. The old personal project is retired. Source connection/autodeploy must be verified in Railway; a Git push alone is not deployment proof. Mainnet and Lantern enablement still require their own acceptance gates.
+Merge qualified PRs into `develop`, deploy the exact release to these services and verify web readiness, the changed browser behavior and worker consumption. Preserve current database/Redis volumes and credentials. The old personal project is retired. Source connection/autodeploy must be verified in Railway; a Git push alone is not deployment proof. Mainnet and Lantern enablement still require their own acceptance gates.
+
+## Patched runtime — October 25
+
+The existing Docker build is now declared explicitly in both Railway configuration files. Web, worker and static landing images pin `node:24.22.1-bookworm-slim`; no builder migration or data-plane upgrade is required. Set compatibility variables `NIXPACKS_NODE_VERSION` and `RAILPACK_NODE_VERSION` to `24.22.1` on web and worker without triggering an intermediate deployment. The Dockerfiles remain authoritative. Verify deployed container versions with `railway ssh`, not local `railway run`.
 
 ## Latest October 12: migrated to the senior developer's project
 

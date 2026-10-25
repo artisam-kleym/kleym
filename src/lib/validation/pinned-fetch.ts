@@ -36,6 +36,8 @@ export async function pinnedFetch(url: string, init: RequestInit, connectLookup:
   const signal = AbortSignal.any([request.signal, AbortSignal.timeout(10_000)])
   return new Promise<Response>((resolve, reject) => {
     const outgoing = httpsRequest(url, { method: request.method, headers, lookup: connectLookup, agent: false, signal }, (incoming) => {
+      const encoding = incoming.headers['content-encoding']
+      if (encoding !== undefined && (typeof encoding !== 'string' || encoding.trim().toLowerCase() !== 'identity')) { incoming.destroy(); reject(refused()); return }
       const chunks: Buffer[] = []
       let size = 0
       const status = incoming.statusCode ?? 502

@@ -17,9 +17,8 @@ export function cancelSenderConnection() { connecting?.abort() }
 export function configureSenderMobile(projectId: string) { mobileProjectId = projectId }
 
 async function adapter(network: Network) {
-  const { FreighterModule } = await import('@creit.tech/stellar-wallets-kit/modules/freighter')
-  const { Networks } = await import('@creit.tech/stellar-wallets-kit/types')
-  const wallet = new FreighterModule()
+  const { FreighterDesktop, Networks } = await import('@/lib/wallet/desktop')
+  const wallet = new FreighterDesktop()
   const passphrase = network === 'public' ? Networks.PUBLIC : Networks.TESTNET
   if (!(await wallet.isAvailable())) throw new Error('Open Freighter in this desktop browser, unlock it, then try again.')
   return { wallet, passphrase }

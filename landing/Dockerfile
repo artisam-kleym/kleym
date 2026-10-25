@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS build
+FROM node:24.22.1-bookworm-slim AS build
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && npm install --global pnpm@10.6.4
@@ -11,7 +11,7 @@ ARG LANDING_NETWORK=testnet
 RUN LANDING_APP_URL="$LANDING_APP_URL" LANDING_SITE_URL="$LANDING_SITE_URL" LANDING_NETWORK="$LANDING_NETWORK" pnpm build:landing
 
 # Runtime contains only public static assets and a dependency-free file server.
-FROM node:22-bookworm-slim
+FROM node:24.22.1-bookworm-slim
 ENV NODE_ENV=production PORT=8080
 WORKDIR /site
 COPY --from=build --chown=node:node /build/landing/dist ./dist

@@ -40,8 +40,12 @@ Read [`AGENT.md`](AGENT.md) §1 before writing any line that touches a keypair.
 | Queue / cache | BullMQ on Redis |
 | Styling | Tailwind CSS |
 | Stellar | `@stellar/stellar-sdk` |
-| Wallets | `@creit.tech/stellar-wallets-kit` |
+| Wallets | Official Freighter API, WalletConnect and Lantern bridge |
 | Hosting | Railway |
+
+### Runtime pin
+
+Node **24.22.1** is pinned in both Dockerfiles, CI, engine declarations and local version files. Rebuilding a floating builder image is not evidence of a patched runtime. Verify web and worker containers with `railway ssh ... node --version`; `railway run` executes locally.
 
 ### Resolved versions
 
@@ -50,14 +54,14 @@ changelog before use.
 
 | Package | Version |
 |---|---|
-| `next` | 16.3.5 |
+| `next` | 16.4.3 |
 | `react` / `react-dom` | 19.2.8 |
 | `tailwindcss` | 4.3.3 |
 | `typescript` | **5.9.3** — pinned, see below |
 | `prisma` / `@prisma/client` | 7.10.0 |
-| `@creit.tech/stellar-wallets-kit` | 2.6.0 |
+| `@stellar/freighter-api` | 6.0.0 |
 | `argon2` | 0.45.1 |
-| `zod` | 4.4.3 |
+| `zod` | 4.6.7 |
 | `@stellar/stellar-sdk` | 16.2.0 |
 | `eslint` | 10.8.1 |
 | `pino` | 10.3.1 |
@@ -110,6 +114,10 @@ pin low: `mysql2` (via prisma, for a driver Kleym never loads), `fast-uri` (via
 `@prisma/dev`) and `stream-json` (via the wallet kit's Trezor adapter). Each override
 carries its reason in `package.json` under `overridesReason`. Remove an override when the
 package above it ships a release that no longer needs it.
+
+#### October 25 security refresh
+
+Node is pinned to 24.22.1, Next to 16.4.3 and application Zod to 4.6.7. The broad wallet kit has been replaced by the official Freighter API already used by its previous adapter. Lantern and phone WalletConnect transports remain separate. This removes vulnerable nested Zod 3 copies and the unpatched `elliptic` transitive rather than suppressing their advisories. The moderate audit gate is unchanged. See [security qualification](docs/reviews/2026-10-25/security-136/README.md) for evidence and remaining operational work.
 
 #### Two toolchain notes
 
