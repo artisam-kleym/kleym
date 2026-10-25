@@ -161,7 +161,13 @@ const configurationSchema = z.object({
   BASE_FEE_STROOPS: z.coerce.number().int().min(100).default(1_000).transform(String),
 
   // Email
-  RESEND_API_KEY: z.string().min(1),
+  EMAIL_PROVIDER: z.enum(['resend', 'zender']).default('resend'),
+  RESEND_API_KEY: z.string().default(''),
+  ZENDER_BASE_URL: z.url().default('https://zender-web-production.up.railway.app/api/v1').refine((value) => {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash && url.pathname.replace(/\/$/, '') === '/api/v1'
+  }, 'must be an HTTPS API v1 URL without credentials, query or fragment'),
+  ZENDER_API_KEY: z.string().default(''),
   EMAIL_FROM: z.email(),
   // Off for the pilot. A disposable Testnet harness may inspect legacy behaviour.
   LEGACY_BEARER_EMAIL_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
@@ -205,6 +211,7 @@ export const SECRET_ENV_KEYS = [
   'AUDIT_SIGNING_SEED',
   'CREDENTIAL_ENCRYPTION_KEY',
   'RESEND_API_KEY',
+  'ZENDER_API_KEY',
   'SEED_ADMIN_PASSWORD',
   // Both embed credentials in the connection string.
   'DATABASE_URL',

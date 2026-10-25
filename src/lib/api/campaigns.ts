@@ -31,7 +31,7 @@ import { chooseSponsor } from '@/lib/stellar/sponsors'
 import { emitWebhook } from '@/lib/webhooks/emit'
 import { isClaimCode, policyFromRow, policyToRow } from './claim-policy'
 import { assertRenewalTerms, renewalSource, RenewalRefused } from './renewal'
-import { legacyBearerEmailAllowed } from '@/lib/email/delivery-policy'
+import { emailVerificationAvailable, legacyBearerEmailAllowed } from '@/lib/email/delivery-policy'
 import { newFundingProblem } from '@/lib/stellar/funding-rollout'
 
 /**
@@ -140,9 +140,15 @@ export const createCampaignSchema = campaignBodySchema
     const problem = newFundingProblem(v.network, v.assetCode === 'USDC' ? 'SPONSORED' : 'SENDER')
     if (problem) ctx.addIssue({ code: 'custom', path: ['network'], message: problem })
   })
-  .refine((v) => v.claimPolicy !== 'email' || legacyBearerEmailAllowed(), {
-    message: 'Email-only claims are disabled. Choose open, code or passkey and distribute links privately from your saved CSV.',
+  .refine((v) => v.claimPolicy !== 'email' || emailVerificationAvailable() || legacyBearerEmailAllowed(), {
+    message: 'Email verification is unavailable until an existing Zender API credential is configured. Distribute links privately from your saved CSV.',
     path: ['claimPolicy'],
+  })
+  .refine((v) => v.claimPolicy !== 'email' || !v.templateId, {
+    message: 'Email verification requires a new campaign with a fresh recipient CSV, not a reusable template.', path: ['templateId'],
+  })
+  .refine((v) => v.claimPolicy !== 'email' || !v.reminderDaysBefore?.length, {
+    message: 'OTP-only email verification does not send invitations or expiry reminders.', path: ['reminderDaysBefore'],
   })
   .refine((v) => v.network === env.STELLAR_NETWORK, {
     message: 'must match the Stellar network of this deployment',
@@ -237,9 +243,13 @@ export const registerLinksSchema = z
      * entry — when the campaign's policy is `code`, refused otherwise.
      */
     recipientPublicKeys: boundedLinkArray(stellarPublicKey).refine((keys) => keys.length > 0).optional(),
+    recipientEmails: boundedLinkArray(z.email().max(254).transform((value) => value.toLowerCase())).optional(),
     codes: boundedLinkArray(z.string().min(1).max(32).refine(isClaimCode, { message: 'must be a 13-character claim code' })).optional(),
   })
   .strict()
+  .refine((v) => v.recipientEmails === undefined || v.recipientEmails.length === v.publicKeys.length, {
+    message: 'recipientEmails must have one entry per link', path: ['recipientEmails'],
+  })
   .refine((v) => v.recipientPublicKeys === undefined || v.recipientPublicKeys.length === v.publicKeys.length, {
     message: 'recipientPublicKeys must have one entry per link', path: ['recipientPublicKeys'],
   })

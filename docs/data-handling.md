@@ -2,8 +2,10 @@
 
 Current deployments use local-link distribution: senders privately distribute
 individual claim URLs from their saved CSV. Bearer-link email is disabled at the
-route, service, producer and worker boundaries (#108). New email-only campaigns
-are refused; OPEN, CODE and PASSKEY remain available. This document also records
+route, service, producer and worker boundaries (#108). Email verification can
+bind a public link key to a creator-assigned email and send OTP-only messages
+through Zender once configured. Private URLs remain in the browser/export.
+See [Zender integration](zender-email-verification.md). This document also records
 the historical email path, which did not meet the browser-only key guarantee.
 
 ## Historical bearer delivery and operator action
@@ -24,7 +26,7 @@ Disabling the feature is not retrospective deletion. No blanket purge is run.
 development harnesses; it cannot enable bearer delivery in production or on
 the public network. Receipt/reminder email contains no bearer URL and is
 unaffected. Existing email-gated links retain their gates; this change does not
-turn them into OPEN links. New deployments must not offer email-only campaigns.
+turn them into OPEN links. New deployments must not enable historical bearer-email delivery.
 
 ## Senders (Kleym's users)
 
@@ -41,13 +43,13 @@ and lives in the environment, never the database (`AGENT.md` §5.5).
 ## Recipients (not Kleym's users)
 
 A recipient is someone a sender gave a link to. Kleym never knows who they
-are — unless the sender previously chose email delivery, in which case Kleym holds the
+are — unless the sender chose email verification or historical delivery, in which case Kleym holds the
 one piece of recipient PII it has:
 
 | Data | Why | Kept |
 |---|---|---|
-| `Delivery.email` | to send the link and its one-time code | until **90 days** after the link or its campaign settles, then redacted |
-| `Delivery.sentAt`, `openedAt` | "did this person get their link?" | survive redaction — they say a delivery happened, not to whom |
+| `Delivery.email` | to send verification codes; historical delivery also sent links | until **90 days** after the link or its campaign settles, then redacted |
+| `Delivery.sentAt`, `openedAt` | historical invitation send / successful OTP check | survive redaction; new OTP-only bindings leave sentAt null |
 | OTP hash, expiry, attempts | the code gate on an emailed link | ten minutes per code; cleared on redaction |
 
 `DELIVERY_RETENTION_DAYS` in `src/lib/api/privacy.ts` is the period; this

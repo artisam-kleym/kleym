@@ -126,7 +126,13 @@ export function OutstandingPanel({ campaignId, canEdit, renewalExists = false }:
             )}
           </div>
 
-          {!expired && !data.suspendedAt && (
+          {!expired && !data.suspendedAt && data.remindable === 0 && (
+            <p className="mt-md text-body-md text-on-surface-variant">
+              No unclaimed recipients have an emailed invitation. Verification-code messages do not enable expiry reminders;
+              share each claim link and its deadline directly.
+            </p>
+          )}
+          {!expired && !data.suspendedAt && data.remindable > 0 && (
             <div className="mt-md rounded-lg border border-outline-variant/50 bg-surface p-md">
               <p className="text-label-md font-semibold text-on-surface">Remind recipients</p>
               <p className="mt-xs text-body-md text-on-surface-variant">

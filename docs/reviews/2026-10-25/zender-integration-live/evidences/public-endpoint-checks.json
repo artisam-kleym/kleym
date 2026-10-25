@@ -1,0 +1,22 @@
+[
+  {
+    "name": "malformed OTP request",
+    "http": 400,
+    "passed": true
+  },
+  {
+    "name": "unknown link generic response",
+    "http": 200,
+    "passed": true
+  },
+  {
+    "name": "recipient injection refused",
+    "http": 400,
+    "passed": true
+  },
+  {
+    "name": "unknown link OTP verification refused",
+    "http": 409,
+    "passed": true
+  }
+]

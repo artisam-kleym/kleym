@@ -58,7 +58,8 @@ enum CampaignStatus {
 
 /// Who may claim a link (#79). OPEN: whoever holds it (SPEC.md §12's bearer
 /// instrument). CODE: a per-link code the sender distributes through a second
-/// channel. EMAIL: the OTP gate — the link must have been emailed by Kleym.
+/// channel. EMAIL: the OTP gate for the creator-assigned inbox; the creator
+/// distributes the private link independently, and Kleym emails only codes.
 /// PASSKEY: the first claimant registers a WebAuthn credential and the link is
 /// bound to that device. None of these identifies a person; they bind a link
 /// to a channel or a device.
@@ -790,7 +791,8 @@ model ClaimLinkPasskey {
   link ClaimLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
 }
 
-/// Where a link was emailed. The address is the only recipient PII Kleym
+/// Recipient email binding for OTP-only verification, or historical email delivery.
+/// An OTP-only binding has no sentAt: no claim URL was emailed. The address is recipient PII Kleym
 /// holds, belongs to someone who is not a Kleym user, and has a lifecycle
 /// (#50): it is REDACTED — nulled, with `redactedAt` set — by the retention
 /// sweep once the campaign has settled, or on an erasure request. What

@@ -19,6 +19,7 @@ import { triggerDownload } from '../new/download-gate'
 interface LinkRow {
   ephemeralPublicKey: string
   recipientPublicKey?: string | null
+  recipientEmail?: string | null
   label: string | null
   reference?: string | null
   category?: string | null
@@ -71,7 +72,7 @@ export function RegenerateCsv({
           row.reference || row.category || row.note ? { reference: row.reference ?? null, category: row.category ?? null, note: row.note ?? null } : null,
         ),
         rows.map((row) => row.amount ?? null),
-        { withCodes, ...(rows.some((row) => row.recipientPublicKey) ? { recipientPublicKeys: rows.map((row) => row.recipientPublicKey ?? '') } : {}) },
+        { withCodes, ...(rows.some((row) => row.recipientEmail) ? { recipientEmails: rows.map((row) => row.recipientEmail ?? '') } : {}), ...(rows.some((row) => row.recipientPublicKey) ? { recipientPublicKeys: rows.map((row) => row.recipientPublicKey ?? '') } : {}) },
       ).slice(0, rows.length)
 
       /*

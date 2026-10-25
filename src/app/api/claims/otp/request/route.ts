@@ -6,6 +6,11 @@
  * host nor a single link can be used to flood a mailbox.
  */
 import { z } from 'zod'
+import { env } from '@/lib/config/env'
+import { enqueueEmailStatus } from '@/lib/queue/email-status'
+import { ZenderError } from '@/lib/email/zender'
+import { createHash, randomUUID } from 'node:crypto'
+import { redis } from '@/lib/redis/client'
 import { logger } from '@/lib/config/logger'
 import { clientIp } from '@/lib/auth/client-ip'
 import { rateLimit } from '@/lib/auth/rate-limit'
@@ -68,9 +73,7 @@ export async function POST(request: Request) {
      * reason: whether a key's address was erased is not this endpoint's to
      * reveal. No code is issued — there is nowhere to send it.
      */
-    if (!gate.email) return Response.json({ sent: true }, { headers: { 'cache-control': 'no-store' } })
-
-    const code = await issueOtp(gate.deliveryId)
+    if (!gate.email || !gate.claimable) return Response.json({ sent: true }, { headers: { 'cache-control': 'no-store' } })
 
     /*
      * A FAILED SEND STILL ANSWERS `sent: true`, and that is the point.
@@ -87,12 +90,30 @@ export async function POST(request: Request) {
      * another code.
      */
     try {
-      await resend({ to: gate.email, ...otpEmail(code) })
-      // The delivery id only. Never the code (AGENT.md §4.5), never the address.
-      logger.info({ deliveryId: gate.deliveryId }, 'otp mailed')
+      // Multiple links for one inbox must not multiply its mail rate. The
+      // address never appears in a Redis key or a response.
+      const mailbox = createHash('sha256').update(gate.email.toLowerCase()).digest('hex')
+      const allowed = await rateLimit(`otp:request:mailbox:${mailbox}`, OTP_REQUEST_LIMIT.limit, OTP_REQUEST_LIMIT.windowSeconds)
+      if (!allowed.allowed) return Response.json({ sent: true }, { headers: { 'cache-control': 'no-store' } })
+      const nonce = randomUUID()
+      const lockKey = `otp:send:${gate.deliveryId}`
+      if (!(await redis.set(lockKey, nonce, 'EX', 30, 'NX'))) return Response.json({ sent: true }, { headers: { 'cache-control': 'no-store' } })
+      try {
+        const code = await issueOtp(gate.deliveryId)
+        const { id } = await resend({ to: gate.email, ...otpEmail(code), idempotencyKey: `otp:${gate.deliveryId}:${randomUUID()}` })
+        // Never the code (AGENT.md §4.5), never the address.
+        logger.info({ deliveryId: gate.deliveryId, providerId: id }, 'otp mail accepted; delivery unconfirmed')
+        if (env.EMAIL_PROVIDER === 'zender') {
+          try { await enqueueEmailStatus({ deliveryId: gate.deliveryId, providerId: id }) }
+          catch { logger.error({ deliveryId: gate.deliveryId, providerId: id }, 'OTP accepted but delivery monitor unavailable; operator review required') }
+        }
+      } finally {
+        await redis.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end", 1, lockKey, nonce)
+      }
     } catch (error) {
       logger.error(
-        { deliveryId: gate.deliveryId, reason: error instanceof Error ? error.message : 'unknown' },
+        { deliveryId: gate.deliveryId, reason: error instanceof ZenderError ? error.message : 'mail request failed',
+          ...(error instanceof ZenderError ? { status: error.status, requestId: error.requestId, retryAfterSeconds: error.retryAfterSeconds } : {}) },
         'otp could not be mailed',
       )
     }

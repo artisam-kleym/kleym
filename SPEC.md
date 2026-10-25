@@ -582,7 +582,7 @@ The page is a state machine and every state needs a designed screen:
 | `loading` | Resolving the link |
 | `invalid` | Link is malformed or not recognised |
 | `ready` | "You've received 500.00 USDC from *Sender*" + Connect Wallet to Claim |
-| `otp_required` | Six-digit code entry (email-delivered links only) |
+| `otp_required` | Six-digit code entry for assigned-email verification or historical email delivery. Current Zender flow sends codes only; claim URLs stay in the private CSV. |
 | `wallet_connecting` | Wallet kit modal |
 | `preparing` | Building your claim |
 | `awaiting_signature` | Confirm in your wallet |
@@ -695,7 +695,7 @@ Base: `/api`. All handlers are Next.js Route Handlers with `runtime = 'nodejs'`.
 | POST | `/api/claims/federation` | `{ address: "name*domain" }` → `{ accountId, memo }` resolved by Kleym's server (#75), HTTPS only, public hosts only, the returned key validated. Rate-limited 20/min/IP. |
 | POST | `/api/claims/prepare/claim` | `{ ephemeralPublicKey, recipientPublicKey, receiveAs?: { assetCode, assetIssuer, destMin? }, memo? }` → TX2 sponsor-signed XDR, whether a recipient signature is required, `conversion` (`destAmount`, `destMin`) when receiving as another asset (#74), and `memo` when depositing to an exchange (#75: required, typed, `text` ≤ 28 bytes, checked before anything is signed; the address must exist and trust the asset). `destMin` is the floor the page showed: the envelope is bound to the higher of it and the fresh bound, and refused `quote-missed` if the fresh quote is below it. |
 | POST | `/api/claims/submit` | `{ ephemeralPublicKey, signedXdr, phase }` → submits, records claim. Rate-limited 10/min/IP. |
-| POST | `/api/claims/otp/request` | Email-delivered links only |
+| POST | `/api/claims/otp/request` | Assigned-email bindings and historical deliveries; request a code for the creator-assigned email, never a caller-supplied address. See `docs/zender-email-verification.md`. |
 | POST | `/api/claims/otp/verify` | 6 digits, 5 attempts, 10-minute expiry |
 | POST | `/api/claims/code/verify` | `{ ephemeralPublicKey, code }` — the CODE policy's 13-character claim code (#79); 5 attempts then a 15-minute lock, per link and caller; on an emailed link the OTP token must already be on the request; returns the token the claim actions require |
 | GET/POST | `/api/templates`, `/api/templates/[id]` (GET/PATCH/DELETE), `…/run`, `…/runs`, `/api/campaigns/[id]/template` | Campaign templates and schedules (#82): terms + recipient list saved to run again; a schedule prepares a DRAFT and tells the operator; keys and signatures stay with a person |

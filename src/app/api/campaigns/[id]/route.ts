@@ -77,9 +77,16 @@ export async function PATCH(request: Request, { params }: Params) {
   try {
     const campaign = await prisma.campaign.findFirst({
       where: owned(id, org.id),
-      select: { id: true, status: true },
+      select: { id: true, status: true, claimPolicy: true },
     })
     if (!campaign) return notFound()
+
+    // OTP-only bindings have never received an invitation. Preserve reminders
+    // for historical invitations, but don't accept a schedule that cannot mail.
+    if (campaign.claimPolicy === 'EMAIL' && parsed.data.reminderDaysBefore?.length) {
+      const invitations = await prisma.delivery.count({ where: { sentAt: { not: null }, link: { campaignId: campaign.id } } })
+      if (!invitations) return validationProblem([{ path: 'reminderDaysBefore', message: 'Code-only verification does not send expiry reminders. Share the deadline with each recipient.' }])
+    }
 
     /*
      * Only a DRAFT may be cancelled here, because only a draft has nothing on

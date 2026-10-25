@@ -1,5 +1,6 @@
 import { PageHeading } from '@/components/ui/page-heading'
 import { pageScope } from '@/lib/api/session-guard'
+import { emailVerificationAvailable } from '@/lib/email/delivery-policy'
 import { env } from '@/lib/config/env'
 import { stellarMetadata } from '@/lib/stellar/network'
 import { networkWorkspaces } from '@/lib/stellar/network-workspaces'
@@ -58,6 +59,7 @@ export default async function NewCampaignPage({ searchParams }: { searchParams: 
         maxOpsPerBatch={env.MAX_OPS_PER_BATCH}
         maxLinksPerCampaign={env.MAX_LINKS_PER_CAMPAIGN}
         baseFeeStroops={env.BASE_FEE_STROOPS}
+        emailVerificationAvailable={emailVerificationAvailable()}
         screening={org.screeningUrl !== null}
         reissue={reissue}
         template={template}

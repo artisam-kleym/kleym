@@ -6,10 +6,12 @@
  * handler can only be tested through a session, and so tends not to be.
  */
 import Decimal from 'decimal.js'
+import { z } from 'zod'
 import { StrKey } from '@stellar/stellar-sdk'
 import { prisma } from '@/lib/db/client'
 import { owned } from './session-guard'
 import { hashClaimCode } from './claim-policy'
+const emailSchema = z.email().max(254)
 
 export type RegisterOutcome =
   | { kind: 'not-found' }
@@ -43,6 +45,7 @@ export async function registerLinks(
   amounts?: (string | null)[],
   codes?: string[],
   recipientPublicKeys?: string[],
+  recipientEmails?: string[],
 ): Promise<RegisterOutcome> {
   return prisma.$transaction(
     async (tx) => {
@@ -51,6 +54,14 @@ export async function registerLinks(
         select: { id: true, status: true, linkCount: true, amountPerLink: true, variableAmounts: true, claimPolicy: true, senderPublicKey: true, renewalOfId: true },
       })
       if (!campaign) return { kind: 'not-found' }
+      if (campaign.claimPolicy === 'EMAIL') {
+        if (!recipientEmails || recipientEmails.length !== publicKeys.length || recipientEmails.some((email) => !emailSchema.safeParse(email).success)) {
+          return { kind: 'budget', detail: 'Register one valid recipient email per link.' }
+        }
+      } else if (recipientEmails) {
+        return { kind: 'budget', detail: 'Recipient emails require the email-verification policy.' }
+      }
+      const emailByKey = new Map(publicKeys.map((key, index) => [key, recipientEmails?.[index]?.toLowerCase()]))
 
       /*
        * Every row gets an amount at registration — its own, or the campaign
@@ -107,11 +118,14 @@ export async function registerLinks(
       // produce an export that disagrees with the funded prize.
       const recorded = await tx.claimLink.findMany({
         where: { campaignId, ephemeralPublicKey: { in: publicKeys } },
-        select: { ephemeralPublicKey: true, recipientPublicKey: true, amount: true, label: true, codeHash: true, reference: true, category: true, note: true },
+        select: { ephemeralPublicKey: true, recipientPublicKey: true, amount: true, label: true, codeHash: true, reference: true, category: true, note: true, delivery: { select: { email: true } } },
       })
       const byKey = new Map(recorded.map((row) => [row.ephemeralPublicKey, row]))
       for (const prize of desired) {
         const row = byKey.get(prize.ephemeralPublicKey)
+        if (row && campaign.claimPolicy === 'EMAIL' && row.delivery?.email !== emailByKey.get(prize.ephemeralPublicKey)) {
+          return { kind: 'budget', detail: 'A registered link has a different or redacted recipient email. Email assignments cannot change on retry.' }
+        }
         if (row && (!new Decimal(row.amount.toString()).equals(prize.amount) ||
           row.recipientPublicKey !== prize.recipientPublicKey || row.label !== prize.label || row.codeHash !== prize.codeHash ||
           row.reference !== prize.reference || row.category !== prize.category || row.note !== prize.note)) {
@@ -129,6 +143,12 @@ export async function registerLinks(
         data: additions,
         skipDuplicates: true,
       })
+      if (campaign.claimPolicy === 'EMAIL') {
+        const links = await tx.claimLink.findMany({ where: { campaignId, ephemeralPublicKey: { in: additions.map((row) => row.ephemeralPublicKey) } }, select: { id: true, ephemeralPublicKey: true } })
+        // Reuse the retained/redactable email binding. No URL or secret is stored, and
+        // sentAt stays null: registering an email is not evidence any mail was sent.
+        await tx.delivery.createMany({ data: links.map((row) => ({ linkId: row.id, email: emailByKey.get(row.ephemeralPublicKey)! })) })
+      }
 
       // Display reads this flag; money reads the link (schema.prisma).
       if (variable && !campaign.variableAmounts) {

@@ -166,7 +166,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       {canSuspend && campaign.status !== 'DRAFT' && (
         // Templates (#82): the terms and the recipient list, saved to run again.
         <div className="mt-lg">
-          <SaveTemplate campaignId={campaign.id} />
+          {campaign.claimPolicy !== 'EMAIL' && <SaveTemplate campaignId={campaign.id} />}
         </div>
       )}
 

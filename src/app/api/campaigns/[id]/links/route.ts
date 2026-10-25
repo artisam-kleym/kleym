@@ -52,11 +52,12 @@ export async function GET(request: Request, { params }: Params) {
           // Attestation fields and the link's own amount (#73) ride along so a
           // regenerated CSV (#77) round-trips them.
           reference: true, category: true, note: true, amount: true,
+          delivery: { select: { email: true } },
         },
       }),
     ])
 
-    return Response.json({ links: links.map((l) => ({ ...l, amount: serialiseAmount(l.amount) })), page, perPage, total })
+    return Response.json({ links: links.map(({ delivery, ...link }) => ({ ...link, recipientEmail: delivery?.email ?? null, amount: serialiseAmount(link.amount) })), page, perPage, total })
   } catch (error) {
     logger.error({ reason: error instanceof Error ? error.message : 'unknown' }, 'link list failed')
     return serverError()
@@ -98,7 +99,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!idempotency.reserved) return idempotency.response
 
   try {
-    const outcome = await registerLinks(id, org.id, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations, parsed.data.amounts, parsed.data.codes, parsed.data.recipientPublicKeys)
+    const outcome = await registerLinks(id, org.id, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations, parsed.data.amounts, parsed.data.codes, parsed.data.recipientPublicKeys, parsed.data.recipientEmails)
 
     if (outcome.kind !== 'ok') {
       await releaseIdempotency(request, context)

@@ -12,7 +12,7 @@ Ephemeral seeds are generated in the sender's browser, placed in URL fragments, 
 
 Before writing any line that touches a keypair, ask: *could this value reach the server, a log, a database, or a third party?* If yes, the design is wrong — stop and reconsider rather than adding a mitigation.
 
-Current deployments use local-link distribution only (#108). Bearer-link email ingress is disabled, and new email-only campaigns are refused. Historical email code persists full URLs in Redis job payloads and may have copied them into backups/provider systems; it did not provide the browser-only guarantee. A development-only Testnet flag qualifies that historical path, and cannot enable it in production or on the public network. Existing legacy jobs are held for explicit operator review, not silently deleted. Receipt/reminder messages contain no claim URL. See `docs/data-handling.md`; do not extend the historical exception.
+Current deployments use local-link distribution only (#108). Bearer-link email ingress stays disabled. Email verification may bind each public link key to an email during registration and send OTP-only messages through Zender; it must never send a claim URL. This policy is available only when Zender is configured. Historical email code persists full URLs in Redis job payloads and may have copied them into backups/provider systems; it did not provide the browser-only guarantee. A development-only Testnet flag qualifies that historical path, and cannot enable it in production or on the public network. Existing legacy jobs are held for explicit operator review, not silently deleted. Receipt/reminder messages contain no claim URL. See `docs/data-handling.md` and `docs/zender-email-verification.md`; do not extend the historical exception.
 
 **Self-check before every commit:**
 ```bash
@@ -58,7 +58,7 @@ Only when all four pass do you proceed to step 2 of SPEC §11. If they do not pa
 | Wallets | `@creit.tech/stellar-wallets-kit` |
 | Passwords | `argon2` (argon2id) |
 | Money | `decimal.js` |
-| Email | `resend` |
+| Email | Zender API v1 for OTP verification; Resend compatibility |
 | Testing | Vitest (unit), Playwright (e2e) |
 | Hosting | Railway |
 

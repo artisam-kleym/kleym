@@ -1,0 +1,16 @@
+{
+  "runtime": "v24.22.1",
+  "isolatedDatabase": true,
+  "isolatedRedisNamespace": true,
+  "assetTransactions": 0,
+  "migrations": "PASS",
+  "atomicRegistrationAndReplay": "PASS",
+  "expiredAndReplacedCodes": "PASS",
+  "realDatabaseConcurrencyAndScopedToken": "PASS",
+  "providerId": "cmvny6v25001s0tmpfh6b6lpv",
+  "adapterIdempotency": "PASS",
+  "providerStatus": "delivered",
+  "realOtpVerifyRoute": "PASS",
+  "deployedStatusWorker": "PASS",
+  "isolatedDatabaseRemoved": true
+}

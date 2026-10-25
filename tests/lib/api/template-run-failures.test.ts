@@ -39,6 +39,12 @@ beforeEach(() => {
 })
 
 describe('template run failure boundaries', () => {
+  it('refuses email template runs before creating durable recipient snapshots or campaigns', async () => {
+    const emailTemplate = { ...template, terms: { ...(template.terms as Record<string, unknown>), claimPolicy: 'email' } }
+    expect(await prepareRun(emailTemplate, 'MANUAL', now, 100, { userId: 'author', ip: null }, now)).toMatchObject({ kind: 'invalid' })
+    expect(mocks.createCampaign).not.toHaveBeenCalled()
+    expect(mocks.createRun).not.toHaveBeenCalled()
+  })
   it('returns the prepared campaign when its post-commit audit fails', async () => {
     mocks.audit.mockRejectedValue(new Error('audit unavailable'))
     const result = await prepareRun(template, 'SCHEDULED', now, 100, { userId: 'author', ip: null }, now)

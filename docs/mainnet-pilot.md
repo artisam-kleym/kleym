@@ -1,6 +1,16 @@
 # Kleym Mainnet pilot preparation
 
-Updated 2026-10-08. Current development targets Testnet; Railway remains paused. This is a configuration and qualification guide, not a deployment or real-USDC transfer instruction.
+Updated 2026-10-26. Current development targets the team's active Railway Testnet deployment at https://kleym-testnet.up.railway.app. This is a configuration and qualification guide, not a real-USDC transfer instruction.
+
+## Current Freighter release scope
+
+Freighter is the wallet target for the current release: desktop extension and Android Chrome/mobile app. Lantern integration is deferred and is not a prerequisite for this Freighter release. Retain the manual funding-address balance lookup; signing still requires the wallet controlling that address.
+
+The EMAIL flow now binds imported recipient emails to public link keys, sends OTP-only messages through Zender, and keeps claim URLs in the creator's private export. The user's first funded email-gated claim paid exactly one official Testnet USDC, with funding/claim signatures and temporary-entry cleanup independently verified. Android email-gated qualification is in progress. See [current readiness evidence](reviews/2026-10-26/freighter-readiness/README.md).
+
+Mainnet remains unavailable in the selector: no separate approved Mainnet application address/deployment has been supplied. A read-only check verified public network identity and issuer availability; this is not a wallet or asset-transfer qualification. Keep Mainnet distribution disabled and preserve existing Testnet links and keys.
+
+Before live use, the team still needs to qualify provider tracking/authentication, fresh-mailbox deliverability, actual Android wallet behavior, backup/restore for the release environment and hot-treasury/incident ownership. A recipient marking a message Not spam improves that mailbox's result but does not qualify delivery for new recipients. No new application-level USDC campaign amount cap is introduced; wallet capacity, protocol precision and sponsorship admission remain the enforced bounds. An owner-approved initial validation amount is an operational release decision, not a global campaign ceiling.
 
 ## Prize distribution safeguards
 

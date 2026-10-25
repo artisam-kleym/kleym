@@ -13,7 +13,7 @@ export function walletCsvTemplate(count = 10): string {
 }
 
 /** RFC 4180: quoted commas, quotes and newlines; malformed quoting is refused. */
-function records(input: string): string[][] {
+export function recipientCsvRecords(input: string): string[][] {
   const out: string[][] = []
   let row: string[] = [], value = '', quoted = false, closed = false
   const field = () => { row.push(value.trim()); value = ''; closed = false }
@@ -46,7 +46,7 @@ export interface WalletRecipients {
 export function parseWalletRecipients(input: string, allowed: number): WalletRecipients {
   if (new TextEncoder().encode(input).length > 2_000_000) throw new Error('The CSV must be smaller than 2 MB.')
   if (scanForMnemonic(input) !== 'clean') throw new Error('The CSV contains recovery words or too much sensitive-looking text. Upload only public recipient details.')
-  const rows = records(input)
+  const rows = recipientCsvRecords(input)
   const header = rows.shift()?.map((s) => s.toLowerCase().replace(/_/g, ' ')) ?? []
   if (new Set(header).size !== header.length || !header.includes('wallet address')) throw new Error('Use the CSV template with one Wallet Address column.')
   const at = (row: string[], name: string) => row[header.indexOf(name)] ?? ''

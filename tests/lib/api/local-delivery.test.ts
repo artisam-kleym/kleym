@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { DelayedError } from 'bullmq'
 
-const state = vi.hoisted(() => ({ env: { LEGACY_BEARER_EMAIL_ENABLED: false, NODE_ENV: 'test', STELLAR_NETWORK: 'testnet', MAX_LINKS_PER_CAMPAIGN: 10000 },
+const state = vi.hoisted(() => ({ env: { EMAIL_PROVIDER: 'resend', ZENDER_API_KEY: '', LEGACY_BEARER_EMAIL_ENABLED: false, NODE_ENV: 'test', STELLAR_NETWORK: 'testnet', MAX_LINKS_PER_CAMPAIGN: 10000 },
   database: vi.fn(), queue: vi.fn() }))
 vi.mock('@/lib/config/env', () => ({ env: state.env }))
 vi.mock('@/lib/db/client', () => ({ prisma: { campaign: { findFirst: state.database } } }))
@@ -14,12 +14,29 @@ import { queueDeliveries } from '@/lib/api/deliver'
 import { enqueueDelivery, type DeliveryJob } from '@/lib/queue/email'
 import { holdBlockedBearerJob } from '@/workers/email'
 import { legacyBearerEmailAllowed } from '@/lib/email/delivery-policy'
-import { createCampaignSchema } from '@/lib/api/campaigns'
+import { createCampaignSchema, registerLinksSchema } from '@/lib/api/campaigns'
 import { Keypair } from '@stellar/stellar-sdk'
 
 beforeEach(() => {
   state.env.LEGACY_BEARER_EMAIL_ENABLED = false; state.env.NODE_ENV = 'test'; state.env.STELLAR_NETWORK = 'testnet'
+  state.env.EMAIL_PROVIDER = 'resend'; state.env.ZENDER_API_KEY = ''
   state.database.mockClear(); state.queue.mockClear()
+})
+
+it('allows configured OTP-only campaigns in production while keeping bearer mail disabled', () => {
+  const terms = { name: 'Email verification', network: 'testnet', senderPublicKey: Keypair.random().publicKey(),
+    assetCode: 'XLM', amountPerLink: '1', linkCount: 1, expiresAt: new Date(Date.now() + 3_600_000).toISOString(), claimPolicy: 'email' }
+  state.env.NODE_ENV = 'production'; state.env.EMAIL_PROVIDER = 'zender'
+  expect(createCampaignSchema.safeParse(terms).success).toBe(false)
+  state.env.ZENDER_API_KEY = 'fixture-only'
+  expect(createCampaignSchema.safeParse(terms).success).toBe(true)
+  expect(createCampaignSchema.safeParse({ ...terms, templateId: 'existing-template' }).success).toBe(false)
+  expect(createCampaignSchema.safeParse({ ...terms, reminderDaysBefore: [1] }).success).toBe(false)
+  expect(legacyBearerEmailAllowed()).toBe(false)
+  const publicKeys = [Keypair.random().publicKey()]
+  expect(registerLinksSchema.safeParse({ publicKeys, recipientEmails: ['bad-address'] }).success).toBe(false)
+  expect(registerLinksSchema.safeParse({ publicKeys, recipientEmails: [] }).success).toBe(false)
+  expect(registerLinksSchema.parse({ publicKeys, recipientEmails: ['Person@example.com'] }).recipientEmails).toEqual(['person@example.com'])
 })
 
 it('refuses new email-only campaigns before creating unfundable claim policies', () => {

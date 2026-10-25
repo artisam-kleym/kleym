@@ -7,6 +7,7 @@ import { hashClaimCode } from '@/lib/api/claim-policy'
 const db = vi.hoisted(() => ({
   campaign: { findFirst: vi.fn(), update: vi.fn() },
   claimLink: { count: vi.fn(), findMany: vi.fn(), createMany: vi.fn() },
+  delivery: { createMany: vi.fn() },
   $transaction: vi.fn(),
 }))
 vi.mock('@/lib/db/client', () => ({ prisma: db }))
@@ -23,6 +24,35 @@ beforeEach(() => {
   db.claimLink.count.mockResolvedValue(1)
   db.claimLink.findMany.mockResolvedValue([recorded()])
   db.claimLink.createMany.mockResolvedValue({ count: 1 })
+})
+
+describe('email recipient registration', () => {
+  it('requires a valid email per key and refuses emails for other policies', async () => {
+    campaign.claimPolicy = 'EMAIL'
+    for (const emails of [undefined, [], ['bad-address']]) {
+      expect((await registerLinks('prizes', 'org', [key], undefined, undefined, undefined, undefined, undefined, emails)).kind).toBe('budget')
+    }
+    campaign.claimPolicy = 'OPEN'
+    expect((await registerLinks('prizes', 'org', [key], undefined, undefined, undefined, undefined, undefined, ['a@example.com'])).kind).toBe('budget')
+    expect(db.claimLink.createMany).not.toHaveBeenCalled()
+  })
+  it('atomically registers emails without a bearer URL and leaves sentAt unset', async () => {
+    campaign.claimPolicy = 'EMAIL'
+    db.claimLink.count.mockResolvedValueOnce(0).mockResolvedValueOnce(1)
+    db.claimLink.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: 'link-1', ephemeralPublicKey: key }])
+    expect(await registerLinks('prizes', 'org', [key], ['Winner'], undefined, undefined, undefined, undefined, ['A@example.com'])).toEqual({ kind: 'ok', registered: 1, total: 1 })
+    expect(db.delivery.createMany).toHaveBeenCalledWith({ data: [{ linkId: 'link-1', email: 'a@example.com' }] })
+    expect(JSON.stringify(db.claimLink.createMany.mock.calls)).not.toContain('claim_url')
+  })
+  it('replays the same assignment but refuses changed or redacted addresses without restoring them', async () => {
+    campaign.claimPolicy = 'EMAIL'
+    db.claimLink.findMany.mockResolvedValue([{ ...recorded(), delivery: { email: 'a@example.com' } }])
+    expect((await registerLinks('prizes', 'org', [key], ['Winner'], undefined, undefined, undefined, undefined, ['a@example.com'])).kind).toBe('ok')
+    expect((await registerLinks('prizes', 'org', [key], ['Winner'], undefined, undefined, undefined, undefined, ['b@example.com'])).kind).toBe('budget')
+    db.claimLink.findMany.mockResolvedValue([{ ...recorded(), delivery: { email: null } }])
+    expect((await registerLinks('prizes', 'org', [key], ['Winner'], undefined, undefined, undefined, undefined, ['a@example.com'])).kind).toBe('budget')
+    expect(db.delivery.createMany).not.toHaveBeenCalled()
+  })
 })
 
 describe('public prize registration recovery', () => {
