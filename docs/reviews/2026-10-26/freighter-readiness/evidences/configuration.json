@@ -1,0 +1,24 @@
+[
+  {
+    "externalTelemetryConfigured": false,
+    "mailProviderZender": true,
+    "appOriginCorrect": true,
+    "mainnetAddressConfigured": false,
+    "mainnetEnabled": false,
+    "service": "kleym-web",
+    "mailCredentialPresent": true,
+    "testnet": true,
+    "encryptionKeyPresent": true
+  },
+  {
+    "externalTelemetryConfigured": false,
+    "mailProviderZender": true,
+    "appOriginCorrect": true,
+    "mainnetAddressConfigured": false,
+    "mainnetEnabled": false,
+    "service": "kleym-worker",
+    "mailCredentialPresent": true,
+    "testnet": true,
+    "encryptionKeyPresent": true
+  }
+]

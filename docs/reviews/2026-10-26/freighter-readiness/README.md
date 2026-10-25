@@ -22,7 +22,7 @@
 | Sanitized email preview | Desktop 800px and mobile 320px; at 320px document width 320px and contiguous code width about 158px; no horizontal overflow |
 | Desktop EMAIL claim | User-reported inbox/wallet flow plus independent public ledger/signature proof |
 | Public network identity | Read only: correct passphrase, official USDC issuer exists; zero writes |
-| Physical Android | User available; Freighter v1.26.29; sender also available; full new-design EMAIL flow pending |
+| Physical Android | Completed by user with Freighter v1.26.29; funding, exact one-USDC claim and cleanup independently verified below |
 
 The preview uses synthetic `000000`, not a recipient OTP. See [desktop](evidences/otp-email-desktop.png), [mobile](evidences/otp-email-mobile.png), and [sanitized HTML](evidences/otp-email-preview.html). The sanitizer harness is isolated under ignored runtime tooling; no application dependency or root lockfile was changed.
 
@@ -47,3 +47,13 @@ Mainnet remains unavailable pending its separate approved deployment/address, pr
 Freighter Android v1.26.29 receiver: `GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I`. At the public pre-check it held **5.0000000 Testnet USDC**, **0.0000000 XLM**, with its account/trustline sponsored (three sponsored units). A one-USDC claim should leave six USDC and zero XLM, absent other account activity. The sender GBV6…OQQY5A is also available on Android per user confirmation. The recipient's inbox address is intentionally omitted from repository evidence.
 
 Full phone creation, private export, funding, OTP entry and recipient claim require the user to operate their wallet and mailbox. Do not request a full claim URL, recovery words, private CSV or OTP in chat. Public campaign IDs and transaction hashes are sufficient for subsequent ledger checks. Avoid another deployment while the user is generating/exporting/signing.
+
+## Completed Android campaign and shared-network follow-up
+
+The user completed campaign creation, export, funding, OTP entry and claim in Android Chrome with Freighter v1.26.29 on the PR #140 deployment (develop merge `623e2bc`). The campaign was named **Android Email Verification**, ID `cmvo2qrnb00010drq5rlzigzh`. Funding `7f1c153944237acda3ee7e78f1cf0e192b3eef530b194107974824671ecca692` succeeded in ledger 5384818; claim `c1a9ecc0e747bc1a7dd3a8149adafec03b8445b209519ba44e8519b1dfcd1b4b` succeeded in ledger 5384842. Independent signature and operation checks prove exactly one official Testnet USDC reached the intended receiver. Its public balance is **6 USDC and 0 XLM**; the temporary account and claimed balance are removed. See [Android ledger proof](evidences/android-ledger-proof.json). Device and OTP interactions are user-reported; ledger facts are independently measured.
+
+PR #140 passed all four GitHub checks and the develop push checks. Railway web, worker and landing auto-deployed that exact merge successfully. Hosted health/readiness returned 200; claim response retained no-referrer, nosniff and CSP protections. The [configuration snapshot](evidences/configuration.json) contains booleans only. External OTLP telemetry remains unconfigured. [Provider observations](evidences/tracking-observation.json) show no recorded open/click events among four scoped messages, which does not prove tracking is disabled.
+
+A follow-up reproduced a shared-Wi-Fi defect: a fourth independent recipient exhausted the three-request IP budget, while several recipients sharing an IP also exhausted each other's verification attempts. Separate aggregate IP budgets now allow 300 requests and 600 verification calls per 15 minutes. Per-link/per-mailbox sends remain three, per-link verification calls remain ten, and each challenge still permits only five wrong guesses. Provider quotas still apply; this is not a throughput guarantee. Four regression cases cover shared recipients and unchanged individual boundaries.
+
+Follow-up local verification: **940 tests passed in 89 files**, zero failed (67.80 seconds); TypeScript and ESLint passed. The physical Android proof predates this narrow rate-budget patch; no second funded transaction was requested for it.

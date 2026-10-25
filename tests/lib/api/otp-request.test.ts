@@ -10,7 +10,7 @@ vi.mock('@/lib/redis/client', () => ({ redis: { set: fixture.lock, eval: fixture
 vi.mock('@/lib/config/logger', () => ({ logger: { info: vi.fn(), error: fixture.error } }))
 import { POST } from '@/app/api/claims/otp/request/route'
 const key = 'G' + 'A'.repeat(55)
-const request = () => new Request('https://kleym.test/api/claims/otp/request', { method: 'POST', body: JSON.stringify({ ephemeralPublicKey: key }) })
+const request = (publicKey = key) => new Request('https://kleym.test/api/claims/otp/request', { method: 'POST', body: JSON.stringify({ ephemeralPublicKey: publicKey }) })
 beforeEach(() => {
   vi.clearAllMocks()
   fixture.gate.mockResolvedValue({ linkId: 'link-1', deliveryId: 'binding-1', email: 'recipient@example.com', claimable: true })
@@ -19,6 +19,25 @@ beforeEach(() => {
   fixture.monitor.mockResolvedValue(undefined)
 })
 describe('OTP mail request boundary', () => {
+  it('allows four different recipients behind one shared network without combining their mail budgets', async () => {
+    const counts = new Map<string, number>()
+    fixture.rate.mockImplementation(async (bucket: string, limit: number) => {
+      const count = (counts.get(bucket) ?? 0) + 1; counts.set(bucket, count)
+      return { allowed: count <= limit, retryAfterSeconds: 900 }
+    })
+    fixture.gate.mockImplementation(async (publicKey: string) => ({ linkId: publicKey, deliveryId: publicKey, email: `${publicKey.slice(-1).toLowerCase()}@example.com`, claimable: true }))
+    for (const suffix of ['B', 'C', 'D', 'E']) expect((await POST(request('G' + 'A'.repeat(54) + suffix))).status).toBe(200)
+    expect(fixture.mail).toHaveBeenCalledTimes(4)
+  })
+  it('still limits one mailbox across separate links on the same network', async () => {
+    const counts = new Map<string, number>()
+    fixture.rate.mockImplementation(async (bucket: string, limit: number) => {
+      const count = (counts.get(bucket) ?? 0) + 1; counts.set(bucket, count)
+      return { allowed: count <= limit, retryAfterSeconds: 900 }
+    })
+    for (const suffix of ['B', 'C', 'D', 'E']) await POST(request('G' + 'A'.repeat(54) + suffix))
+    expect(fixture.mail).toHaveBeenCalledTimes(3)
+  })
   it('sends the assigned mailbox only, with no private URL and an event identity unrelated to the code', async () => {
     const response = await POST(request())
     expect(await response.json()).toEqual({ sent: true })
