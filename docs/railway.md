@@ -101,3 +101,7 @@ CLI uploads use a newly exported source-only directory, never the repository par
 Run `pnpm exec tsx scripts/check-public-deployment.ts https://YOUR_GENERATED_HOST` for read-only HTTP/readiness/claim-header proof. Then perform the [Android claim test](mobile-claims.md) with test USDC on the public URL. Share only public receipts, never full private claim URLs or CSVs. Existing local funded links remain local; do not replace their hosts or copy private database/configuration files into the new project.
 
 After the public Testnet claim, expiry refund, worker recovery and backup/restore pass, prepare a separately reviewed Mainnet environment with separate database, Redis and keys. Agree real-USDC totals, recipients, reserve capital and incident/refill ownership before real transfers. See [Mainnet pilot](mainnet-pilot.md). Changing this Testnet environment to Mainnet would strand its current obligations.
+
+### Static-service configuration isolation
+
+Set the landing service's Railway Config File to `/landing/railway.json`. Its explicit Dockerfile path, `/health` check and dependency-free static start command must be selected together. Leaving this service on the root app configuration can build the app image and then try to run the static server from `/app`, where `server.mjs` does not exist. Web uses the root configuration; worker retains its existing worker configuration. Do not add app credentials or migrations to the landing service.
