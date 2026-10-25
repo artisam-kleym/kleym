@@ -18,6 +18,7 @@
  * Run: pnpm verify:write-api
  */
 import { randomUUID } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import { createServer, type Server } from 'node:http'
 import { mkdtempSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -214,7 +215,16 @@ async function sdkEndToEnd() {
   const links = await prisma.claimLink.findMany({ where: { campaignId: result.campaignId }, select: { ephemeralPublicKey: true, label: true, reference: true, batch: { select: { status: true } } } })
   check('5 public keys registered with labels and attestation', links.length === 5 && links.some((l) => l.label === 'alice' && l.reference === 'PAY-1'))
   const csv = readFileSync(csvPath, 'utf8')
-  check('the secrets CSV is on disk, mode 0600, one seed per link', (statSync(csvPath).mode & 0o777) === 0o600 && new Set(csv.match(/S[A-Z2-7]{55}/g) ?? []).size === 5, `mode ${(statSync(csvPath).mode & 0o777).toString(8)}`)
+  let privatePermissions = (statSync(csvPath).mode & 0o777) === 0o600
+  if (process.platform === 'win32') {
+    const sid = execFileSync('whoami.exe', ['/user', '/fo', 'csv', '/nh'], { encoding: 'utf8', windowsHide: true }).match(/\bS-1-\d+(?:-\d+)+\b/)?.[0]
+    const aclPath = join(dir, 'permissions.txt')
+    execFileSync('icacls.exe', [csvPath, '/save', aclPath], { windowsHide: true, stdio: 'ignore' })
+    const acl = readFileSync(aclPath, 'utf16le')
+    const grants = [...acl.matchAll(/\(A;[^)]*;;;([^)]*)\)/g)].map((match) => match[1])
+    privatePermissions = grants.length === 1 && grants[0] === sid
+  }
+  check('the secrets CSV has private OS permissions and one seed per link', privatePermissions && new Set(csv.match(/S[A-Z2-7]{55}/g) ?? []).size === 5)
   const back = parseLabels(csv, 10)
   check('and re-imports through the server\'s own parser with its attestation', back.ok && back.labels[0] === 'alice' && back.attestations?.[0]?.reference === 'PAY-1', JSON.stringify(back))
   check('the export was marked', (await prisma.campaign.findUniqueOrThrow({ where: { id: result.campaignId }, select: { csvExportedAt: true } })).csvExportedAt !== null)

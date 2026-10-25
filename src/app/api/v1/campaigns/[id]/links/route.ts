@@ -57,7 +57,7 @@ export async function GET(request: Request, { params }: Params) {
         take: perPage,
         skip: (page - 1) * perPage,
         select: {
-          id: true, ephemeralPublicKey: true, balanceId: true, status: true,
+          id: true, ephemeralPublicKey: true, recipientPublicKey: true, balanceId: true, status: true,
           label: true, claimedBy: true, claimedAt: true, claimTxHash: true, amount: true,
           // The deposit memo TX2 carried (#75), beside the claimant.
           claimMemoType: true, claimMemo: true,
@@ -84,7 +84,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!parsed.success) return apiValidationProblem(zodErrors(parsed.error))
 
   try {
-    const outcome = await registerLinks(id, auth.caller.organizationId, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations, parsed.data.amounts, parsed.data.codes)
+    const outcome = await registerLinks(id, auth.caller.organizationId, parsed.data.publicKeys, parsed.data.labels, parsed.data.attestations, parsed.data.amounts, parsed.data.codes, parsed.data.recipientPublicKeys)
     if (outcome.kind === 'not-found') return apiNotFound()
     if (outcome.kind === 'bad-status') return apiConflict(`Links can only be registered while a campaign is DRAFT or CREATING; this one is ${outcome.status}.`)
     if (outcome.kind === 'codes') return apiConflict(outcome.detail)

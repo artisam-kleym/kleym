@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './product.css';
 
 /*
  * Kleym design tokens — BRAND.md §2–§4.
@@ -377,6 +378,8 @@
 
   /* §5.5 — table scrollbar */
   .table-scroll {
+    min-width: 0;
+    max-width: 100%;
     overflow-x: auto;
   }
   .table-scroll::-webkit-scrollbar {
@@ -388,6 +391,25 @@
   .table-scroll::-webkit-scrollbar-thumb {
     background: color-mix(in srgb, var(--color-outline-variant) 50%, transparent);
     border-radius: 4px;
+  }
+}
+
+/* Account settings include long provider URLs and wide desktop form rows.
+ * Keep each row inside its phone container instead of widening the viewport. */
+@layer components {
+  .settings-content {
+    overflow-wrap: anywhere;
+  }
+  @media (width < 48rem) {
+    .settings-content form > *,
+    .settings-content form :is(label, input, select, textarea) {
+      min-width: 0;
+      max-width: 100%;
+    }
+    .settings-content form :is(select, textarea),
+    .settings-content form > button {
+      width: 100%;
+    }
   }
 }
 

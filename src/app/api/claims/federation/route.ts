@@ -55,8 +55,13 @@ async function fetchPublic(url: string, accept: string): Promise<string> {
   const response = await outboundFetch(url, {
     redirect: 'error',
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    headers: { accept },
+    headers: { accept, 'accept-encoding': 'identity' },
   })
+  const encoding = response.headers.get('content-encoding')
+  if (encoding !== null && encoding.trim().toLowerCase() !== 'identity') {
+    await response.body?.cancel().catch(() => undefined)
+    throw new Error('upstream encoding refused')
+  }
   if (!response.ok) throw new Error(`upstream answered ${response.status}`)
   // Apply the stricter federation cap in bytes. The shared transport already
   // bounds network buffering to 2 MiB before returning this response.

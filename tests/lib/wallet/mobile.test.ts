@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Account, Asset, Keypair, Networks, Operation, Transaction, TransactionBuilder } from '@stellar/stellar-sdk'
 
 const mocked = vi.hoisted(() => ({ init: vi.fn(), connect: vi.fn(), request: vi.fn(), disconnect: vi.fn(), get: vi.fn(), on: vi.fn(), off: vi.fn() }))
@@ -19,6 +19,7 @@ function transaction(network: string = Networks.TESTNET, amount = '1') {
 // Native payment is a deterministic signature fixture, never submitted.
 
 describe('mobile sign-only boundary', () => {
+  afterEach(() => vi.useRealTimers())
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
@@ -94,6 +95,25 @@ describe('mobile sign-only boundary', () => {
     expect(launched).not.toHaveBeenCalled()
     expect(mocked.off).toHaveBeenCalledWith('session_request_sent', expect.any(Function))
     expect(mocked.connect).toHaveBeenCalledTimes(1)
+  })
+  it('times out a stalled approval and ignores a late signature until reconnection', async () => {
+    vi.useFakeTimers()
+    const mod = await connected()
+    let resolve!: (value: { signedXDR: string }) => void
+    mocked.request.mockImplementation(() => new Promise((r) => { resolve = r }))
+    const tx = transaction(); const xdr = tx.toXDR(); tx.sign(key)
+    const launched = vi.fn()
+    const pending = expect(mod.signMobile(xdr, 'testnet', key.publicKey(), launched)).rejects.toThrow('timed out')
+    await vi.advanceTimersByTimeAsync(120_000)
+    await pending
+    expect(() => mod.mobileAddress('testnet')).toThrow('Reconnect')
+    resolve({ signedXDR: tx.toXDR() })
+    await vi.advanceTimersByTimeAsync(0)
+    const sent = mocked.on.mock.calls.find(([event]) => event === 'session_request_sent')![1]
+    sent({ topic: 'fixture-topic', chainId: 'stellar:testnet', request: { method: 'stellar_signXDR', params: { xdr } } })
+    expect(launched).not.toHaveBeenCalled()
+    expect(mocked.off).toHaveBeenCalledWith('session_request_sent', expect.any(Function))
+    expect(vi.getTimerCount()).toBe(0)
   })
   it.each(['changed-body', 'wrong-key', 'wrong-network', 'removed-signature'])('rejects %s signing responses', async (kind) => {
     const mod = await connected()

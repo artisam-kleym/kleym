@@ -22,6 +22,17 @@ export function subscribePhoneBrowser(onChange: () => void): () => void {
  */
 export const FREIGHTER_APP_LINK = 'freighterwallet://wc-redirect'
 
+/** Keep the campaign document alive, including its in-memory keys and unload guard. */
+export function openFreighterApp(link: string): void {
+  if (link !== FREIGHTER_APP_LINK) {
+    const uri = new URL(link).searchParams.get('uri')
+    if (!uri || freighterPairingLink(uri) !== link) throw new Error('Invalid Freighter app link.')
+  }
+  // A new browsing context avoids navigating the guarded Review document.
+  // If Chrome blocks automatic opening, the visible retry link is a user gesture.
+  window.open(link, '_blank', 'noopener,noreferrer')
+}
+
 export function freighterPairingLink(uri: string): string {
   const invalid = () => new Error('The phone connection code is invalid. Cancel and try connecting again.')
   if (!/^wc:[a-f0-9]{64}@2\?/i.test(uri)) throw invalid()

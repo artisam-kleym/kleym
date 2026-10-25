@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import Link from 'next/link'
 import { auditActions, queryAudit } from '@/lib/api/audit'
 import { listUsers } from '@/lib/api/admin'
@@ -55,7 +56,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
 
   return (
     <>
-      <h1 className="text-display-lg text-primary max-md:text-headline-md">Audit log</h1>
+      <PageHeading icon="history" tone="yellow">Audit log</PageHeading>
       <p className="mt-md text-body-md text-on-surface-variant">
         {page.total} {page.total === 1 ? 'entry' : 'entries'}. Every mutating action, and
         every seed that reached the server.

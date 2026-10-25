@@ -6,7 +6,7 @@ export function parseLanternOrigins(raw: string | undefined): string[] {
 }
 
 export function lanternFrameAllowed(path: string): boolean {
-  return path === '/' || ['/login', '/mfa', '/dashboard', '/campaigns', '/settings', '/claim', '/organizations'].some((route) => path === route || path.startsWith(`${route}/`))
+  return path === '/' || ['/login', '/mfa', '/dashboard', '/campaigns', '/templates', '/approvals', '/history', '/settings', '/claim', '/organizations'].some((route) => path === route || path.startsWith(`${route}/`))
 }
 
 /** Cookie-bearing mutations still originate from Kleym, even inside a frame. */

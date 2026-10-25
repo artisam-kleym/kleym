@@ -24,7 +24,8 @@ export interface LinkDetails {
   expiresAt: string
   network: string
   /** Who may claim (#79), told before the recipient commits to anything. */
-  policy: 'open' | 'code' | 'email' | 'passkey'
+  recipientPublicKey?: string | null
+  policy: 'open' | 'code' | 'email' | 'passkey' | 'wallet'
   /** PASSKEY policy: whether a device has already been bound to this link. */
   passkeyBound?: boolean
   /** Receive-as (#74): what the sender lets this recipient convert into. Empty when not offered. */
@@ -48,6 +49,7 @@ export interface DepositDraft {
 
 /** What each policy means for the person reading, in their words. */
 export const POLICY_COPY: Record<LinkDetails['policy'], string> = {
+  wallet: 'This prize is locked to the assigned wallet. Connect that wallet and approve its claim; a different wallet cannot receive it.',
   open: 'Anyone who has this link can claim it — keep it to yourself.',
   code: 'This link is bound to a claim code the sender gave you separately. You will be asked for it.',
   email: 'This link was sent to an email address and can only be claimed with the code sent to that address.',
@@ -66,7 +68,7 @@ export type ReceiveAsQuote =
   | { status: 'unavailable'; detail: string }
 
 function Centred({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col items-center gap-md text-center">{children}</div>
+  return <div className="claim-state flex flex-col items-center gap-md text-center">{children}</div>
 }
 
 /**
@@ -93,7 +95,7 @@ function Waiting({ heading, detail }: { heading: string; detail?: string }) {
 /** The amount, as the one thing the recipient is actually here for. */
 function Amount({ amount, assetCode }: { amount: string; assetCode: string }) {
   return (
-    <p className="flex items-baseline justify-center gap-2">
+    <p className="claim-amount flex items-baseline justify-center gap-2">
       <span className="text-display-lg text-primary">{amount}</span>
       <span className="text-headline-md text-on-surface-variant">{assetCode}</span>
     </p>
@@ -213,6 +215,7 @@ export function ClaimScreen({
   /** The deposit that was made, for the success screen. */
   depositMade?: Deposit | null
 }) {
+  const usePhoneFreighter = phoneBrowser && !lanternWallet
   switch (state) {
     case 'loading':
       return <Waiting heading="Resolving the link" />
@@ -261,6 +264,7 @@ export function ClaimScreen({
           {link && (
             <p className="text-center text-body-md text-on-surface-variant" data-testid="claim-policy" data-policy={link.policy}>
               {POLICY_COPY[link.policy]}
+              {link.policy === 'wallet' && link.recipientPublicKey && <span className="mt-sm block break-all font-mono" data-testid="assigned-wallet">Assigned wallet: {link.recipientPublicKey}</span>}
             </p>
           )}
 
@@ -268,11 +272,11 @@ export function ClaimScreen({
             <ReceiveAsChooser link={link} chosen={receiveAs ?? null} quote={quote ?? null} onChoose={onReceiveAs} />
           )}
 
-          {connectedRecipient && phoneBrowser && <p role="status" className="text-center text-body-md text-on-surface" data-testid="phone-connected">
-            Freighter connected. Your funds have not been claimed yet. Review the destination below, then tap Claim. If approval is needed, Freighter will open again.
+          {connectedRecipient && (phoneBrowser || lanternWallet) && <p role="status" className="text-center text-body-md text-on-surface" data-testid="phone-connected">
+            {lanternWallet ? 'Lantern' : 'Freighter'} connected. Your funds have not been claimed yet. Review the destination below, then tap Claim. {lanternWallet ? 'If approval is needed, review it inside Lantern.' : 'If approval is needed, Freighter will open again.'}
           </p>}
           {connectedRecipient && <p className="break-all text-center font-mono text-label-sm text-on-surface-variant">Destination: {connectedRecipient}</p>}
-          {(connectedRecipient || !phoneBrowser) && <Button
+          {(connectedRecipient || !usePhoneFreighter) && <Button
             variant="claim"
             onClick={connectedRecipient ? onClaim : onConnect}
             data-testid="claim-connect"
@@ -280,11 +284,11 @@ export function ClaimScreen({
             // Not while a price is still being fetched: the button commits to what is shown.
             disabled={quote?.status === 'loading'}
           >
-            {connectedRecipient ? `Claim ${link?.amount ?? ''} ${link?.assetCode ?? ''}` : lanternWallet ? 'Connect Lantern' : 'Connect wallet'}
+            {connectedRecipient ? `Claim ${link?.amount ?? ''} ${link?.assetCode ?? ''}` : lanternWallet ? 'Connect Lantern' : 'Connect Freighter'}
           </Button>}
-          {connectedRecipient && <Button variant="secondary" onClick={phoneBrowser ? onConnectMobile : onConnect}>Change wallet</Button>}
-          {phoneBrowser && !connectedRecipient && <Button variant="claim" onClick={onConnectMobile} disabled={!onConnectMobile} data-testid="claim-connect-mobile">Connect Freighter on phone</Button>}
-          {phoneBrowser && !onConnectMobile && !connectedRecipient && <p role="alert" className="text-body-md text-error">Phone wallet connections are unavailable here. Ask the sender to check Kleym’s phone connection setup.</p>}
+          {connectedRecipient && <Button variant="secondary" onClick={usePhoneFreighter ? onConnectMobile : onConnect}>Change wallet</Button>}
+          {usePhoneFreighter && !connectedRecipient && <Button variant="claim" onClick={onConnectMobile} disabled={!onConnectMobile} data-testid="claim-connect-mobile">Connect Freighter on phone</Button>}
+          {usePhoneFreighter && !onConnectMobile && !connectedRecipient && <p role="alert" className="text-body-md text-error">Phone wallet connections are unavailable here. Ask the sender to check Kleym’s phone connection setup.</p>}
 
           {link?.exchangeDeposit && onDeposit && (
             <DepositForm
@@ -336,7 +340,7 @@ export function ClaimScreen({
       return <PasskeyPanel error={passkeyError} bound={link?.passkeyBound === true} onPasskey={onPasskey ?? (() => undefined)} />
 
     case 'wallet_connecting':
-      if (pairingUri) return <MobilePairing uri={pairingUri} network={network} phoneBrowser={phoneBrowser} onCancel={onCancelPairing} />
+      if (pairingUri && !lanternWallet) return <MobilePairing uri={pairingUri} network={network} phoneBrowser={usePhoneFreighter} onCancel={onCancelPairing} />
       return <div className="flex flex-col gap-md"><Waiting heading="Waiting for your wallet" detail="Choose an account to continue." />{onCancelPairing && <Button variant="secondary" onClick={onCancelPairing}>Cancel connection</Button>}</div>
 
     case 'materialising':
@@ -354,7 +358,7 @@ export function ClaimScreen({
       return <Waiting heading="Building your claim" />
 
     case 'awaiting_signature':
-      if (phoneBrowser && mobileApprovalPending) return <div className="flex flex-col gap-md">
+      if (usePhoneFreighter && mobileApprovalPending) return <div className="flex flex-col gap-md">
         <Waiting heading="Approve your claim in Freighter" detail="Review and approve the transaction in Freighter, then return to this tab for confirmation." />
         <a href={FREIGHTER_APP_LINK} rel="noreferrer" data-testid="open-freighter-approval"
           className="inline-flex min-h-11 items-center justify-center rounded-lg bg-action px-4 py-3 font-mono text-label-md font-semibold text-action-on hover:bg-action-hover">
@@ -362,7 +366,7 @@ export function ClaimScreen({
         </a>
         <p className="text-body-md text-on-surface-variant">Keep this tab open. This button reopens your wallet; it does not send another claim request.</p>
       </div>
-      return <Waiting heading="Confirm in your wallet" detail="One more approval and the funds are yours." />
+      return <Waiting heading={lanternWallet ? 'Approve your claim in Lantern' : 'Confirm in Freighter'} detail="Review the destination and amount before approving. Kleym will check the ledger after submission." />
 
     case 'submitting':
       return <Waiting heading="Sending to Stellar" />

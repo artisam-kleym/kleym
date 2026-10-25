@@ -1,0 +1,78 @@
+{
+  "checkedAt": "2026-10-09T03:00:31.174Z",
+  "result": "PASS_WITH_DEVICE_QUALIFICATION_PENDING",
+  "source": {
+    "branch": "codex/mobile-header-signing-fixes",
+    "base": "2ec20e1d30bf4cd5d00a316110399a1cd3f61e54",
+    "exportDigest": "0a779b7311bfb266b2ff8156adc235479549c57ad0b6c86e9d735ff69930ad43",
+    "fileCount": 392,
+    "secretsCopied": false,
+    "uncommitted": true
+  },
+  "deployments": {
+    "web": {
+      "id": "7febef41-3122-4136-8290-70c1cda57d32",
+      "status": "SUCCESS",
+      "imageDigest": "sha256:850f55e809bcf5b053e67d5625974582ecb504e4089098a394ae2b0f75444a7a"
+    },
+    "worker": {
+      "id": "323f6286-5ad4-429a-8cf3-4773d31b2837",
+      "status": "SUCCESS",
+      "imageDigest": "sha256:cd0f5413ccc125d017f390d255ffcc855e8c6e6f6aaac216af99beedc9b7a7dd"
+    }
+  },
+  "verification": {
+    "unit": {
+      "passed": 786,
+      "files": 70
+    },
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "productionBuild": "PASS",
+    "secretGuards": "PASS",
+    "auditModerateOrHigher": "PASS; one LOW",
+    "lanternProductionMockHeader": 14,
+    "utcServerMobileComponents": 35,
+    "liveBrowser": 27,
+    "livePageErrors": 0,
+    "publicStatus": "operational",
+    "workerManualCritical": 0,
+    "workerManualCorrections": 0
+  },
+  "remaining": {
+    "physicalAndroidCreator": "NOT_RUN",
+    "fullLanternDeviceIntegration": "NOT_RUN; directory rebuild and verified origin configuration required",
+    "localDocker": "UNAVAILABLE; no reset",
+    "isolatedPostgresE2E": "NOT_RUN this turn",
+    "mainnet": "DISABLED",
+    "github": "SIGNED_OUT"
+  },
+  "refund": {
+    "checkedAt": "2026-10-09T02:55:24.661Z",
+    "network": "testnet",
+    "hash": "1f4e4ba8886bba22c35e638cc2a127b1f6a93b8a40de75afadfa911191635d4b",
+    "ledger": 5098099,
+    "confirmedAt": "2026-10-09T02:48:02Z",
+    "successful": true,
+    "feeChargedStroops": "100",
+    "source": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+    "operations": [
+      {
+        "type": "claim_claimable_balance",
+        "source": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+        "balanceId": "00000000b0de5120a1d05a73554398ce521a2803c92188aec2273f0b7ff49a0a43ae7ca0"
+      }
+    ],
+    "credit": {
+      "account": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "amount": "1.0000000",
+      "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+    },
+    "balanceRemoved": true,
+    "senderNow": {
+      "native": "0.0000000",
+      "usdc": "9.0000000"
+    },
+    "executedByThisVerification": false
+  }
+}

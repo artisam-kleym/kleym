@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import { pageScope } from '@/lib/api/session-guard'
 import Link from 'next/link'
 import { listApiKeys } from '@/lib/auth/api-key'
@@ -31,13 +32,13 @@ export default async function SettingsPage() {
   const linked = sso ? (await prisma.ssoIdentity.count({ where: { userId: user.id, connectionId: sso.id } })) > 0 : false
 
   return (
-    <>
-      <h1 className="text-display-lg text-primary max-md:text-headline-md">Settings</h1>
+    <div className="settings-content min-w-0">
+      <PageHeading icon="settings" tone="pink">Settings</PageHeading>
       <p className="mt-md font-mono text-label-md text-on-surface-variant">
         Signed in as {user.username} · {org.name}
       </p>
 
-      <section className="mt-2xl">
+      <section className="mt-xl">
         <h2 className="text-headline-sm text-on-surface">Password</h2>
         <p className="mt-xs text-body-md text-on-surface-variant">
           Changing your password signs out every other session.
@@ -45,7 +46,7 @@ export default async function SettingsPage() {
         <PasswordChange />
       </section>
 
-      <section className="mt-2xl">
+      <section className="mt-xl">
         <h2 className="text-headline-sm text-on-surface">Second factor</h2>
         <p className="mt-xs text-body-md text-on-surface-variant">
           An authenticator app or a passkey. Signing a campaign, reclaiming funds and issuing an API key ask for a
@@ -66,7 +67,7 @@ export default async function SettingsPage() {
         mfaPolicy={org.mfaPolicy}
       />
 
-      <section className="mt-2xl">
+      <section className="mt-xl">
         <h2 className="text-headline-sm text-on-surface">API keys</h2>
         <p className="mt-xs text-body-md text-on-surface-variant">
           Access to this organisation&rsquo;s campaigns and links, and — with the @kleym/sdk or CLI — creating
@@ -91,7 +92,7 @@ export default async function SettingsPage() {
         events={WEBHOOK_EVENTS}
         endpoints={endpoints.map((e) => ({ id: e.id, url: e.url, events: e.events, disabledAt: e.disabledAt?.toISOString() ?? null, failures: e.failures, parked: e._count.deliveries, createdAt: e.createdAt.toISOString() }))}
       />
-    </>
+    </div>
   )
 }
 

@@ -7,12 +7,13 @@
  * The only thing that crosses to the server is `publicHalves` — the G…
  * addresses — plus the campaign's own metadata (AGENT.md §1).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { StrKey } from '@stellar/stellar-sdk'
 import { Button, Stepper } from '@/components/ui'
 import { deriveEphemeralKeys, publicHalves, type Attestation } from '@/lib/campaign/keygen'
 import { phraseFingerprint, randomCampaignIndex } from '@/lib/campaign/derive'
+import { parseWalletRecipients, walletRecipientSnapshot, type WalletRecipients as ImportedRecipients } from '@/lib/campaign/wallet-recipients'
 import { parseLabels, buildRecipientListCsv, hasPrizeAmountColumn } from '@/lib/campaign/csv'
 import { isStellarAmount } from '@/lib/stellar/amount'
 import { updatePrizeAmount } from '@/lib/campaign/prize-amounts'
@@ -26,6 +27,8 @@ import { ExportStep } from './export-step'
 import { useStepUp } from '@/components/mfa/use-step-up'
 import { connectWallet, signEnvelope, walletErrorMessage } from '@/lib/wallet/signing'
 import { localExpiry, expiryDescription, expiryError, presetExpiry, type ExpiryChoice } from '@/lib/campaign/expiry'
+import { submitFundingBatch } from '@/lib/campaign/funding-submit'
+import { holdWalletHandoff } from '@/lib/wallet/handoff'
 
 const STEPS = [
   { title: 'Asset & amount' },
@@ -41,12 +44,22 @@ interface Balance {
 
 /** Stable identity, so a memo keyed on it does not invalidate every render. */
 const EMPTY_BALANCES: Balance[] = []
+const subscribeHydration = () => () => {}
+const hydratedClient = () => true
+const hydratedServer = () => false
 
 export function CampaignWizard(config: WizardConfig) {
+  const hydrated = useSyncExternalStore(subscribeHydration, hydratedClient, hydratedServer)
   const router = useRouter()
   const wizard = useWizard()
   const stepUp = useStepUp()
   const registeredCampaign = useRef<string | null>(null)
+  const signingInProgress = useRef(false)
+
+  // A public app-opening link restarts in another document; it cannot move keys.
+  useEffect(() => {
+    if (wizard.step === 2 && wizard.phase !== 'complete') return holdWalletHandoff()
+  }, [wizard.step, wizard.phase])
 
   const reissue = config.reissue ?? null
   /** Template (#82): terms and list prefilled; for a prepared run the campaign already exists. */
@@ -108,17 +121,24 @@ export function CampaignWizard(config: WizardConfig) {
   const [recipientsCsv, setRecipientsCsv] = useState(labelsInitial)
   const initialRecipients = useMemo(() => {
     if (labelsInitial.trim() === '') return null
+    if (config.template?.claimPolicy === 'wallet') {
+      try { return { ok: true, ...parseWalletRecipients(labelsInitial, config.maxLinksPerCampaign) } } catch { return null }
+    }
     const parsed = parseLabels(labelsInitial, Math.max(1, config.template?.linkCount ?? 0))
     return parsed.ok ? parsed : null
-  }, [labelsInitial, config.template?.linkCount])
+  }, [labelsInitial, config.template?.linkCount, config.template?.claimPolicy, config.maxLinksPerCampaign])
   const [labels, setLabels] = useState<string[]>(() => initialRecipients?.labels ?? [])
   const [attestations, setAttestations] = useState<(Attestation | null)[]>(() => initialRecipients?.attestations ?? [])
   /** Per-link amounts (#73) from the pasted CSV; empty means every link pays the default. */
   const [amounts, setAmounts] = useState<(string | null)[]>(() => initialRecipients?.amounts ?? [])
+  const [wallets, setWallets] = useState<string[]>(() => {
+    if (template?.claimPolicy !== 'wallet' || !labelsInitial) return []
+    try { return parseWalletRecipients(labelsInitial, config.maxLinksPerCampaign).wallets } catch { return [] }
+  })
   const [labelError, setLabelError] = useState<string | null>(null)
   const [filename, setFilename] = useState<string | null>(null)
   /** Who may claim (#79). Open unless the sender says otherwise. */
-  const [claimPolicy, setClaimPolicy] = useState<'open' | 'code' | 'email' | 'passkey'>(template?.claimPolicy ?? reissue?.draftPolicy ?? 'open')
+  const [claimPolicy, setClaimPolicy] = useState<'open' | 'code' | 'email' | 'passkey' | 'wallet'>(template?.claimPolicy ?? reissue?.draftPolicy ?? 'open')
   /**
    * Receive-as (#74). The raw field is state; its parse is DERIVED from the
    * raw text AND the campaign asset, so changing the asset after typing the
@@ -163,12 +183,14 @@ export function CampaignWizard(config: WizardConfig) {
   const onAmount = useCallback((index: number, value: string) => {
     const next = updatePrizeAmount(amounts, index, value, draft.linkCount)
     setAmounts(next)
-    if (hasPrizeAmountColumn(recipientsCsv)) setRecipientsCsv(buildRecipientListCsv(draft.linkCount, labels, attestations, next))
-  }, [draft.linkCount, amounts, recipientsCsv, labels, attestations])
+    if (claimPolicy === 'wallet') setRecipientsCsv(walletRecipientSnapshot({ labels, wallets, attestations, amounts: next }))
+    else if (hasPrizeAmountColumn(recipientsCsv)) setRecipientsCsv(buildRecipientListCsv(draft.linkCount, labels, attestations, next))
+  }, [draft.linkCount, amounts, recipientsCsv, labels, attestations, wallets, claimPolicy])
   const onResetAmounts = useCallback(() => {
     setAmounts([])
-    if (hasPrizeAmountColumn(recipientsCsv)) setRecipientsCsv(buildRecipientListCsv(draft.linkCount, labels, attestations, []))
-  }, [draft.linkCount, recipientsCsv, labels, attestations])
+    if (claimPolicy === 'wallet') setRecipientsCsv(walletRecipientSnapshot({ labels, wallets, attestations, amounts: [] }))
+    else if (hasPrizeAmountColumn(recipientsCsv)) setRecipientsCsv(buildRecipientListCsv(draft.linkCount, labels, attestations, []))
+  }, [draft.linkCount, recipientsCsv, labels, attestations, wallets, claimPolicy])
 
   /* Live reserve. SPEC.md §3.2 — never a constant in the UI. */
   useEffect(() => {
@@ -294,41 +316,42 @@ export function CampaignWizard(config: WizardConfig) {
       const invalidExpiry = expiryError(draft.expiresAt)
       if (invalidExpiry) throw new Error(`${invalidExpiry} Go back to Recipients & expiry to change it.`)
       if (claimPolicy === 'email') throw new Error('This email-policy template requires built-in delivery. Choose a supported policy in a new campaign for CSV distribution.')
+      if (claimPolicy === 'wallet' && (wallets.length !== draft.linkCount || wallets.some((key) => !StrKey.isValidEd25519PublicKey(key) || key === draft.senderPublicKey))) throw new Error('Import and review one valid recipient wallet per link. A recipient cannot be the funding wallet.')
       if (!phrase.current || !derivation) throw new Error('Confirm your recovery phrase first.')
       // CODE policy: a claim code is derived beside each key — from the phrase too, so a regenerated CSV carries it (#79).
-      wizard.replaceKeys(deriveEphemeralKeys(phrase.current, derivation.index, draft.linkCount, labels, attestations, amounts, { withCodes: claimPolicy === 'code' }))
+      wizard.replaceKeys(deriveEphemeralKeys(phrase.current, derivation.index, draft.linkCount, labels, attestations, amounts, { withCodes: claimPolicy === 'code', ...(claimPolicy === 'wallet' ? { recipientPublicKeys: wallets } : {}) }))
       wizard.setPhase('awaiting-download')
     } catch (error) {
       wizard.setPhase('editing')
       wizard.setError(error instanceof Error ? error.message : 'Could not generate keys.')
     }
-  }, [draft.linkCount, draft.expiresAt, labels, attestations, amounts, wizard, derivation, claimPolicy])
+  }, [draft.linkCount, draft.expiresAt, labels, attestations, amounts, wizard, derivation, claimPolicy, wallets, draft.senderPublicKey])
 
   /* THE GATE. Only this can open it, and only after the file is written. */
   const onDownload = useCallback(() => {
     try {
-      const result = triggerDownload(wizard.keys, draft.name, config.appUrl)
+      const result = triggerDownload(wizard.keys, draft.name, config.appUrl, claimPolicy === 'code')
       setFilename(result.filename)
       if (result.fired) wizard.markDownloaded()
     } catch (error) {
       wizard.setError(error instanceof Error ? error.message : 'The export did not complete.')
     }
-  }, [wizard, draft.name, config.appUrl])
+  }, [wizard, draft.name, config.appUrl, claimPolicy])
 
   const onSign = useCallback(async () => {
-    if (!canContinuePastExport(wizard.downloaded, wizard.keys)) return
+    if (signingInProgress.current || !canContinuePastExport(wizard.downloaded, wizard.keys, wizard.exportConfirmed)) return
     wizard.setError(null)
     const invalidExpiry = expiryError(draft.expiresAt)
     if (invalidExpiry) {
       wizard.setError(`${invalidExpiry} Go back to Recipients & expiry to change it.`)
       return
     }
-    // Step-up (#47): signing moves money; a fresh second factor first, if one is enrolled.
-    if (!(await stepUp.ensure())) return
-    wizard.setPhase('batching')
-
+    signingInProgress.current = true
     try {
-      const address = await connectWallet(draft.network)
+      // Claim synchronously before step-up/network awaits, so double taps cannot start another run.
+      if (!(await stepUp.ensure())) return
+      wizard.setPhase('batching')
+      const address = await connectWallet(draft.network, { reuseSession: true })
       if (address !== draft.senderPublicKey) {
         wizard.setPhase('awaiting-download')
         wizard.setError('That wallet is signed in to a different account than the funding account.')
@@ -343,13 +366,14 @@ export function CampaignWizard(config: WizardConfig) {
        */
       const campaignId = wizard.campaignId ?? reissue?.draftCampaignId ?? (template?.draftCampaignId
         ? template.draftCampaignId
-        : await createCampaign(draft, wizard.keys.length, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template?.templateId ?? null, emailReceipts, buildRecipientListCsv(draft.linkCount, labels, attestations, amounts), reissue?.id ?? null)
+        : await createCampaign(draft, wizard.keys.length, derivation, claimPolicy, reminderDays, claimPolicy === 'wallet' ? [] : receiveAs, claimPolicy === 'wallet' ? false : allowExchangeDeposit, template?.templateId ?? null, emailReceipts, claimPolicy === 'wallet' ? walletRecipientSnapshot({ labels, wallets, attestations, amounts }) : buildRecipientListCsv(draft.linkCount, labels, attestations, amounts), reissue?.id ?? null)
       )
       wizard.setCampaignId(campaignId)
       if (registeredCampaign.current !== campaignId) {
         const registered = reissue?.registeredPublicKeys ?? []
         if (registered.length > 0) {
           if (registered.length !== wizard.keys.length || wizard.keys.some((key) => !registered.includes(key.publicKey))) throw new PrepareRefused('The regenerated keys do not match this renewal draft. Use its original recovery phrase.')
+          if (claimPolicy === 'wallet') await registerLinks(campaignId, wizard.keys)
         } else await registerLinks(campaignId, wizard.keys)
         registeredCampaign.current = campaignId
       }
@@ -368,7 +392,7 @@ export function CampaignWizard(config: WizardConfig) {
         if (!prepared) break // exhausted: every batch already submitted
         try {
           const signedXdr = await signEnvelope(prepared.xdr, draft.network, draft.senderPublicKey)
-          await submitBatch(campaignId, prepared.sequence, signedXdr)
+          await submitFundingBatch({ campaignId, sequence: prepared.sequence, signedXdr, network: draft.network })
           signed += 1
           wizard.setProgress({ signed, total, failed })
           await waitForBatchConfirmation(campaignId, prepared.sequence)
@@ -381,12 +405,15 @@ export function CampaignWizard(config: WizardConfig) {
         wizard.setProgress({ signed, total, failed })
       }
 
+      if (failed === 0) wizard.setError(null)
       wizard.setPhase(failed > 0 ? 'partial' : 'complete')
     } catch (error) {
       wizard.setPhase('awaiting-download')
       wizard.setError(error instanceof PrepareRefused ? error.message : await walletErrorMessage(error))
+    } finally {
+      signingInProgress.current = false
     }
-  }, [wizard, draft, cost, stepUp, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template, emailReceipts, labels, attestations, amounts, reissue])
+  }, [wizard, draft, cost, stepUp, derivation, claimPolicy, reminderDays, receiveAs, allowExchangeDeposit, template, emailReceipts, labels, attestations, amounts, reissue, wallets])
 
   const onFinish = useCallback(() => {
     router.push(wizard.campaignId ? `/campaigns/${wizard.campaignId}` : '/dashboard')
@@ -409,15 +436,16 @@ export function CampaignWizard(config: WizardConfig) {
         draft.linkCount <= config.maxLinksPerCampaign &&
         expiryError(draft.expiresAt, expiryNow) === null &&
         labelError === null &&
+        (claimPolicy !== 'wallet' || (wallets.length === draft.linkCount && !wallets.includes(draft.senderPublicKey))) &&
         affordable !== null && affordable.asset && affordable.reserve &&
         cost !== null
       )
     }
     return false
-  }, [wizard.step, draft, expiryNow, accountExists, balances, config.maxLinksPerCampaign, labelError, cost, affordable, receiveAsError])
+  }, [wizard.step, draft, expiryNow, accountExists, balances, config.maxLinksPerCampaign, labelError, cost, affordable, receiveAsError, claimPolicy, wallets])
 
   return (
-    <div className="mt-2xl grid grid-cols-[240px_1fr] gap-2xl max-lg:grid-cols-1">
+    <div className="campaign-workflow grid">
       {template && (
         <div className="mb-lg rounded-lg border border-outline-variant/50 bg-surface-container p-md lg:col-span-2" data-testid="template-banner">
           <p className="text-label-md font-semibold text-on-surface">
@@ -441,7 +469,7 @@ export function CampaignWizard(config: WizardConfig) {
       )}
       <Stepper steps={summarise(STEPS, draft, cost, amounts.some((a) => a !== null))} current={wizard.step} />
 
-      <div>
+      <fieldset disabled={!hydrated} aria-busy={!hydrated} data-testid="wizard-interactive" className="min-w-0">
         {/*
           * A prepared run (#82): the draft's terms and list are fixed — the
           * link count, policy, sender and asset are already the campaign's
@@ -494,7 +522,17 @@ export function CampaignWizard(config: WizardConfig) {
             labelError={labelError}
             onLabels={onLabels}
             claimPolicy={claimPolicy}
-            onClaimPolicy={setClaimPolicy}
+            onClaimPolicy={(policy) => {
+              setClaimPolicy(policy)
+              if (policy !== claimPolicy && (policy === 'wallet' || claimPolicy === 'wallet')) { setWallets([]); setLabels([]); setAttestations([]); setAmounts([]); setRecipientsCsv(''); setLabelError(null) }
+            }}
+            wallets={wallets}
+            onWalletPending={(error) => { setWallets([]); setLabelError(error) }}
+            onWalletImport={(rows: ImportedRecipients) => {
+              setWallets(rows.wallets); setLabels(rows.labels); setAttestations(rows.attestations); setAmounts(rows.amounts)
+              setDraft((previous) => ({ ...previous, linkCount: rows.wallets.length }))
+              setRecipientsCsv(walletRecipientSnapshot(rows)); setLabelError(null)
+            }}
             reminderDays={reminderDays}
             onReminderDays={setReminderDays}
             cost={cost}
@@ -512,16 +550,21 @@ export function CampaignWizard(config: WizardConfig) {
             {config.stellar.networkLabel} · {config.stellar.valueNotice} Expiry: {expiryDescription(draft.expiresAt)}
           </p>
         )}
-        {wizard.step === 2 && amounts.some((amount) => amount !== null) && (
+        {wizard.step === 2 && (claimPolicy === 'wallet' || amounts.some((amount) => amount !== null)) && (
           <div className="mb-md">
-            <PrizeAmounts count={draft.linkCount} labels={labels} amounts={amounts} defaultAmount={draft.amountPerLink} assetCode={draft.assetCode} onAmount={() => undefined} onReset={() => undefined} readOnly />
+            <PrizeAmounts wallets={claimPolicy === 'wallet' ? wallets : undefined} count={draft.linkCount} labels={labels} amounts={amounts} defaultAmount={draft.amountPerLink} assetCode={draft.assetCode} onAmount={() => undefined} onReset={() => undefined} readOnly />
           </div>
         )}
+        {wizard.step === 2 && claimPolicy === 'wallet' && <p className="mb-md text-body-md text-on-surface-variant">Wallet-bound claims: each prize can only be claimed by its assigned wallet before expiry. The wallet owner must sign. Conversion and exchange deposits are unavailable.</p>}
         {wizard.step === 2 && (
           <ExportStep
+            withCodes={claimPolicy === 'code'}
             phase={wizard.phase}
+            linkCount={draft.linkCount}
             keys={wizard.keys}
             downloaded={wizard.downloaded}
+            exportConfirmed={wizard.exportConfirmed}
+            onConfirmExport={wizard.confirmExport}
             filename={filename}
             cost={cost}
             progress={wizard.progress}
@@ -582,7 +625,7 @@ export function CampaignWizard(config: WizardConfig) {
             </Button>
           )}
         </div>
-      </div>
+      </fieldset>
     </div>
   )
 }
@@ -597,7 +640,7 @@ async function createCampaign(
   draft: { name: string; network: string; senderPublicKey: string; assetCode: string; assetIssuer: string; amountPerLink: string; expiresAt: string },
   linkCount: number,
   derivation: { index: number; fingerprint: string } | null,
-  claimPolicy: 'open' | 'code' | 'email' | 'passkey' = 'open',
+  claimPolicy: 'open' | 'code' | 'email' | 'passkey' | 'wallet' = 'open',
   reminderDaysBefore: number[] = [],
   receiveAs: ReceiveAsEntry[] = [],
   allowExchangeDeposit = false,
@@ -662,15 +705,6 @@ async function prepareBatch(campaignId: string): Promise<{ sequence: number; xdr
   if (!response.ok) throw new PrepareRefused((await problemDetail(response)) ?? 'The batch could not be prepared. No new signing request was made.')
   const body = await response.json()
   return { sequence: body.sequence, xdr: body.xdr }
-}
-
-async function submitBatch(campaignId: string, sequence: number, signedXdr: string): Promise<void> {
-  const response = await fetch(`/api/campaigns/${campaignId}/batches/submit`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'idempotency-key': idempotencyKey() },
-    body: JSON.stringify({ sequence, signedXdr }),
-  })
-  if (!response.ok) throw new Error((await problemDetail(response)) ?? 'The batch was rejected.')
 }
 
 /** Do not request another sequence while the preceding payment is uncertain. */

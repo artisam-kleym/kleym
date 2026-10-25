@@ -52,19 +52,43 @@ export function claimUrl(appUrl: string, secret: string): string {
   return `${appUrl.replace(/\/$/, '')}/claim#s=${secret}`
 }
 
-export function buildCsv(rows: CsvRow[]): string {
+export function buildCsv(rows: CsvRow[], options: { requireCodes?: boolean } = {}): string {
+  // Validate before constructing the file: a partial code export cannot unlock
+  // every funded link. Never include a credential in an error message.
+  if (options.requireCodes || rows.some(({ key }) => key.code !== null)) {
+    const codes = rows.map(({ key }) => key.code)
+    if (
+      codes.some(
+        (code) => !code || !/^[0-9ABCDEFGHJKMNPQRSTVWXYZ]{13}$/.test(code),
+      )
+    ) {
+      throw new Error(
+        'Every code-protected link must have a valid claim code before export. Keep this tab open and regenerate the keys before funding.',
+      )
+    }
+    if (new Set(codes).size !== codes.length) {
+      throw new Error(
+        'Each link must have its own claim code. Keep this tab open and regenerate the keys before funding.',
+      )
+    }
+  }
   // Attestation columns come LAST so anything reading the first four by position
   // still works; `amount` (#73) and `claim_code` (#79) after them, for the same
   // reason. Amount blank when the link pays the campaign default; code blank
   // unless the policy is code. With a code column the file is more sensitive
   // still: link AND code together.
-  const header = ['label', 'public_key', 'secret', 'claim_url', 'reference', 'category', 'note', 'amount', 'claim_code'].join(',')
+  const walletBound = rows.some(({ key }) => key.recipientPublicKey != null)
+  if (walletBound && rows.some(({ key }) => !key.recipientPublicKey || !StrKey.isValidEd25519PublicKey(key.recipientPublicKey))) {
+    throw new Error('Every wallet-bound link needs its assigned wallet before export.')
+  }
+  const header = ['label', 'public_key', 'secret', 'claim_url', 'reference', 'category', 'note', 'amount', 'claim_code', ...(walletBound ? ['Wallet Address'] : [])].join(',')
   const lines = rows.map(({ key, url }) =>
     [
       quote(key.label ?? ''), quote(key.publicKey), quote(key.secret), quote(url),
       quote(key.attestation?.reference ?? ''), quote(key.attestation?.category ?? ''), quote(key.attestation?.note ?? ''),
       quote(key.amount ?? ''),
       quote(key.code ?? ''),
+      ...(walletBound ? [quote(key.recipientPublicKey!)] : []),
     ].join(','),
   )
   // Trailing newline: without it, some tools drop the final row.

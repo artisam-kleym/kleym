@@ -101,7 +101,7 @@ export function SingleSignOn({ connection, redirectUri, scimBase, scimTokens, ow
   }
 
   return (
-    <section className="mt-2xl">
+    <section className="mt-xl">
       <h2 className="text-headline-sm text-on-surface">Single sign-on</h2>
       <p className="mt-xs text-body-md text-on-surface-variant">
         OpenID Connect with your identity provider (Entra ID, Okta, Google Workspace…), and SCIM 2.0 so your
@@ -131,7 +131,7 @@ export function SingleSignOn({ connection, redirectUri, scimBase, scimTokens, ow
           <Input label="Groups claim" name="groupsClaim" defaultValue={connection?.groupsClaim ?? 'groups'} />
           <label className="flex flex-col gap-xs">
             <span className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">Default role</span>
-            <select name="defaultRole" defaultValue={connection?.defaultRole ?? 'VIEWER'} className="rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface">
+            <select name="defaultRole" defaultValue={connection?.defaultRole ?? 'VIEWER'} className="rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-body-md md:text-label-md text-on-surface">
               {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </label>
@@ -165,8 +165,8 @@ export function SingleSignOn({ connection, redirectUri, scimBase, scimTokens, ow
               <p className="font-mono text-label-md break-all">{issued}</p>
             </WarningPanel>
           )}
-          <form onSubmit={issueToken} className="mt-md flex flex-wrap items-end gap-sm">
-            <Input label="Token name" name="name" maxLength={60} required placeholder="Okta provisioning" className="min-w-[14rem]" />
+          <form onSubmit={issueToken} className="mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-sm">
+            <Input label="Token name" name="name" maxLength={60} required placeholder="Okta provisioning" className="min-w-0 sm:min-w-[14rem]" />
             <Button type="submit" variant="secondary" disabled={busy}>Issue token</Button>
           </form>
           {scimTokens.length > 0 && (

@@ -1,6 +1,7 @@
 import { test, expect, type Page, type Request } from '@playwright/test'
 import { Keypair } from '@stellar/stellar-sdk'
 import { stellarMetadata } from '../src/lib/stellar/network'
+import { splitCsvLine } from '../src/lib/campaign/csv'
 
 /**
  * The CSV hard gate, in a real browser. SPEC.md §5.3 step 3, §10.11.
@@ -16,6 +17,48 @@ import { stellarMetadata } from '../src/lib/stellar/network'
  */
 
 const SENDER = Keypair.random().publicKey()
+
+// Wizard tests generate private material. Automatic artifacts must stay off;
+// Playwright requires these worker-level settings at file scope.
+test.use({ trace: 'off', screenshot: 'off', video: 'off' })
+
+test.describe('mobile sender navigation', () => {
+  for (const width of [320, 393]) {
+    test(`keeps every destination within the ${width}px screen`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 740 })
+      await page.goto('/campaigns/new')
+      await expect(page.getByLabel('Campaign name')).toBeVisible()
+      const menuToggle = page.getByRole('button', { name: 'Menu', exact: true })
+      await expect(menuToggle).toHaveAttribute('aria-expanded', 'false')
+      const header = page.locator('header:visible')
+      expect((await header.boundingBox())!.y).toBe(0)
+      await menuToggle.click()
+      const nav = page.locator('nav[aria-label="Main"]:visible')
+      const links = nav.getByRole('link')
+      // The seeded account is an administrator; its seventh destination is Admin.
+      await expect(links).toHaveCount(7)
+      for (const link of await links.all()) {
+        await expect(link).toBeVisible()
+        const box = await link.boundingBox()
+        expect(box).not.toBeNull()
+        expect(box!.x).toBeGreaterThanOrEqual(0)
+        expect(box!.x + box!.width).toBeLessThanOrEqual(width)
+        expect(box!.y + box!.height).toBeLessThanOrEqual(740)
+        expect(box!.height).toBeGreaterThanOrEqual(44)
+      }
+      await page.keyboard.press('Escape')
+      await expect(menuToggle).toHaveAttribute('aria-expanded', 'false')
+      // The top menu must not cover the last action when the page is scrolled.
+      const next = page.getByTestId('next-step')
+      await next.scrollIntoViewIfNeeded()
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      const action = await next.boundingBox()
+      const menu = await header.boundingBox()
+      expect(action!.y).toBeGreaterThanOrEqual(menu!.y + menu!.height)
+      expect(action!.y + action!.height).toBeLessThanOrEqual(740)
+    })
+  }
+})
 
 /**
  * The two Horizon-backed lookups are stubbed.
@@ -198,7 +241,7 @@ function recordTraffic(page: Page): { requests: Request[] } {
   return { requests }
 }
 
-async function reachExportStep(page: Page) {
+async function reachExportStep(page: Page, policy: 'open' | 'code' = 'open') {
   await stubLookups(page)
   await page.goto('/campaigns/new')
 
@@ -211,10 +254,13 @@ async function reachExportStep(page: Page) {
   await next.click()
 
   await page.getByLabel('Number of links').fill('3')
+  await page.locator(`input[name="claimPolicy"][value="${policy}"]`).check()
   await expect(next).toBeEnabled()
   await next.click()
 
   await expect(page.getByRole('heading', { name: /review & create/i })).toBeVisible()
+  // Review must show the selected count before any private keys are generated.
+  await expect(page.getByTestId('review-link-count')).toHaveText('3')
 }
 
 /**
@@ -230,6 +276,62 @@ async function confirmPhrase(page: Page): Promise<string[]> {
   await page.getByTestId('phrase-confirm').click()
   return words.map((w) => w.replace(/^\d+\.\s*/, '').trim())
 }
+
+test.describe('code-protected CSV export', () => {
+  for (const width of [320, 1440]) {
+    test(`exports one code per link and preserves the save gate at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      const traffic = recordTraffic(page)
+      await reachExportStep(page, 'code')
+      await expect(
+        page.getByTestId('claim-code-export-guidance'),
+      ).toContainText('separate channel')
+      await confirmPhrase(page)
+      await page.getByTestId('generate-keys').click()
+      await expect(
+        page.getByTestId('claim-code-export-guidance'),
+      ).toContainText('All 3 links have codes ready')
+      await expect(page.getByTestId('sign-batches')).toBeDisabled()
+      const download = page.waitForEvent('download')
+      await page.getByTestId('download-secrets').click()
+      const file = await download
+      const stream = await file.createReadStream()
+      expect(stream !== null).toBe(true)
+      const chunks: Buffer[] = []
+      for await (const chunk of stream!) chunks.push(Buffer.from(chunk))
+      const rows = Buffer.concat(chunks)
+        .toString('utf8')
+        .trimEnd()
+        .split('\n')
+        .map(splitCsvLine)
+      expect(rows.length).toBe(4)
+      expect(rows[0]![8]).toBe('claim_code')
+      const codes = rows.slice(1).map((row) => row[8]!)
+      expect(
+        codes.every((code) => /^[0-9ABCDEFGHJKMNPQRSTVWXYZ]{13}$/.test(code)),
+      ).toBe(true)
+      expect(new Set(codes).size).toBe(3)
+      expect(rows.slice(1).every((row) => !row[3]!.includes(row[8]!))).toBe(
+        true,
+      )
+      const sent = traffic.requests
+        .map((request) => request.url() + (request.postData() ?? ''))
+        .join('\n')
+      expect(rows.slice(1).every((row) => !sent.includes(row[2]!))).toBe(true)
+      await expect(page.getByTestId('sign-batches')).toBeDisabled()
+      await page.getByTestId('confirm-export-saved').check()
+      await expect(page.getByTestId('sign-batches')).toBeEnabled()
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true)
+      // Stop before signing: no wallet approval, API registration or ledger write.
+    })
+  }
+})
 
 test.describe('recovery phrase (#77)', () => {
   test('keys cannot be generated before the phrase is confirmed, and the trade is stated', async ({ page }) => {
@@ -301,6 +403,32 @@ test.describe('recovery phrase (#77)', () => {
 })
 
 test.describe('CSV gate', () => {
+  test('Android creator confirms a readable private CSV before funding', async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 851 })
+    await reachExportStep(page)
+    await confirmPhrase(page)
+    await page.getByTestId('generate-keys').click()
+    const sign = page.getByTestId('sign-batches')
+    await expect(page.getByTestId('confirm-export-saved')).toHaveCount(0)
+    await expect(sign).toBeDisabled()
+    const download = page.waitForEvent('download')
+    await page.getByTestId('download-secrets').click()
+    const file = await download
+    expect(await file.failure()).toBeNull()
+    const stream = await file.createReadStream()
+    expect(stream).not.toBeNull()
+    const chunks: Buffer[] = []
+    for await (const chunk of stream!) chunks.push(Buffer.from(chunk))
+    // Inspect locally; never print, persist or send the bearer export.
+    const rows = Buffer.concat(chunks).toString('utf8').trim().split('\n')
+    expect(rows).toHaveLength(4)
+    await expect(sign).toBeDisabled()
+    await expect(page.getByTestId('download-state')).toContainText('Check your browser downloads or Files app')
+    await page.getByTestId('confirm-export-saved').check()
+    await expect(sign).toBeEnabled()
+    await page.getByTestId('confirm-export-saved').uncheck()
+    await expect(sign).toBeDisabled()
+  })
   test('signing is unreachable until the export has fired', async ({ page }) => {
     await reachExportStep(page)
 
@@ -340,6 +468,8 @@ test.describe('CSV gate', () => {
 
     expect(file.suggestedFilename()).toBe('kleym-gate-test-secrets.csv')
     await expect(page.getByTestId('download-state')).toHaveAttribute('data-downloaded', 'true')
+    await expect(sign).toBeDisabled()
+    await page.getByTestId('confirm-export-saved').check()
     await expect(sign).toBeEnabled()
   })
 
@@ -400,6 +530,7 @@ test.describe('CSV gate', () => {
     await page.getByTestId('download-secrets').click()
     await download
 
+    await page.getByTestId('confirm-export-saved').check()
     await expect(page.getByTestId('sign-batches')).toBeEnabled()
 
     /*
@@ -435,4 +566,59 @@ test.describe('CSV gate', () => {
     await expect(page.getByText(/2 labels accepted/i)).toBeVisible()
     await expect(page.getByTestId('next-step')).toBeEnabled()
   })
+})
+
+
+test.describe('wallet-bound recipient CSV', () => {
+  for (const width of [320, 1440]) {
+    test(`imports ordered wallets, prizes and safe template at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await stubLookups(page)
+      await page.goto('/campaigns/new')
+      await page.getByLabel('Campaign name').fill('Wallet CSV test')
+      await page.getByLabel('Funding account').fill(SENDER)
+      await page.getByLabel('Amount per link').fill('5')
+      await page.getByTestId('next-step').click()
+      await page.locator('input[name="claimPolicy"][value="wallet"]').check()
+      await expect(page.getByTestId('next-step')).toBeDisabled()
+      const downloadEvent = page.waitForEvent('download')
+      await page.getByRole('button', { name: 'Download CSV template', exact: true }).click()
+      const download = await downloadEvent
+      const stream = await download.createReadStream()
+      const chunks: Buffer[] = []; for await (const chunk of stream!) chunks.push(Buffer.from(chunk))
+      const header = Buffer.concat(chunks).toString('utf8').split(/\r?\n/)[0]!
+      expect(header).toBe('label,public_key,secret,claim_url,reference,category,note,amount,claim_code,Wallet Address')
+      const wallets = Array.from({ length: 5 }, () => Keypair.random().publicKey())
+      const upload = (body: string, name = 'workers.csv') => page.getByLabel('Insert recipient CSV', { exact: true }).setInputFiles({ name, mimeType: 'text/csv', buffer: Buffer.from(body) })
+      await upload(header + '\nWorker,,,,,,,20,,not-an-address')
+      await expect(page.getByRole('alert').filter({ hasText: 'valid Stellar G-address' })).toBeVisible()
+      await expect(page.getByTestId('next-step')).toBeDisabled()
+      await upload([header, ...wallets.map((wallet, i) => [`Worker ${i + 1}`, '', '', '', '', '', '', ['20', '15', '10', '', ''][i], '', wallet].join(','))].join('\r\n'))
+      await expect(page.getByLabel('Number of links')).toHaveValue('5')
+      await expect(page.getByLabel('Number of links')).toBeDisabled()
+      const items = page.locator('ol li').filter({ hasText: /Link [1-5]/ })
+      await expect(items).toHaveCount(5)
+      for (let index = 0; index < 5; index++) await expect(items.nth(index)).toContainText(wallets[index]!)
+      await expect(page.getByLabel('Prize for Worker 1 (link 1) in USDC')).toHaveValue('20')
+      await expect(page.getByLabel('Prize for Worker 2 (link 2) in USDC')).toHaveValue('15')
+      await page.getByLabel('Prize for Worker 4 (link 4) in USDC').fill('7')
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+      await expect(page.getByTestId('next-step')).toBeEnabled()
+      await page.getByTestId('next-step').click()
+      await expect(page.getByTestId('review-link-count')).toHaveText('5')
+      await expect(page.getByText('Wallet-bound claims:', { exact: false })).toBeVisible()
+      await expect(page.getByLabel('Prize for Worker 4 (link 4) in USDC')).toHaveValue('7')
+      if (process.env.E2E_EVIDENCE_DIR) {
+        await page.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur(); window.scrollTo(0, 0) })
+        await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/wallet-review-${width}.png`, fullPage: true })
+      }
+      await page.getByRole('button', { name: 'Back', exact: true }).click()
+      await upload(header + '\n', 'workers.xlsx')
+      await expect(page.getByRole('alert').filter({ hasText: 'Insert a CSV file.' })).toBeVisible()
+      await expect(page.getByTestId('next-step')).toBeDisabled()
+      await page.locator('input[name="claimPolicy"][value="open"]').check()
+      await expect(page.getByTestId('next-step')).toBeEnabled()
+      await expect(page.getByLabel('Number of links')).toBeEnabled()
+    })
+  }
 })

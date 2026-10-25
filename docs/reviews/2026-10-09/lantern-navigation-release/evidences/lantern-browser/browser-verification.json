@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-10-09T02:38:54.133Z",
+  "network": "No chain calls",
+  "mode": "Production app; mocked parent and resolve API; not an actual Lantern wallet; authenticated route coverage checks original response headers, not data-backed page content",
+  "checks": [
+    "Desktop has no Android app-opening button",
+    "Android sender/login has safe app-opening link",
+    "Trusted Android iframe hydrates, selects Lantern, validates connect response and does not submit/sign on connect",
+    "Runtime embedding CSP and claim no-referrer headers match policy",
+    "Production /templates permits only the trusted Lantern ancestor",
+    "Production /templates/example permits only the trusted Lantern ancestor",
+    "Production /approvals permits only the trusted Lantern ancestor",
+    "Production /history permits only the trusted Lantern ancestor",
+    "Production /api/templates remains unframeable",
+    "Production /admin remains unframeable",
+    "Production /templates-evil remains unframeable",
+    "Production /approvals-evil remains unframeable",
+    "Production /history-evil remains unframeable",
+    "Production middleware refuses cross-origin authentication mutation"
+  ]
+}

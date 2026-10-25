@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-12T15:10:34.924Z",
+  "mode": "after",
+  "result": "PASS",
+  "calls": {
+    "mfa": 1,
+    "create": 1,
+    "submit": 1,
+    "reads": 3
+  },
+  "walletSignRequests": 1,
+  "pageErrors": [],
+  "scope": "Real production components at 393px; desktop Freighter message stub; every write intercepted, signed disposable manage-data fixture only, no real campaign or asset transaction. No recovery words/CSV saved in evidence."
+}

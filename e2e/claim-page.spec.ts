@@ -1,5 +1,6 @@
 import { test, expect, type Page, type Request } from '@playwright/test'
-import { Keypair } from '@stellar/stellar-sdk'
+import { Account, Asset, Keypair, Networks, Transaction, TransactionBuilder } from '@stellar/stellar-sdk'
+import { buildClaim } from '../src/lib/stellar/claim'
 import { prepareProofMessage } from '../src/lib/claim/prepare-proof'
 
 /**
@@ -11,6 +12,9 @@ import { prepareProofMessage } from '../src/lib/claim/prepare-proof'
  *
  * Runs against a production build, so the CSP under test is the real one.
  */
+
+// Unfunded fixture keys must never enter automatic traces or screenshots.
+test.use({ trace: 'off', screenshot: 'off', video: 'off' })
 
 const SEED = Keypair.random().secret()
 const PUBLIC_KEY = Keypair.fromSecret(SEED).publicKey()
@@ -49,7 +53,8 @@ test.describe('Android wallet connection UI', () => {
   test.skip(!process.env.MOBILE_WALLET_E2E, 'Requires the configured mobile production fixture server')
   test.use({ userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36' })
 
-  test('pairs through the bundled SDK at phone width, without committing funds, and cancels safely', async ({ page }) => {
+  test('pairs through the bundled SDK at phone width, without committing funds, and cancels safely', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'Deep-link navigation instrumentation uses Chromium CDP; actual Android Chrome remains covered.')
     await page.setViewportSize({ width: 393, height: 851 })
     const posts: string[] = []
     const requests = record(page)
@@ -72,7 +77,7 @@ test.describe('Android wallet connection UI', () => {
     await stubResolve(page, CLAIMABLE)
     await page.goto(`/claim#s=${SEED}`)
     await expect(page.getByTestId('claim-connect-mobile')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Connect wallet', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Connect Freighter', exact: true })).toHaveCount(0)
     expect(requests.filter((r) => !r.url().startsWith(new URL(page.url()).origin))).toEqual([])
     const navigation = await page.context().newCDPSession(page)
     await navigation.send('Page.enable')
@@ -113,7 +118,7 @@ test('a narrow desktop keeps extension connection available', async ({ page }) =
   await page.setViewportSize({ width: 393, height: 851 })
   await stubResolve(page, CLAIMABLE)
   await page.goto(`/claim#s=${SEED}`)
-  await expect(page.getByRole('button', { name: 'Connect wallet', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Connect Freighter', exact: true })).toBeVisible()
   await expect(page.getByTestId('claim-connect-mobile')).toHaveCount(0)
 })
 
@@ -170,7 +175,7 @@ test.describe('deliberate claim commitment', () => {
     await page.getByTestId('claim-connect').click()
     await expect(page.getByTestId('ready-error')).toContainText('wallet account changed')
     expect(posts).toEqual([])
-    await expect(page.getByTestId('claim-connect')).toHaveText('Connect wallet')
+    await expect(page.getByTestId('claim-connect')).toHaveText('Connect Freighter')
   })
 
   test('claim preparation carries a holder signature bound to its reviewed destination', async ({ page }) => {
@@ -395,5 +400,75 @@ test.describe('voice', () => {
       expect(text, `"${word}" is on the page`).not.toContain(word)
     }
     expect(text).not.toContain('success!')
+  })
+})
+
+
+test.describe('wallet-bound recipient flow with simulated Freighter bridge', () => {
+  for (const width of [393, 1440]) {
+    test(`uses assigned-wallet approval without an extra link-key signature at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      const recipient = Keypair.random(), sponsor = Keypair.random()
+      const plan = buildClaim({ sponsorAccount: new Account(sponsor.publicKey(), '100'), sponsorPublicKey: sponsor.publicKey(),
+        ephemeralPublicKey: PUBLIC_KEY, recipientPublicKey: recipient.publicKey(), walletBound: true, asset: new Asset('USDC', CLAIMABLE.assetIssuer),
+        amount: '500', balanceId: '00000000' + 'a'.repeat(64), networkPassphrase: Networks.TESTNET, baseFee: '1000' },
+      { ephemeralExists: false, ephemeralTrusts: false, recipientExists: true, recipientTrusts: true })
+      const envelope = TransactionBuilder.fromXDR(plan.xdr, Networks.TESTNET) as Transaction
+      envelope.sign(sponsor)
+      let approvals = 0, submitted = 0
+      await page.exposeFunction('fixtureSignWalletClaim', (input: string) => {
+        const tx = TransactionBuilder.fromXDR(input, Networks.TESTNET) as Transaction
+        expect(tx.signatures).toHaveLength(1) // sponsor only; no extra link signer
+        tx.sign(recipient); approvals++; return tx.toXDR()
+      })
+      await page.addInitScript(({ address }) => {
+        const fixture = window as unknown as { freighter: boolean; fixtureSignWalletClaim: (xdr: string) => Promise<string> }
+        fixture.freighter = true
+        window.addEventListener('message', async (event) => {
+          const data = event.data
+          if (event.source !== window || data?.source !== 'FREIGHTER_EXTERNAL_MSG_REQUEST') return
+          const signedTransaction = data.type === 'SUBMIT_TRANSACTION' ? await fixture.fixtureSignWalletClaim(data.transactionXdr) : undefined
+          window.postMessage({ source: 'FREIGHTER_EXTERNAL_MSG_RESPONSE', messagedId: data.messageId,
+            isConnected: true, publicKey: address, signedTransaction, signerAddress: address,
+            networkDetails: { network: 'TESTNET', networkPassphrase: 'Test SDF Network ; September 2015' } }, window.location.origin)
+        })
+      }, { address: recipient.publicKey() })
+      await stubResolve(page, { ...CLAIMABLE, policy: 'wallet', recipientPublicKey: recipient.publicKey(), exchangeDeposit: false, receiveAs: [] })
+      await page.route('**/api/claims/prepare/materialise', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ alreadyExists: true, xdr: null, operations: 0 }) }))
+      await page.route('**/api/claims/prepare/claim', (route) => {
+        expect(route.request().postDataJSON().recipientPublicKey).toBe(recipient.publicKey())
+        return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ...plan, xdr: envelope.toXDR(), conversion: null, memo: null }) })
+      })
+      await page.route('**/api/claims/submit', (route) => {
+        const input = route.request().postDataJSON()
+        expect(input.phase).toBe('claim')
+        const tx = TransactionBuilder.fromXDR(input.signedXdr, Networks.TESTNET) as Transaction
+        expect(tx.signatures).toHaveLength(2)
+        expect(tx.signatures.some((sig) => recipient.verify(tx.hash(), sig.signature()))).toBe(true)
+        expect(tx.signatures.some((sig) => Keypair.fromPublicKey(PUBLIC_KEY).verify(tx.hash(), sig.signature()))).toBe(false)
+        submitted++
+        return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ hash: 'a'.repeat(64), phase: 'claim', replay: false }) })
+      })
+      await page.goto(`/claim#s=${SEED}`)
+      await expect(page.getByTestId('assigned-wallet')).toContainText(recipient.publicKey())
+      await page.getByTestId('claim-connect').click()
+      await expect(page.getByTestId('claim-connect')).toHaveText('Claim 500 USDC')
+      expect(approvals).toBe(0); expect(submitted).toBe(0)
+      await page.getByTestId('claim-connect').click()
+      await expect(page.getByText('Claimed', { exact: true })).toBeVisible()
+      expect(approvals).toBe(1); expect(submitted).toBe(1)
+    })
+  }
+  test('a connected wrong wallet is refused before preparation or submission', async ({ page }) => {
+    await stubWallet(page, Keypair.random().publicKey())
+    await stubResolve(page, { ...CLAIMABLE, policy: 'wallet', recipientPublicKey: Keypair.random().publicKey(), exchangeDeposit: false, receiveAs: [] })
+    const posts: string[] = []
+    page.on('request', (r) => { if (r.method() === 'POST') posts.push(r.url()) })
+    await page.goto(`/claim#s=${SEED}`)
+    await page.getByTestId('claim-connect').click()
+    await expect(page.getByTestId('claim-connect')).toHaveText('Claim 500 USDC')
+    await page.getByTestId('claim-connect').click()
+    await expect(page.getByTestId('ready-error')).toContainText('wallet assigned to this link')
+    expect(posts).toEqual([])
   })
 })

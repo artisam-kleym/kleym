@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
+import { Icon } from '@/components/ui/icon'
 
 /**
  * The filter/paginate furniture `/campaigns` and `/history` share.
@@ -11,12 +12,18 @@ import { clsx } from 'clsx'
  * ownership scope.
  */
 
-export function FilterBar({ children, action }: { children: ReactNode; action: string }) {
+export function FilterBar({
+  children,
+  action,
+}: {
+  children: ReactNode
+  action: string
+}) {
   return (
     <form
       method="get"
       action={action}
-      className="mt-lg flex flex-wrap items-end gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md"
+      className="filter-bar mt-lg flex flex-wrap items-end gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md"
     >
       {children}
       <button
@@ -29,12 +36,20 @@ export function FilterBar({ children, action }: { children: ReactNode; action: s
   )
 }
 
-const FIELD = 'min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface'
-const LABEL = 'font-mono text-label-sm uppercase tracking-wider text-on-surface-variant'
+const FIELD =
+  'min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface'
+const LABEL =
+  'filter-label font-mono text-label-sm uppercase tracking-wider text-on-surface-variant'
 
 export function FilterField({
-  label, name, children,
-}: { label: string; name: string; children: ReactNode }) {
+  label,
+  name,
+  children,
+}: {
+  label: string
+  name: string
+  children: ReactNode
+}) {
   return (
     <div className="flex min-w-[10rem] flex-1 flex-col gap-xs">
       <label htmlFor={`filter-${name}`} className={LABEL}>
@@ -45,7 +60,12 @@ export function FilterField({
   )
 }
 
-export function FilterInput(props: { name: string; type?: string; defaultValue?: string; placeholder?: string }) {
+export function FilterInput(props: {
+  name: string
+  type?: string
+  defaultValue?: string
+  placeholder?: string
+}) {
   return (
     <input
       id={`filter-${props.name}`}
@@ -59,10 +79,23 @@ export function FilterInput(props: { name: string; type?: string; defaultValue?:
 }
 
 export function FilterSelect({
-  name, defaultValue, options, blank,
-}: { name: string; defaultValue?: string; options: { value: string; label: string }[]; blank: string }) {
+  name,
+  defaultValue,
+  options,
+  blank,
+}: {
+  name: string
+  defaultValue?: string
+  options: { value: string; label: string }[]
+  blank: string
+}) {
   return (
-    <select id={`filter-${name}`} name={name} defaultValue={defaultValue ?? ''} className={FIELD}>
+    <select
+      id={`filter-${name}`}
+      name={name}
+      defaultValue={defaultValue ?? ''}
+      className={FIELD}
+    >
       <option value="">{blank}</option>
       {options.map((option) => (
         <option key={option.value} value={option.value}>
@@ -78,28 +111,48 @@ export function FilterSelect({
  * survives paging (acceptance criterion 2).
  */
 export function Pagination({
-  page, perPage, total, params, basePath,
-}: { page: number; perPage: number; total: number; params: Record<string, string | undefined>; basePath: string }) {
+  page,
+  perPage,
+  total,
+  params,
+  basePath,
+}: {
+  page: number
+  perPage: number
+  total: number
+  params: Record<string, string | undefined>
+  basePath: string
+}) {
   const pages = Math.max(1, Math.ceil(total / perPage))
   const href = (target: number) => {
     const search = new URLSearchParams()
-    for (const [key, value] of Object.entries(params)) if (value) search.set(key, value)
+    for (const [key, value] of Object.entries(params))
+      if (value) search.set(key, value)
     search.set('page', String(target))
     return `${basePath}?${search.toString()}`
   }
   const link = (target: number, label: string, enabled: boolean) =>
     enabled ? (
-      <Link href={href(target)} className="min-h-11 rounded-lg border border-outline-variant px-4 py-3 font-mono text-label-md text-primary hover:bg-surface-container-high">
+      <Link
+        href={href(target)}
+        className="min-h-11 rounded-lg border border-outline-variant px-4 py-3 font-mono text-label-md text-primary hover:bg-surface-container-high"
+      >
         {label}
       </Link>
     ) : (
-      <span aria-disabled="true" className="min-h-11 rounded-lg border border-outline-variant/40 px-4 py-3 font-mono text-label-md text-on-surface-variant/50">
+      <span
+        aria-disabled="true"
+        className="min-h-11 rounded-lg border border-outline-variant/40 px-4 py-3 font-mono text-label-md text-on-surface-variant/50"
+      >
         {label}
       </span>
     )
 
   return (
-    <nav aria-label="Pagination" className={clsx('mt-md flex items-center justify-between gap-md')}>
+    <nav
+      aria-label="Pagination"
+      className={clsx('mt-md flex items-center justify-between gap-md')}
+    >
       {link(page - 1, 'Previous', page > 1)}
       <span className="font-mono text-label-sm text-on-surface-variant">
         Page {page} of {pages} · {total} {total === 1 ? 'row' : 'rows'}
@@ -111,18 +164,27 @@ export function Pagination({
 
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <p className="mt-lg rounded-xl border border-dashed border-outline-variant p-lg text-center text-body-md text-on-surface-variant">
-      {children}
-    </p>
+    <div className="empty-state">
+      <span className="empty-state-icon" aria-hidden="true">
+        <Icon name="campaign" size={32} />
+      </span>
+      <p className="text-body-md text-on-surface-variant">{children}</p>
+    </div>
   )
 }
 
 export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(date)
+  return new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(date)
 }
 
 /** Next hands `searchParams` as string | string[]; a filter wants one value. */
-export function firstValues(params: Record<string, string | string[] | undefined>): Record<string, string> {
+export function firstValues(
+  params: Record<string, string | string[] | undefined>,
+): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [key, value] of Object.entries(params)) {
     const first = Array.isArray(value) ? value[0] : value

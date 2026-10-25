@@ -56,7 +56,7 @@ export function ExpiryPicker({ value, choice, error, onChange }: {
           <p className="mt-xs break-words text-body-md text-on-surface" data-testid="expiry-deadline">{expiryDescription(value)}</p>
         )}
         <p className="mt-xs text-body-md text-on-surface-variant">
-          This deadline stays fixed while you create the campaign. After it passes, you can sign a reclaim of unused funds.
+          This deadline stays fixed while you create the campaign. After it passes, open the campaign and sign Reclaim to return unused funds. Refunds require your wallet approval; they are not automatic.
         </p>
       </div>
     </fieldset>

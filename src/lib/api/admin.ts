@@ -142,6 +142,8 @@ export interface AdminCampaignRow {
   claimed: number
   expiresAt: Date
   createdAt: Date
+  fundingHash: string | null
+  network: string
 }
 
 /** Every campaign, whoever owns it. SPEC.md §5.4. */
@@ -150,7 +152,8 @@ export async function listAllCampaigns(limit = 200): Promise<AdminCampaignRow[]>
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit,
     select: {
-      id: true, name: true, status: true, assetCode: true, amountPerLink: true, variableAmounts: true,
+      id: true, name: true, status: true, assetCode: true, amountPerLink: true, variableAmounts: true, network: true,
+      batches: { where: { transactionHash: { not: null } }, orderBy: { sequence: 'desc' }, take: 1, select: { transactionHash: true } },
       linkCount: true, expiresAt: true, createdAt: true,
       user: { select: { username: true } },
       _count: { select: { links: true } },
@@ -176,6 +179,8 @@ export async function listAllCampaigns(limit = 200): Promise<AdminCampaignRow[]>
     claimed: byCampaign.get(campaign.id) ?? 0,
     expiresAt: campaign.expiresAt,
     createdAt: campaign.createdAt,
+    fundingHash: campaign.batches[0]?.transactionHash ?? null,
+    network: campaign.network,
   }))
 }
 

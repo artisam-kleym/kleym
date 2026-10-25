@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import Link from 'next/link'
 import { pageScope } from '@/lib/api/session-guard'
 import { roleAtLeast } from '@/lib/api/session-guard'
@@ -22,7 +23,7 @@ export default async function TemplatesPage() {
     <>
       <div className="flex flex-wrap items-end justify-between gap-md">
         <div>
-          <h1 className="text-display-lg text-primary max-md:text-headline-md">Templates</h1>
+          <PageHeading icon="pending_actions" tone="pink">Templates</PageHeading>
           <p className="mt-md max-w-2xl text-body-md text-on-surface-variant">
             A template is a campaign’s terms and recipient list, saved to run again. A schedule prepares a run —
             the campaign is created in draft with everything but the keys — and tells you it is ready. You still

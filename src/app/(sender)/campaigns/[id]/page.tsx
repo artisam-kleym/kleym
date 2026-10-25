@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { pageScope } from '@/lib/api/session-guard'
@@ -13,6 +14,7 @@ import { SuspendLinkButton } from './links/suspend-link-button'
 import { ApprovalPanel } from './approval-panel'
 import { approvalStatus, selfApproving } from '@/lib/api/approvals'
 import { roleAtLeast } from '@/lib/api/session-guard'
+import { FundingTransactions } from './funding-transactions'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,7 +52,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     <>
       <div className="flex flex-wrap items-start justify-between gap-md">
         <div>
-          <h1 className="text-display-lg text-primary max-md:text-headline-md">{campaign.name}</h1>
+          <PageHeading icon="campaign" tone="yellow">{campaign.name}</PageHeading>
+          <p className="mt-sm break-all font-mono text-label-md text-on-surface-variant">Campaign ID: <span data-testid="campaign-public-id">{campaign.id}</span></p>
           <p className="mt-sm font-mono text-label-md text-on-surface-variant">
             {campaign.linkCount} links ·{' '}
             {campaign.variableAmounts
@@ -69,6 +72,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           )}
         </div>
       </div>
+
+      <FundingTransactions key={campaign.id} campaignId={campaign.id} network={campaign.network} />
 
       {campaign.allowExchangeDeposit && (
         // Exchange deposit (#75): recipients may claim to an address plus a memo; the memo is recorded beside the claimant.
@@ -234,7 +239,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         <tbody>
           {campaign.links.map((link) => (
             <TableRow key={link.id}>
-              <TableCell>{link.label ?? '—'}</TableCell>
+              <TableCell>{link.label ?? '—'}{link.recipientPublicKey && <span className="mt-xs block">Assigned: <StellarAddress value={link.recipientPublicKey} /></span>}</TableCell>
               <TableCell className="font-mono">{link.amount.toFixed()} {campaign.assetCode}</TableCell>
               <TableCell>
                 <StatusChip status={CHIP[link.status] ?? 'pending'} />

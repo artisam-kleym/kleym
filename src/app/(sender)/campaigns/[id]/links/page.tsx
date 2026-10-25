@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { pageScope } from '@/lib/api/session-guard'
@@ -53,7 +54,7 @@ export default async function CampaignLinksPage({
           {campaign.name}
         </Link>
       </p>
-      <h1 className="mt-xs text-display-lg text-primary max-md:text-headline-md">Links</h1>
+      <PageHeading icon="link" tone="pink">Links</PageHeading>
       <p className="mt-md text-body-md text-on-surface-variant">
         {campaign.linkCount} links ·{' '}
         {campaign.variableAmounts
@@ -85,7 +86,7 @@ export default async function CampaignLinksPage({
               {links.map((link, i) => (
                 <TableRow key={link.id}>
                   <TableCell className="text-on-surface-variant">{(page - 1) * perPage + i + 1}</TableCell>
-                  <TableCell>{link.label ?? '—'}</TableCell>
+                  <TableCell>{link.label ?? '—'}{link.recipientPublicKey && <span className="mt-xs block">Assigned: <StellarAddress value={link.recipientPublicKey} /></span>}</TableCell>
                   <TableCell className="text-on-surface-variant">
                     {link.reference ?? '—'}
                     {link.category && <span className="ml-sm text-label-sm">{link.category}</span>}

@@ -25,7 +25,7 @@ type Reply = Record<string, unknown>
 function request<T>(message: Reply, result: (reply: Reply) => T | undefined, ack?: string): Promise<T> {
   const target = lanternParentOrigin()
   if (!target) return Promise.reject(new Error('Open Kleym inside the configured Lantern app.'))
-  if (stale) return Promise.reject(new Error('Reopen Kleym after the previous Lantern request timed out. Keep your private export safe.'))
+  if (stale) return Promise.reject(new Error('Reopen Kleym after the previous Lantern request was interrupted or timed out. Keep your private export safe.'))
   if (pending) return Promise.reject(new Error('Finish the current Lantern request first.'))
   pending = true
   return new Promise((resolve, reject) => {
@@ -37,7 +37,12 @@ function request<T>(message: Reply, result: (reply: Reply) => T | undefined, ack
       window.removeEventListener('pagehide', leave)
       if (error) reject(error); else resolve(value as T)
     }
-    const leave = () => finish(new Error('Lantern request cancelled. Reconnect before retrying.'))
+    const leave = () => {
+      // A restored page must not let an old idless connection approval finish
+      // a new request. Retire the bridge just as on an unanswered timeout.
+      stale = true
+      finish(new Error('Lantern request interrupted. Reopen Kleym before retrying. Keep your private export safe.'))
+    }
     const receive = (event: MessageEvent) => {
       if (event.source !== window.parent || event.origin !== target || !event.data || typeof event.data !== 'object') return
       const reply = event.data as Reply

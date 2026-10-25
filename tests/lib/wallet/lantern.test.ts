@@ -13,8 +13,8 @@ describe('Lantern deployment boundaries', () => {
     for (const origin of ['https://localhost','http://android.golantern.xyz',android+'/',android+':8443',android+'.evil.com','chrome-extension://*','https://evil.com', 'https://user@android.golantern.xyz']) expect(parseLanternOrigins(origin)).toEqual([])
   })
   it('permits sender and claim frames without permitting administration or APIs', () => {
-    for (const path of ['/','/login','/dashboard','/campaigns/new','/campaigns/example','/claim']) expect(lanternFrameAllowed(path)).toBe(true)
-    for (const path of ['/admin','/api/campaigns','/campaigns-evil']) expect(lanternFrameAllowed(path)).toBe(false)
+    for (const path of ['/','/login','/dashboard','/campaigns/new','/campaigns/example','/templates','/templates/example','/approvals','/history','/settings','/claim']) expect(lanternFrameAllowed(path)).toBe(true)
+    for (const path of ['/admin','/api/campaigns','/campaigns-evil','/templates-evil','/approvals-evil','/history-evil']) expect(lanternFrameAllowed(path)).toBe(false)
   })
   it('keeps private fragments and claim links out of Android intents', () => {
     const link=lanternIntentUrl('https://kleym.example/campaigns/new')
@@ -71,9 +71,28 @@ describe('Lantern 0.6.2 bridge', () => {
     surface.top=surface.parent;m.configureLantern([]);await expect(m.connectLantern('testnet')).rejects.toThrow('inside')
     expect(surface.parent.postMessage).not.toHaveBeenCalled()
   })
+  it('connects only to the configured pinned extension parent', async()=>{
+    const extension='chrome-extension://iflpkjgolcbleombhldiibhojohjpnmd'
+    const m=await load();m.configureLantern([extension]);surface.location.ancestorOrigins=[extension]
+    const p=m.connectLantern('testnet');let settled=false;p.then(()=>{settled=true})
+    reply({type:'lantern:publicKey',network:'TESTNET',publicKey:signer.publicKey()})
+    await Promise.resolve();expect(settled).toBe(false)
+    reply({type:'lantern:publicKey',network:'TESTNET',publicKey:signer.publicKey()},extension)
+    expect(await p).toBe(signer.publicKey())
+    expect(surface.parent.postMessage).toHaveBeenCalledWith({type:'lantern:getPublicKey'},extension)
+  })
   it('prevents late idless replies from completing a new connection after timeout', async()=>{
     const m=await load();const first=m.connectLantern('testnet');const assertion=expect(first).rejects.toThrow('in time');await vi.advanceTimersByTimeAsync(180_001);await assertion
-    await expect(m.connectLantern('testnet')).rejects.toThrow('previous Lantern request timed out')
+    await expect(m.connectLantern('testnet')).rejects.toThrow('previous Lantern request')
+  })
+  it('retires an interrupted bridge before a restored page can reuse an idless approval', async()=>{
+    const m=await load();const first=m.connectLantern('testnet')
+    const assertion=expect(first).rejects.toThrow('interrupted')
+    surface.dispatchEvent(new Event('pagehide'));await assertion
+    reply({type:'lantern:publicKey',network:'TESTNET',publicKey:signer.publicKey()})
+    await expect(m.connectLantern('testnet')).rejects.toThrow('Reopen Kleym')
+    expect(surface.parent.postMessage).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
   })
   it('renews connection then requests exact correlated sign-only XDR', async()=>{
     const m=await load();const tx=unsigned();tx.sign(sponsor);const xdr=tx.toXDR();const signed=TransactionBuilder.fromXDR(xdr,Networks.TESTNET);signed.sign(signer)

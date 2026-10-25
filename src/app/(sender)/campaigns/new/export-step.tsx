@@ -20,11 +20,16 @@ import { PhrasePanel } from './phrase-panel'
 import type { CostBreakdown } from '@/lib/campaign/cost'
 import type { EphemeralKey } from '@/lib/campaign/keygen'
 import type { BatchProgress, Phase } from './use-wizard'
+import { useSyncExternalStore } from 'react'
+import { lanternSnapshot, subscribeLantern } from '@/lib/wallet/lantern'
 
 export function ExportStep({
   phase,
+  linkCount,
   keys,
   downloaded,
+  exportConfirmed,
+  onConfirmExport,
   filename,
   cost,
   progress,
@@ -36,10 +41,14 @@ export function ExportStep({
   screening,
   phraseConfirmed,
   onPhrase,
+  withCodes = false,
 }: {
   phase: Phase
+  linkCount: number
   keys: EphemeralKey[]
   downloaded: boolean
+  exportConfirmed: boolean
+  onConfirmExport: (confirmed: boolean) => void
   filename: string | null
   cost: CostBreakdown | null
   progress: BatchProgress
@@ -54,7 +63,9 @@ export function ExportStep({
   /** Recovery phrase (#77): the keys are derived from it, so it comes first. */
   phraseConfirmed: boolean
   onPhrase: (phrase: string) => void
+  withCodes?: boolean
 }) {
+  const inLantern = useSyncExternalStore(subscribeLantern, lanternSnapshot, () => false)
   const generated = keys.length > 0
 
   return (
@@ -74,6 +85,33 @@ export function ExportStep({
         </WarningPanel>
       </div>
 
+      {inLantern && <p className="mt-md text-body-md text-on-surface-variant" data-testid="lantern-export-guidance">Before signing in Lantern, find the downloaded CSV in your device&apos;s files. If no file was saved, stop here: keep this page open and do not approve funding.</p>}
+
+      {withCodes && (
+        <section
+          className="mt-lg rounded-lg border border-outline-variant bg-surface-container p-md"
+          aria-label="Claim code protection"
+          data-testid="claim-code-export-guidance"
+        >
+          <h3 className="text-title-md text-on-surface">Link + claim code</h3>
+          <p className="mt-sm text-body-md text-on-surface-variant">
+            Each link gets its own 13-character code. Your CSV includes a{' '}
+            <span className="font-mono">claim_code</span> column beside the
+            existing link information.
+            {generated &&
+              ` All ${keys.length} links have codes ready for export.`}
+          </p>
+          <p className="mt-sm text-body-md text-on-surface-variant">
+            Send each recipient their own claim URL, then send the matching code
+            through a separate channel. Anyone holding both can claim. Keep the
+            complete CSV private because it contains both links and codes.
+          </p>
+          <p className="mt-sm text-body-md text-on-surface-variant">
+            This code check applies in Kleym. Someone who extracts the link&apos;s Stellar signing key could claim directly on Stellar, so the link must still be kept private.
+          </p>
+        </section>
+      )}
+
       {!generated && (
         <div className="mt-lg">
           <PhrasePanel confirmed={phraseConfirmed} onConfirmed={onPhrase} />
@@ -84,7 +122,7 @@ export function ExportStep({
         <dl className="mt-lg grid grid-cols-2 gap-md font-mono text-label-md max-md:grid-cols-1">
           <div>
             <dt className="text-on-surface-variant">Links</dt>
-            <dd className="text-on-surface">{keys.length || cost.batches * 0 || '—'}</dd>
+            <dd className="text-on-surface" data-testid="review-link-count">{linkCount}</dd>
           </div>
           <div>
             <dt className="text-on-surface-variant">Signatures</dt>
@@ -146,9 +184,22 @@ export function ExportStep({
               data-downloaded={downloaded ? 'true' : 'false'}
             >
               {downloaded
-                ? `Saved as ${filename}. Keep it somewhere you would keep a password.`
+                ? `Download requested: ${filename}. Check your browser downloads or Files app before signing. Keep it somewhere you would keep a password.`
                 : `${keys.length} keys are held in this tab only. Export them to continue.`}
             </p>
+            {downloaded && phase !== 'complete' && phase !== 'partial' && (
+              <label className="flex min-h-11 items-center gap-md text-body-md text-on-surface">
+                <input
+                  type="checkbox"
+                  checked={exportConfirmed}
+                  onChange={(event) => onConfirmExport(event.target.checked)}
+                  disabled={phase === 'batching'}
+                  data-testid="confirm-export-saved"
+                  className="h-5 w-5 shrink-0 accent-primary"
+                />
+                I found the secrets CSV on my device and saved it privately.
+              </label>
+            )}
           </>
         )}
 
@@ -158,7 +209,7 @@ export function ExportStep({
             type="button"
             variant="claim"
             onClick={onSign}
-            disabled={!downloaded || phase === 'batching'}
+            disabled={!downloaded || !exportConfirmed || phase === 'batching'}
             data-testid="sign-batches"
             className="self-start"
           >
@@ -191,7 +242,9 @@ export function ExportStep({
               They exist in this tab and in the file you downloaded. Nowhere else.
             </WarningPanel>
             <p className="text-body-md text-on-surface-variant">
-              After the campaign shows funded links, send each recipient only their own claim URL from your saved CSV. Keep the complete CSV private.
+              After the campaign shows funded links, send each recipient only their own claim URL from your saved CSV.
+              {withCodes && ' Send that row’s claim_code separately; the recipient must enter it before claiming.'}
+              {' '}Keep the complete CSV private.
             </p>
             <div className="flex gap-md">
               <Button type="button" variant="secondary" icon="download" onClick={onDownload}>

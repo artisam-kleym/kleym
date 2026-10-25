@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-10-09T02:55:24.661Z",
+  "network": "testnet",
+  "hash": "1f4e4ba8886bba22c35e638cc2a127b1f6a93b8a40de75afadfa911191635d4b",
+  "ledger": 5098099,
+  "confirmedAt": "2026-10-09T02:48:02Z",
+  "successful": true,
+  "feeChargedStroops": "100",
+  "source": "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+  "operations": [
+    {
+      "type": "claim_claimable_balance",
+      "source": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+      "balanceId": "00000000b0de5120a1d05a73554398ce521a2803c92188aec2273f0b7ff49a0a43ae7ca0"
+    }
+  ],
+  "credit": {
+    "account": "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A",
+    "amount": "1.0000000",
+    "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+  },
+  "balanceRemoved": true,
+  "senderNow": {
+    "native": "0.0000000",
+    "usdc": "9.0000000"
+  },
+  "executedByThisVerification": false
+}

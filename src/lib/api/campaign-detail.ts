@@ -51,7 +51,7 @@ export async function statusCounts(campaignId: string): Promise<StatusCounts> {
 }
 
 export const LINK_SELECT = {
-  id: true, status: true, label: true, reference: true, category: true, claimedBy: true, claimTxHash: true, claimedAt: true,
+  id: true, status: true, label: true, recipientPublicKey: true, reference: true, category: true, claimedBy: true, claimTxHash: true, claimedAt: true,
   // The deposit memo TX2 carried (#75): how an exchange credited the claimant. Beside the claimant, for a dispute.
   claimMemoType: true, claimMemo: true,
   amount: true,

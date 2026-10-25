@@ -1,0 +1,78 @@
+{
+  "project": "57849f8f-8c9f-4565-8b88-6faf9ce085dd",
+  "at": "2026-10-25T02:13:52.049Z",
+  "results": [
+    {
+      "environment": "testnet",
+      "environmentId": "72ccf46d-3e64-4bcb-bde8-9d4af62157ff",
+      "service": "Redis",
+      "serviceId": "ef86046b-954d-43ec-959d-13ab401b3e12",
+      "remoteCommandSucceeded": true,
+      "version": "8.2.10",
+      "source": {
+        "image": "redis@sha256:164c759a0c342ee69d08fc99219382b0fd682181465c0df2e0e6911f4c85d73c",
+        "repo": null
+      },
+      "activeDeployments": [
+        {
+          "id": "755a9b3b-4c10-4969-94f4-942a8cb9abdd",
+          "status": "SUCCESS"
+        }
+      ]
+    },
+    {
+      "environment": "testnet",
+      "environmentId": "72ccf46d-3e64-4bcb-bde8-9d4af62157ff",
+      "service": "Postgres",
+      "serviceId": "c56db078-2554-46fe-9d5c-1fec9c99618b",
+      "remoteCommandSucceeded": true,
+      "version": "18.6",
+      "source": {
+        "image": "ghcr.io/railwayapp-templates/postgres-ssl@sha256:4b89e3c89d9262f02f23e927ff9f1390a19f7c03e2483321bc05c30872a333a3",
+        "repo": null
+      },
+      "activeDeployments": [
+        {
+          "id": "fac75115-3c1e-4188-aa7f-483a286ef805",
+          "status": "SUCCESS"
+        }
+      ]
+    },
+    {
+      "environment": "testnet",
+      "environmentId": "72ccf46d-3e64-4bcb-bde8-9d4af62157ff",
+      "service": "kleym-worker",
+      "serviceId": "1449f6c7-2843-4dfa-820f-7c49d87a1fba",
+      "remoteCommandSucceeded": true,
+      "version": "v22.23.3",
+      "source": {
+        "image": null,
+        "repo": "webnxt-2030/kleym"
+      },
+      "activeDeployments": [
+        {
+          "id": "73a8b7ac-b8ab-41c0-bac4-b60e4c5ef905",
+          "status": "SUCCESS"
+        }
+      ]
+    },
+    {
+      "environment": "testnet",
+      "environmentId": "72ccf46d-3e64-4bcb-bde8-9d4af62157ff",
+      "service": "kleym-web",
+      "serviceId": "d0149eaa-d1c4-4c64-a3e8-4a659362714c",
+      "remoteCommandSucceeded": true,
+      "version": "v22.23.3",
+      "source": {
+        "image": null,
+        "repo": "webnxt-2030/kleym"
+      },
+      "activeDeployments": [
+        {
+          "id": "e44b1a63-8687-4999-b5a9-19b2e451058a",
+          "status": "SUCCESS"
+        }
+      ]
+    }
+  ]
+}

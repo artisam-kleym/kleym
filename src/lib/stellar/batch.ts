@@ -29,6 +29,7 @@ import Decimal from 'decimal.js'
 export interface BatchLink {
   id: string
   ephemeralPublicKey: string
+  recipientPublicKey?: string | null
   /** Fixed-point string. Falls back to the batch's `amountPerLink` when absent. */
   amount?: string
 }
@@ -137,7 +138,7 @@ export function buildBatchTransaction(input: BuildBatchInput): {
         ...(input.sponsorAccount ? { source: input.senderPublicKey } : {}),
         asset: input.asset,
         amount: linkAmount(link, input.amountPerLink),
-        claimants: claimantsFor(link.ephemeralPublicKey, input.senderPublicKey, input.expiresAt),
+        claimants: claimantsFor(link.recipientPublicKey ?? link.ephemeralPublicKey, input.senderPublicKey, input.expiresAt),
       }),
     )
   }
@@ -311,7 +312,7 @@ export function verifyBatchTransaction(
     if (!new Decimal(operation.amount).equals(new Decimal(linkAmount(expected.links[index]!, expected.amountPerLink)))) {
       return { ok: false, reason: 'wrong-amount' }
     }
-    if (!claimantsMatch(operation.claimants, expected.links[index]!.ephemeralPublicKey, expected.senderPublicKey, expiry)) {
+    if (!claimantsMatch(operation.claimants, expected.links[index]!.recipientPublicKey ?? expected.links[index]!.ephemeralPublicKey, expected.senderPublicKey, expiry)) {
       return { ok: false, reason: 'wrong-claimants' }
     }
   }

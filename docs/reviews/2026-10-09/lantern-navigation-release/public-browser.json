@@ -1,0 +1,198 @@
+{
+  "checkedAt": "2026-10-09T02:55:55.559Z",
+  "origin": "https://kleym-web-testnet.up.railway.app",
+  "mode": "live authenticated browser navigation and read-only creator UI; no key generation, campaign creation, funding, claim or reclaim",
+  "checks": [
+    {
+      "path": "/dashboard",
+      "width": 320,
+      "viewport": 320,
+      "scrollWidth": 320,
+      "actualNavigation": true
+    },
+    {
+      "path": "/campaigns",
+      "width": 320,
+      "viewport": 320,
+      "scrollWidth": 320,
+      "actualNavigation": true
+    },
+    {
+      "path": "/templates",
+      "width": 320,
+      "viewport": 320,
+      "scrollWidth": 320,
+      "actualNavigation": true
+    },
+    {
+      "path": "/approvals",
+      "width": 320,
+      "viewport": 320,
+      "scrollWidth": 320,
+      "actualNavigation": true
+    },
+    {
+      "path": "/history",
+      "width": 320,
+      "viewport": 320,
+      "scrollWidth": 320,
+      "actualNavigation": true
+    },
+    {
+      "path": "/settings",
+      "width": 320,
+      "viewport": 320,
+      "scrollWidth": 320,
+      "actualNavigation": true
+    },
+    {
+      "path": "/dashboard",
+      "width": 393,
+      "viewport": 393,
+      "scrollWidth": 393,
+      "actualNavigation": true
+    },
+    {
+      "path": "/campaigns",
+      "width": 393,
+      "viewport": 393,
+      "scrollWidth": 393,
+      "actualNavigation": true
+    },
+    {
+      "path": "/templates",
+      "width": 393,
+      "viewport": 393,
+      "scrollWidth": 393,
+      "actualNavigation": true
+    },
+    {
+      "path": "/approvals",
+      "width": 393,
+      "viewport": 393,
+      "scrollWidth": 393,
+      "actualNavigation": true
+    },
+    {
+      "path": "/history",
+      "width": 393,
+      "viewport": 393,
+      "scrollWidth": 393,
+      "actualNavigation": true
+    },
+    {
+      "path": "/settings",
+      "width": 393,
+      "viewport": 393,
+      "scrollWidth": 393,
+      "actualNavigation": true
+    },
+    {
+      "path": "/dashboard",
+      "width": 768,
+      "viewport": 768,
+      "scrollWidth": 768,
+      "actualNavigation": true
+    },
+    {
+      "path": "/campaigns",
+      "width": 768,
+      "viewport": 768,
+      "scrollWidth": 768,
+      "actualNavigation": true
+    },
+    {
+      "path": "/templates",
+      "width": 768,
+      "viewport": 768,
+      "scrollWidth": 768,
+      "actualNavigation": true
+    },
+    {
+      "path": "/approvals",
+      "width": 768,
+      "viewport": 768,
+      "scrollWidth": 768,
+      "actualNavigation": true
+    },
+    {
+      "path": "/history",
+      "width": 768,
+      "viewport": 768,
+      "scrollWidth": 768,
+      "actualNavigation": true
+    },
+    {
+      "path": "/settings",
+      "width": 768,
+      "viewport": 768,
+      "scrollWidth": 768,
+      "actualNavigation": true
+    },
+    {
+      "path": "/dashboard",
+      "width": 1440,
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "actualNavigation": true
+    },
+    {
+      "path": "/campaigns",
+      "width": 1440,
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "actualNavigation": true
+    },
+    {
+      "path": "/templates",
+      "width": 1440,
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "actualNavigation": true
+    },
+    {
+      "path": "/approvals",
+      "width": 1440,
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "actualNavigation": true
+    },
+    {
+      "path": "/history",
+      "width": 1440,
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "actualNavigation": true
+    },
+    {
+      "path": "/settings",
+      "width": 1440,
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "actualNavigation": true
+    },
+    {
+      "path": "Review",
+      "linkCount": 3,
+      "keysGenerated": false,
+      "funded": false
+    },
+    {
+      "path": "existing-campaign",
+      "retained": true,
+      "claimedLinks": 2,
+      "reclaimedLinks": 1,
+      "reclaimHash": "1f4e4ba8886bba22c35e638cc2a127b1f6a93b8a40de75afadfa911191635d4b",
+      "ledgerIndependentlyVerified": true,
+      "reclaimApprovedByThisTest": false
+    },
+    {
+      "path": "manual-reconcile",
+      "queued": true,
+      "ledgerWrites": false
+    }
+  ],
+  "pageErrors": [],
+  "ready": true,
+  "physicalAndroidWallet": "NOT_RUN"
+}

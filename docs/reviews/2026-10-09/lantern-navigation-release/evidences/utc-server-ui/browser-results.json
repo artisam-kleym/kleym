@@ -1,0 +1,184 @@
+{
+  "checkedAt": "2026-10-09T02:48:33.736Z",
+  "mode": "local production build with component fixtures, actual source components, mocked lookups and app launch; no real funds or native wallet approval",
+  "checks": [
+    {
+      "label": "settings",
+      "width": 320,
+      "scrollWidth": 320
+    },
+    {
+      "label": "dashboard",
+      "width": 320,
+      "scrollWidth": 320
+    },
+    {
+      "label": "campaigns",
+      "width": 320,
+      "scrollWidth": 320
+    },
+    {
+      "label": "templates",
+      "width": 320,
+      "scrollWidth": 320
+    },
+    {
+      "label": "approvals",
+      "width": 320,
+      "scrollWidth": 320
+    },
+    {
+      "label": "history",
+      "width": 320,
+      "scrollWidth": 320
+    },
+    {
+      "label": "settings",
+      "width": 360,
+      "scrollWidth": 360
+    },
+    {
+      "label": "dashboard",
+      "width": 360,
+      "scrollWidth": 360
+    },
+    {
+      "label": "campaigns",
+      "width": 360,
+      "scrollWidth": 360
+    },
+    {
+      "label": "templates",
+      "width": 360,
+      "scrollWidth": 360
+    },
+    {
+      "label": "approvals",
+      "width": 360,
+      "scrollWidth": 360
+    },
+    {
+      "label": "history",
+      "width": 360,
+      "scrollWidth": 360
+    },
+    {
+      "label": "settings",
+      "width": 393,
+      "scrollWidth": 393
+    },
+    {
+      "label": "dashboard",
+      "width": 393,
+      "scrollWidth": 393
+    },
+    {
+      "label": "campaigns",
+      "width": 393,
+      "scrollWidth": 393
+    },
+    {
+      "label": "templates",
+      "width": 393,
+      "scrollWidth": 393
+    },
+    {
+      "label": "approvals",
+      "width": 393,
+      "scrollWidth": 393
+    },
+    {
+      "label": "history",
+      "width": 393,
+      "scrollWidth": 393
+    },
+    {
+      "label": "settings",
+      "width": 768,
+      "scrollWidth": 768
+    },
+    {
+      "label": "dashboard",
+      "width": 768,
+      "scrollWidth": 768
+    },
+    {
+      "label": "campaigns",
+      "width": 768,
+      "scrollWidth": 768
+    },
+    {
+      "label": "templates",
+      "width": 768,
+      "scrollWidth": 768
+    },
+    {
+      "label": "approvals",
+      "width": 768,
+      "scrollWidth": 768
+    },
+    {
+      "label": "history",
+      "width": 768,
+      "scrollWidth": 768
+    },
+    {
+      "label": "settings",
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "label": "dashboard",
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "label": "campaigns",
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "label": "templates",
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "label": "approvals",
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "label": "history",
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    {
+      "label": "password-network-failure",
+      "retryEnabled": true
+    },
+    {
+      "label": "deadline-crossing",
+      "reclaimVisibleWithoutReload": true,
+      "ownerApprovalRequired": true
+    },
+    {
+      "label": "expiry",
+      "width": 393,
+      "scrollWidth": 393
+    },
+    {
+      "label": "review",
+      "width": 393,
+      "scrollWidth": 393
+    },
+    {
+      "label": "guarded-review-wallet-handoff",
+      "originalDocumentPreserved": true,
+      "otherNavigationGuardStillArmed": true,
+      "automaticOpenStubbed": true
+    }
+  ],
+  "pageErrors": [],
+  "serverTimezone": "UTC",
+  "browserTimezone": "Asia/Manila (desktop default; live hosted probe separately checks the same browser)"
+}

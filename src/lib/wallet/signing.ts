@@ -3,7 +3,7 @@
 /** Campaign wallet routing: embedded Lantern, phone Freighter, desktop Freighter. */
 type Network = 'testnet' | 'public'
 import { connectLantern, lanternParentOrigin, signLantern } from './lantern'
-import { FREIGHTER_APP_LINK, freighterPairingLink, phoneBrowserSnapshot } from './phone'
+import { FREIGHTER_APP_LINK, freighterPairingLink, openFreighterApp, phoneBrowserSnapshot } from './phone'
 
 let mobileProjectId = ''
 let senderTransport: 'desktop' | 'mobile' = 'desktop'
@@ -17,9 +17,8 @@ export function cancelSenderConnection() { connecting?.abort() }
 export function configureSenderMobile(projectId: string) { mobileProjectId = projectId }
 
 async function adapter(network: Network) {
-  const { FreighterModule } = await import('@creit.tech/stellar-wallets-kit/modules/freighter')
-  const { Networks } = await import('@creit.tech/stellar-wallets-kit/types')
-  const wallet = new FreighterModule()
+  const { FreighterDesktop, Networks } = await import('@/lib/wallet/desktop')
+  const wallet = new FreighterDesktop()
   const passphrase = network === 'public' ? Networks.PUBLIC : Networks.TESTNET
   if (!(await wallet.isAvailable())) throw new Error('Open Freighter in this desktop browser, unlock it, then try again.')
   return { wallet, passphrase }
@@ -32,17 +31,20 @@ async function checkNetwork(wallet: Awaited<ReturnType<typeof adapter>>['wallet'
 }
 
 /** Connecting is an explicit access request, never a signature or submission. */
-export async function connectWallet(network: Network, options?: { walletIds: readonly string[] }): Promise<string> {
+export async function connectWallet(network: Network, options?: { walletIds?: readonly string[]; reuseSession?: boolean }): Promise<string> {
   if (lanternParentOrigin()) return connectLantern(network)
-  if (options && !options.walletIds.includes('freighter')) throw new Error('No supported wallet matches this connection request. This pilot uses Freighter.')
+  if (options?.walletIds && !options.walletIds.includes('freighter')) throw new Error('No supported wallet matches this connection request. This pilot uses Freighter.')
   if (phoneBrowserSnapshot()) {
     if (!/^[a-f0-9]{32}$/i.test(mobileProjectId)) throw new Error('Phone wallet connections are not configured. Open Kleym in Lantern or ask the sender to enable phone connections.')
     if (connecting) throw new Error('Finish or cancel the current phone connection first.')
     connecting = new AbortController()
     try {
-      const { connectMobile } = await import('./mobile')
+      const { connectMobile, mobileAddress } = await import('./mobile')
+      if (options?.reuseSession) {
+        try { const address = mobileAddress(network); senderTransport = 'mobile'; return address } catch { /* Expired or absent: ask for a new pairing. */ }
+      }
       const address = await connectMobile(network, { projectId: mobileProjectId }, (uri) => {
-        const link = freighterPairingLink(uri); showMobileLink(link); window.location.href = link
+        const link = freighterPairingLink(uri); showMobileLink(link); openFreighterApp(link)
       }, connecting.signal)
       senderTransport = 'mobile'
       return address
@@ -60,7 +62,7 @@ export async function signEnvelope(xdr: string, network: Network, senderPublicKe
   if (lanternParentOrigin()) return signLantern(xdr, network, senderPublicKey)
   if (senderTransport === 'mobile') {
     try {
-      return await (await import('./mobile')).signMobile(xdr, network, senderPublicKey, () => { showMobileLink(FREIGHTER_APP_LINK); window.location.href = FREIGHTER_APP_LINK })
+      return await (await import('./mobile')).signMobile(xdr, network, senderPublicKey, () => { showMobileLink(FREIGHTER_APP_LINK); openFreighterApp(FREIGHTER_APP_LINK) })
     } finally { showMobileLink('') }
   }
   const { wallet, passphrase } = await adapter(network)

@@ -62,7 +62,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.22.1'
           cache: pnpm
 
       - name: Install
@@ -271,6 +271,7 @@ jobs:
     env:
       NODE_ENV: production
       APP_URL: http://127.0.0.1:3210
+      MARKETING_SITE_URL: https://kleym-landing.test
       DATABASE_URL: postgresql://kleym:kleym@localhost:5432/kleym
       REDIS_URL: redis://localhost:6379
       STELLAR_NETWORK: testnet
@@ -288,7 +289,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.22.1'
           cache: pnpm
 
       - name: Install
@@ -302,9 +303,11 @@ jobs:
         run: |
           PASSWORD="$(openssl rand -base64 24)"
           echo "::add-mask::$PASSWORD"
-          echo "SESSION_SECRET=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
-          echo "AUDIT_SIGNING_SEED=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
-          echo "CREDENTIAL_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+          for RUN_SECRET_NAME in SESSION_SECRET AUDIT_SIGNING_SEED CREDENTIAL_ENCRYPTION_KEY; do
+            RUN_SECRET_VALUE="$(openssl rand -base64 32)"
+            echo "::add-mask::$RUN_SECRET_VALUE"
+            echo "$RUN_SECRET_NAME=$RUN_SECRET_VALUE" >> "$GITHUB_ENV"
+          done
           echo "SEED_ADMIN_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
           echo "E2E_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
 
@@ -313,11 +316,14 @@ jobs:
       - name: Generate throwaway sponsor key
         run: |
           pnpm exec tsx -e "
+            import { appendFileSync } from 'node:fs'
             import { Keypair } from '@stellar/stellar-sdk'
             const k = Keypair.random()
-            console.log('SPONSOR_PUBLIC_KEY=' + k.publicKey())
-            console.log('SPONSOR_SECRET_KEY=' + k.secret())
-          " >> "$GITHUB_ENV"
+            const secret = k.secret()
+            if (!process.env.GITHUB_ENV) throw new Error('Missing workflow environment file')
+            console.log('::add-mask::' + secret)
+            appendFileSync(process.env.GITHUB_ENV, 'SPONSOR_PUBLIC_KEY=' + k.publicKey() + '\nSPONSOR_SECRET_KEY=' + secret + '\n')
+          "
 
       - name: Apply migrations
         run: pnpm db:deploy
@@ -384,7 +390,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.22.1'
           cache: pnpm
 
       - name: Install
@@ -403,7 +409,15 @@ jobs:
       # first access precisely so the build needs no secrets — if this step ever
       # starts requiring them, that decoupling has regressed.
       - name: Build
-        run: pnpm build
+        # Match the production Dockerfile; different bundlers can differ on 404 prerendering.
+        run: pnpm exec next build --webpack
+
+      # Public marketing assets must build without the app's database/wallet secrets.
+      - name: Build standalone static homepage
+        run: pnpm build:landing
+
+      - name: Verify standalone website boundaries
+        run: pnpm verify:landing
 
       - name: Audit
         run: pnpm audit --audit-level=moderate
@@ -642,7 +656,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.22.1'
           cache: pnpm
       - name: Install
         run: pnpm install --frozen-lockfile

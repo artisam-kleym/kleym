@@ -56,7 +56,7 @@ export interface TemplatePrefill {
   assetIssuer: string | null
   amountPerLink: string
   expiresAt: string
-  claimPolicy: 'open' | 'code' | 'email' | 'passkey'
+  claimPolicy: 'open' | 'code' | 'email' | 'passkey' | 'wallet'
   reminderDaysBefore: number[]
   /** One per line, `XLM` or `CODE:ISSUER` — the raw the receive-as field takes. */
   receiveAsRaw: string
@@ -96,24 +96,29 @@ export function useWizard() {
    * before the Blob was written must not open the gate.
    */
   const [downloaded, setDownloaded] = useState(false)
+  const [exportConfirmed, setExportConfirmed] = useState(false)
 
   const [progress, setProgress] = useState<BatchProgress>({ signed: 0, total: 0, failed: 0 })
   const [campaignId, setCampaignId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const markDownloaded = useCallback(() => setDownloaded(true), [])
+  const confirmExport = useCallback((confirmed: boolean) => {
+    setExportConfirmed(downloaded && confirmed)
+  }, [downloaded])
 
   /** Regenerating invalidates any earlier download — those keys are gone. */
   const replaceKeys = useCallback((next: EphemeralKey[]) => {
     setKeys(next)
     setDownloaded(false)
+    setExportConfirmed(false)
   }, [])
 
   return {
     step, setStep,
     phase, setPhase,
     keys, replaceKeys,
-    downloaded, markDownloaded,
+    downloaded, markDownloaded, exportConfirmed, confirmExport,
     progress, setProgress,
     campaignId, setCampaignId,
     error, setError,
@@ -121,6 +126,6 @@ export function useWizard() {
 }
 
 /** Step 4 is reachable only from here. */
-export function canContinuePastExport(downloaded: boolean, keys: EphemeralKey[]): boolean {
-  return downloaded && keys.length > 0
+export function canContinuePastExport(downloaded: boolean, keys: EphemeralKey[], exportConfirmed = false): boolean {
+  return downloaded && exportConfirmed && keys.length > 0
 }

@@ -16,10 +16,17 @@ packages/**/dist/
 !scripts/audit-verify.ts
 !scripts/audit-verify-export.ts
 !scripts/receipts-verify.ts
+!scripts/build-landing.ts
+!landing/
+!landing/**
+landing/dist/
 !tests/
 !tests/env-placeholders.ts
 !package.json
 !pnpm-lock.yaml
+!pnpm-workspace.yaml
+!patches/
+!patches/*.patch
 !next.config.ts
 !tsconfig.json
 !postcss.config.mjs

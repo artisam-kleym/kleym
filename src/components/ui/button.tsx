@@ -64,7 +64,7 @@ export function IconButton({ icon, label, size = 'md', className, ...props }: Ic
         // Both reach the 44px touch target; the small variant does it with
         // padding, since BRAND.md §10 flags the 32px table buttons as too small.
         size === 'md' ? 'h-10 w-10' : 'h-8 w-8 p-1 sm:h-8 sm:w-8',
-        'min-h-11 min-w-11 sm:min-h-0 sm:min-w-0',
+        'min-h-11 min-w-11',
         className,
       )}
       {...props}

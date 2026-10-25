@@ -32,13 +32,14 @@ export function triggerDownload(
   keys: EphemeralKey[],
   campaignName: string,
   appUrl: string,
+  withCodes = false,
 ): DownloadResult {
   if (keys.length === 0) throw new Error('refusing to download an empty secrets file')
 
   const rows: CsvRow[] = keys.map((key) => ({ key, url: claimUrl(appUrl, key.secret) }))
   const filename = csvFilename(campaignName)
 
-  const blob = new Blob([buildCsv(rows)], { type: 'text/csv;charset=utf-8' })
+  const blob = new Blob([buildCsv(rows, { requireCodes: withCodes })], { type: 'text/csv;charset=utf-8' })
   const href = URL.createObjectURL(blob)
 
   const anchor = document.createElement('a')

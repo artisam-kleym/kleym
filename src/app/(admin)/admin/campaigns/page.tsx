@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import { listAllCampaigns } from '@/lib/api/admin'
 import { StatusChip, Table, TableCell, TableHead, TableRow, type Status } from '@/components/ui'
 
@@ -19,7 +20,7 @@ export default async function AdminCampaignsPage() {
 
   return (
     <>
-      <h1 className="text-display-lg text-primary max-md:text-headline-md">Campaigns</h1>
+      <PageHeading icon="campaign" tone="yellow">Campaigns</PageHeading>
       <p className="mt-md text-body-md text-on-surface-variant">
         The {campaigns.length} most recent, across every account.
       </p>
@@ -31,6 +32,8 @@ export default async function AdminCampaignsPage() {
             <TableRow key={campaign.id}>
               <TableCell>
                 {campaign.name}
+                <p className="mt-xs break-all font-mono text-label-sm text-on-surface-variant">Campaign ID: {campaign.id}</p>
+                {campaign.fundingHash && <a className="mt-xs block max-w-xs break-all font-mono text-label-sm text-primary underline" href={`https://stellar.expert/explorer/${campaign.network === 'public' ? 'public' : 'testnet'}/tx/${campaign.fundingHash}`} target="_blank" rel="noopener noreferrer">Latest funding transaction: {campaign.fundingHash}</a>}
                 <span className="ml-sm font-mono text-label-sm text-on-surface-variant">
                   {campaign.variableAmounts ? 'varies' : campaign.amountPerLink} {campaign.assetCode}
                 </span>

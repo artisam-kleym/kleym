@@ -113,7 +113,7 @@ Every status chip pairs a colour with a **text label and a dot**. Colour alone n
 This scale is unusual and it is the point. `rounded-xl` is 8px, not 12. `rounded-full` is 12px, **not a circle** — for actual circles use `rounded-[50%]` or fixed-size elements with `rounded-full` plus equal width and height.
 
 **Layout**
-- Sidebar: fixed, 256px, `lg:` and up, `primary-container` background. Below `lg`, a bottom bar or drawer.
+- Sidebar: fixed, 256px, `lg:` and up, `primary-container` background. Below `lg`, a sticky top header with a collapsible navigation menu and organisation switcher.
 - Content: `lg:ml-64`, max 1440px, `px-margin-mobile md:px-lg`, `py-xl`.
 - Bento grids: `grid-cols-1 md:grid-cols-3 gap-md`.
 - Claim page: single centred column, max 520px, vertically centred.
@@ -314,3 +314,10 @@ Port the mock's inline config into `tailwind.config.ts` verbatim, then:
 - Move `.glass-card`, `.glass-panel`, `.input-glow`, `.text-gradient`, `.ambient-glow`, and `.pulse-ring` into `globals.css` under `@layer components`.
 - Replace font CDN links with `next/font/local`.
 - Resolve dark mode (correction 8).
+
+## 12. Product screens (October 2026)
+
+The homepage's navy, mint, yellow and pink identity extends to account, sender,
+administrator and recipient screens. See `docs/product-design.md` for the shared
+components, route coverage and interaction constraints. Operational pages use
+compact headers and legible forms; the homepage remains the marketing surface.

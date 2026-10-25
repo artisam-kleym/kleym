@@ -6,8 +6,12 @@ import type { CostBreakdown } from '@/lib/campaign/cost'
 import type { stellarMetadata } from '@/lib/stellar/network'
 import { ExpiryPicker } from './expiry-picker'
 import { isStellarAmount, MAX_STELLAR_AMOUNT } from '@/lib/stellar/amount'
+import { WalletRecipients } from './wallet-recipients'
 import { PrizeAmounts } from './prize-amounts'
 import { NetworkPicker } from './network-picker'
+import { useSyncExternalStore } from 'react'
+import { lanternSnapshot, subscribeLantern } from '@/lib/wallet/lantern'
+import { phoneBrowserSnapshot, subscribePhoneBrowser } from '@/lib/wallet/phone'
 
 /** Step 1 — asset and amount. SPEC.md §5.3. */
 export function AssetStep({
@@ -50,6 +54,8 @@ export function AssetStep({
   emailReceipts: boolean
   onEmailReceipts: (send: boolean) => void
 }) {
+  const inLantern = useSyncExternalStore(subscribeLantern, lanternSnapshot, () => false)
+  const phoneBrowser = useSyncExternalStore(subscribePhoneBrowser, phoneBrowserSnapshot, () => false)
   const native = balances.find((b) => b.assetIssuer === null)
   const usdc = stellar.defaultAsset
   const selectableBalances = balances.filter((b) => b.assetCode !== 'USDC' || b.assetIssuer === usdc.assetIssuer)
@@ -91,7 +97,8 @@ export function AssetStep({
           autoComplete="off"
           required
         />
-        {onConnect && <Button variant="secondary" onClick={onConnect}>Use connected wallet as funding account</Button>}
+        {onConnect && <Button variant="secondary" onClick={onConnect} data-testid="sender-connect-wallet">{inLantern ? 'Connect Lantern' : phoneBrowser ? 'Connect Freighter on phone' : 'Connect Freighter'}</Button>}
+        <p className="text-body-md text-on-surface-variant" data-testid="funding-address-guidance">Connect to use your wallet address, or enter it above to check its balance. Funding and reclaim still need approval from that account&apos;s wallet.</p>
         {lookupFailed && onRetryBalance && <Button variant="secondary" onClick={onRetryBalance}>Retry balance check</Button>}
 
         <div className="flex flex-col gap-xs">
@@ -227,6 +234,7 @@ export function RecipientsStep({
   onReminderDays,
   claimPolicy,
   onClaimPolicy,
+  wallets = [], onWalletImport, onWalletPending,
   cost,
   reserveSource,
   maxLinks,
@@ -258,8 +266,11 @@ export function RecipientsStep({
   reminderDays: number[]
   onReminderDays: (days: number[]) => void
   /** Who may claim (#79). */
-  claimPolicy: 'open' | 'code' | 'email' | 'passkey'
-  onClaimPolicy: (policy: 'open' | 'code' | 'email' | 'passkey') => void
+  wallets?: string[]
+  onWalletImport: (rows: import('@/lib/campaign/wallet-recipients').WalletRecipients) => void
+  onWalletPending: (error: string | null) => void
+  claimPolicy: 'open' | 'code' | 'email' | 'passkey' | 'wallet'
+  onClaimPolicy: (policy: 'open' | 'code' | 'email' | 'passkey' | 'wallet') => void
   cost: CostBreakdown | null
   reserveSource: string | null
   maxLinks: number
@@ -271,10 +282,46 @@ export function RecipientsStep({
       <h2 className="text-headline-sm text-on-surface">Recipients &amp; expiry</h2>
 
       <div className="mt-lg flex flex-col gap-md">
+        <fieldset className="flex flex-col gap-xs">
+          <legend className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">
+            Who may claim
+          </legend>
+          {(
+            [
+              ['open', 'Anyone with the link', 'The link is the credential. Right for most distributions; a leaked link is claimable by whoever holds it.'],
+              ['code', 'Anyone with the link AND a claim code', 'Kleym requires each link’s separate 13-character code before processing a claim. The code is included in your private CSV. Send it through a separate channel. This is a Kleym check, not an extra Stellar signing requirement: keep the link private too.'],
+              ['wallet', 'Only the assigned wallet address', 'Import a CSV of recipient wallets. Each link is locked on Stellar to its assigned wallet; a leaked link cannot send the prize to a different wallet.'],
+              ['email', 'Email verification (unavailable)', 'This requires Kleym email delivery. The current app uses your private CSV for distribution; choose another claim policy.'],
+              ['passkey', 'Only the first device that claims', 'The first person to open the link registers a passkey on their device, and only that device can finish the claim. A copy made afterwards is useless.'],
+            ] as const
+          ).map(([value, title, detail]) => (
+            <label key={value} className="flex items-start gap-sm rounded-lg border border-outline-variant/50 bg-surface-container-low p-md">
+              <input
+                type="radio"
+                name="claimPolicy"
+                value={value}
+                checked={claimPolicy === value}
+                disabled={value === 'email'}
+                onChange={() => onClaimPolicy(value)}
+                className="mt-1 h-5 w-5"
+              />
+              <span className="flex flex-col gap-xs">
+                <span className="text-label-md font-semibold text-on-surface">{title}</span>
+                <span className="font-mono text-label-sm text-on-surface-variant">{detail}</span>
+              </span>
+            </label>
+          ))}
+          <p className="font-mono text-label-sm text-on-surface-variant">
+            Wallet addresses identify accounts, not people. Other policies bind a link to a channel or device.
+          </p>
+        </fieldset>
+
+        {claimPolicy === 'wallet' && <WalletRecipients count={draft.linkCount} maxLinks={maxLinks} onImport={onWalletImport} onPending={onWalletPending} />}
+
         <Input
           label="Number of links"
           name="linkCount"
-          disabled={renewal}
+          disabled={renewal || claimPolicy === 'wallet'}
           type="number"
           min={1}
           max={maxLinks}
@@ -286,7 +333,7 @@ export function RecipientsStep({
 
         <ExpiryPicker value={draft.expiresAt} choice={expiryChoice} error={expiryError} onChange={onExpiry} />
 
-        <div className="flex flex-col gap-xs">
+        {claimPolicy !== 'wallet' && <div className="flex flex-col gap-xs">
           <label
             htmlFor="labels"
             className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant"
@@ -323,42 +370,11 @@ export function RecipientsStep({
               )}.
             </p>
           )}
-        </div>
+        </div>}
 
-        <PrizeAmounts count={draft.linkCount} labels={labels} amounts={amounts} defaultAmount={defaultAmount} assetCode={assetCode} onAmount={onAmount} onReset={onResetAmounts} disabled={renewal} />
+        <PrizeAmounts wallets={claimPolicy === 'wallet' ? wallets : undefined} count={draft.linkCount} labels={labels} amounts={amounts} defaultAmount={defaultAmount} assetCode={assetCode} onAmount={onAmount} onReset={onResetAmounts} disabled={renewal} />
 
-        <fieldset className="flex flex-col gap-xs">
-          <legend className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">
-            Who may claim
-          </legend>
-          {(
-            [
-              ['open', 'Anyone with the link', 'The link is the credential. Right for most distributions; a leaked link is claimable by whoever holds it.'],
-              ['code', 'Anyone with the link AND a claim code', 'Each link gets a 13-character code, written into your secrets file. Hand it over through a second channel — chat, a call, a card — and a forwarded link is useless without it. The file then holds link and code together, so guard it accordingly.'],
-              ['email', 'Email verification (unavailable)', 'This requires Kleym email delivery. The current app uses your private CSV for distribution; choose another claim policy.'],
-              ['passkey', 'Only the first device that claims', 'The first person to open the link registers a passkey on their device, and only that device can finish the claim. A copy made afterwards is useless.'],
-            ] as const
-          ).map(([value, title, detail]) => (
-            <label key={value} className="flex items-start gap-sm rounded-lg border border-outline-variant/50 bg-surface-container-low p-md">
-              <input
-                type="radio"
-                name="claimPolicy"
-                value={value}
-                checked={claimPolicy === value}
-                disabled={value === 'email'}
-                onChange={() => onClaimPolicy(value)}
-                className="mt-1 h-5 w-5"
-              />
-              <span className="flex flex-col gap-xs">
-                <span className="text-label-md font-semibold text-on-surface">{title}</span>
-                <span className="font-mono text-label-sm text-on-surface-variant">{detail}</span>
-              </span>
-            </label>
-          ))}
-          <p className="font-mono text-label-sm text-on-surface-variant">
-            None of these identifies a person. They bind a link to a channel or a device; recipients stay anonymous.
-          </p>
-        </fieldset>
+
 
         <fieldset className="flex flex-col gap-xs">
           <legend className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">

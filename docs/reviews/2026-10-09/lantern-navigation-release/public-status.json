@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-10-09T02:55:52.818Z",
+  "overall": "operational",
+  "components": [
+    {
+      "name": "Database",
+      "state": "operational",
+      "note": "answering"
+    },
+    {
+      "name": "Queue and cache",
+      "state": "operational",
+      "note": "answering"
+    },
+    {
+      "name": "Stellar network (Horizon)",
+      "state": "operational",
+      "note": "answering"
+    },
+    {
+      "name": "Background workers",
+      "state": "operational",
+      "note": "draining"
+    },
+    {
+      "name": "Claim sponsorship",
+      "state": "operational",
+      "note": "operational"
+    },
+    {
+      "name": "Ledger reconciliation",
+      "state": "operational",
+      "note": "current"
+    }
+  ]
+}

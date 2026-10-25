@@ -57,7 +57,7 @@ export function Webhooks({ endpoints, events, owner }: { endpoints: EndpointRow[
   }
 
   return (
-    <section className="mt-2xl">
+    <section className="mt-xl">
       <h2 className="text-headline-sm text-on-surface">Webhooks</h2>
       <p className="mt-xs text-body-md text-on-surface-variant">
         Kleym POSTs a signed JSON body to each endpoint when something happens. Payloads carry ids,
@@ -76,7 +76,7 @@ export function Webhooks({ endpoints, events, owner }: { endpoints: EndpointRow[
 
       {owner && (
         <form onSubmit={add} className="mt-md flex flex-col gap-md">
-          <div className="max-w-xl">
+          <div className="max-w-[36rem]">
             <Input label="Endpoint URL" name="url" type="url" placeholder="https://payroll.example.com/kleym/webhooks" required />
           </div>
           <fieldset className="flex flex-wrap gap-md">

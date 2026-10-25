@@ -1,0 +1,169 @@
+{
+  "at": "2026-10-13T14:44:52.228Z",
+  "url": "http://127.0.0.1:3228/",
+  "appEntryMode": "compatibility homepage → login",
+  "results": [
+    {
+      "profile": "phone-320",
+      "passed": true,
+      "layout": {
+        "viewport": 320,
+        "scrollWidth": 320,
+        "heroHeight": 1235.375,
+        "pageHeight": 5493,
+        "headlineGap": 28,
+        "primaryActionBottom": 457.953125,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "android-393",
+      "passed": true,
+      "layout": {
+        "viewport": 393,
+        "scrollWidth": 393,
+        "heroHeight": 1224.421875,
+        "pageHeight": 4895,
+        "headlineGap": 28,
+        "primaryActionBottom": 422.3125,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "phone-landscape",
+      "passed": true,
+      "layout": {
+        "viewport": 852,
+        "scrollWidth": 852,
+        "heroHeight": 685.234375,
+        "pageHeight": 3238,
+        "headlineGap": 36,
+        "primaryActionBottom": 383.515625,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "tablet-768",
+      "passed": true,
+      "layout": {
+        "viewport": 768,
+        "scrollWidth": 768,
+        "heroHeight": 720.546875,
+        "pageHeight": 3317,
+        "headlineGap": 36,
+        "primaryActionBottom": 454.75,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "desktop-1024",
+      "passed": true,
+      "layout": {
+        "viewport": 1024,
+        "scrollWidth": 1024,
+        "heroHeight": 685.234375,
+        "pageHeight": 3085,
+        "headlineGap": 36,
+        "primaryActionBottom": 387.796875,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "desktop-compact-1280",
+      "passed": true,
+      "layout": {
+        "viewport": 1280,
+        "scrollWidth": 1280,
+        "heroHeight": 685.234375,
+        "pageHeight": 3047,
+        "headlineGap": 36,
+        "primaryActionBottom": 410.484375,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "desktop-1440",
+      "passed": true,
+      "layout": {
+        "viewport": 1440,
+        "scrollWidth": 1440,
+        "heroHeight": 685.234375,
+        "pageHeight": 3048,
+        "headlineGap": 36,
+        "primaryActionBottom": 422.390625,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "wide-1920",
+      "passed": true,
+      "layout": {
+        "viewport": 1920,
+        "scrollWidth": 1920,
+        "heroHeight": 685.234375,
+        "pageHeight": 3048,
+        "headlineGap": 36,
+        "primaryActionBottom": 422.390625,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "zoom-reflow-640",
+      "passed": true,
+      "layout": {
+        "viewport": 640,
+        "scrollWidth": 640,
+        "heroHeight": 1156.734375,
+        "pageHeight": 4427,
+        "headlineGap": 28,
+        "primaryActionBottom": 428.765625,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "no-javascript",
+      "passed": true,
+      "layout": {
+        "viewport": 393,
+        "scrollWidth": 393,
+        "heroHeight": 1224.421875,
+        "pageHeight": 4895,
+        "headlineGap": 28,
+        "primaryActionBottom": 422.3125,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    }
+  ],
+  "failures": [],
+  "scope": "Public homepage production browser checks; simulated viewports, not native phone-wallet approvals"
+}

@@ -126,7 +126,7 @@ export function Organisation({
   }
 
   return (
-    <section className="mt-2xl">
+    <section className="mt-xl">
       <h2 className="text-headline-sm text-on-surface">Organisation</h2>
       <p className="mt-xs text-body-md text-on-surface-variant">
         Campaigns belong to <span className="font-mono">{name}</span>; every member sees them, and
@@ -134,8 +134,8 @@ export function Organisation({
       </p>
 
       {owner && (
-        <form onSubmit={rename} className="mt-md flex flex-wrap items-end gap-md">
-          <div className="min-w-[14rem] flex-1">
+        <form onSubmit={rename} className="mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-md">
+          <div className="min-w-0 sm:min-w-[14rem] flex-1">
             <Input label="Name" name="name" defaultValue={name} minLength={2} maxLength={80} required />
           </div>
           <Button type="submit" variant="secondary" disabled={busy}>Rename</Button>
@@ -150,7 +150,7 @@ export function Organisation({
             : `On. A campaign worth ${policy.approvalThreshold} or more (amount per link × links, in units of the campaign's own asset — 100 gates 100 USDC and 100 XLM alike) needs ${policy.approvalsRequired} ${policy.approvalsRequired === 1 ? 'approval' : 'approvals'} from approvers other than its creator before a batch can be signed. Approvals are bound to the terms: change any and they are needed again. Each campaign keeps the policy it was created under, so loosening this later affects only new campaigns.`}
         </p>
         {owner && (
-          <form onSubmit={savePolicy} className="mt-md flex flex-wrap items-end gap-md">
+          <form onSubmit={savePolicy} className="mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-md">
             <label className="flex items-center gap-sm font-mono text-label-md text-on-surface">
               <input type="checkbox" name="enabled" defaultChecked={policy.approvalThreshold !== null} className="h-5 w-5" />
               Require approval
@@ -176,10 +176,10 @@ export function Organisation({
               : 'Every member must have a second factor to sign in. Enforced on every request from the moment it is set.'}
         </p>
         {owner && (
-          <form onSubmit={saveMfaPolicy} className="mt-md flex flex-wrap items-end gap-md">
+          <form onSubmit={saveMfaPolicy} className="mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-md">
             <label className="flex flex-col gap-xs">
               <span className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">Required for</span>
-              <select name="mfaPolicy" defaultValue={mfaPolicy} className="rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface">
+              <select name="mfaPolicy" defaultValue={mfaPolicy} className="rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-body-md md:text-label-md text-on-surface">
                 <option value="OFF">Nobody</option>
                 <option value="APPROVERS">Approvers and Owners</option>
                 <option value="ALL">All members</option>
@@ -198,8 +198,8 @@ export function Organisation({
             : `On. Before any batch is signed, the campaign's terms and each recipient's reference fields are sent to ${safeHost(screeningUrl)}, which answers allow, hold or block. No answer, or an error, holds the campaign. Kleym ships the callback, not a screening provider — see docs/compliance.md for the contract.`}
         </p>
         {owner && (
-          <form onSubmit={saveScreening} className="mt-md flex flex-wrap items-end gap-md">
-            <div className="min-w-[18rem] flex-1">
+          <form onSubmit={saveScreening} className="mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-md">
+            <div className="min-w-0 sm:min-w-[18rem] flex-1">
               <Input label="Callback URL" name="screeningUrl" type="url" defaultValue={screeningUrl ?? ''} placeholder="https://compliance.example.com/kleym/screen" />
             </div>
             <Button type="submit" variant="secondary" disabled={busy}>Save</Button>
@@ -222,10 +222,10 @@ export function Organisation({
           applies to claims settled from then on.
         </p>
         {owner && currencies.length > 1 && (
-          <form onSubmit={saveReportingCurrency} className="mt-md flex flex-wrap items-end gap-md">
+          <form onSubmit={saveReportingCurrency} className="mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-md">
             <label className="flex flex-col gap-xs">
               <span className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">Reporting currency</span>
-              <select name="reportingCurrency" defaultValue={reportingCurrency} className="min-h-11 rounded-lg border border-outline bg-surface px-3 font-mono text-label-md text-on-surface">
+              <select name="reportingCurrency" defaultValue={reportingCurrency} className="min-h-11 rounded-lg border border-outline bg-surface px-3 font-mono text-body-md md:text-label-md text-on-surface">
                 {currencies.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -287,13 +287,13 @@ export function Organisation({
       </Table>
 
       {owner && (
-        <form onSubmit={add} className="mt-md flex flex-wrap items-end gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
-          <div className="min-w-[12rem] flex-1">
+        <form onSubmit={add} className="mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
+          <div className="min-w-0 sm:min-w-[12rem] flex-1">
             <Input label="Username" name="username" helper="An existing account joins now; a new one is invited." required minLength={3} maxLength={64} />
           </div>
           <div className="flex flex-col gap-xs">
             <label htmlFor="add-member-role" className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">Role</label>
-            <select id="add-member-role" name="role" defaultValue="OPERATOR" className="min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface">
+            <select id="add-member-role" name="role" defaultValue="OPERATOR" className="min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-body-md md:text-label-md text-on-surface">
               {ROLES.map((r) => <option key={r} value={r}>{r.charAt(0) + r.slice(1).toLowerCase()}</option>)}
             </select>
           </div>

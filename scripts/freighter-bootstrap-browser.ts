@@ -1,5 +1,6 @@
 import { connectWallet, signEnvelope, walletErrorMessage } from '../src/lib/wallet/signing'
-import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit'
+import { FreighterDesktop } from '../src/lib/wallet/desktop'
+const desktop = new FreighterDesktop()
 
 const connect = document.querySelector<HTMLButtonElement>('#connect')!
 const prepare = document.querySelector<HTMLButtonElement>('#prepare')!
@@ -25,10 +26,9 @@ async function api(path: string, body?: object) {
 }
 
 async function checkWallet() {
-  if (StellarWalletsKit.selectedModule.productId !== 'freighter') throw new Error('Choose Freighter for this proof.')
-  const { address } = await StellarWalletsKit.fetchAddress()
+  const { address } = await desktop.getAddress({ skipRequestAccess: true })
   if (address !== expectedTarget) throw new Error(`Select ${walletLabel} in Freighter, then connect again.`)
-  const { networkPassphrase } = await StellarWalletsKit.getNetwork()
+  const { networkPassphrase } = await desktop.getNetwork()
   if (networkPassphrase !== 'Test SDF Network ; September 2015') throw new Error('Select Testnet in Freighter.')
 }
 

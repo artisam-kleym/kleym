@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/ui/page-heading'
 import { getSessionUser } from '@/lib/auth/session'
 import { listUsers } from '@/lib/api/admin'
 import { pendingInvitations } from '@/lib/api/invitations'
@@ -22,7 +23,7 @@ export default async function AdminUsersPage() {
 
   return (
     <>
-      <h1 className="text-display-lg text-primary max-md:text-headline-md">Users</h1>
+      <PageHeading icon="verified_user" tone="pink">Users</PageHeading>
       <p className="mt-md text-body-md text-on-surface-variant">
         {users.length} {users.length === 1 ? 'account' : 'accounts'}
         {inactive > 0 && `, ${inactive} deactivated`}. Deactivating ends every session that

@@ -1,5 +1,6 @@
 import { Keypair, Networks, Transaction, TransactionBuilder } from '@stellar/stellar-sdk'
-import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit'
+import { FreighterDesktop } from '../src/lib/wallet/desktop'
+const desktop = new FreighterDesktop()
 import { connectWallet, signEnvelope, walletErrorMessage } from '../src/lib/wallet/signing'
 import { generateEphemeralKeys, type EphemeralKey } from '../src/lib/campaign/keygen'
 import { buildCsv, splitCsvLine } from '../src/lib/campaign/csv'
@@ -56,10 +57,9 @@ async function refresh() {
   ready()
 }
 async function checkWallet(role: 'sender' | 'recipient') {
-  if (StellarWalletsKit.selectedModule.productId !== 'freighter') throw new Error('Connect Freighter for this proof.')
-  const { address } = await StellarWalletsKit.fetchAddress()
+  const { address } = await desktop.getAddress({ skipRequestAccess: true })
   if (address !== state?.[role]) throw new Error(`Select Kleym ${role === 'sender' ? 'Sender' : 'Recipient'} in Freighter and connect again.`)
-  if ((await StellarWalletsKit.getNetwork()).networkPassphrase !== Networks.TESTNET) throw new Error('Select Testnet in Freighter.')
+  if ((await desktop.getNetwork()).networkPassphrase !== Networks.TESTNET) throw new Error('Select Testnet in Freighter.')
 }
 async function action(run: () => Promise<void>) {
   allButtons.forEach(b => { b.disabled = true })
@@ -79,7 +79,7 @@ button('connect').addEventListener('click', () => void action(async () => {
   status.textContent = 'Choose Freighter and approve the public-address connection.'
   const address = await connectWallet('testnet', { walletIds: ['freighter'] })
   if (![state?.sender, state?.recipient].includes(address)) throw new Error('Select Kleym Sender or Kleym Recipient in Freighter.')
-  if ((await StellarWalletsKit.getNetwork()).networkPassphrase !== Networks.TESTNET) throw new Error('Select Testnet in Freighter.')
+  if ((await desktop.getNetwork()).networkPassphrase !== Networks.TESTNET) throw new Error('Select Testnet in Freighter.')
   status.textContent = `Connected ${address === state?.sender ? 'Kleym Sender' : 'Kleym Recipient'} on Testnet. No transaction submitted.`
 }))
 button('keys').addEventListener('click', () => {

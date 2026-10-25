@@ -83,11 +83,11 @@ export function ApiKeys({ initialKeys }: { initialKeys: KeyRow[] }) {
 
   return (
     <div className="mt-lg flex flex-col gap-lg">
-      <form onSubmit={create} className="flex max-w-2xl flex-wrap items-end gap-sm">
-        <Input label="Key name" name="name" maxLength={60} required className="min-w-[14rem] flex-1" placeholder="CI reporting" />
+      <form onSubmit={create} className="grid min-w-0 max-w-2xl grid-cols-1 gap-sm sm:flex sm:flex-wrap sm:items-end">
+        <Input label="Key name" name="name" maxLength={60} required className="min-w-0 sm:min-w-[14rem] flex-1" placeholder="CI reporting" />
         <label className="flex flex-col gap-xs">
           <span className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">Scope</span>
-          <select name="scope" defaultValue="READ" className="rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface">
+          <select name="scope" defaultValue="READ" className="rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-body-md md:text-label-md text-on-surface">
             <option value="READ">Read — campaigns and links</option>
             <option value="WRITE">Write — create and fund campaigns via the SDK</option>
           </select>

@@ -7,9 +7,10 @@ const mocks = vi.hoisted(() => ({
   signTransaction: vi.fn(async () => ({ signedTxXdr: 'signed-envelope', signerAddress: 'public-account' })),
 }))
 vi.mock('client-only', () => ({}))
-vi.mock('@creit.tech/stellar-wallets-kit', () => { throw new Error('The CSS-injecting modal must not be imported') })
-vi.mock('@creit.tech/stellar-wallets-kit/modules/freighter', () => ({
-  FreighterModule: class {
+
+vi.mock('@/lib/wallet/desktop', () => ({
+  Networks: { PUBLIC: 'Public Global Stellar Network ; September 2015', TESTNET: 'Test SDF Network ; September 2015' },
+  FreighterDesktop: class {
     isAvailable = mocks.isAvailable
     getAddress = mocks.getAddress
     getNetwork = mocks.getNetwork

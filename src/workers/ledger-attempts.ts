@@ -19,7 +19,12 @@ export async function recoverLedgerAttempts(campaignId?: string): Promise<void> 
         const key = attempt.kind === 'MATERIALISE'
           ? transaction.operations.find((operation) => operation.type === 'createAccount')?.destination
           : transaction.operations.find((operation) => operation.type === 'claimClaimableBalance')?.source
-        if (key) await submitClaim(key, attempt.submittedXdr!, attempt.kind === 'MATERIALISE' ? 'materialise' : 'claim')
+        // A WALLET claim's operation source is the recipient, not its link key.
+        // Resolve the durable link identity from the prepared scope instead.
+        const linkId = attempt.scope.slice(attempt.scope.indexOf(':') + 1)
+        const link = await prisma.claimLink.findFirst({ where: { id: linkId, campaignId: attempt.campaignId }, select: { ephemeralPublicKey: true } })
+        if (link) await submitClaim(link.ephemeralPublicKey, attempt.submittedXdr!, attempt.kind === 'MATERIALISE' ? 'materialise' : 'claim')
+        else if (key) logger.warn({ scope: attempt.scope }, 'ledger attempt has no matching link')
       }
     } catch {
       logger.warn({ scope: attempt.scope, hash: attempt.transactionHash }, 'ledger attempt recovery deferred')

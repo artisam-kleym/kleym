@@ -18,6 +18,7 @@ import { triggerDownload } from '../new/download-gate'
 
 interface LinkRow {
   ephemeralPublicKey: string
+  recipientPublicKey?: string | null
   label: string | null
   reference?: string | null
   category?: string | null
@@ -70,7 +71,7 @@ export function RegenerateCsv({
           row.reference || row.category || row.note ? { reference: row.reference ?? null, category: row.category ?? null, note: row.note ?? null } : null,
         ),
         rows.map((row) => row.amount ?? null),
-        { withCodes },
+        { withCodes, ...(rows.some((row) => row.recipientPublicKey) ? { recipientPublicKeys: rows.map((row) => row.recipientPublicKey ?? '') } : {}) },
       ).slice(0, rows.length)
 
       /*
@@ -84,7 +85,7 @@ export function RegenerateCsv({
         throw new Error(`${mismatched} of ${rows.length} derived keys do not match this campaign’s links. Nothing was written.`)
       }
 
-      const result = triggerDownload(keys, campaignName, appUrl)
+      const result = triggerDownload(keys, campaignName, appUrl, withCodes)
       setFilename(result.filename)
       setPhrase('')
       setPhase('done')

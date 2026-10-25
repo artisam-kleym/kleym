@@ -1,0 +1,116 @@
+{
+  "at": "2026-10-13T06:50:53.537Z",
+  "url": "http://127.0.0.1:3226/",
+  "results": [
+    {
+      "profile": "phone-320",
+      "passed": true,
+      "layout": {
+        "viewport": 320,
+        "scrollWidth": 320,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "android-393",
+      "passed": true,
+      "layout": {
+        "viewport": 393,
+        "scrollWidth": 393,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "phone-landscape",
+      "passed": true,
+      "layout": {
+        "viewport": 852,
+        "scrollWidth": 852,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "tablet-768",
+      "passed": true,
+      "layout": {
+        "viewport": 768,
+        "scrollWidth": 768,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "desktop-1024",
+      "passed": true,
+      "layout": {
+        "viewport": 1024,
+        "scrollWidth": 1024,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "desktop-1440",
+      "passed": true,
+      "layout": {
+        "viewport": 1440,
+        "scrollWidth": 1440,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "wide-1920",
+      "passed": true,
+      "layout": {
+        "viewport": 1920,
+        "scrollWidth": 1920,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "zoom-reflow-640",
+      "passed": true,
+      "layout": {
+        "viewport": 640,
+        "scrollWidth": 640,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "profile": "no-javascript",
+      "passed": true,
+      "layout": {
+        "viewport": 393,
+        "scrollWidth": 393,
+        "brokenAnchors": [],
+        "smallTargets": []
+      },
+      "browserErrors": 0,
+      "externalRequests": 0
+    }
+  ],
+  "failures": [],
+  "scope": "Public homepage production browser checks; simulated viewports, not native phone-wallet approvals"
+}

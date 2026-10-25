@@ -100,7 +100,7 @@ export const campaignBodySchema = z
     linkCount: z.number().int().positive().refine(withinLinkLimit, { message: linkLimitMessage() }),
     expiresAt: z.iso.datetime(),
     /** Who may claim (#79). Open unless said; applied to every link of the campaign. */
-    claimPolicy: z.enum(['open', 'code', 'email', 'passkey']).optional(),
+    claimPolicy: z.enum(['open', 'code', 'email', 'passkey', 'wallet']).optional(),
     /**
      * Reminders (#78): days before expiry at which email-delivered, unclaimed
      * recipients are reminded. At most five points; none means no reminders.
@@ -132,6 +132,10 @@ export const campaignBodySchema = z
   .strict()
 
 export const createCampaignSchema = campaignBodySchema
+  .refine((v) => v.claimPolicy !== 'wallet' || (!v.allowExchangeDeposit && !v.receiveAs?.length), {
+    message: 'Wallet-bound campaigns receive the original asset in the assigned wallet; exchange deposits and conversion are unavailable.',
+    path: ['claimPolicy'],
+  })
   .superRefine((v, ctx) => {
     const problem = newFundingProblem(v.network, v.assetCode === 'USDC' ? 'SPONSORED' : 'SENDER')
     if (problem) ctx.addIssue({ code: 'custom', path: ['network'], message: problem })
@@ -198,6 +202,17 @@ export const attestationSchema = z
   })
   .strict()
 
+/** Bound the raw collection before parsing elements. Lazy limits keep build-time
+ * module collection independent of runtime credentials, and preserve operator limits. */
+export function boundedLinkArray<T extends z.ZodType>(item: T) {
+  return z.custom<unknown[]>(Array.isArray, { message: 'must be an array' })
+    .superRefine((items, ctx) => {
+      const maximum = env.MAX_LINKS_PER_CAMPAIGN
+      if (items.length > maximum) ctx.addIssue({ code: 'too_big', origin: 'array', maximum, inclusive: true, message: linkLimitMessage() })
+    })
+    .pipe(z.lazy(() => z.array(item).max(env.MAX_LINKS_PER_CAMPAIGN, linkLimitMessage())))
+}
+
 export const registerLinksSchema = z
   .object({
     /*
@@ -205,28 +220,29 @@ export const registerLinksSchema = z
      * secret seed before checking the StrKey — a seed here is a security
      * event, not a validation error (SPEC.md §6.3).
      */
-    publicKeys: z
-      .array(stellarPublicKey)
-      .min(1)
-      .refine((keys) => withinLinkLimit(keys.length), { message: linkLimitMessage() }),
+    publicKeys: boundedLinkArray(stellarPublicKey).refine((keys) => keys.length > 0, { message: 'at least one public key is required' }),
     // Browser/SDK publicHalves use null for an optional blank label.
-    labels: z.array(seedFreeString.max(200).nullable()).optional(),
+    labels: boundedLinkArray(seedFreeString.max(200).nullable()).optional(),
     /** Attestation fields (#52), one entry (or null) per public key. */
-    attestations: z.array(attestationSchema.nullable()).optional(),
+    attestations: boundedLinkArray(attestationSchema.nullable()).optional(),
     /**
      * Per-link amounts (#73), one entry per public key, as STRINGS. `null`
      * means "the campaign's amountPerLink". Omitted entirely for a uniform
      * campaign, so that request is what it always was.
      */
-    amounts: z.array(stellarAmount.nullable()).optional(),
+    amounts: boundedLinkArray(stellarAmount.nullable()).optional(),
     /**
      * CODE policy (#79): the per-link claim code, one per public key. Hashed
      * on arrival and never stored or logged in the clear; required — every
      * entry — when the campaign's policy is `code`, refused otherwise.
      */
-    codes: z.array(z.string().min(1).max(32).refine(isClaimCode, { message: 'must be a 13-character claim code' })).optional(),
+    recipientPublicKeys: boundedLinkArray(stellarPublicKey).refine((keys) => keys.length > 0).optional(),
+    codes: boundedLinkArray(z.string().min(1).max(32).refine(isClaimCode, { message: 'must be a 13-character claim code' })).optional(),
   })
   .strict()
+  .refine((v) => v.recipientPublicKeys === undefined || v.recipientPublicKeys.length === v.publicKeys.length, {
+    message: 'recipientPublicKeys must have one entry per link', path: ['recipientPublicKeys'],
+  })
   .refine((v) => v.codes === undefined || v.codes.length === v.publicKeys.length, {
     message: 'codes must have one entry per public key',
     path: ['codes'],
