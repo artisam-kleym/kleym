@@ -108,8 +108,8 @@ export const CLAIM_LIMIT = { limit: 10, windowSeconds: 60 } as const
 export const SUBMIT_LIMIT = { limit: 10, windowSeconds: 60 } as const
 
 /*
- * OTP limits are TIGHTER than the other claim routes and are applied per LINK
- * as well as per IP.
+ * Recipient limits remain tight. Aggregate IP budgets are separate so an
+ * event's shared Wi-Fi does not give every attendee one combined allowance.
  *
  * Per IP alone is not enough: an attacker with a forwarded email and a pool of
  * addresses would still get unlimited attempts against one recipient. Per link
@@ -119,3 +119,5 @@ export const SUBMIT_LIMIT = { limit: 10, windowSeconds: 60 } as const
  */
 export const OTP_REQUEST_LIMIT = { limit: 3, windowSeconds: 15 * 60 } as const
 export const OTP_VERIFY_LIMIT = { limit: 10, windowSeconds: 15 * 60 } as const
+export const OTP_REQUEST_IP_LIMIT = { limit: 300, windowSeconds: 15 * 60 } as const
+export const OTP_VERIFY_IP_LIMIT = { limit: 600, windowSeconds: 15 * 60 } as const

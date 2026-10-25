@@ -12,6 +12,7 @@ import { rateLimit } from '@/lib/auth/rate-limit'
 import { verifyOtp } from '@/lib/api/otp'
 import {
   OTP_VERIFY_LIMIT,
+  OTP_VERIFY_IP_LIMIT,
   claimConflict,
   claimRateLimited,
   claimServerError,
@@ -32,7 +33,7 @@ const schema = z
 
 export async function POST(request: Request) {
   const ip = clientIp(request)
-  const byIp = await rateLimit(`otp:verify:ip:${ip}`, OTP_VERIFY_LIMIT.limit, OTP_VERIFY_LIMIT.windowSeconds)
+  const byIp = await rateLimit(`otp:verify:ip:${ip}`, OTP_VERIFY_IP_LIMIT.limit, OTP_VERIFY_IP_LIMIT.windowSeconds)
   if (!byIp.allowed) return claimRateLimited(byIp.retryAfterSeconds)
 
   let body: unknown

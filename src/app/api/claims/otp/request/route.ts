@@ -19,6 +19,7 @@ import { otpEmail } from '@/lib/email/templates'
 import { resend } from '@/lib/email/provider'
 import {
   OTP_REQUEST_LIMIT,
+  OTP_REQUEST_IP_LIMIT,
   claimRateLimited,
   claimServerError,
   claimValidationProblem,
@@ -33,7 +34,7 @@ const schema = z
 
 export async function POST(request: Request) {
   const ip = clientIp(request)
-  const byIp = await rateLimit(`otp:request:ip:${ip}`, OTP_REQUEST_LIMIT.limit, OTP_REQUEST_LIMIT.windowSeconds)
+  const byIp = await rateLimit(`otp:request:ip:${ip}`, OTP_REQUEST_IP_LIMIT.limit, OTP_REQUEST_IP_LIMIT.windowSeconds)
   if (!byIp.allowed) return claimRateLimited(byIp.retryAfterSeconds)
 
   let body: unknown

@@ -1,0 +1,1 @@
+[{"bucket":"pass","name":"concurrency guarantees (real Postgres)","state":"SUCCESS"},{"bucket":"pass","name":"CSV gate (real browser)","state":"SUCCESS"},{"bucket":"pass","name":"typecheck · lint · build · audit","state":"SUCCESS"},{"bucket":"pass","name":"secret-handling guards","state":"SUCCESS"}]

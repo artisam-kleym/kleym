@@ -1,0 +1,37 @@
+{
+  "checkedAt": "2026-10-25T17:06:59.239Z",
+  "networkPassphraseVerified": true,
+  "network": "testnet",
+  "campaign": "cmvo2qrnb00010drq5rlzigzh",
+  "funding": {
+    "hash": "7f1c153944237acda3ee7e78f1cf0e192b3eef530b194107974824671ecca692",
+    "ledger": 5384818,
+    "successful": true,
+    "feeChargedStroops": "300",
+    "requiredSignaturesVerified": [
+      "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+      "GBV6O3M2T6MEAC452TFCRJIQ7OUDD3GUZR3VXTVSME6WLQDXGFOQQY5A"
+    ]
+  },
+  "claim": {
+    "hash": "c1a9ecc0e747bc1a7dd3a8149adafec03b8445b209519ba44e8519b1dfcd1b4b",
+    "ledger": 5384842,
+    "successful": true,
+    "feeChargedStroops": "400",
+    "requiredSignaturesVerified": [
+      "GAG4GEG2X7HCJJFJVUOKIVGQAZBI5WVCJFVO4FPHUH5UHC526HWLKHHK",
+      "GDXAH3HRL5EB24B5KEN756PUJN62CJ6ZSIA73FKTU4ORAF2BGWJJIOSI"
+    ],
+    "asset": "USDC",
+    "issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+    "amount": "1.0000000",
+    "recipient": "GCUFES42LLEWVEAI6TZDQUO63ROTR2ILUMNP4K7XCTHFT5F6NKSXGH3I"
+  },
+  "fundedBalanceMatchesClaimedBalance": true,
+  "temporaryAccountRemoved": true,
+  "claimedBalanceRemoved": true,
+  "recipientCurrentUsdcBalance": "6.0000000",
+  "recipientCurrentNativeBalance": "0.0000000",
+  "scope": "Public ledger proof. User reported the OTP/mailbox and wallet interactions; the ledger does not prove inbox placement or device identity.",
+  "writes": 0
+}
