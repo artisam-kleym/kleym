@@ -1,0 +1,66 @@
+{
+  "metadata": {
+    "version": "v2",
+    "prepared": "2026-10-26 Asia/Manila",
+    "candidate": "b842fe3ac451dbfd4e563b3478c5951944c8dbb5",
+    "tree": "38b617b70da386af6c7213955f483aa48c01a910",
+    "case_count": 373,
+    "counts": {
+      "TER": 5,
+      "AMT": 6,
+      "EXP": 5,
+      "KEY": 4,
+      "MAT": 6,
+      "FUN": 8,
+      "SET": 11,
+      "SIG": 14,
+      "SEC": 11,
+      "FRE": 9,
+      "LAN": 9,
+      "UX": 12,
+      "OPS": 22,
+      "POL": 3,
+      "AUTH": 12,
+      "ADM": 3,
+      "DOC": 3,
+      "CREATE": 16,
+      "CSV": 9,
+      "POLICY": 8,
+      "EMAIL": 13,
+      "MANAGE": 10,
+      "SETTINGS": 6,
+      "ADMIN": 6,
+      "PAGE": 24,
+      "API": 121,
+      "STATE": 17
+    },
+    "statuses": {
+      "Not Run": 373
+    },
+    "inventory": {
+      "pages": 24,
+      "apiMethods": 121,
+      "apiFiles": 96,
+      "controlDeclarations": 296
+    },
+    "lock_sha256": "5aaa6d355bc9ddbe02f808e32ee512944699a809754194b6a9410b08b525ddd2"
+  },
+  "pdf_pages": 122,
+  "workbook_sheets": [
+    "README",
+    "Test Cases",
+    "Summary",
+    "Execution",
+    "Pages",
+    "API Matrix",
+    "Controls",
+    "Environment",
+    "Defects",
+    "Existing Proof"
+  ],
+  "unique_case_ids": true,
+  "all_case_ids_in_pdf": true,
+  "initial_statuses_verified": true,
+  "formula_cache": "Not recalculated; Excel recalculates on open",
+  "layout": "Render and inspect separately"
+}

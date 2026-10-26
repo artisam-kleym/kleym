@@ -1,0 +1,5136 @@
+{
+  "candidate": "b842fe3ac451dbfd4e563b3478c5951944c8dbb5",
+  "tree": "38b617b70da386af6c7213955f483aa48c01a910",
+  "pages": [
+    {
+      "route": "/admin/audit",
+      "source": "src/app/(admin)/admin/audit/page.tsx"
+    },
+    {
+      "route": "/admin/campaigns",
+      "source": "src/app/(admin)/admin/campaigns/page.tsx"
+    },
+    {
+      "route": "/admin",
+      "source": "src/app/(admin)/admin/page.tsx"
+    },
+    {
+      "route": "/admin/privacy",
+      "source": "src/app/(admin)/admin/privacy/page.tsx"
+    },
+    {
+      "route": "/admin/reconciliation",
+      "source": "src/app/(admin)/admin/reconciliation/page.tsx"
+    },
+    {
+      "route": "/admin/users",
+      "source": "src/app/(admin)/admin/users/page.tsx"
+    },
+    {
+      "route": "/settings/security",
+      "source": "src/app/(mfa)/settings/security/page.tsx"
+    },
+    {
+      "route": "/claim",
+      "source": "src/app/(public)/claim/page.tsx"
+    },
+    {
+      "route": "/invite/[token]",
+      "source": "src/app/(public)/invite/[token]/page.tsx"
+    },
+    {
+      "route": "/login/mfa",
+      "source": "src/app/(public)/login/mfa/page.tsx"
+    },
+    {
+      "route": "/login",
+      "source": "src/app/(public)/login/page.tsx"
+    },
+    {
+      "route": "/login/sso",
+      "source": "src/app/(public)/login/sso/page.tsx"
+    },
+    {
+      "route": "/",
+      "source": "src/app/(public)/page.tsx"
+    },
+    {
+      "route": "/status",
+      "source": "src/app/(public)/status/page.tsx"
+    },
+    {
+      "route": "/approvals",
+      "source": "src/app/(sender)/approvals/page.tsx"
+    },
+    {
+      "route": "/campaigns/new",
+      "source": "src/app/(sender)/campaigns/new/page.tsx"
+    },
+    {
+      "route": "/campaigns",
+      "source": "src/app/(sender)/campaigns/page.tsx"
+    },
+    {
+      "route": "/campaigns/[id]/links",
+      "source": "src/app/(sender)/campaigns/[id]/links/page.tsx"
+    },
+    {
+      "route": "/campaigns/[id]",
+      "source": "src/app/(sender)/campaigns/[id]/page.tsx"
+    },
+    {
+      "route": "/dashboard",
+      "source": "src/app/(sender)/dashboard/page.tsx"
+    },
+    {
+      "route": "/history",
+      "source": "src/app/(sender)/history/page.tsx"
+    },
+    {
+      "route": "/settings",
+      "source": "src/app/(sender)/settings/page.tsx"
+    },
+    {
+      "route": "/templates",
+      "source": "src/app/(sender)/templates/page.tsx"
+    },
+    {
+      "route": "/templates/[id]",
+      "source": "src/app/(sender)/templates/[id]/page.tsx"
+    }
+  ],
+  "apis": [
+    {
+      "route": "/api/admin/audit/export",
+      "method": "GET",
+      "source": "src/app/api/admin/audit/export/route.ts",
+      "line": 8
+    },
+    {
+      "route": "/api/admin/audit/verify",
+      "method": "GET",
+      "source": "src/app/api/admin/audit/verify/route.ts",
+      "line": 8
+    },
+    {
+      "route": "/api/admin/privacy/erase",
+      "method": "POST",
+      "source": "src/app/api/admin/privacy/erase/route.ts",
+      "line": 17
+    },
+    {
+      "route": "/api/admin/reconcile",
+      "method": "POST",
+      "source": "src/app/api/admin/reconcile/route.ts",
+      "line": 21
+    },
+    {
+      "route": "/api/admin/users",
+      "method": "POST",
+      "source": "src/app/api/admin/users/route.ts",
+      "line": 18
+    },
+    {
+      "route": "/api/admin/users/[id]/invitation",
+      "method": "DELETE",
+      "source": "src/app/api/admin/users/[id]/invitation/route.ts",
+      "line": 19
+    },
+    {
+      "route": "/api/admin/users/[id]",
+      "method": "PATCH",
+      "source": "src/app/api/admin/users/[id]/route.ts",
+      "line": 20
+    },
+    {
+      "route": "/api/auth/login",
+      "method": "POST",
+      "source": "src/app/api/auth/login/route.ts",
+      "line": 26
+    },
+    {
+      "route": "/api/auth/logout",
+      "method": "POST",
+      "source": "src/app/api/auth/logout/route.ts",
+      "line": 8
+    },
+    {
+      "route": "/api/auth/mfa/passkey/authenticate/options",
+      "method": "POST",
+      "source": "src/app/api/auth/mfa/passkey/authenticate/options/route.ts",
+      "line": 8
+    },
+    {
+      "route": "/api/auth/mfa/passkey/authenticate",
+      "method": "POST",
+      "source": "src/app/api/auth/mfa/passkey/authenticate/route.ts",
+      "line": 17
+    },
+    {
+      "route": "/api/auth/mfa/passkey/register/options",
+      "method": "POST",
+      "source": "src/app/api/auth/mfa/passkey/register/options/route.ts",
+      "line": 10
+    },
+    {
+      "route": "/api/auth/mfa/passkey/register",
+      "method": "POST",
+      "source": "src/app/api/auth/mfa/passkey/register/route.ts",
+      "line": 15
+    },
+    {
+      "route": "/api/auth/mfa/passkey/[id]",
+      "method": "DELETE",
+      "source": "src/app/api/auth/mfa/passkey/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "route": "/api/auth/mfa/status",
+      "method": "GET",
+      "source": "src/app/api/auth/mfa/status/route.ts",
+      "line": 9
+    },
+    {
+      "route": "/api/auth/mfa/totp/confirm",
+      "method": "POST",
+      "source": "src/app/api/auth/mfa/totp/confirm/route.ts",
+      "line": 15
+    },
+    {
+      "route": "/api/auth/mfa/totp/enrol",
+      "method": "POST",
+      "source": "src/app/api/auth/mfa/totp/enrol/route.ts",
+      "line": 10
+    },
+    {
+      "route": "/api/auth/mfa/totp/remove",
+      "method": "POST",
+      "source": "src/app/api/auth/mfa/totp/remove/route.ts",
+      "line": 10
+    },
+    {
+      "route": "/api/auth/mfa/verify",
+      "method": "POST",
+      "source": "src/app/api/auth/mfa/verify/route.ts",
+      "line": 23
+    },
+    {
+      "route": "/api/auth/password",
+      "method": "POST",
+      "source": "src/app/api/auth/password/route.ts",
+      "line": 35
+    },
+    {
+      "route": "/api/auth/session",
+      "method": "GET",
+      "source": "src/app/api/auth/session/route.ts",
+      "line": 8
+    },
+    {
+      "route": "/api/auth/sso/callback",
+      "method": "GET",
+      "source": "src/app/api/auth/sso/callback/route.ts",
+      "line": 26
+    },
+    {
+      "route": "/api/auth/sso/start",
+      "method": "GET",
+      "source": "src/app/api/auth/sso/start/route.ts",
+      "line": 22
+    },
+    {
+      "route": "/api/campaigns",
+      "method": "GET",
+      "source": "src/app/api/campaigns/route.ts",
+      "line": 31
+    },
+    {
+      "route": "/api/campaigns",
+      "method": "POST",
+      "source": "src/app/api/campaigns/route.ts",
+      "line": 72
+    },
+    {
+      "route": "/api/campaigns/[id]/approvals",
+      "method": "GET",
+      "source": "src/app/api/campaigns/[id]/approvals/route.ts",
+      "line": 18
+    },
+    {
+      "route": "/api/campaigns/[id]/approvals",
+      "method": "POST",
+      "source": "src/app/api/campaigns/[id]/approvals/route.ts",
+      "line": 27
+    },
+    {
+      "route": "/api/campaigns/[id]/batches/prepare",
+      "method": "POST",
+      "source": "src/app/api/campaigns/[id]/batches/prepare/route.ts",
+      "line": 20
+    },
+    {
+      "route": "/api/campaigns/[id]/batches/retry",
+      "method": "POST",
+      "source": "src/app/api/campaigns/[id]/batches/retry/route.ts",
+      "line": 19
+    },
+    {
+      "route": "/api/campaigns/[id]/batches",
+      "method": "GET",
+      "source": "src/app/api/campaigns/[id]/batches/route.ts",
+      "line": 18
+    },
+    {
+      "route": "/api/campaigns/[id]/batches/submit",
+      "method": "POST",
+      "source": "src/app/api/campaigns/[id]/batches/submit/route.ts",
+      "line": 28
+    },
+    {
+      "route": "/api/campaigns/[id]/deliver",
+      "method": "POST",
+      "source": "src/app/api/campaigns/[id]/deliver/route.ts",
+      "line": 65
+    },
+    {
+      "route": "/api/campaigns/[id]/export",
+      "method": "POST",
+      "source": "src/app/api/campaigns/[id]/export/route.ts",
+      "line": 22
+    },
+    {
+      "route": "/api/campaigns/[id]/links",
+      "method": "GET",
+      "source": "src/app/api/campaigns/[id]/links/route.ts",
+      "line": 29
+    },
+    {
+      "route": "/api/campaigns/[id]/links",
+      "method": "POST",
+      "source": "src/app/api/campaigns/[id]/links/route.ts",
+      "line": 67
+    },
+    {
+      "route": "/api/campaigns/[id]/links/[linkId]/receipt",
+      "method": "GET",
+      "source": "src/app/api/campaigns/[id]/links/[linkId]/receipt/route.ts",
+      "line": 22
+    },
+    {
+      "route": "/api/campaigns/[id]/links/[linkId]",
+      "method": "PATCH",
+      "source": "src/app/api/campaigns/[id]/links/[linkId]/route.ts",
+      "line": 22
+    },
+    {
+      "route": "/api/campaigns/[id]/links/[linkId]/suspend",
+      "method": "POST",
+      "source": "src/app/api/campaigns/[id]/links/[linkId]/suspend/route.ts",
+      "line": 19
+    },
+    {
+      "route": "/api/campaigns/[id]/outstanding",
+      "method": "GET",
+      "source": "src/app/api/campaigns/[id]/outstanding/route.ts",
+      "line": 17
+    },
+    {
+      "route": "/api/campaigns/[id]/receipts",
+      "method": "GET",
+      "source": "src/app/api/campaigns/[id]/receipts/route.ts",
+      "line": 24
+    },
+    {
+      "route": "/api/campaigns/[id]/reclaim/prepare",
+      "method": "POST",
+      "source": "src/app/api/campaigns/[id]/reclaim/prepare/route.ts",
+      "line": 25
+    },
+    {
+      "route": "/api/campaigns/[id]/reclaim/submit",
+      "method": "POST",
+      "source": "src/app/api/campaigns/[id]/reclaim/submit/route.ts",
+      "line": 26
+    },
+    {
+      "route": "/api/campaigns/[id]",
+      "method": "GET",
+      "source": "src/app/api/campaigns/[id]/route.ts",
+      "line": 20
+    },
+    {
+      "route": "/api/campaigns/[id]",
+      "method": "PATCH",
+      "source": "src/app/api/campaigns/[id]/route.ts",
+      "line": 59
+    },
+    {
+      "route": "/api/campaigns/[id]/suspend",
+      "method": "POST",
+      "source": "src/app/api/campaigns/[id]/suspend/route.ts",
+      "line": 21
+    },
+    {
+      "route": "/api/campaigns/[id]/template",
+      "method": "GET",
+      "source": "src/app/api/campaigns/[id]/template/route.ts",
+      "line": 11
+    },
+    {
+      "route": "/api/claims/code/verify",
+      "method": "POST",
+      "source": "src/app/api/claims/code/verify/route.ts",
+      "line": 27
+    },
+    {
+      "route": "/api/claims/federation",
+      "method": "POST",
+      "source": "src/app/api/claims/federation/route.ts",
+      "line": 92
+    },
+    {
+      "route": "/api/claims/otp/request",
+      "method": "POST",
+      "source": "src/app/api/claims/otp/request/route.ts",
+      "line": 35
+    },
+    {
+      "route": "/api/claims/otp/verify",
+      "method": "POST",
+      "source": "src/app/api/claims/otp/verify/route.ts",
+      "line": 34
+    },
+    {
+      "route": "/api/claims/passkey/authenticate/options",
+      "method": "POST",
+      "source": "src/app/api/claims/passkey/authenticate/options/route.ts",
+      "line": 17
+    },
+    {
+      "route": "/api/claims/passkey/authenticate",
+      "method": "POST",
+      "source": "src/app/api/claims/passkey/authenticate/route.ts",
+      "line": 23
+    },
+    {
+      "route": "/api/claims/passkey/register/options",
+      "method": "POST",
+      "source": "src/app/api/claims/passkey/register/options/route.ts",
+      "line": 17
+    },
+    {
+      "route": "/api/claims/passkey/register",
+      "method": "POST",
+      "source": "src/app/api/claims/passkey/register/route.ts",
+      "line": 26
+    },
+    {
+      "route": "/api/claims/prepare/claim",
+      "method": "POST",
+      "source": "src/app/api/claims/prepare/claim/route.ts",
+      "line": 34
+    },
+    {
+      "route": "/api/claims/prepare/materialise",
+      "method": "POST",
+      "source": "src/app/api/claims/prepare/materialise/route.ts",
+      "line": 33
+    },
+    {
+      "route": "/api/claims/quote",
+      "method": "POST",
+      "source": "src/app/api/claims/quote/route.ts",
+      "line": 33
+    },
+    {
+      "route": "/api/claims/resolve",
+      "method": "GET",
+      "source": "src/app/api/claims/resolve/route.ts",
+      "line": 24
+    },
+    {
+      "route": "/api/claims/submit",
+      "method": "POST",
+      "source": "src/app/api/claims/submit/route.ts",
+      "line": 28
+    },
+    {
+      "route": "/api/health",
+      "method": "GET",
+      "source": "src/app/api/health/route.ts",
+      "line": 10
+    },
+    {
+      "route": "/api/invite/redeem",
+      "method": "POST",
+      "source": "src/app/api/invite/redeem/route.ts",
+      "line": 30
+    },
+    {
+      "route": "/api/org/accounting/export",
+      "method": "GET",
+      "source": "src/app/api/org/accounting/export/route.ts",
+      "line": 19
+    },
+    {
+      "route": "/api/org/audit/export",
+      "method": "GET",
+      "source": "src/app/api/org/audit/export/route.ts",
+      "line": 12
+    },
+    {
+      "route": "/api/org/compliance/export",
+      "method": "GET",
+      "source": "src/app/api/org/compliance/export/route.ts",
+      "line": 16
+    },
+    {
+      "route": "/api/org/members",
+      "method": "GET",
+      "source": "src/app/api/org/members/route.ts",
+      "line": 16
+    },
+    {
+      "route": "/api/org/members",
+      "method": "POST",
+      "source": "src/app/api/org/members/route.ts",
+      "line": 22
+    },
+    {
+      "route": "/api/org/members/[userId]",
+      "method": "PATCH",
+      "source": "src/app/api/org/members/[userId]/route.ts",
+      "line": 19
+    },
+    {
+      "route": "/api/org/members/[userId]",
+      "method": "DELETE",
+      "source": "src/app/api/org/members/[userId]/route.ts",
+      "line": 36
+    },
+    {
+      "route": "/api/org/receipts",
+      "method": "GET",
+      "source": "src/app/api/org/receipts/route.ts",
+      "line": 18
+    },
+    {
+      "route": "/api/org",
+      "method": "GET",
+      "source": "src/app/api/org/route.ts",
+      "line": 18
+    },
+    {
+      "route": "/api/org",
+      "method": "PATCH",
+      "source": "src/app/api/org/route.ts",
+      "line": 28
+    },
+    {
+      "route": "/api/org/sso",
+      "method": "GET",
+      "source": "src/app/api/org/sso/route.ts",
+      "line": 20
+    },
+    {
+      "route": "/api/org/sso",
+      "method": "PUT",
+      "source": "src/app/api/org/sso/route.ts",
+      "line": 27
+    },
+    {
+      "route": "/api/org/sso",
+      "method": "DELETE",
+      "source": "src/app/api/org/sso/route.ts",
+      "line": 44
+    },
+    {
+      "route": "/api/org/sso/scim-tokens",
+      "method": "POST",
+      "source": "src/app/api/org/sso/scim-tokens/route.ts",
+      "line": 15
+    },
+    {
+      "route": "/api/org/sso/scim-tokens/[id]",
+      "method": "DELETE",
+      "source": "src/app/api/org/sso/scim-tokens/[id]/route.ts",
+      "line": 11
+    },
+    {
+      "route": "/api/org/switch",
+      "method": "POST",
+      "source": "src/app/api/org/switch/route.ts",
+      "line": 18
+    },
+    {
+      "route": "/api/org/webhooks",
+      "method": "GET",
+      "source": "src/app/api/org/webhooks/route.ts",
+      "line": 17
+    },
+    {
+      "route": "/api/org/webhooks",
+      "method": "POST",
+      "source": "src/app/api/org/webhooks/route.ts",
+      "line": 24
+    },
+    {
+      "route": "/api/org/webhooks/[id]/deliveries",
+      "method": "GET",
+      "source": "src/app/api/org/webhooks/[id]/deliveries/route.ts",
+      "line": 10
+    },
+    {
+      "route": "/api/org/webhooks/[id]",
+      "method": "DELETE",
+      "source": "src/app/api/org/webhooks/[id]/route.ts",
+      "line": 15
+    },
+    {
+      "route": "/api/org/webhooks/[id]",
+      "method": "PATCH",
+      "source": "src/app/api/org/webhooks/[id]/route.ts",
+      "line": 23
+    },
+    {
+      "route": "/api/ready",
+      "method": "GET",
+      "source": "src/app/api/ready/route.ts",
+      "line": 20
+    },
+    {
+      "route": "/api/scim/v2/Groups",
+      "method": "GET",
+      "source": "src/app/api/scim/v2/Groups/route.ts",
+      "line": 10
+    },
+    {
+      "route": "/api/scim/v2/Groups",
+      "method": "POST",
+      "source": "src/app/api/scim/v2/Groups/route.ts",
+      "line": 21
+    },
+    {
+      "route": "/api/scim/v2/Groups/[id]",
+      "method": "GET",
+      "source": "src/app/api/scim/v2/Groups/[id]/route.ts",
+      "line": 12
+    },
+    {
+      "route": "/api/scim/v2/Groups/[id]",
+      "method": "PUT",
+      "source": "src/app/api/scim/v2/Groups/[id]/route.ts",
+      "line": 20
+    },
+    {
+      "route": "/api/scim/v2/Groups/[id]",
+      "method": "PATCH",
+      "source": "src/app/api/scim/v2/Groups/[id]/route.ts",
+      "line": 30
+    },
+    {
+      "route": "/api/scim/v2/Groups/[id]",
+      "method": "DELETE",
+      "source": "src/app/api/scim/v2/Groups/[id]/route.ts",
+      "line": 41
+    },
+    {
+      "route": "/api/scim/v2/ServiceProviderConfig",
+      "method": "GET",
+      "source": "src/app/api/scim/v2/ServiceProviderConfig/route.ts",
+      "line": 7
+    },
+    {
+      "route": "/api/scim/v2/Users",
+      "method": "GET",
+      "source": "src/app/api/scim/v2/Users/route.ts",
+      "line": 8
+    },
+    {
+      "route": "/api/scim/v2/Users",
+      "method": "POST",
+      "source": "src/app/api/scim/v2/Users/route.ts",
+      "line": 19
+    },
+    {
+      "route": "/api/scim/v2/Users/[id]",
+      "method": "GET",
+      "source": "src/app/api/scim/v2/Users/[id]/route.ts",
+      "line": 10
+    },
+    {
+      "route": "/api/scim/v2/Users/[id]",
+      "method": "PUT",
+      "source": "src/app/api/scim/v2/Users/[id]/route.ts",
+      "line": 30
+    },
+    {
+      "route": "/api/scim/v2/Users/[id]",
+      "method": "PATCH",
+      "source": "src/app/api/scim/v2/Users/[id]/route.ts",
+      "line": 42
+    },
+    {
+      "route": "/api/scim/v2/Users/[id]",
+      "method": "DELETE",
+      "source": "src/app/api/scim/v2/Users/[id]/route.ts",
+      "line": 66
+    },
+    {
+      "route": "/api/settings/api-keys",
+      "method": "GET",
+      "source": "src/app/api/settings/api-keys/route.ts",
+      "line": 22
+    },
+    {
+      "route": "/api/settings/api-keys",
+      "method": "POST",
+      "source": "src/app/api/settings/api-keys/route.ts",
+      "line": 34
+    },
+    {
+      "route": "/api/settings/api-keys/[id]",
+      "method": "DELETE",
+      "source": "src/app/api/settings/api-keys/[id]/route.ts",
+      "line": 19
+    },
+    {
+      "route": "/api/status",
+      "method": "GET",
+      "source": "src/app/api/status/route.ts",
+      "line": 10
+    },
+    {
+      "route": "/api/stellar/account",
+      "method": "GET",
+      "source": "src/app/api/stellar/account/route.ts",
+      "line": 22
+    },
+    {
+      "route": "/api/stellar/network",
+      "method": "GET",
+      "source": "src/app/api/stellar/network/route.ts",
+      "line": 8
+    },
+    {
+      "route": "/api/stellar/reserve",
+      "method": "GET",
+      "source": "src/app/api/stellar/reserve/route.ts",
+      "line": 18
+    },
+    {
+      "route": "/api/templates",
+      "method": "GET",
+      "source": "src/app/api/templates/route.ts",
+      "line": 17
+    },
+    {
+      "route": "/api/templates",
+      "method": "POST",
+      "source": "src/app/api/templates/route.ts",
+      "line": 29
+    },
+    {
+      "route": "/api/templates/[id]",
+      "method": "GET",
+      "source": "src/app/api/templates/[id]/route.ts",
+      "line": 20
+    },
+    {
+      "route": "/api/templates/[id]",
+      "method": "PATCH",
+      "source": "src/app/api/templates/[id]/route.ts",
+      "line": 29
+    },
+    {
+      "route": "/api/templates/[id]",
+      "method": "DELETE",
+      "source": "src/app/api/templates/[id]/route.ts",
+      "line": 55
+    },
+    {
+      "route": "/api/templates/[id]/run",
+      "method": "POST",
+      "source": "src/app/api/templates/[id]/run/route.ts",
+      "line": 18
+    },
+    {
+      "route": "/api/templates/[id]/runs",
+      "method": "GET",
+      "source": "src/app/api/templates/[id]/runs/route.ts",
+      "line": 11
+    },
+    {
+      "route": "/api/v1/campaigns",
+      "method": "GET",
+      "source": "src/app/api/v1/campaigns/route.ts",
+      "line": 31
+    },
+    {
+      "route": "/api/v1/campaigns",
+      "method": "POST",
+      "source": "src/app/api/v1/campaigns/route.ts",
+      "line": 72
+    },
+    {
+      "route": "/api/v1/campaigns/[id]/batches/prepare",
+      "method": "POST",
+      "source": "src/app/api/v1/campaigns/[id]/batches/prepare/route.ts",
+      "line": 18
+    },
+    {
+      "route": "/api/v1/campaigns/[id]/batches/submit",
+      "method": "POST",
+      "source": "src/app/api/v1/campaigns/[id]/batches/submit/route.ts",
+      "line": 20
+    },
+    {
+      "route": "/api/v1/campaigns/[id]/export",
+      "method": "POST",
+      "source": "src/app/api/v1/campaigns/[id]/export/route.ts",
+      "line": 17
+    },
+    {
+      "route": "/api/v1/campaigns/[id]/links",
+      "method": "GET",
+      "source": "src/app/api/v1/campaigns/[id]/links/route.ts",
+      "line": 34
+    },
+    {
+      "route": "/api/v1/campaigns/[id]/links",
+      "method": "POST",
+      "source": "src/app/api/v1/campaigns/[id]/links/route.ts",
+      "line": 76
+    },
+    {
+      "route": "/api/v1/campaigns/[id]",
+      "method": "GET",
+      "source": "src/app/api/v1/campaigns/[id]/route.ts",
+      "line": 15
+    },
+    {
+      "route": "/api/v1/templates",
+      "method": "GET",
+      "source": "src/app/api/v1/templates/route.ts",
+      "line": 11
+    },
+    {
+      "route": "/api/v1/templates/[id]/recipients",
+      "method": "PUT",
+      "source": "src/app/api/v1/templates/[id]/recipients/route.ts",
+      "line": 47
+    },
+    {
+      "route": "/api/v1/templates/[id]/run",
+      "method": "POST",
+      "source": "src/app/api/v1/templates/[id]/run/route.ts",
+      "line": 18
+    }
+  ],
+  "controls": [
+    {
+      "id": "CTRL-0001",
+      "source": "src/app/(admin)/admin/audit/page.tsx",
+      "line": 65,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "method": "\"get\"",
+        "className": "\"mt-lg flex flex-wrap items-end gap-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0002",
+      "source": "src/app/(admin)/admin/audit/page.tsx",
+      "line": 68,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "name": "\"userId\"",
+        "defaultValue": "{filters.userId ?? ''}",
+        "className": "\"rounded-lg border border-outline-variant bg-surface px-sm py-2 text-body-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0003",
+      "source": "src/app/(admin)/admin/audit/page.tsx",
+      "line": 84,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "name": "\"organizationId\"",
+        "defaultValue": "{filters.organizationId ?? ''}",
+        "className": "\"rounded-lg border border-outline-variant bg-surface px-sm py-2 text-body-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0004",
+      "source": "src/app/(admin)/admin/audit/page.tsx",
+      "line": 100,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "name": "\"action\"",
+        "defaultValue": "{filters.action ?? ''}",
+        "className": "\"rounded-lg border border-outline-variant bg-surface px-sm py-2 text-body-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0005",
+      "source": "src/app/(admin)/admin/audit/page.tsx",
+      "line": 116,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "name": "\"entityId\"",
+        "defaultValue": "{filters.entityId ?? ''}",
+        "className": "\"rounded-lg border border-outline-variant bg-surface px-sm py-2 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0006",
+      "source": "src/app/(admin)/admin/audit/page.tsx",
+      "line": 125,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"date\"",
+        "name": "\"from\"",
+        "defaultValue": "{one(params.from) ?? ''}",
+        "className": "\"rounded-lg border border-outline-variant bg-surface px-sm py-2 text-body-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0007",
+      "source": "src/app/(admin)/admin/audit/page.tsx",
+      "line": 135,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"date\"",
+        "name": "\"to\"",
+        "defaultValue": "{one(params.to) ?? ''}",
+        "className": "\"rounded-lg border border-outline-variant bg-surface px-sm py-2 text-body-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0008",
+      "source": "src/app/(admin)/admin/audit/page.tsx",
+      "line": 143,
+      "tag": "button",
+      "text": "Filter",
+      "attributes": {
+        "type": "\"submit\"",
+        "className": "\"rounded-lg border border-outline-variant bg-surface-container px-md py-2 text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0009",
+      "source": "src/app/(admin)/admin/audit/page.tsx",
+      "line": 149,
+      "tag": "Link",
+      "text": "Clear",
+      "attributes": {
+        "href": "\"/admin/audit\"",
+        "className": "\"text-label-md text-on-surface-variant underline underline-offset-4\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0010",
+      "source": "src/app/(admin)/admin/audit/page.tsx",
+      "line": 188,
+      "tag": "Link",
+      "text": "Previous",
+      "attributes": {
+        "href": "{href({ page: page.page - 1 })}",
+        "className": "\"text-label-md text-on-surface underline underline-offset-4\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0011",
+      "source": "src/app/(admin)/admin/audit/page.tsx",
+      "line": 193,
+      "tag": "Link",
+      "text": "Next",
+      "attributes": {
+        "href": "{href({ page: page.page + 1 })}",
+        "className": "\"text-label-md text-on-surface underline underline-offset-4\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0012",
+      "source": "src/app/(admin)/admin/campaigns/page.tsx",
+      "line": 36,
+      "tag": "a",
+      "text": "Latest funding transaction:",
+      "attributes": {
+        "className": "\"mt-xs block max-w-xs break-all font-mono text-label-sm text-primary underline\"",
+        "href": "{`https://stellar.expert/explorer/${campaign.network === 'public' ? 'public' : 'testnet'}/tx/${campaign.fundingHash}`}",
+        "target": "\"_blank\"",
+        "rel": "\"noopener noreferrer\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0013",
+      "source": "src/app/(admin)/admin/privacy/erase-form.tsx",
+      "line": 37,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{onSubmit}",
+        "className": "\"mt-lg flex max-w-[36rem] flex-wrap items-end gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0014",
+      "source": "src/app/(admin)/admin/privacy/erase-form.tsx",
+      "line": 39,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Address to erase\"",
+        "name": "\"email\"",
+        "type": "\"email\"",
+        "autoComplete": "\"off\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0015",
+      "source": "src/app/(admin)/admin/privacy/erase-form.tsx",
+      "line": 41,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"submit\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0016",
+      "source": "src/app/(admin)/admin/reconciliation/resync-button.tsx",
+      "line": 15,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "icon": "\"refresh\"",
+        "disabled": "{pending}",
+        "data-testid": "\"resync\"",
+        "onClick": "{() => {\r\n          setPending(true)\r\n          void fetch('/api/admin/reconcile', { method: 'POST' })\r\n            .then((response) => setQueued(response.ok))\r\n            .finally(() => {\r\n         "
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0017",
+      "source": "src/app/(admin)/admin/users/create-user.tsx",
+      "line": 77,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "icon": "\"content_copy\"",
+        "onClick": "{copy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0018",
+      "source": "src/app/(admin)/admin/users/create-user.tsx",
+      "line": 78,
+      "tag": "Button",
+      "text": "Done",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"tertiary\"",
+        "onClick": "{() => { setIssued(null); setCopied(false) }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0019",
+      "source": "src/app/(admin)/admin/users/create-user.tsx",
+      "line": 89,
+      "tag": "Button",
+      "text": "Invite a user",
+      "attributes": {
+        "type": "\"button\"",
+        "icon": "\"add\"",
+        "onClick": "{() => setOpen(true)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0020",
+      "source": "src/app/(admin)/admin/users/create-user.tsx",
+      "line": 95,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{onSubmit}",
+        "className": "\"mt-lg flex flex-wrap items-end gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0021",
+      "source": "src/app/(admin)/admin/users/create-user.tsx",
+      "line": 97,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Username\"",
+        "name": "\"username\"",
+        "autoComplete": "\"off\"",
+        "minLength": "{3}",
+        "maxLength": "{64}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0022",
+      "source": "src/app/(admin)/admin/users/create-user.tsx",
+      "line": 103,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "id": "\"new-user-role\"",
+        "name": "\"role\"",
+        "defaultValue": "\"SENDER\"",
+        "className": "\"min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0023",
+      "source": "src/app/(admin)/admin/users/create-user.tsx",
+      "line": 117,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "id": "\"new-user-org\"",
+        "name": "\"organizationId\"",
+        "defaultValue": "{organizations[0]?.id ?? ''}",
+        "className": "\"min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0024",
+      "source": "src/app/(admin)/admin/users/create-user.tsx",
+      "line": 130,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "id": "\"new-user-org-role\"",
+        "name": "\"orgRole\"",
+        "defaultValue": "\"OPERATOR\"",
+        "className": "\"min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0025",
+      "source": "src/app/(admin)/admin/users/create-user.tsx",
+      "line": 142,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"submit\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0026",
+      "source": "src/app/(admin)/admin/users/create-user.tsx",
+      "line": 143,
+      "tag": "Button",
+      "text": "Cancel",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"tertiary\"",
+        "onClick": "{() => setOpen(false)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0027",
+      "source": "src/app/(admin)/admin/users/revoke.tsx",
+      "line": 37,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "onClick": "{revoke}",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0028",
+      "source": "src/app/(admin)/admin/users/revoke.tsx",
+      "line": 38,
+      "tag": "Button",
+      "text": "Keep",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"tertiary\"",
+        "onClick": "{() => setConfirming(false)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0029",
+      "source": "src/app/(admin)/admin/users/revoke.tsx",
+      "line": 46,
+      "tag": "Button",
+      "text": "Revoke",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"tertiary\"",
+        "onClick": "{() => setConfirming(true)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0030",
+      "source": "src/app/(admin)/admin/users/toggle.tsx",
+      "line": 57,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "onClick": "{apply}",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0031",
+      "source": "src/app/(admin)/admin/users/toggle.tsx",
+      "line": 60,
+      "tag": "Button",
+      "text": "Cancel",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"tertiary\"",
+        "onClick": "{() => setConfirming(false)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0032",
+      "source": "src/app/(admin)/admin/users/toggle.tsx",
+      "line": 70,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "{isActive ? 'tertiary' : 'secondary'}",
+        "onClick": "{() => (isActive ? setConfirming(true) : void apply())}",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0033",
+      "source": "src/app/(mfa)/settings/security/page.tsx",
+      "line": 58,
+      "tag": "Link",
+      "text": "Back to settings",
+      "attributes": {
+        "href": "\"/settings\"",
+        "className": "\"underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0034",
+      "source": "src/app/(mfa)/settings/security/security.tsx",
+      "line": 120,
+      "tag": "Button",
+      "text": "Remove",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => void removeTotp()}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0035",
+      "source": "src/app/(mfa)/settings/security/security.tsx",
+      "line": 128,
+      "tag": "a",
+      "text": "Open in an authenticator app",
+      "attributes": {
+        "className": "\"break-all font-mono text-label-sm text-primary underline\"",
+        "href": "{enrolment.otpauth}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0036",
+      "source": "src/app/(mfa)/settings/security/security.tsx",
+      "line": 129,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{confirmTotp}",
+        "className": "\"flex flex-wrap items-end gap-sm\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0037",
+      "source": "src/app/(mfa)/settings/security/security.tsx",
+      "line": 130,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Six-digit code\"",
+        "name": "\"code\"",
+        "inputMode": "\"numeric\"",
+        "pattern": "\"\\d{6}\"",
+        "maxLength": "{6}",
+        "className": "\"min-w-[10rem]\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0038",
+      "source": "src/app/(mfa)/settings/security/security.tsx",
+      "line": 131,
+      "tag": "Button",
+      "text": "Confirm",
+      "attributes": {
+        "type": "\"submit\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0039",
+      "source": "src/app/(mfa)/settings/security/security.tsx",
+      "line": 136,
+      "tag": "Button",
+      "text": "Set up an authenticator app",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => void beginTotp()}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0040",
+      "source": "src/app/(mfa)/settings/security/security.tsx",
+      "line": 153,
+      "tag": "Button",
+      "text": "Remove",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => void removePasskey(p.id)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0041",
+      "source": "src/app/(mfa)/settings/security/security.tsx",
+      "line": 159,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{addPasskey}",
+        "className": "\"mt-md flex flex-wrap items-end gap-sm\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0042",
+      "source": "src/app/(mfa)/settings/security/security.tsx",
+      "line": 160,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Name\"",
+        "name": "\"name\"",
+        "maxLength": "{60}",
+        "placeholder": "\"YubiKey, this laptop…\"",
+        "className": "\"min-w-[12rem]\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0043",
+      "source": "src/app/(mfa)/settings/security/security.tsx",
+      "line": 161,
+      "tag": "Button",
+      "text": "Add a passkey",
+      "attributes": {
+        "type": "\"submit\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0044",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 120,
+      "tag": "a",
+      "text": "Open Freighter",
+      "attributes": {
+        "href": "{appLink}",
+        "rel": "\"noreferrer\"",
+        "data-testid": "\"open-freighter\"",
+        "className": "\"inline-flex min-h-11 items-center justify-center rounded-lg bg-action px-4 py-3 font-mono text-label-md font-semibold text-action-on hover:bg-action-hover\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0045",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 125,
+      "tag": "details",
+      "text": "",
+      "attributes": {
+        "open": "{!phoneBrowser}",
+        "className": "\"text-body-md text-on-surface-variant\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0046",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 126,
+      "tag": "summary",
+      "text": "",
+      "attributes": {
+        "className": "\"min-h-11 cursor-pointer py-sm\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0047",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 129,
+      "tag": "textarea",
+      "text": "",
+      "attributes": {
+        "id": "\"wallet-pairing\"",
+        "value": "{uri}",
+        "rows": "{3}",
+        "className": "\"w-full break-all rounded-lg border border-outline-variant bg-surface-container-low p-md font-mono text-label-sm\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0048",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 130,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "variant": "\"claim\"",
+        "onClick": "{async () => {\r\n      try { await navigator.clipboard.writeText(uri); setCopied(true); setCopyError(false) }\r\n      catch { setCopyError(true) }\r\n    }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0049",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 137,
+      "tag": "Button",
+      "text": "Cancel connection",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "onClick": "{onCancel}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0050",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 279,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "variant": "\"claim\"",
+        "onClick": "{connectedRecipient ? onClaim : onConnect}",
+        "data-testid": "\"claim-connect\"",
+        "className": "\"w-full\"",
+        "disabled": "{quote?.status === 'loading'}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0051",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 289,
+      "tag": "Button",
+      "text": "Change wallet",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "onClick": "{usePhoneFreighter ? onConnectMobile : onConnect}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0052",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 290,
+      "tag": "Button",
+      "text": "Connect Freighter on phone",
+      "attributes": {
+        "variant": "\"claim\"",
+        "onClick": "{onConnectMobile}",
+        "disabled": "{!onConnectMobile}",
+        "data-testid": "\"claim-connect-mobile\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0053",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 344,
+      "tag": "Button",
+      "text": "Cancel connection",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "onClick": "{onCancelPairing}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0054",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 363,
+      "tag": "a",
+      "text": "Open Freighter to approve",
+      "attributes": {
+        "href": "{FREIGHTER_APP_LINK}",
+        "rel": "\"noreferrer\"",
+        "data-testid": "\"open-freighter-approval\"",
+        "className": "\"inline-flex min-h-11 items-center justify-center rounded-lg bg-action px-4 py-3 font-mono text-label-md font-semibold text-action-on hover:bg-action-hover\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0055",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 409,
+      "tag": "a",
+      "text": "",
+      "attributes": {
+        "href": "{`https://stellar.expert/explorer/${network === 'public' ? 'public' : 'testnet'}/tx/${txHash}`}",
+        "target": "\"_blank\"",
+        "rel": "\"noreferrer noopener\"",
+        "className": "\"break-all font-mono text-label-md text-primary underline\"",
+        "data-testid": "\"explorer-link\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0056",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 465,
+      "tag": "Button",
+      "text": "Try again",
+      "attributes": {
+        "onClick": "{onRetry}",
+        "data-testid": "\"claim-retry\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0057",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 550,
+      "tag": "button",
+      "text": "Send to an exchange or custodian account instead",
+      "attributes": {
+        "type": "\"button\"",
+        "onClick": "{() => setOpen(true)}",
+        "data-testid": "\"deposit-open\"",
+        "className": "\"min-h-11 text-center font-mono text-label-md text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0058",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 571,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "value": "{address}",
+        "onChange": "{(e) => setAddress(e.target.value)}",
+        "placeholder": "\"G… or name*exchange.com\"",
+        "spellCheck": "{false}",
+        "autoComplete": "\"off\"",
+        "data-testid": "\"deposit-address\"",
+        "className": "\"min-h-11 rounded-lg border border-outline bg-surface px-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0059",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 583,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "onClick": "{() => void resolveFederation()}",
+        "disabled": "{lookup.status === 'busy'}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0060",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 599,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "value": "{memoType}",
+        "onChange": "{(e) => setMemoType(e.target.value as MemoType)}",
+        "data-testid": "\"deposit-memo-type\"",
+        "className": "\"min-h-11 rounded-lg border border-outline bg-surface px-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0061",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 612,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "value": "{memoValue}",
+        "onChange": "{(e) => setMemoValue(e.target.value)}",
+        "spellCheck": "{false}",
+        "autoComplete": "\"off\"",
+        "data-testid": "\"deposit-memo\"",
+        "className": "\"min-h-11 rounded-lg border border-outline bg-surface px-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0062",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 641,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"checkbox\"",
+        "checked": "{confirmed}",
+        "onChange": "{(e) => setConfirmed(e.target.checked)}",
+        "data-testid": "\"deposit-confirm\"",
+        "className": "\"mt-1 h-5 w-5\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0063",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 651,
+      "tag": "Button",
+      "text": "Send to this address",
+      "attributes": {
+        "variant": "\"claim\"",
+        "className": "\"w-full\"",
+        "disabled": "{!ready || quoteLoading}",
+        "onClick": "{() => memoCheck.ok && onDeposit({ publicKey, memo: memoCheck.memo })}",
+        "data-testid": "\"deposit-claim\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0064",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 676,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "className": "\"flex flex-col items-center gap-md text-center\"",
+        "onSubmit": "{(event) => {\r\n        event.preventDefault()\r\n        if (complete) onVerify(cleaned)\r\n      }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0065",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 689,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "id": "\"claim-code\"",
+        "name": "\"claim-code\"",
+        "value": "{code}",
+        "onChange": "{(event) => setCode(event.target.value.slice(0, 20))}",
+        "autoComplete": "\"off\"",
+        "spellCheck": "{false}",
+        "aria-invalid": "{error ? true : undefined}",
+        "aria-describedby": "{error ? 'claim-code-error' : undefined}",
+        "data-testid": "\"claim-code\"",
+        "className": "\"w-72 rounded-lg border border-outline-variant bg-surface px-md py-sm text-center font-mono text-headline-sm tracking-[0.2em] text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0066",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 704,
+      "tag": "Button",
+      "text": "Continue",
+      "attributes": {
+        "type": "\"submit\"",
+        "disabled": "{!complete}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0067",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 723,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "onClick": "{onPasskey}",
+        "data-testid": "\"claim-passkey\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0068",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 755,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "id": "\"receive-as\"",
+        "data-testid": "\"receive-as\"",
+        "value": "{key(chosen)}",
+        "onChange": "{(e) => onChoose(link.receiveAs.find((o) => key(o) === e.target.value) ?? null)}",
+        "className": "\"min-h-11 rounded-lg border border-outline bg-surface px-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0069",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 811,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "className": "\"flex flex-col items-center gap-md text-center\"",
+        "onSubmit": "{async (event) => {\r\n        event.preventDefault()\r\n        if (!complete || busy) return\r\n        setBusy(true)\r\n        try { await onVerify(code) } finally { setBusy(false) }\r\n      }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0070",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 829,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "id": "\"otp\"",
+        "name": "\"otp\"",
+        "value": "{code}",
+        "onChange": "{(event) => setCode(event.target.value.replace(/[^0-9]/g, '').slice(0, 6))}",
+        "inputMode": "\"numeric\"",
+        "autoComplete": "\"one-time-code\"",
+        "maxLength": "{6}",
+        "aria-invalid": "{error ? true : undefined}",
+        "aria-describedby": "{error ? 'otp-error' : undefined}",
+        "className": "\"w-48 rounded-lg border border-outline-variant bg-surface px-md py-sm text-center font-mono text-headline-md tracking-[0.4em] text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0071",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 848,
+      "tag": "Button",
+      "text": "Verify code",
+      "attributes": {
+        "type": "\"submit\"",
+        "disabled": "{!complete || busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0072",
+      "source": "src/app/(public)/claim/screens.tsx",
+      "line": 852,
+      "tag": "button",
+      "text": "Send verification code",
+      "attributes": {
+        "type": "\"button\"",
+        "disabled": "{busy}",
+        "onClick": "{async () => {\r\n          if (busy) return\r\n          setBusy(true); setRequested(false); setCode('')\r\n          try { await onResend(); setRequested(true) } finally { setBusy(false) }\r\n        }}",
+        "className": "\"text-label-md text-on-surface-variant underline underline-offset-4\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0073",
+      "source": "src/app/(public)/invite/[token]/redeem-form.tsx",
+      "line": 48,
+      "tag": "Link",
+      "text": "Sign in",
+      "attributes": {
+        "href": "\"/login\"",
+        "className": "\"inline-flex min-h-11 items-center justify-center rounded-lg bg-action px-4 py-3 font-mono text-label-md font-semibold text-action-on shadow-sm hover:bg-action-hover\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0074",
+      "source": "src/app/(public)/invite/[token]/redeem-form.tsx",
+      "line": 59,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{onSubmit}",
+        "className": "\"mt-xl flex flex-col gap-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0075",
+      "source": "src/app/(public)/invite/[token]/redeem-form.tsx",
+      "line": 60,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Password\"",
+        "name": "\"password\"",
+        "type": "\"password\"",
+        "autoComplete": "\"new-password\"",
+        "helper": "\"At least 12 characters.\"",
+        "minLength": "{12}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0076",
+      "source": "src/app/(public)/invite/[token]/redeem-form.tsx",
+      "line": 70,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Confirm password\"",
+        "name": "\"confirm\"",
+        "type": "\"password\"",
+        "autoComplete": "\"new-password\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0077",
+      "source": "src/app/(public)/invite/[token]/redeem-form.tsx",
+      "line": 76,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"submit\"",
+        "disabled": "{pending}",
+        "icon": "{pending ? 'refresh' : undefined}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0078",
+      "source": "src/app/(public)/login/login-form.tsx",
+      "line": 51,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{onSubmit}",
+        "className": "\"mt-xl flex flex-col gap-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0079",
+      "source": "src/app/(public)/login/login-form.tsx",
+      "line": 52,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Username\"",
+        "name": "\"username\"",
+        "autoComplete": "\"username\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0080",
+      "source": "src/app/(public)/login/login-form.tsx",
+      "line": 53,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Password\"",
+        "name": "\"password\"",
+        "type": "\"password\"",
+        "autoComplete": "\"current-password\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0081",
+      "source": "src/app/(public)/login/login-form.tsx",
+      "line": 69,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"submit\"",
+        "disabled": "{pending}",
+        "icon": "{pending ? 'refresh' : undefined}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0082",
+      "source": "src/app/(public)/login/page.tsx",
+      "line": 23,
+      "tag": "a",
+      "text": "Sign in with your organisation",
+      "attributes": {
+        "href": "\"/login/sso\"",
+        "className": "\"underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0083",
+      "source": "src/app/(public)/login/sso/page.tsx",
+      "line": 34,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "action": "\"/api/auth/sso/start\"",
+        "method": "\"get\"",
+        "className": "\"mt-lg flex flex-col gap-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0084",
+      "source": "src/app/(public)/login/sso/page.tsx",
+      "line": 43,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "name": "\"handle\"",
+        "defaultValue": "{params.handle ?? ''}",
+        "minLength": "{2}",
+        "maxLength": "{39}",
+        "pattern": "\"[a-z0-9][a-z0-9-]*\"",
+        "autoCapitalize": "\"none\"",
+        "className": "\"rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface\"",
+        "placeholder": "\"acme\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0085",
+      "source": "src/app/(public)/login/sso/page.tsx",
+      "line": 55,
+      "tag": "button",
+      "text": "Continue",
+      "attributes": {
+        "type": "\"submit\"",
+        "className": "\"rounded-lg bg-primary px-4 py-3 font-mono text-label-md text-on-primary\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0086",
+      "source": "src/app/(public)/login/sso/page.tsx",
+      "line": 63,
+      "tag": "a",
+      "text": "Sign in with a password instead",
+      "attributes": {
+        "href": "\"/login\"",
+        "className": "\"underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0087",
+      "source": "src/app/(sender)/approvals/page.tsx",
+      "line": 40,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "href": "{`/campaigns/${row.id}`}",
+        "className": "\"text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0088",
+      "source": "src/app/(sender)/approvals/page.tsx",
+      "line": 47,
+      "tag": "Link",
+      "text": "Review",
+      "attributes": {
+        "href": "{`/campaigns/${row.id}`}",
+        "className": "\"text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0089",
+      "source": "src/app/(sender)/campaigns/new/delivery-choice.tsx",
+      "line": 113,
+      "tag": "Button",
+      "text": "Send",
+      "attributes": {
+        "type": "\"button\"",
+        "onClick": "{send}",
+        "disabled": "{phase !== 'confirming'}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0090",
+      "source": "src/app/(sender)/campaigns/new/delivery-choice.tsx",
+      "line": 116,
+      "tag": "Button",
+      "text": "Cancel",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"tertiary\"",
+        "onClick": "{() => setPhase('idle')}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0091",
+      "source": "src/app/(sender)/campaigns/new/delivery-choice.tsx",
+      "line": 127,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "className": "\"mt-sm\"",
+        "onClick": "{() => setPhase('confirming')}",
+        "disabled": "{phase === 'sending'}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0092",
+      "source": "src/app/(sender)/campaigns/new/email-recipients.tsx",
+      "line": 39,
+      "tag": "Button",
+      "text": "Download CSV template",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "onClick": "{download}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0093",
+      "source": "src/app/(sender)/campaigns/new/email-recipients.tsx",
+      "line": 40,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => input.current?.click()}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0094",
+      "source": "src/app/(sender)/campaigns/new/email-recipients.tsx",
+      "line": 41,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "ref": "{input}",
+        "type": "\"file\"",
+        "accept": "\".csv,text/csv\"",
+        "className": "\"sr-only\"",
+        "aria-label": "\"Insert email recipient CSV\"",
+        "onChange": "{(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = '' }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0095",
+      "source": "src/app/(sender)/campaigns/new/expiry-picker.tsx",
+      "line": 26,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "key": "{preset.id}",
+        "type": "\"button\"",
+        "variant": "{choice === preset.id ? 'primary' : 'secondary'}",
+        "aria-pressed": "{choice === preset.id}",
+        "className": "\"min-h-11 px-xs\"",
+        "onClick": "{() => onChange(presetExpiry(preset.id), preset.id)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0096",
+      "source": "src/app/(sender)/campaigns/new/expiry-picker.tsx",
+      "line": 32,
+      "tag": "Button",
+      "text": "Custom",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "{choice === 'custom' ? 'primary' : 'secondary'}",
+        "aria-pressed": "{choice === 'custom'}",
+        "className": "\"min-h-11 px-xs\"",
+        "onClick": "{() => onChange(value, 'custom')}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0097",
+      "source": "src/app/(sender)/campaigns/new/expiry-picker.tsx",
+      "line": 40,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Expiry date\"",
+        "name": "\"expiryDate\"",
+        "type": "\"date\"",
+        "value": "{date}",
+        "className": "\"min-w-0 w-full\"",
+        "aria-invalid": "{!!error}",
+        "aria-describedby": "{`${id}-deadline`}",
+        "onChange": "{(event) => onChange(`${event.target.value}T${time}`, 'custom')}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0098",
+      "source": "src/app/(sender)/campaigns/new/expiry-picker.tsx",
+      "line": 43,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Expiry time\"",
+        "name": "\"expiryTime\"",
+        "type": "\"time\"",
+        "step": "{60}",
+        "value": "{time}",
+        "className": "\"min-w-0 w-full\"",
+        "aria-invalid": "{!!error}",
+        "aria-describedby": "{`${id}-deadline`}",
+        "onChange": "{(event) => onChange(`${date}T${event.target.value}`, 'custom')}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0099",
+      "source": "src/app/(sender)/campaigns/new/export-step.tsx",
+      "line": 155,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "onClick": "{onGenerate}",
+        "disabled": "{phase === 'generating' || !phraseConfirmed}",
+        "data-testid": "\"generate-keys\"",
+        "className": "\"self-start\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0100",
+      "source": "src/app/(sender)/campaigns/new/export-step.tsx",
+      "line": 170,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "{downloaded ? 'secondary' : 'primary'}",
+        "icon": "\"download\"",
+        "onClick": "{onDownload}",
+        "data-testid": "\"download-secrets\"",
+        "className": "\"self-start\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0101",
+      "source": "src/app/(sender)/campaigns/new/export-step.tsx",
+      "line": 192,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"checkbox\"",
+        "checked": "{exportConfirmed}",
+        "onChange": "{(event) => onConfirmExport(event.target.checked)}",
+        "disabled": "{phase === 'batching'}",
+        "data-testid": "\"confirm-export-saved\"",
+        "className": "\"h-5 w-5 shrink-0 accent-primary\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0102",
+      "source": "src/app/(sender)/campaigns/new/export-step.tsx",
+      "line": 208,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"claim\"",
+        "onClick": "{onSign}",
+        "disabled": "{!downloaded || !exportConfirmed || phase === 'batching'}",
+        "data-testid": "\"sign-batches\"",
+        "className": "\"self-start\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0103",
+      "source": "src/app/(sender)/campaigns/new/export-step.tsx",
+      "line": 250,
+      "tag": "Button",
+      "text": "Download again",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "icon": "\"download\"",
+        "onClick": "{onDownload}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0104",
+      "source": "src/app/(sender)/campaigns/new/export-step.tsx",
+      "line": 253,
+      "tag": "Button",
+      "text": "Go to campaign",
+      "attributes": {
+        "type": "\"button\"",
+        "onClick": "{onFinish}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0105",
+      "source": "src/app/(sender)/campaigns/new/network-picker.tsx",
+      "line": 14,
+      "tag": "button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "aria-pressed": "\"true\"",
+        "className": "\"min-h-11 rounded-lg border border-primary bg-primary/10 px-md py-sm font-semibold text-primary\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0106",
+      "source": "src/app/(sender)/campaigns/new/network-picker.tsx",
+      "line": 18,
+      "tag": "a",
+      "text": "Open ↗",
+      "attributes": {
+        "href": "{`${destination}/campaigns/new`}",
+        "target": "\"_blank\"",
+        "rel": "\"noopener noreferrer\"",
+        "className": "\"min-h-11 rounded-lg border border-outline px-md py-sm text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0107",
+      "source": "src/app/(sender)/campaigns/new/network-picker.tsx",
+      "line": 19,
+      "tag": "button",
+      "text": "· unavailable",
+      "attributes": {
+        "type": "\"button\"",
+        "className": "\"min-h-11 rounded-lg border border-outline-variant px-md py-sm text-on-surface-variant opacity-50\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0108",
+      "source": "src/app/(sender)/campaigns/new/phrase-panel.tsx",
+      "line": 65,
+      "tag": "Button",
+      "text": "Create a new phrase",
+      "attributes": {
+        "type": "\"button\"",
+        "onClick": "{() => { setPhrase(generatePhrase()); setMode('new') }}",
+        "data-testid": "\"phrase-new\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0109",
+      "source": "src/app/(sender)/campaigns/new/phrase-panel.tsx",
+      "line": 68,
+      "tag": "Button",
+      "text": "Use a phrase I already have",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "onClick": "{() => setMode('existing')}",
+        "data-testid": "\"phrase-existing\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0110",
+      "source": "src/app/(sender)/campaigns/new/phrase-panel.tsx",
+      "line": 88,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"checkbox\"",
+        "checked": "{stored}",
+        "onChange": "{(e) => setStored(e.target.checked)}",
+        "className": "\"mt-1 h-5 w-5\"",
+        "data-testid": "\"phrase-stored\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0111",
+      "source": "src/app/(sender)/campaigns/new/phrase-panel.tsx",
+      "line": 98,
+      "tag": "textarea",
+      "text": "",
+      "attributes": {
+        "rows": "{3}",
+        "value": "{typed}",
+        "onChange": "{(e) => setTyped(e.target.value)}",
+        "spellCheck": "{false}",
+        "autoComplete": "\"off\"",
+        "autoCapitalize": "\"none\"",
+        "aria-describedby": "\"phrase-input-help phrase-input-status\"",
+        "aria-invalid": "{typed.trim().length > 0 && !existingValid}",
+        "data-testid": "\"phrase-input\"",
+        "className": "\"rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0112",
+      "source": "src/app/(sender)/campaigns/new/phrase-panel.tsx",
+      "line": 137,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"checkbox\"",
+        "checked": "{understood}",
+        "onChange": "{(e) => setUnderstood(e.target.checked)}",
+        "className": "\"mt-1 h-5 w-5\"",
+        "data-testid": "\"phrase-understood\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0113",
+      "source": "src/app/(sender)/campaigns/new/phrase-panel.tsx",
+      "line": 141,
+      "tag": "Button",
+      "text": "Continue",
+      "attributes": {
+        "type": "\"button\"",
+        "onClick": "{confirm}",
+        "disabled": "{!canConfirm}",
+        "data-testid": "\"phrase-confirm\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0114",
+      "source": "src/app/(sender)/campaigns/new/phrase-panel.tsx",
+      "line": 144,
+      "tag": "Button",
+      "text": "Start over",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"tertiary\"",
+        "onClick": "{() => { setMode('choose'); setPhrase(null); setTyped(''); setStored(false); setUnderstood(false) }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0115",
+      "source": "src/app/(sender)/campaigns/new/prize-amounts.tsx",
+      "line": 44,
+      "tag": "Button",
+      "text": "Set individual amounts",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "className": "\"mt-md\"",
+        "disabled": "{disabled || count < 1}",
+        "onClick": "{() => setExpanded(true)}",
+        "aria-expanded": "{false}",
+        "aria-controls": "{`${id}-list`}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0116",
+      "source": "src/app/(sender)/campaigns/new/prize-amounts.tsx",
+      "line": 66,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "{`Prize for ${name} (link ${index + 1}) in ${assetCode}`}",
+        "name": "{`prize-${index + 1}`}",
+        "inputMode": "\"decimal\"",
+        "className": "\"w-full min-w-0\"",
+        "value": "{amount ?? ''}",
+        "placeholder": "{defaultAmount}",
+        "disabled": "{disabled}",
+        "readOnly": "{readOnly}",
+        "onChange": "{(event) => onAmount(index, event.target.value)}",
+        "helper": "{amount === null ? `Uses ${defaultAmount} ${assetCode}` : 'Clear to use the default.'}",
+        "error": "{amount !== null && !isStellarAmount(amount) ? 'Enter a positive amount with up to 7 decimal places within the Stellar limit.' : undefined}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0117",
+      "source": "src/app/(sender)/campaigns/new/prize-amounts.tsx",
+      "line": 76,
+      "tag": "Button",
+      "text": "Previous people",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "disabled": "{currentPage === 0}",
+        "onClick": "{() => setPage(currentPage - 1)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0118",
+      "source": "src/app/(sender)/campaigns/new/prize-amounts.tsx",
+      "line": 78,
+      "tag": "Button",
+      "text": "Next people",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "disabled": "{currentPage + 1 >= totalPages}",
+        "onClick": "{() => setPage(currentPage + 1)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0119",
+      "source": "src/app/(sender)/campaigns/new/prize-amounts.tsx",
+      "line": 81,
+      "tag": "Button",
+      "text": "Use default for everyone",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"tertiary\"",
+        "className": "\"mt-md\"",
+        "disabled": "{disabled || custom === 0}",
+        "onClick": "{onReset}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0120",
+      "source": "src/app/(sender)/campaigns/new/steps.tsx",
+      "line": 70,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Campaign name\"",
+        "name": "\"name\"",
+        "value": "{draft.name}",
+        "maxLength": "{80}",
+        "onChange": "{(e) => onChange({ name: e.target.value })}",
+        "helper": "\"Only you see this. It names the export file.\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0121",
+      "source": "src/app/(sender)/campaigns/new/steps.tsx",
+      "line": 82,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Funding account\"",
+        "name": "\"senderPublicKey\"",
+        "value": "{draft.senderPublicKey}",
+        "onChange": "{(e) => onChange({ senderPublicKey: e.target.value.trim() })}",
+        "helper": "{\r\n            lookupFailed ? 'Balance check unavailable. Retry before choosing prizes.' : checking\r\n              ? 'Checking…'\r\n              : accountExists === false\r\n                ? 'This accou",
+        "error": "{accountExists === false ? 'Fund this account, or choose another.' : undefined}",
+        "spellCheck": "{false}",
+        "autoComplete": "\"off\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0122",
+      "source": "src/app/(sender)/campaigns/new/steps.tsx",
+      "line": 101,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "onClick": "{onConnect}",
+        "data-testid": "\"sender-connect-wallet\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0123",
+      "source": "src/app/(sender)/campaigns/new/steps.tsx",
+      "line": 103,
+      "tag": "Button",
+      "text": "Retry balance check",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "onClick": "{onRetryBalance}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0124",
+      "source": "src/app/(sender)/campaigns/new/steps.tsx",
+      "line": 112,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "id": "\"asset\"",
+        "name": "\"asset\"",
+        "value": "{`${draft.assetCode}:${draft.assetIssuer}`}",
+        "onChange": "{(e) => {\r\n              const [assetCode, assetIssuer = ''] = e.target.value.split(':')\r\n              if (!assetCode) return\r\n              onChange({ assetCode, assetIssuer })\r\n            }}",
+        "className": "\"min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0125",
+      "source": "src/app/(sender)/campaigns/new/steps.tsx",
+      "line": 138,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Amount per link\"",
+        "name": "\"amountPerLink\"",
+        "value": "{draft.amountPerLink}",
+        "inputMode": "\"decimal\"",
+        "onChange": "{(e) => onChange({ amountPerLink: e.target.value })}",
+        "helper": "\"Choose any prize your available balance can cover, up to 7 decimal places. Set individual prizes in Recipients & expiry.\"",
+        "error": "{draft.amountPerLink !== '' && !isStellarAmount(draft.amountPerLink) ? `Enter a positive amount with up to 7 decimal places, at most ${MAX_STELLAR_AMOUNT}.` : undefined}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0126",
+      "source": "src/app/(sender)/campaigns/new/steps.tsx",
+      "line": 156,
+      "tag": "textarea",
+      "text": "",
+      "attributes": {
+        "id": "\"receiveAs\"",
+        "name": "\"receiveAs\"",
+        "rows": "{2}",
+        "value": "{receiveAsRaw}",
+        "onChange": "{(e) => onReceiveAs(e.target.value)}",
+        "placeholder": "{'USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN'}",
+        "spellCheck": "{false}",
+        "className": "\"rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0127",
+      "source": "src/app/(sender)/campaigns/new/steps.tsx",
+      "line": 179,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"checkbox\"",
+        "name": "\"allowExchangeDeposit\"",
+        "checked": "{allowExchangeDeposit}",
+        "onChange": "{(e) => onAllowExchangeDeposit(e.target.checked)}",
+        "className": "\"mt-1 h-5 w-5\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0128",
+      "source": "src/app/(sender)/campaigns/new/steps.tsx",
+      "line": 198,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"checkbox\"",
+        "name": "\"emailReceipts\"",
+        "checked": "{emailReceipts}",
+        "onChange": "{(e) => onEmailReceipts(e.target.checked)}",
+        "className": "\"mt-1 h-5 w-5\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0129",
+      "source": "src/app/(sender)/campaigns/new/steps.tsx",
+      "line": 306,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"radio\"",
+        "name": "\"claimPolicy\"",
+        "value": "{value}",
+        "checked": "{claimPolicy === value}",
+        "disabled": "{value === 'email' && !emailAvailable}",
+        "onChange": "{() => onClaimPolicy(value)}",
+        "className": "\"mt-1 h-5 w-5\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0130",
+      "source": "src/app/(sender)/campaigns/new/steps.tsx",
+      "line": 329,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Number of links\"",
+        "name": "\"linkCount\"",
+        "disabled": "{renewal || claimPolicy === 'wallet' || claimPolicy === 'email'}",
+        "type": "\"number\"",
+        "min": "{1}",
+        "max": "{maxLinks}",
+        "value": "{String(draft.linkCount)}",
+        "onChange": "{(e) => onChange({ linkCount: Number(e.target.value) })}",
+        "helper": "{`Max ${maxLinks.toLocaleString()} per campaign · ${maxOpsPerBatch} links per signature`}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0131",
+      "source": "src/app/(sender)/campaigns/new/steps.tsx",
+      "line": 351,
+      "tag": "textarea",
+      "text": "",
+      "attributes": {
+        "id": "\"labels\"",
+        "name": "\"labels\"",
+        "rows": "{4}",
+        "value": "{labelsDefault}",
+        "onChange": "{(e) => onLabels(e.target.value)}",
+        "placeholder": "{'alice\\nbob\\ncarol'}",
+        "className": "\"rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0132",
+      "source": "src/app/(sender)/campaigns/new/steps.tsx",
+      "line": 394,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"checkbox\"",
+        "name": "\"reminderDays\"",
+        "className": "\"h-5 w-5\"",
+        "checked": "{reminderDays.includes(days)}",
+        "onChange": "{(e) => onReminderDays(e.target.checked ? [...reminderDays, days] : reminderDays.filter((d) => d !== days))}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0133",
+      "source": "src/app/(sender)/campaigns/new/wallet-recipients.tsx",
+      "line": 41,
+      "tag": "Button",
+      "text": "Download CSV template",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "onClick": "{download}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0134",
+      "source": "src/app/(sender)/campaigns/new/wallet-recipients.tsx",
+      "line": 42,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => input.current?.click()}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0135",
+      "source": "src/app/(sender)/campaigns/new/wallet-recipients.tsx",
+      "line": 43,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "ref": "{input}",
+        "type": "\"file\"",
+        "accept": "\".csv,text/csv\"",
+        "className": "\"sr-only\"",
+        "aria-label": "\"Insert recipient CSV\"",
+        "onChange": "{(e) => {\r\n        const file = e.target.files?.[0]; if (file) void upload(file); e.target.value = ''\r\n      }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0136",
+      "source": "src/app/(sender)/campaigns/new/wizard.tsx",
+      "line": 617,
+      "tag": "Button",
+      "text": "Back",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "icon": "\"arrow_back\"",
+        "disabled": "{wizard.phase === 'batching' || wizard.phase === 'complete' || wizard.phase === 'partial'}",
+        "onClick": "{() => {\r\n                wizard.replaceKeys([])\r\n                wizard.setPhase('editing')\r\n                wizard.setError(null)\r\n                wizard.setStep(wizard.step - 1)\r\n              }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0137",
+      "source": "src/app/(sender)/campaigns/new/wizard.tsx",
+      "line": 633,
+      "tag": "Button",
+      "text": "Continue",
+      "attributes": {
+        "type": "\"button\"",
+        "icon": "\"arrow_forward\"",
+        "disabled": "{!canAdvance}",
+        "data-testid": "\"next-step\"",
+        "onClick": "{() => {\r\n                setExpiryNow(Date.now())\r\n                if (wizard.step === 1 && expiryError(draft.expiresAt)) return\r\n                wizard.setStep(wizard.step + 1)\r\n              }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0138",
+      "source": "src/app/(sender)/campaigns/page.tsx",
+      "line": 41,
+      "tag": "Link",
+      "text": "New campaign",
+      "attributes": {
+        "href": "\"/campaigns/new\"",
+        "className": "\"inline-flex min-h-11 items-center rounded-lg bg-action px-4 py-3 font-mono text-label-md font-semibold text-action-on shadow-sm hover:bg-action-hover\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0139",
+      "source": "src/app/(sender)/campaigns/page.tsx",
+      "line": 77,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "href": "{`/campaigns/${row.id}`}",
+        "className": "\"text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0140",
+      "source": "src/app/(sender)/campaigns/[id]/approval-panel.tsx",
+      "line": 93,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "value": "{note}",
+        "onChange": "{(e) => setNote(e.target.value)}",
+        "maxLength": "{500}",
+        "className": "\"min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md normal-case tracking-normal text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0141",
+      "source": "src/app/(sender)/campaigns/[id]/approval-panel.tsx",
+      "line": 100,
+      "tag": "Button",
+      "text": "Approve",
+      "attributes": {
+        "type": "\"button\"",
+        "disabled": "{busy}",
+        "onClick": "{() => void send('APPROVED')}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0142",
+      "source": "src/app/(sender)/campaigns/[id]/approval-panel.tsx",
+      "line": 101,
+      "tag": "Button",
+      "text": "Reject",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"tertiary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => void send('REJECTED')}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0143",
+      "source": "src/app/(sender)/campaigns/[id]/funding-transactions.tsx",
+      "line": 25,
+      "tag": "button",
+      "text": "Refresh funding status",
+      "attributes": {
+        "type": "\"button\"",
+        "className": "\"mt-sm min-h-11 text-primary underline\"",
+        "onClick": "{() => { setError(false); setAttempt(value => value + 1) }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0144",
+      "source": "src/app/(sender)/campaigns/[id]/funding-transactions.tsx",
+      "line": 29,
+      "tag": "a",
+      "text": "",
+      "attributes": {
+        "data-testid": "\"funding-transaction-hash\"",
+        "className": "\"mt-xs block break-all font-mono text-label-md text-primary underline\"",
+        "href": "{`https://stellar.expert/explorer/${network === 'public' ? 'public' : 'testnet'}/tx/${batch.transactionHash}`}",
+        "target": "\"_blank\"",
+        "rel": "\"noopener noreferrer\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0145",
+      "source": "src/app/(sender)/campaigns/[id]/funding-transactions.tsx",
+      "line": 33,
+      "tag": "button",
+      "text": "Previous funding batches",
+      "attributes": {
+        "type": "\"button\"",
+        "className": "\"min-h-11 text-primary underline disabled:opacity-50\"",
+        "disabled": "{page === 0}",
+        "onClick": "{() => setPage(value => value - 1)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0146",
+      "source": "src/app/(sender)/campaigns/[id]/funding-transactions.tsx",
+      "line": 35,
+      "tag": "button",
+      "text": "Next funding batches",
+      "attributes": {
+        "type": "\"button\"",
+        "className": "\"min-h-11 text-primary underline disabled:opacity-50\"",
+        "disabled": "{(page + 1) * PAGE_SIZE >= batches.length}",
+        "onClick": "{() => setPage(value => value + 1)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0147",
+      "source": "src/app/(sender)/campaigns/[id]/links/page.tsx",
+      "line": 53,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "href": "{`/campaigns/${campaign.id}`}",
+        "className": "\"text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0148",
+      "source": "src/app/(sender)/campaigns/[id]/links/page.tsx",
+      "line": 115,
+      "tag": "a",
+      "text": "Receipt",
+      "attributes": {
+        "href": "{`/api/campaigns/${campaign.id}/links/${link.id}/receipt`}",
+        "className": "\"font-mono text-label-sm text-primary underline-offset-4 hover:underline\"",
+        "data-testid": "\"link-receipt\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0149",
+      "source": "src/app/(sender)/campaigns/[id]/links/suspend-link-button.tsx",
+      "line": 37,
+      "tag": "Button",
+      "text": "Suspend",
+      "attributes": {
+        "variant": "\"tertiary\"",
+        "onClick": "{() => setPhase('confirming')}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0150",
+      "source": "src/app/(sender)/campaigns/[id]/links/suspend-link-button.tsx",
+      "line": 55,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "onClick": "{suspend}",
+        "disabled": "{phase === 'suspending'}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0151",
+      "source": "src/app/(sender)/campaigns/[id]/links/suspend-link-button.tsx",
+      "line": 58,
+      "tag": "Button",
+      "text": "Keep",
+      "attributes": {
+        "variant": "\"tertiary\"",
+        "onClick": "{() => setPhase('idle')}",
+        "disabled": "{phase === 'suspending'}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0152",
+      "source": "src/app/(sender)/campaigns/[id]/outstanding-panel.tsx",
+      "line": 147,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"checkbox\"",
+        "className": "\"h-5 w-5\"",
+        "disabled": "{!canEdit}",
+        "checked": "{points.includes(days)}",
+        "onChange": "{(e) => setPoints(e.target.checked ? [...points, days] : points.filter((p) => p !== days))}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0153",
+      "source": "src/app/(sender)/campaigns/[id]/outstanding-panel.tsx",
+      "line": 162,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "onClick": "{() => void saveReminders()}",
+        "disabled": "{saving}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0154",
+      "source": "src/app/(sender)/campaigns/[id]/outstanding-panel.tsx",
+      "line": 181,
+      "tag": "Link",
+      "text": "Renew returned funds",
+      "attributes": {
+        "href": "{`/campaigns/new?renew=${campaignId}`}",
+        "className": "\"mt-md inline-flex min-h-11 items-center rounded-lg border border-outline-variant px-4 py-3 font-mono text-label-md font-semibold text-primary\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0155",
+      "source": "src/app/(sender)/campaigns/[id]/page.tsx",
+      "line": 87,
+      "tag": "Link",
+      "text": "the original campaign",
+      "attributes": {
+        "className": "\"text-primary underline\"",
+        "href": "{`/campaigns/${campaign.renewalOfId}`}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0156",
+      "source": "src/app/(sender)/campaigns/[id]/page.tsx",
+      "line": 92,
+      "tag": "Link",
+      "text": "a linked renewal ( )",
+      "attributes": {
+        "className": "\"text-primary underline\"",
+        "href": "{`/campaigns/${campaign.renewal.id}`}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0157",
+      "source": "src/app/(sender)/campaigns/[id]/page.tsx",
+      "line": 93,
+      "tag": "Link",
+      "text": "Continue renewal with its saved recovery phrase",
+      "attributes": {
+        "className": "\"text-primary underline\"",
+        "href": "{`/campaigns/new?renew=${campaign.id}`}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0158",
+      "source": "src/app/(sender)/campaigns/[id]/page.tsx",
+      "line": 219,
+      "tag": "a",
+      "text": "Download receipts ( )",
+      "attributes": {
+        "href": "{`/api/campaigns/${campaign.id}/receipts?format=csv`}",
+        "className": "\"font-mono text-label-md text-primary underline-offset-4 hover:underline\"",
+        "data-testid": "\"download-receipts\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0159",
+      "source": "src/app/(sender)/campaigns/[id]/page.tsx",
+      "line": 227,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "href": "{`/campaigns/${campaign.id}/links`}",
+        "className": "\"font-mono text-label-md text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0160",
+      "source": "src/app/(sender)/campaigns/[id]/reclaim-panel.tsx",
+      "line": 152,
+      "tag": "Button",
+      "text": "Reclaim remaining funds",
+      "attributes": {
+        "onClick": "{() => setPhase('confirming')}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0161",
+      "source": "src/app/(sender)/campaigns/[id]/reclaim-panel.tsx",
+      "line": 193,
+      "tag": "Button",
+      "text": "Reclaim",
+      "attributes": {
+        "onClick": "{reclaim}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0162",
+      "source": "src/app/(sender)/campaigns/[id]/reclaim-panel.tsx",
+      "line": 194,
+      "tag": "Button",
+      "text": "Cancel",
+      "attributes": {
+        "variant": "\"tertiary\"",
+        "onClick": "{() => setPhase('idle')}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0163",
+      "source": "src/app/(sender)/campaigns/[id]/reclaim-panel.tsx",
+      "line": 201,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "onClick": "{() => setPhase('confirming')}",
+        "disabled": "{phase === 'reclaiming'}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0164",
+      "source": "src/app/(sender)/campaigns/[id]/regenerate-csv.tsx",
+      "line": 108,
+      "tag": "Button",
+      "text": "Regenerate from recovery phrase",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "onClick": "{() => setPhase('open')}",
+        "data-testid": "\"regenerate-open\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0165",
+      "source": "src/app/(sender)/campaigns/[id]/regenerate-csv.tsx",
+      "line": 134,
+      "tag": "textarea",
+      "text": "",
+      "attributes": {
+        "rows": "{3}",
+        "value": "{phrase}",
+        "onChange": "{(e) => setPhrase(e.target.value)}",
+        "spellCheck": "{false}",
+        "autoComplete": "\"off\"",
+        "data-testid": "\"regenerate-phrase\"",
+        "className": "\"rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0166",
+      "source": "src/app/(sender)/campaigns/[id]/regenerate-csv.tsx",
+      "line": 150,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "onClick": "{() => void regenerate()}",
+        "disabled": "{phase === 'working' || phrase.trim().length === 0}",
+        "data-testid": "\"regenerate-run\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0167",
+      "source": "src/app/(sender)/campaigns/[id]/regenerate-csv.tsx",
+      "line": 153,
+      "tag": "Button",
+      "text": "Cancel",
+      "attributes": {
+        "variant": "\"tertiary\"",
+        "onClick": "{() => { setPhrase(''); setError(null); setPhase('closed') }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0168",
+      "source": "src/app/(sender)/campaigns/[id]/save-template.tsx",
+      "line": 42,
+      "tag": "Button",
+      "text": "Save as template",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => void save()}",
+        "data-testid": "\"save-template\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0169",
+      "source": "src/app/(sender)/campaigns/[id]/suspend-panel.tsx",
+      "line": 166,
+      "tag": "Button",
+      "text": "Suspend",
+      "attributes": {
+        "onClick": "{suspend}",
+        "disabled": "{phase !== 'confirming'}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0170",
+      "source": "src/app/(sender)/campaigns/[id]/suspend-panel.tsx",
+      "line": 167,
+      "tag": "Button",
+      "text": "Keep serving",
+      "attributes": {
+        "variant": "\"tertiary\"",
+        "onClick": "{() => setPhase('idle')}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0171",
+      "source": "src/app/(sender)/campaigns/[id]/suspend-panel.tsx",
+      "line": 174,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "onClick": "{() => setPhase('confirming')}",
+        "disabled": "{phase === 'suspending' || outstanding === 0 || expired}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0172",
+      "source": "src/app/(sender)/dashboard/page.tsx",
+      "line": 34,
+      "tag": "Link",
+      "text": "Create campaign",
+      "attributes": {
+        "href": "\"/campaigns/new\"",
+        "className": "\"product-create-link\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0173",
+      "source": "src/app/(sender)/dashboard/page.tsx",
+      "line": 50,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "href": "{`/campaigns/new?draft=${run.campaign.id}`}",
+        "className": "\"text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0174",
+      "source": "src/app/(sender)/dashboard/page.tsx",
+      "line": 87,
+      "tag": "Link",
+      "text": "All campaigns",
+      "attributes": {
+        "href": "\"/campaigns\"",
+        "className": "\"font-mono text-label-md text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0175",
+      "source": "src/app/(sender)/dashboard/page.tsx",
+      "line": 94,
+      "tag": "Link",
+      "text": "Create one",
+      "attributes": {
+        "href": "\"/campaigns/new\"",
+        "className": "\"text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0176",
+      "source": "src/app/(sender)/dashboard/page.tsx",
+      "line": 106,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "href": "{`/campaigns/${row.id}`}",
+        "className": "\"text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0177",
+      "source": "src/app/(sender)/history/page.tsx",
+      "line": 74,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "href": "{`/campaigns/${row.campaignId}`}",
+        "className": "\"text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0178",
+      "source": "src/app/(sender)/history/page.tsx",
+      "line": 83,
+      "tag": "a",
+      "text": "",
+      "attributes": {
+        "href": "{explorerTxUrl(row.network, row.claimTxHash)}",
+        "target": "\"_blank\"",
+        "rel": "\"noreferrer noopener\"",
+        "className": "\"text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0179",
+      "source": "src/app/(sender)/settings/api-keys.tsx",
+      "line": 86,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{create}",
+        "className": "\"grid min-w-0 max-w-2xl grid-cols-1 gap-sm sm:flex sm:flex-wrap sm:items-end\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0180",
+      "source": "src/app/(sender)/settings/api-keys.tsx",
+      "line": 87,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Key name\"",
+        "name": "\"name\"",
+        "maxLength": "{60}",
+        "className": "\"min-w-0 sm:min-w-[14rem] flex-1\"",
+        "placeholder": "\"CI reporting\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0181",
+      "source": "src/app/(sender)/settings/api-keys.tsx",
+      "line": 90,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "name": "\"scope\"",
+        "defaultValue": "\"READ\"",
+        "className": "\"rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-body-md md:text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0182",
+      "source": "src/app/(sender)/settings/api-keys.tsx",
+      "line": 95,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"submit\"",
+        "disabled": "{pending}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0183",
+      "source": "src/app/(sender)/settings/api-keys.tsx",
+      "line": 126,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "onClick": "{() => {\r\n                void navigator.clipboard.writeText(issued.key).then(() => setCopied(true))\r\n              }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0184",
+      "source": "src/app/(sender)/settings/api-keys.tsx",
+      "line": 156,
+      "tag": "Button",
+      "text": "Revoke",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"tertiary\"",
+        "onClick": "{() => void revoke(key.id)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0185",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 137,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{rename}",
+        "className": "\"mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0186",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 139,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Name\"",
+        "name": "\"name\"",
+        "defaultValue": "{name}",
+        "minLength": "{2}",
+        "maxLength": "{80}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0187",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 141,
+      "tag": "Button",
+      "text": "Rename",
+      "attributes": {
+        "type": "\"submit\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0188",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 153,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{savePolicy}",
+        "className": "\"mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0189",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 155,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"checkbox\"",
+        "name": "\"enabled\"",
+        "defaultChecked": "{policy.approvalThreshold !== null}",
+        "className": "\"h-5 w-5\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0190",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 159,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"From value\"",
+        "name": "\"approvalThreshold\"",
+        "inputMode": "\"decimal\"",
+        "defaultValue": "{policy.approvalThreshold ?? ''}",
+        "placeholder": "\"e.g. 1000\"",
+        "pattern": "\"^\\d+(\\.\\d{1,7})?$\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0191",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 162,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Approvals\"",
+        "name": "\"approvalsRequired\"",
+        "type": "\"number\"",
+        "min": "{1}",
+        "max": "{10}",
+        "defaultValue": "{policy.approvalsRequired}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0192",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 164,
+      "tag": "Button",
+      "text": "Save",
+      "attributes": {
+        "type": "\"submit\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0193",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 179,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{saveMfaPolicy}",
+        "className": "\"mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0194",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 182,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "name": "\"mfaPolicy\"",
+        "defaultValue": "{mfaPolicy}",
+        "className": "\"rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-body-md md:text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0195",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 188,
+      "tag": "Button",
+      "text": "Save",
+      "attributes": {
+        "type": "\"submit\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0196",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 201,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{saveScreening}",
+        "className": "\"mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0197",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 203,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Callback URL\"",
+        "name": "\"screeningUrl\"",
+        "type": "\"url\"",
+        "defaultValue": "{screeningUrl ?? ''}",
+        "placeholder": "\"https://compliance.example.com/kleym/screen\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0198",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 205,
+      "tag": "Button",
+      "text": "Save",
+      "attributes": {
+        "type": "\"submit\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0199",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 211,
+      "tag": "a",
+      "text": "Download the signed regulator export",
+      "attributes": {
+        "className": "\"underline\"",
+        "href": "\"/api/org/compliance/export\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0200",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 225,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{saveReportingCurrency}",
+        "className": "\"mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0201",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 228,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "name": "\"reportingCurrency\"",
+        "defaultValue": "{reportingCurrency}",
+        "className": "\"min-h-11 rounded-lg border border-outline bg-surface px-3 font-mono text-body-md md:text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0202",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 234,
+      "tag": "Button",
+      "text": "Save",
+      "attributes": {
+        "type": "\"submit\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0203",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 238,
+      "tag": "a",
+      "text": "Download the journal export (CSV)",
+      "attributes": {
+        "className": "\"underline\"",
+        "href": "\"/api/org/accounting/export?format=csv\"",
+        "data-testid": "\"accounting-export-csv\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0204",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 240,
+      "tag": "a",
+      "text": "JSON",
+      "attributes": {
+        "className": "\"underline\"",
+        "href": "\"/api/org/accounting/export?format=json\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0205",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 256,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "defaultValue": "{m.role}",
+        "disabled": "{busy}",
+        "aria-label": "{`Role for ${m.username}`}",
+        "onChange": "{(e) => void call(`/api/org/members/${m.userId}`, { method: 'PATCH', body: JSON.stringify({ role: e.target.value }) })}",
+        "className": "\"min-h-11 rounded-lg border border-outline bg-surface-container-low px-3 py-2 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0206",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 272,
+      "tag": "Button",
+      "text": "Remove",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"tertiary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => {\r\n                      if (window.confirm(`Remove ${m.username} from ${name}?`)) void call(`/api/org/members/${m.userId}`, { method: 'DELETE' })\r\n                    }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0207",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 290,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{add}",
+        "className": "\"mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0208",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 292,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Username\"",
+        "name": "\"username\"",
+        "helper": "\"An existing account joins now; a new one is invited.\"",
+        "minLength": "{3}",
+        "maxLength": "{64}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0209",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 296,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "id": "\"add-member-role\"",
+        "name": "\"role\"",
+        "defaultValue": "\"OPERATOR\"",
+        "className": "\"min-h-11 rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-body-md md:text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0210",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 300,
+      "tag": "Button",
+      "text": "Add member",
+      "attributes": {
+        "type": "\"submit\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0211",
+      "source": "src/app/(sender)/settings/organisation.tsx",
+      "line": 310,
+      "tag": "Button",
+      "text": "Done",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"tertiary\"",
+        "className": "\"mt-sm\"",
+        "onClick": "{() => setIssued(null)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0212",
+      "source": "src/app/(sender)/settings/page.tsx",
+      "line": 54,
+      "tag": "Link",
+      "text": "Manage second factors",
+      "attributes": {
+        "href": "\"/settings/security\"",
+        "className": "\"underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0213",
+      "source": "src/app/(sender)/settings/password-change.tsx",
+      "line": 45,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{onSubmit}",
+        "className": "\"mt-lg flex w-full min-w-0 max-w-[28rem] flex-col gap-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0214",
+      "source": "src/app/(sender)/settings/password-change.tsx",
+      "line": 46,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Current password\"",
+        "name": "\"current\"",
+        "type": "\"password\"",
+        "autoComplete": "\"current-password\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0215",
+      "source": "src/app/(sender)/settings/password-change.tsx",
+      "line": 47,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"New password\"",
+        "name": "\"next\"",
+        "type": "\"password\"",
+        "autoComplete": "\"new-password\"",
+        "minLength": "{12}",
+        "helper": "\"At least 12 characters.\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0216",
+      "source": "src/app/(sender)/settings/password-change.tsx",
+      "line": 68,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"submit\"",
+        "disabled": "{pending}",
+        "className": "\"w-full sm:w-auto sm:self-start\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0217",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 117,
+      "tag": "a",
+      "text": "Link my account to single sign-on",
+      "attributes": {
+        "className": "\"underline\"",
+        "href": "{`/api/auth/sso/start?handle=${encodeURIComponent(handleForLink)}&purpose=link`}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0218",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 124,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{save}",
+        "className": "\"mt-md grid grid-cols-1 gap-md md:grid-cols-2\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0219",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 125,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Sign-in handle\"",
+        "name": "\"handle\"",
+        "defaultValue": "{connection?.handle ?? ''}",
+        "pattern": "\"[a-z0-9][a-z0-9-]{1,38}\"",
+        "placeholder": "\"acme\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0220",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 126,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Issuer URL\"",
+        "name": "\"issuer\"",
+        "type": "\"url\"",
+        "defaultValue": "{connection?.issuer ?? ''}",
+        "placeholder": "\"https://login.microsoftonline.com/<tenant>/v2.0\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0221",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 127,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Client ID\"",
+        "name": "\"clientId\"",
+        "defaultValue": "{connection?.clientId ?? ''}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0222",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 128,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "{connection ? 'Client secret (leave blank to keep)' : 'Client secret'}",
+        "name": "\"clientSecret\"",
+        "type": "\"password\"",
+        "autoComplete": "\"off\"",
+        "required": "{!connection}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0223",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 129,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Scopes\"",
+        "name": "\"scopes\"",
+        "defaultValue": "{connection?.scopes ?? 'openid profile email'}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0224",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 130,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Subject claim (sub for Okta/Google, oid for Entra)\"",
+        "name": "\"subjectClaim\"",
+        "defaultValue": "{connection?.subjectClaim ?? 'sub'}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0225",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 131,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Groups claim\"",
+        "name": "\"groupsClaim\"",
+        "defaultValue": "{connection?.groupsClaim ?? 'groups'}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0226",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 134,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "name": "\"defaultRole\"",
+        "defaultValue": "{connection?.defaultRole ?? 'VIEWER'}",
+        "className": "\"rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-body-md md:text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0227",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 140,
+      "tag": "textarea",
+      "text": "",
+      "attributes": {
+        "name": "\"mappings\"",
+        "rows": "{3}",
+        "defaultValue": "{(connection?.mappings ?? []).map((m) => `${m.group}=${m.role}`).join('\\n')}",
+        "className": "\"rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface\"",
+        "placeholder": "{'treasury-approvers=APPROVER\\ntreasury-admins=OWNER'}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0228",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 143,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"checkbox\"",
+        "name": "\"ssoOnly\"",
+        "defaultChecked": "{connection?.ssoOnly ?? false}",
+        "className": "\"h-5 w-5\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0229",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 147,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "type": "\"submit\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0230",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 168,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{issueToken}",
+        "className": "\"mt-md grid grid-cols-1 sm:flex sm:flex-wrap sm:items-end gap-sm\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0231",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 169,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Token name\"",
+        "name": "\"name\"",
+        "maxLength": "{60}",
+        "placeholder": "\"Okta provisioning\"",
+        "className": "\"min-w-0 sm:min-w-[14rem]\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0232",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 170,
+      "tag": "Button",
+      "text": "Issue token",
+      "attributes": {
+        "type": "\"submit\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0233",
+      "source": "src/app/(sender)/settings/sso.tsx",
+      "line": 182,
+      "tag": "Button",
+      "text": "Revoke",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => void call(`/api/org/sso/scim-tokens/${t.id}`, { method: 'DELETE' })}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0234",
+      "source": "src/app/(sender)/settings/webhooks.tsx",
+      "line": 78,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{add}",
+        "className": "\"mt-md flex flex-col gap-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0235",
+      "source": "src/app/(sender)/settings/webhooks.tsx",
+      "line": 80,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Endpoint URL\"",
+        "name": "\"url\"",
+        "type": "\"url\"",
+        "placeholder": "\"https://payroll.example.com/kleym/webhooks\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0236",
+      "source": "src/app/(sender)/settings/webhooks.tsx",
+      "line": 86,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "type": "\"checkbox\"",
+        "name": "{`event:${e}`}",
+        "className": "\"h-5 w-5\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0237",
+      "source": "src/app/(sender)/settings/webhooks.tsx",
+      "line": 91,
+      "tag": "Button",
+      "text": "Add endpoint",
+      "attributes": {
+        "type": "\"submit\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "className": "\"self-start\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0238",
+      "source": "src/app/(sender)/settings/webhooks.tsx",
+      "line": 111,
+      "tag": "Button",
+      "text": "Re-enable",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => void call(`/api/org/webhooks/${e.id}`, { method: 'PATCH', body: JSON.stringify({ enabled: true }) })}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0239",
+      "source": "src/app/(sender)/settings/webhooks.tsx",
+      "line": 115,
+      "tag": "Button",
+      "text": "Remove",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => void call(`/api/org/webhooks/${e.id}`, { method: 'DELETE' })}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0240",
+      "source": "src/app/(sender)/templates/actions.tsx",
+      "line": 38,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => router.push(`/campaigns/new?template=${id}`)}",
+        "data-testid": "\"template-start\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0241",
+      "source": "src/app/(sender)/templates/actions.tsx",
+      "line": 41,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "data-testid": "\"template-run-now\"",
+        "onClick": "{() =>\r\n          void act(async () => {\r\n            const body = await call(`/api/templates/${id}/run`, { method: 'POST' })\r\n            router.push(`/campaigns/new?draft=${String(body.campaignId)}`"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0242",
+      "source": "src/app/(sender)/templates/actions.tsx",
+      "line": 54,
+      "tag": "Button",
+      "text": "",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => void act(async () => { await call(`/api/templates/${id}`, { method: 'PATCH', body: JSON.stringify({ enabled: !enabled }) }) })}",
+        "data-testid": "\"template-toggle\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0243",
+      "source": "src/app/(sender)/templates/actions.tsx",
+      "line": 58,
+      "tag": "Button",
+      "text": "Delete",
+      "attributes": {
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => {\r\n            if (!window.confirm('Delete this template? Campaigns it produced are kept.')) return\r\n            void act(async () => {\r\n              await call(`/api/templates/${id}`, { metho"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0244",
+      "source": "src/app/(sender)/templates/actions.tsx",
+      "line": 116,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{save}",
+        "className": "\"mt-md flex flex-col gap-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0245",
+      "source": "src/app/(sender)/templates/actions.tsx",
+      "line": 119,
+      "tag": "textarea",
+      "text": "",
+      "attributes": {
+        "name": "\"recipientsCsv\"",
+        "rows": "{8}",
+        "defaultValue": "{recipientsCsv}",
+        "className": "\"rounded-lg border border-outline bg-surface-container-low px-4 py-3 font-mono text-label-md text-on-surface\"",
+        "data-testid": "\"template-recipients\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0246",
+      "source": "src/app/(sender)/templates/actions.tsx",
+      "line": 127,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "name": "\"cadence\"",
+        "defaultValue": "{kind}",
+        "className": "\"min-h-11 rounded-lg border border-outline bg-surface px-3 font-mono text-label-md text-on-surface\"",
+        "data-testid": "\"template-cadence\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0247",
+      "source": "src/app/(sender)/templates/actions.tsx",
+      "line": 136,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "name": "\"day\"",
+        "type": "\"number\"",
+        "min": "{0}",
+        "max": "{28}",
+        "defaultValue": "{arg ?? '1'}",
+        "className": "\"min-h-11 w-24 rounded-lg border border-outline bg-surface px-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0248",
+      "source": "src/app/(sender)/templates/actions.tsx",
+      "line": 140,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "name": "\"runHour\"",
+        "type": "\"number\"",
+        "min": "{0}",
+        "max": "{23}",
+        "defaultValue": "{runHour}",
+        "className": "\"min-h-11 w-24 rounded-lg border border-outline bg-surface px-3 font-mono text-label-md text-on-surface\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0249",
+      "source": "src/app/(sender)/templates/actions.tsx",
+      "line": 142,
+      "tag": "Button",
+      "text": "Save",
+      "attributes": {
+        "type": "\"submit\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0250",
+      "source": "src/app/(sender)/templates/page.tsx",
+      "line": 48,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "href": "{`/templates/${t.id}`}",
+        "className": "\"text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0251",
+      "source": "src/app/(sender)/templates/[id]/page.tsx",
+      "line": 29,
+      "tag": "Link",
+      "text": "Templates",
+      "attributes": {
+        "href": "\"/templates\"",
+        "className": "\"text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0252",
+      "source": "src/app/(sender)/templates/[id]/page.tsx",
+      "line": 60,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "href": "{r.campaign.status === 'DRAFT' ? `/campaigns/new?draft=${r.campaign.id}` : `/campaigns/${r.campaign.id}`}",
+        "className": "\"text-primary underline-offset-4 hover:underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0253",
+      "source": "src/app/not-found.tsx",
+      "line": 17,
+      "tag": "a",
+      "text": "Go to home",
+      "attributes": {
+        "href": "{env.MARKETING_SITE_URL || '/'}",
+        "className": "\"product-create-link mt-lg\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0254",
+      "source": "src/components/list/filters.tsx",
+      "line": 23,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "method": "\"get\"",
+        "action": "{action}",
+        "className": "\"filter-bar mt-lg flex flex-wrap items-end gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0255",
+      "source": "src/components/list/filters.tsx",
+      "line": 29,
+      "tag": "button",
+      "text": "Apply",
+      "attributes": {
+        "type": "\"submit\"",
+        "className": "\"min-h-11 rounded-lg bg-action px-4 py-3 font-mono text-label-md font-semibold text-action-on shadow-sm hover:bg-action-hover\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0256",
+      "source": "src/components/list/filters.tsx",
+      "line": 70,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "id": "{`filter-${props.name}`}",
+        "name": "{props.name}",
+        "type": "{props.type ?? 'text'}",
+        "defaultValue": "{props.defaultValue}",
+        "placeholder": "{props.placeholder}",
+        "className": "{FIELD}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0257",
+      "source": "src/components/list/filters.tsx",
+      "line": 93,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "id": "{`filter-${name}`}",
+        "name": "{name}",
+        "defaultValue": "{defaultValue ?? ''}",
+        "className": "{FIELD}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0258",
+      "source": "src/components/list/filters.tsx",
+      "line": 136,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "href": "{href(target)}",
+        "className": "\"min-h-11 rounded-lg border border-outline-variant px-4 py-3 font-mono text-label-md text-primary hover:bg-surface-container-high\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0259",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 69,
+      "tag": "a",
+      "text": "Skip to content",
+      "attributes": {
+        "href": "\"#main-content\"",
+        "className": "{s.skip}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0260",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 74,
+      "tag": "a",
+      "text": "",
+      "attributes": {
+        "href": "\"#top\"",
+        "className": "{s.brand}",
+        "aria-label": "\"Kleym home\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0261",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 79,
+      "tag": "a",
+      "text": "How it works",
+      "attributes": {
+        "href": "\"#how-it-works\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0262",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 80,
+      "tag": "a",
+      "text": "Campaigns",
+      "attributes": {
+        "href": "\"#campaigns\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0263",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 81,
+      "tag": "a",
+      "text": "Questions",
+      "attributes": {
+        "href": "\"#questions\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0264",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 83,
+      "tag": "a",
+      "text": "Open App",
+      "attributes": {
+        "href": "{appHref}",
+        "target": "{openNewTab ? '_blank' : undefined}",
+        "rel": "{openNewTab ? 'noopener noreferrer' : undefined}",
+        "className": "{s.signIn}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0265",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 110,
+      "tag": "a",
+      "text": "Create a campaign",
+      "attributes": {
+        "href": "{appHref}",
+        "target": "{openNewTab ? '_blank' : undefined}",
+        "rel": "{openNewTab ? 'noopener noreferrer' : undefined}",
+        "className": "{s.primary}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0266",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 118,
+      "tag": "a",
+      "text": "See how it works",
+      "attributes": {
+        "href": "\"#how-it-works\"",
+        "className": "{s.textLink}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0267",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 266,
+      "tag": "a",
+      "text": "Sign in to create a campaign",
+      "attributes": {
+        "href": "{appHref}",
+        "target": "{openNewTab ? '_blank' : undefined}",
+        "rel": "{openNewTab ? 'noopener noreferrer' : undefined}",
+        "className": "{s.textLink}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0268",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 414,
+      "tag": "details",
+      "text": "",
+      "attributes": {
+        "key": "{question.title}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0269",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 415,
+      "tag": "summary",
+      "text": "",
+      "attributes": {},
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0270",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 437,
+      "tag": "a",
+      "text": "Open Kleym",
+      "attributes": {
+        "href": "{appHref}",
+        "target": "{openNewTab ? '_blank' : undefined}",
+        "rel": "{openNewTab ? 'noopener noreferrer' : undefined}",
+        "className": "{s.primary}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0271",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 451,
+      "tag": "a",
+      "text": "",
+      "attributes": {
+        "href": "\"#top\"",
+        "className": "{s.brand}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0272",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 459,
+      "tag": "a",
+      "text": "How it works",
+      "attributes": {
+        "href": "\"#how-it-works\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0273",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 460,
+      "tag": "a",
+      "text": "Questions",
+      "attributes": {
+        "href": "\"#questions\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0274",
+      "source": "src/components/marketing/marketing-home.tsx",
+      "line": 461,
+      "tag": "a",
+      "text": "Open App",
+      "attributes": {
+        "href": "{appHref}",
+        "target": "{openNewTab ? '_blank' : undefined}",
+        "rel": "{openNewTab ? 'noopener noreferrer' : undefined}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0275",
+      "source": "src/components/mfa/factor-prompt.tsx",
+      "line": 64,
+      "tag": "Button",
+      "text": "Use a passkey",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"secondary\"",
+        "disabled": "{busy}",
+        "onClick": "{() => void withPasskey()}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0276",
+      "source": "src/components/mfa/factor-prompt.tsx",
+      "line": 69,
+      "tag": "form",
+      "text": "",
+      "attributes": {
+        "onSubmit": "{submitCode}",
+        "className": "\"flex flex-wrap items-end gap-sm\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0277",
+      "source": "src/components/mfa/factor-prompt.tsx",
+      "line": 70,
+      "tag": "Input",
+      "text": "",
+      "attributes": {
+        "label": "\"Code from your app, or a recovery code\"",
+        "name": "\"code\"",
+        "inputMode": "\"numeric\"",
+        "autoComplete": "\"one-time-code\"",
+        "minLength": "{6}",
+        "maxLength": "{20}",
+        "className": "\"min-w-[14rem]\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0278",
+      "source": "src/components/mfa/factor-prompt.tsx",
+      "line": 71,
+      "tag": "Button",
+      "text": "Verify",
+      "attributes": {
+        "type": "\"submit\"",
+        "disabled": "{busy}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0279",
+      "source": "src/components/mfa/use-step-up.tsx",
+      "line": 52,
+      "tag": "Button",
+      "text": "Cancel",
+      "attributes": {
+        "type": "\"button\"",
+        "variant": "\"tertiary\"",
+        "className": "\"mt-sm\"",
+        "onClick": "{() => settle(false)}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0280",
+      "source": "src/components/shell/app-shell.tsx",
+      "line": 18,
+      "tag": "a",
+      "text": "Skip to content",
+      "attributes": {
+        "href": "\"#app-content\"",
+        "className": "\"app-skip-link\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0281",
+      "source": "src/components/shell/auth-shell.tsx",
+      "line": 21,
+      "tag": "a",
+      "text": "Kleym",
+      "attributes": {
+        "href": "{homeHref}",
+        "className": "\"auth-brand\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0282",
+      "source": "src/components/shell/auth-shell.tsx",
+      "line": 28,
+      "tag": "a",
+      "text": "Back to home",
+      "attributes": {
+        "href": "{homeHref}",
+        "className": "\"auth-home\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0283",
+      "source": "src/components/shell/auth-shell.tsx",
+      "line": 143,
+      "tag": "Link",
+      "text": "Service status",
+      "attributes": {
+        "href": "\"/status\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0284",
+      "source": "src/components/shell/logout-button.tsx",
+      "line": 27,
+      "tag": "button",
+      "text": "",
+      "attributes": {
+        "type": "\"button\"",
+        "onClick": "{logout}",
+        "disabled": "{pending}",
+        "className": "\"logout-button\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0285",
+      "source": "src/components/shell/org-switcher.tsx",
+      "line": 54,
+      "tag": "select",
+      "text": "",
+      "attributes": {
+        "value": "{active.id}",
+        "disabled": "{busy}",
+        "onChange": "{(e) => void onChange(e.target.value)}",
+        "className": "\"min-h-11 rounded-lg border border-on-primary-container/30 bg-primary-container px-3 py-2 font-mono text-label-md text-on-primary\"",
+        "data-testid": "\"org-switcher\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0286",
+      "source": "src/components/shell/sidebar.tsx",
+      "line": 51,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "key": "{item.href}",
+        "href": "{item.href}",
+        "onClick": "{onNavigate}",
+        "aria-current": "{active ? 'page' : undefined}",
+        "className": "{clsx(\r\n              'flex items-center font-mono',\r\n              mobile\r\n                ? 'min-h-11 min-w-0 gap-sm rounded-lg px-sm py-sm text-label-md'\r\n                : 'gap-sm rounded-full px-"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0287",
+      "source": "src/components/shell/sidebar.tsx",
+      "line": 94,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "href": "\"/dashboard\"",
+        "className": "\"nav-brand flex min-h-11 items-center gap-sm text-on-primary\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0288",
+      "source": "src/components/shell/sidebar.tsx",
+      "line": 139,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "key": "{href}",
+        "href": "{href}",
+        "aria-current": "{pathname === href ? 'page' : undefined}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0289",
+      "source": "src/components/shell/sidebar.tsx",
+      "line": 181,
+      "tag": "Link",
+      "text": "",
+      "attributes": {
+        "href": "\"/dashboard\"",
+        "className": "\"flex min-h-11 items-center gap-sm text-on-primary\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0290",
+      "source": "src/components/shell/sidebar.tsx",
+      "line": 188,
+      "tag": "button",
+      "text": "",
+      "attributes": {
+        "ref": "{toggle}",
+        "type": "\"button\"",
+        "aria-expanded": "{open}",
+        "aria-controls": "\"mobile-main-menu\"",
+        "onClick": "{() => setOpen(!open)}",
+        "className": "\"flex min-h-11 items-center gap-sm rounded-lg px-sm font-mono text-label-md text-on-primary\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0291",
+      "source": "src/components/ui/button.tsx",
+      "line": 31,
+      "tag": "button",
+      "text": "",
+      "attributes": {
+        "className": "{clsx(\r\n        'inline-flex items-center justify-center gap-sm rounded-lg px-4 py-3',\r\n        'font-mono text-label-md font-semibold transition-all duration-200',\r\n        'disabled:cursor-not-allow"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0292",
+      "source": "src/components/ui/button.tsx",
+      "line": 58,
+      "tag": "button",
+      "text": "",
+      "attributes": {
+        "aria-label": "{label}",
+        "title": "{label}",
+        "className": "{clsx(\r\n        'inline-flex items-center justify-center rounded-lg text-on-surface-variant',\r\n        'transition-colors duration-200 hover:bg-surface-container-high',\r\n        // Both reach the 44px"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0293",
+      "source": "src/components/ui/input.tsx",
+      "line": 34,
+      "tag": "input",
+      "text": "",
+      "attributes": {
+        "id": "{inputId}",
+        "aria-describedby": "{helper || error || total ? helperId : undefined}",
+        "aria-invalid": "{error ? true : undefined}",
+        "className": "{clsx(\r\n          // `outline`, not `outline-variant`: a form field's border is what\r\n          // identifies the control, so it needs 3:1 (WCAG 1.4.11).\r\n          // outline-variant measures 1.55:1 "
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0294",
+      "source": "src/components/wallet-environment.tsx",
+      "line": 23,
+      "tag": "a",
+      "text": "Open in Lantern",
+      "attributes": {
+        "href": "{href}",
+        "className": "\"font-semibold text-primary\"",
+        "onClick": "{(event) => { if (walletHandoffBlocked()) event.preventDefault() }}"
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0295",
+      "source": "src/components/wallet-environment.tsx",
+      "line": 28,
+      "tag": "a",
+      "text": "Open Freighter to approve the request",
+      "attributes": {
+        "href": "{mobileLink}",
+        "target": "\"_blank\"",
+        "rel": "\"noopener noreferrer\"",
+        "className": "\"inline-flex min-h-11 items-center font-semibold text-primary\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    },
+    {
+      "id": "CTRL-0296",
+      "source": "src/components/wallet-environment.tsx",
+      "line": 30,
+      "tag": "button",
+      "text": "Cancel connection",
+      "attributes": {
+        "type": "\"button\"",
+        "onClick": "{cancelSenderConnection}",
+        "className": "\"min-h-11 underline\""
+      },
+      "execution": "Not Run",
+      "qualification": "Static declaration; conditional rendering and runtime labels require browser verification."
+    }
+  ],
+  "counts": {
+    "pages": 24,
+    "apiMethods": 121,
+    "apiFiles": 96,
+    "controlDeclarations": 296
+  },
+  "limits": "Static JSX does not enumerate generated rows, every dynamic state, portals, or runtime behavior. Every declaration is a checklist item, not a passed test."
+}

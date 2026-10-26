@@ -1,0 +1,18 @@
+{
+  "case_count": 373,
+  "scoped_observations": 34,
+  "all_catalog_statuses": "Not Run",
+  "pages": 24,
+  "api_methods": 121,
+  "controls": 296,
+  "unique_ids": true,
+  "workbook_reopened": true,
+  "formula_and_validation_checked": true,
+  "formula_cache_recalculated": false,
+  "secret_pattern_scan": "Passed; synthetic fixtures and screenshots still require human privacy review",
+  "files": {
+    "kleym-comprehensive-test-cases-v2.xlsx": "74b1508ab0206f0a6d8a7581211ef036c03ff382ace8f242f7fcecba6e2b0aee",
+    "kleym-comprehensive-test-plan-v2.pdf": "6ecd72a31cd86f9a5239439706c9e12220fa040a815578045f968b34256ebb34",
+    "kleym-qa-summary-v2.pdf": "e3e515edd76d25b2d02d143fd124e39a0e24fe2dfd4e1d0009129a1eb3ca2061"
+  }
+}

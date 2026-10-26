@@ -1,0 +1,145 @@
+[
+  {
+    "route": "/dashboard",
+    "controlCount": 27,
+    "documentWidth": 1265,
+    "headings": [
+      "Dashboard",
+      "Recent campaigns"
+    ],
+    "unexpectedError": false,
+    "viewport": 1280
+  },
+  {
+    "route": "/campaigns",
+    "controlCount": 34,
+    "documentWidth": 1265,
+    "headings": [
+      "Campaigns"
+    ],
+    "unexpectedError": false,
+    "viewport": 1280
+  },
+  {
+    "route": "/templates",
+    "controlCount": 20,
+    "documentWidth": 1280,
+    "headings": [
+      "Templates"
+    ],
+    "unexpectedError": false,
+    "viewport": 1280
+  },
+  {
+    "route": "/approvals",
+    "controlCount": 20,
+    "documentWidth": 1280,
+    "headings": [
+      "Approvals"
+    ],
+    "unexpectedError": false,
+    "viewport": 1280
+  },
+  {
+    "route": "/history",
+    "controlCount": 66,
+    "documentWidth": 1265,
+    "headings": [
+      "History"
+    ],
+    "unexpectedError": false,
+    "viewport": 1280
+  },
+  {
+    "route": "/settings",
+    "controlCount": 69,
+    "documentWidth": 1265,
+    "headings": [
+      "Settings",
+      "Password",
+      "Second factor",
+      "Organisation",
+      "API keys",
+      "Single sign-on",
+      "Webhooks"
+    ],
+    "unexpectedError": false,
+    "viewport": 1280
+  },
+  {
+    "route": "/settings/security",
+    "controlCount": 7,
+    "documentWidth": 1265,
+    "headings": [
+      "Second factor",
+      "Authenticator app",
+      "Passkeys"
+    ],
+    "unexpectedError": false,
+    "viewport": 1280
+  },
+  {
+    "route": "/admin",
+    "controlCount": 26,
+    "documentWidth": 1265,
+    "headings": [
+      "Admin",
+      "Sponsor pool",
+      "Stranded ephemeral accounts"
+    ],
+    "unexpectedError": false,
+    "viewport": 1280
+  },
+  {
+    "route": "/admin/users",
+    "controlCount": 27,
+    "documentWidth": 1265,
+    "headings": [
+      "Users"
+    ],
+    "unexpectedError": false,
+    "viewport": 1280
+  },
+  {
+    "route": "/admin/campaigns",
+    "controlCount": 36,
+    "documentWidth": 1265,
+    "headings": [
+      "Campaigns"
+    ],
+    "unexpectedError": false,
+    "viewport": 1280
+  },
+  {
+    "route": "/admin/audit",
+    "controlCount": 34,
+    "documentWidth": 1265,
+    "headings": [
+      "Audit log"
+    ],
+    "unexpectedError": false,
+    "viewport": 1280
+  },
+  {
+    "route": "/admin/reconciliation",
+    "controlCount": 27,
+    "documentWidth": 1265,
+    "headings": [
+      "Reconciliation",
+      "Scheduled passes",
+      "Background queues"
+    ],
+    "unexpectedError": false,
+    "viewport": 1280
+  },
+  {
+    "route": "/admin/privacy",
+    "controlCount": 28,
+    "documentWidth": 1265,
+    "headings": [
+      "Privacy"
+    ],
+    "unexpectedError": false,
+    "viewport": 1280
+  }
+]
