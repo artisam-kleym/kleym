@@ -31,6 +31,8 @@ export interface WizardConfig {
   /** Whether the organisation screens batches (#52) — copy only; the server decides. */
   screening: boolean
   emailVerificationAvailable?: boolean
+  /** Historical Testnet email harness only; production distributes links locally. */
+  legacyEmailDeliveryAvailable?: boolean
   /**
    * Reissue (#78): the campaign this one replaces the unclaimed links of. The
    * terms are prefilled; the expiry is not — that is the point of a reissue.

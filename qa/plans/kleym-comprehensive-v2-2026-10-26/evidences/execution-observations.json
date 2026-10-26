@@ -1,0 +1,656 @@
+{
+  "candidate": "b842fe3ac451dbfd4e563b3478c5951944c8dbb5",
+  "scope": "Named scoped checks, not full catalog execution",
+  "counts": {
+    "Passed": 34
+  },
+  "records": [
+    {
+      "id": "SMK-001",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Desktop Chromium 1280px",
+      "scope": "Page load/layout only: /dashboard",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/dashboard",
+        "controlCount": 27,
+        "documentWidth": 1265,
+        "headings": [
+          "Dashboard",
+          "Recent campaigns"
+        ],
+        "unexpectedError": false,
+        "viewport": 1280
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/desktop-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-002",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Desktop Chromium 1280px",
+      "scope": "Page load/layout only: /campaigns",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/campaigns",
+        "controlCount": 34,
+        "documentWidth": 1265,
+        "headings": [
+          "Campaigns"
+        ],
+        "unexpectedError": false,
+        "viewport": 1280
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/desktop-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-003",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Desktop Chromium 1280px",
+      "scope": "Page load/layout only: /templates",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/templates",
+        "controlCount": 20,
+        "documentWidth": 1280,
+        "headings": [
+          "Templates"
+        ],
+        "unexpectedError": false,
+        "viewport": 1280
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/desktop-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-004",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Desktop Chromium 1280px",
+      "scope": "Page load/layout only: /approvals",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/approvals",
+        "controlCount": 20,
+        "documentWidth": 1280,
+        "headings": [
+          "Approvals"
+        ],
+        "unexpectedError": false,
+        "viewport": 1280
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/desktop-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-005",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Desktop Chromium 1280px",
+      "scope": "Page load/layout only: /history",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/history",
+        "controlCount": 66,
+        "documentWidth": 1265,
+        "headings": [
+          "History"
+        ],
+        "unexpectedError": false,
+        "viewport": 1280
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/desktop-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-006",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Desktop Chromium 1280px",
+      "scope": "Page load/layout only: /settings",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/settings",
+        "controlCount": 69,
+        "documentWidth": 1265,
+        "headings": [
+          "Settings",
+          "Password",
+          "Second factor",
+          "Organisation",
+          "API keys",
+          "Single sign-on",
+          "Webhooks"
+        ],
+        "unexpectedError": false,
+        "viewport": 1280
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/desktop-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-007",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Desktop Chromium 1280px",
+      "scope": "Page load/layout only: /settings/security",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/settings/security",
+        "controlCount": 7,
+        "documentWidth": 1265,
+        "headings": [
+          "Second factor",
+          "Authenticator app",
+          "Passkeys"
+        ],
+        "unexpectedError": false,
+        "viewport": 1280
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/desktop-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-008",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Desktop Chromium 1280px",
+      "scope": "Page load/layout only: /admin",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/admin",
+        "controlCount": 26,
+        "documentWidth": 1265,
+        "headings": [
+          "Admin",
+          "Sponsor pool",
+          "Stranded ephemeral accounts"
+        ],
+        "unexpectedError": false,
+        "viewport": 1280
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/desktop-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-009",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Desktop Chromium 1280px",
+      "scope": "Page load/layout only: /admin/users",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/admin/users",
+        "controlCount": 27,
+        "documentWidth": 1265,
+        "headings": [
+          "Users"
+        ],
+        "unexpectedError": false,
+        "viewport": 1280
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/desktop-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-010",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Desktop Chromium 1280px",
+      "scope": "Page load/layout only: /admin/campaigns",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/admin/campaigns",
+        "controlCount": 36,
+        "documentWidth": 1265,
+        "headings": [
+          "Campaigns"
+        ],
+        "unexpectedError": false,
+        "viewport": 1280
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/desktop-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-011",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Desktop Chromium 1280px",
+      "scope": "Page load/layout only: /admin/audit",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/admin/audit",
+        "controlCount": 34,
+        "documentWidth": 1265,
+        "headings": [
+          "Audit log"
+        ],
+        "unexpectedError": false,
+        "viewport": 1280
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/desktop-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-012",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Desktop Chromium 1280px",
+      "scope": "Page load/layout only: /admin/reconciliation",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/admin/reconciliation",
+        "controlCount": 27,
+        "documentWidth": 1265,
+        "headings": [
+          "Reconciliation",
+          "Scheduled passes",
+          "Background queues"
+        ],
+        "unexpectedError": false,
+        "viewport": 1280
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/desktop-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-013",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Desktop Chromium 1280px",
+      "scope": "Page load/layout only: /admin/privacy",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/admin/privacy",
+        "controlCount": 28,
+        "documentWidth": 1265,
+        "headings": [
+          "Privacy"
+        ],
+        "unexpectedError": false,
+        "viewport": 1280
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/desktop-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-014",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium 360px, desktop UA",
+      "scope": "Page load/layout only: /dashboard",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/dashboard",
+        "documentWidth": 345,
+        "headings": [
+          "Dashboard",
+          "Recent campaigns"
+        ],
+        "passwordFields": [],
+        "unexpectedError": false,
+        "viewport": 360
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/responsive-360-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-015",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium 360px, desktop UA",
+      "scope": "Page load/layout only: /campaigns",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/campaigns",
+        "documentWidth": 345,
+        "headings": [
+          "Campaigns"
+        ],
+        "passwordFields": [],
+        "unexpectedError": false,
+        "viewport": 360
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/responsive-360-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-016",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium 360px, desktop UA",
+      "scope": "Page load/layout only: /templates",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/templates",
+        "documentWidth": 360,
+        "headings": [
+          "Templates"
+        ],
+        "passwordFields": [],
+        "unexpectedError": false,
+        "viewport": 360
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/responsive-360-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-017",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium 360px, desktop UA",
+      "scope": "Page load/layout only: /approvals",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/approvals",
+        "documentWidth": 360,
+        "headings": [
+          "Approvals"
+        ],
+        "passwordFields": [],
+        "unexpectedError": false,
+        "viewport": 360
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/responsive-360-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-018",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium 360px, desktop UA",
+      "scope": "Page load/layout only: /history",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/history",
+        "documentWidth": 345,
+        "headings": [
+          "History"
+        ],
+        "passwordFields": [],
+        "unexpectedError": false,
+        "viewport": 360
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/responsive-360-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-019",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium 360px, desktop UA",
+      "scope": "Page load/layout only: /settings",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/settings",
+        "documentWidth": 345,
+        "headings": [
+          "Settings",
+          "Password",
+          "Second factor",
+          "Organisation",
+          "API keys",
+          "Single sign-on",
+          "Webhooks"
+        ],
+        "passwordFields": [
+          {
+            "height": 49,
+            "width": 287
+          },
+          {
+            "height": 49,
+            "width": 287
+          },
+          {
+            "height": 49,
+            "width": 287
+          }
+        ],
+        "unexpectedError": false,
+        "viewport": 360
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/responsive-360-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-020",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium 360px, desktop UA",
+      "scope": "Page load/layout only: /settings/security",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/settings/security",
+        "documentWidth": 345,
+        "headings": [
+          "Second factor",
+          "Authenticator app",
+          "Passkeys"
+        ],
+        "passwordFields": [],
+        "unexpectedError": false,
+        "viewport": 360
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/responsive-360-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-021",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium 360px, desktop UA",
+      "scope": "Page load/layout only: /admin",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/admin",
+        "documentWidth": 345,
+        "headings": [
+          "Admin",
+          "Sponsor pool",
+          "Stranded ephemeral accounts"
+        ],
+        "passwordFields": [],
+        "unexpectedError": false,
+        "viewport": 360
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/responsive-360-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-022",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium 360px, desktop UA",
+      "scope": "Page load/layout only: /admin/users",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/admin/users",
+        "documentWidth": 360,
+        "headings": [
+          "Users"
+        ],
+        "passwordFields": [],
+        "unexpectedError": false,
+        "viewport": 360
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/responsive-360-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-023",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium 360px, desktop UA",
+      "scope": "Page load/layout only: /admin/campaigns",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/admin/campaigns",
+        "documentWidth": 345,
+        "headings": [
+          "Campaigns"
+        ],
+        "passwordFields": [],
+        "unexpectedError": false,
+        "viewport": 360
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/responsive-360-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-024",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium 360px, desktop UA",
+      "scope": "Page load/layout only: /admin/audit",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/admin/audit",
+        "documentWidth": 345,
+        "headings": [
+          "Audit log"
+        ],
+        "passwordFields": [],
+        "unexpectedError": false,
+        "viewport": 360
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/responsive-360-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-025",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium 360px, desktop UA",
+      "scope": "Page load/layout only: /admin/reconciliation",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/admin/reconciliation",
+        "documentWidth": 345,
+        "headings": [
+          "Reconciliation",
+          "Scheduled passes",
+          "Background queues"
+        ],
+        "passwordFields": [],
+        "unexpectedError": false,
+        "viewport": 360
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/responsive-360-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-026",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium 360px, desktop UA",
+      "scope": "Page load/layout only: /admin/privacy",
+      "expected": "Nonempty expected headings, no application-error screen and no page-wide horizontal overflow.",
+      "actual": {
+        "route": "/admin/privacy",
+        "documentWidth": 345,
+        "headings": [
+          "Privacy"
+        ],
+        "passwordFields": [],
+        "unexpectedError": false,
+        "viewport": 360
+      },
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/responsive-360-route-smoke.json",
+      "limitation": "Not a full pass of the page-contract case: conditional controls, role permutations and all mutations are not exercised by this observation."
+    },
+    {
+      "id": "SMK-027",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Android emulator Chrome134",
+      "scope": "Android login/dashboard",
+      "expected": "Authorized sign-in reached the dashboard with correct Testnet warning.",
+      "actual": "Authorized sign-in reached the dashboard with correct Testnet warning.",
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/android-emulator-dashboard.png",
+      "limitation": "Exact named observation only; no wallet signing or asset movement in this run."
+    },
+    {
+      "id": "SMK-028",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Android emulator Chrome134",
+      "scope": "Android campaign wallet choices",
+      "expected": "Native Android Chrome shows Connect Freighter on phone and manual Funding account entry; Mainnet unavailable.",
+      "actual": "Native Android Chrome shows Connect Freighter on phone and manual Funding account entry; Mainnet unavailable.",
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/android-emulator-wallet-options.png",
+      "limitation": "Exact named observation only; no wallet signing or asset movement in this run."
+    },
+    {
+      "id": "SMK-029",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Android emulator Chrome134",
+      "scope": "Android header to Settings",
+      "expected": "Top menu opened and Settings navigation reached a usable password form.",
+      "actual": "Top menu opened and Settings navigation reached a usable password form.",
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/android-emulator-settings.png",
+      "limitation": "Exact named observation only; no wallet signing or asset movement in this run."
+    },
+    {
+      "id": "SMK-030",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Android emulator Chrome134",
+      "scope": "Android logout",
+      "expected": "Log out returned to the sign-in page.",
+      "actual": "Log out returned to the sign-in page.",
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/android-emulator-logged-out.png",
+      "limitation": "Exact named observation only; no wallet signing or asset movement in this run."
+    },
+    {
+      "id": "SMK-031",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium360",
+      "scope": "Responsive Settings fields",
+      "expected": "At360px all three password-type fields measured287x49 CSSpx with no page-wide overflow.",
+      "actual": "At360px all three password-type fields measured287x49 CSSpx with no page-wide overflow.",
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/mobile-settings.png",
+      "limitation": "Exact named observation only; no wallet signing or asset movement in this run."
+    },
+    {
+      "id": "SMK-032",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium360",
+      "scope": "Invalid campaign input",
+      "expected": "Invalid public address and negative amount leave Continue disabled; positive amount guidance appears.",
+      "actual": "Invalid public address and negative amount leave Continue disabled; positive amount guidance appears.",
+      "status": "Passed",
+      "evidence": "evidences/runs/hosted-20261026/invalid-campaign-input.png",
+      "limitation": "Exact named observation only; no wallet signing or asset movement in this run."
+    },
+    {
+      "id": "SMK-033",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium360",
+      "scope": "Header menu closes with Escape",
+      "expected": "Menu button returns to collapsed state and destination links/logout are exposed when expanded.",
+      "actual": "Observed Menu/Close menu toggle, all seven destination links and Log out; Escape restored Menu.",
+      "status": "Passed",
+      "evidence": "EXECUTION-SUMMARY.md",
+      "limitation": "Keyboard behavior; real TalkBack was not tested."
+    },
+    {
+      "id": "SMK-034",
+      "candidate": "4b5f29920383d3730f81cd4c9633a581b4ae29ae",
+      "platform": "Responsive Chromium360",
+      "scope": "Manual public-address balance fallback",
+      "expected": "Correct public account resolves without signing; USDC capacity shown.",
+      "actual": "GBV6\u2026OQQY5A resolved to16USDC available and0XLM; Continue enabled for1USDC.",
+      "status": "Passed",
+      "evidence": "EXECUTION-SUMMARY.md",
+      "limitation": "Read-only lookup; not funding authorization."
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+[
+  {
+    "route": "/campaigns/cmvo2qrnb00010drq5rlzigzh",
+    "documentWidth": 345,
+    "headings": [
+      "Android Email Verification",
+      "Funding transactions",
+      "Unclaimed value",
+      "Secrets file",
+      "Links"
+    ],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/campaigns/cmvo2qrnb00010drq5rlzigzh/links",
+    "documentWidth": 360,
+    "headings": [
+      "Links"
+    ],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/status",
+    "documentWidth": 345,
+    "headings": [
+      "All systems operational"
+    ],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/claim",
+    "documentWidth": 360,
+    "headings": [
+      "Claim your funds"
+    ],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/login/sso",
+    "documentWidth": 360,
+    "headings": [
+      "A prize for everyone.A link for each.",
+      "Sign in with your organisation"
+    ],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/invite/qa-invalid-token",
+    "documentWidth": 360,
+    "headings": [
+      "A prize for everyone.A link for each.",
+      "Choose your password"
+    ],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/templates/qa-invalid-id",
+    "documentWidth": 360,
+    "headings": [
+      "Page not found"
+    ],
+    "unexpectedError": false,
+    "viewport": 360
+  }
+]

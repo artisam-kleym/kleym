@@ -233,6 +233,7 @@ export function RecipientsStep({
   onLabels,
   reminderDays,
   onReminderDays,
+  reminderAvailable = false,
   claimPolicy,
   onClaimPolicy,
   wallets = [], onWalletImport, onWalletPending,
@@ -267,6 +268,7 @@ export function RecipientsStep({
   /** Reminder points (#78), days before expiry. */
   reminderDays: number[]
   onReminderDays: (days: number[]) => void
+  reminderAvailable?: boolean
   /** Who may claim (#79). */
   emails?: string[]
   emailAvailable?: boolean
@@ -297,7 +299,7 @@ export function RecipientsStep({
               ['code', 'Anyone with the link AND a claim code', 'Kleym requires each link’s separate 13-character code before processing a claim. The code is included in your private CSV. Send it through a separate channel. This is a Kleym check, not an extra Stellar signing requirement: keep the link private too.'],
               ['wallet', 'Only the assigned wallet address', 'Import a CSV of recipient wallets. Each link is locked on Stellar to its assigned wallet; a leaked link cannot send the prize to a different wallet.'],
               ['email', emailAvailable ? 'Anyone with the link AND email verification' : 'Email verification (unavailable here)', emailAvailable ? 'Assign recipient emails by CSV. The recipient must enter a six-digit code sent through Zender. Keep claim links private; this is a Kleym check, not an on-chain wallet lock.' : 'Available for new campaigns after Zender is configured. Reusable email-recipient templates are not supported.'],
-              ['passkey', 'Only the first device that claims', 'The first person to open the link registers a passkey on their device, and only that device can finish the claim. A copy made afterwards is useless.'],
+              ['passkey', 'First-device passkey verification', 'The first recipient registers a passkey for Kleym to verify on that device. This is a Kleym check, not an extra Stellar signing requirement. Keep the private link safe; use assigned-wallet claims for an on-chain wallet lock.'],
             ] as const
           ).map(([value, title, detail]) => (
             <label key={value} className="flex items-start gap-sm rounded-lg border border-outline-variant/50 bg-surface-container-low p-md">
@@ -382,7 +384,7 @@ export function RecipientsStep({
 
 
 
-        <fieldset className="flex flex-col gap-xs" disabled={claimPolicy === 'email'}>
+        {reminderAvailable && claimPolicy !== 'email' ? <fieldset className="flex flex-col gap-xs">
           <legend className="font-mono text-label-sm uppercase tracking-wider text-on-surface-variant">
             Remind by email (optional)
           </legend>
@@ -401,11 +403,11 @@ export function RecipientsStep({
             ))}
           </div>
           <p className="font-mono text-label-sm text-on-surface-variant">
-            {claimPolicy === 'email' ? 'OTP-only verification does not send invitations or expiry reminders. Share each link privately and tell the recipient its deadline.' : <>Only recipients you deliver to by email can be reminded, and a reminder never repeats the link — Kleym does
+            <>Only recipients you deliver to by email can be reminded, and a reminder never repeats the link — Kleym does
             not keep it. It names you, the amount and the expiry, and points at the original message. One email per
-            address per day at most.</>}
+            address per day at most.</>
           </p>
-        </fieldset>
+        </fieldset> : <p className="font-mono text-label-sm text-on-surface-variant">Share each claim link privately from your saved CSV and tell the recipient its deadline. New campaigns do not send email invitations or expiry reminders; email verification sends a code only when the recipient requests it.</p>}
       </div>
 
       {cost && (

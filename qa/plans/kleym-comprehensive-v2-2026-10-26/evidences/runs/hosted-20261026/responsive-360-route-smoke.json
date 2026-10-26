@@ -1,0 +1,158 @@
+[
+  {
+    "route": "/dashboard",
+    "documentWidth": 345,
+    "headings": [
+      "Dashboard",
+      "Recent campaigns"
+    ],
+    "passwordFields": [],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/campaigns",
+    "documentWidth": 345,
+    "headings": [
+      "Campaigns"
+    ],
+    "passwordFields": [],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/templates",
+    "documentWidth": 360,
+    "headings": [
+      "Templates"
+    ],
+    "passwordFields": [],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/approvals",
+    "documentWidth": 360,
+    "headings": [
+      "Approvals"
+    ],
+    "passwordFields": [],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/history",
+    "documentWidth": 345,
+    "headings": [
+      "History"
+    ],
+    "passwordFields": [],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/settings",
+    "documentWidth": 345,
+    "headings": [
+      "Settings",
+      "Password",
+      "Second factor",
+      "Organisation",
+      "API keys",
+      "Single sign-on",
+      "Webhooks"
+    ],
+    "passwordFields": [
+      {
+        "height": 49,
+        "width": 287
+      },
+      {
+        "height": 49,
+        "width": 287
+      },
+      {
+        "height": 49,
+        "width": 287
+      }
+    ],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/settings/security",
+    "documentWidth": 345,
+    "headings": [
+      "Second factor",
+      "Authenticator app",
+      "Passkeys"
+    ],
+    "passwordFields": [],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/admin",
+    "documentWidth": 345,
+    "headings": [
+      "Admin",
+      "Sponsor pool",
+      "Stranded ephemeral accounts"
+    ],
+    "passwordFields": [],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/admin/users",
+    "documentWidth": 360,
+    "headings": [
+      "Users"
+    ],
+    "passwordFields": [],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/admin/campaigns",
+    "documentWidth": 345,
+    "headings": [
+      "Campaigns"
+    ],
+    "passwordFields": [],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/admin/audit",
+    "documentWidth": 345,
+    "headings": [
+      "Audit log"
+    ],
+    "passwordFields": [],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/admin/reconciliation",
+    "documentWidth": 345,
+    "headings": [
+      "Reconciliation",
+      "Scheduled passes",
+      "Background queues"
+    ],
+    "passwordFields": [],
+    "unexpectedError": false,
+    "viewport": 360
+  },
+  {
+    "route": "/admin/privacy",
+    "documentWidth": 345,
+    "headings": [
+      "Privacy"
+    ],
+    "passwordFields": [],
+    "unexpectedError": false,
+    "viewport": 360
+  }
+]

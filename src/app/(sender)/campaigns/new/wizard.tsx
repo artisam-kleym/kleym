@@ -86,7 +86,7 @@ export function CampaignWizard(config: WizardConfig) {
     expiresAt: template ? localExpiry(new Date(template.expiresAt)) : reissue?.draftExpiry ? localExpiry(new Date(reissue.draftExpiry)) : reissue ? '' : defaultExpiry(),
   })
   /** Reminder points (#78): days before expiry at which emailed, unclaimed recipients hear again. */
-  const [reminderDays, setReminderDays] = useState<number[]>(template?.reminderDaysBefore ?? reissue?.draftReminders ?? [])
+  const [reminderDays, setReminderDays] = useState<number[]>(config.legacyEmailDeliveryAvailable ? template?.reminderDaysBefore ?? reissue?.draftReminders ?? [] : [])
 
   /*
    * One piece of state keyed by the address it describes, rather than three
@@ -554,6 +554,7 @@ export function CampaignWizard(config: WizardConfig) {
             }}
             reminderDays={reminderDays}
             onReminderDays={setReminderDays}
+            reminderAvailable={config.legacyEmailDeliveryAvailable}
             cost={cost}
             reserveSource={sponsored ? sponsoredReservePerLink : reservePerLink}
             maxLinks={config.maxLinksPerCampaign}

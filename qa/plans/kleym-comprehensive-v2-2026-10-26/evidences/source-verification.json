@@ -1,0 +1,25 @@
+{
+  "candidate": "b842fe3ac451dbfd4e563b3478c5951944c8dbb5",
+  "tests": {
+    "passed": 943,
+    "files": 90,
+    "failed": 0,
+    "duration_seconds": 58.44
+  },
+  "focused": {
+    "before_patch_failed": 2,
+    "after_patch_passed": 3
+  },
+  "typecheck": "Passed",
+  "eslint": "Passed",
+  "production_build": "Passed; Next16.4.3/Node24.22.1",
+  "production_audit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0
+  },
+  "physical_wallet": "Not executed in this run; earlier evidence stays scoped to its SHA",
+  "mainnet": "Disabled; not qualified"
+}
