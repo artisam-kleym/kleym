@@ -186,7 +186,7 @@ SECTIONS=[
 md=['# Kleym comprehensive regression test plan v2','',f"Prepared 26 October 2026. Candidate `{CANDIDATE}`. **{len(cases)} planned cases; no blanket completion claim.**",'']
 for title,body in SECTIONS: md += ['## '+title,'',body,'']
 for c in cases: md += [f"### {c['id']} — {c['title']}",'',f"{c['priority']} | {c['type']} | {c['gate']} | Not Run",'', '**Preconditions:** '+c['preconditions'],'','**Steps:** '+c['steps'],'','**Expected:** '+c['expected'],'','**Evidence:** '+c['evidence_required'],'','**Source/harness:** '+c['source']+'; '+c['harness'],'']
-(OUT/'TEST-PLAN-v2.md').write_text('\n'.join(md)+'\n',encoding='utf-8')
+(OUT/'TEST-PLAN-v2.md').write_text('\n'.join(md).rstrip()+'\n',encoding='utf-8')
 
 styles=getSampleStyleSheet(); styles.add(ParagraphStyle(name='BodyQA',fontName='Helvetica',fontSize=9,leading=13,spaceAfter=8)); styles.add(ParagraphStyle(name='SmallQA',fontName='Helvetica',fontSize=8,leading=11,spaceAfter=5)); styles.add(ParagraphStyle(name='BandQA',fontName='Helvetica-Bold',fontSize=20,leading=25,textColor=white)); styles['Heading2'].textColor=HexColor('#354f6e')
 def p(t,style='BodyQA'): return Paragraph(escape(str(t)).replace('\n','<br/>'),styles[style])

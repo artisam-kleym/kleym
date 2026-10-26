@@ -5263,4 +5263,3 @@ P0 | State transition | Testnet release | Not Run
 **Evidence:** Exact candidate, input fixture ID, expected/actual result, safe screenshot or response, and durable-state/ledger checks where relevant. No OTP, token, phrase, private CSV or full claim URL.
 
 **Source/harness:** src/lib/claim/machine.ts; e2e/claim-page.spec.ts; Current source tests + isolated API fixture; real UI/device/ledger when named
-
