@@ -1,0 +1,35 @@
+[
+  {
+    "path": "/api/health",
+    "status": 200,
+    "referrer": [
+      "strict-origin-when-cross-origin"
+    ],
+    "nosniff": [
+      "nosniff"
+    ],
+    "cspPresent": true
+  },
+  {
+    "path": "/api/ready",
+    "status": 200,
+    "referrer": [
+      "strict-origin-when-cross-origin"
+    ],
+    "nosniff": [
+      "nosniff"
+    ],
+    "cspPresent": true
+  },
+  {
+    "path": "/claim",
+    "status": 200,
+    "referrer": [
+      "no-referrer"
+    ],
+    "nosniff": [
+      "nosniff"
+    ],
+    "cspPresent": true
+  }
+]

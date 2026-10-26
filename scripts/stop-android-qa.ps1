@@ -5,9 +5,13 @@ $adbPath = Join-Path $sdkRoot 'platform-tools/adb.exe'
 if (!(Test-Path -LiteralPath $adbPath)) { throw 'Android Studio SDK platform-tools were not found.' }
 $devices = & $adbPath devices
 foreach ($line in $devices) {
-    if ($line -match '^(emulator-\d+)\s+device\s*$') {
+    # Emulator-console identity/shutdown work even while Android's ADB trust
+    # dialog is pending. Never target physical-device serials or guess a name.
+    if ($line -match '^(emulator-\d+)\s+(device|unauthorized)\s*$') {
         $serial = $Matches[1]
-        $name = (& $adbPath -s $serial emu avd name | Select-Object -First 1).Trim()
+        $identity = & $adbPath -s $serial emu avd name
+        if ($LASTEXITCODE -ne 0 -or !$identity) { continue }
+        $name = ($identity | Select-Object -First 1).Trim()
         if ($name -eq $AvdName) {
             & $adbPath -s $serial emu kill
             if ($LASTEXITCODE -ne 0) { throw "Could not stop $AvdName." }
@@ -16,4 +20,4 @@ foreach ($line in $devices) {
         }
     }
 }
-Write-Output "No running, authorized emulator named $AvdName was found. No other device was stopped."
+Write-Output "No running emulator with verified name $AvdName was found. No other device was stopped."
