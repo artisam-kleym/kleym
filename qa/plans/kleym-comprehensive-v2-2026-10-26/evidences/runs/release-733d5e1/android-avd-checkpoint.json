@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-10-26T14:48:04.6395507Z",
+  "avd": "kleym-qa-api36",
+  "displayName": "Kleym QA Pixel 6 API 36.1",
+  "registeredInSdk": true,
+  "dataDirectory": "D:/Android-AVDs/kleym-qa-api36.avd",
+  "userDataDiskPresent": true,
+  "gracefullyStopped": true,
+  "freighterInstallation": "Not verified",
+  "oldLanternAvd": "Preserved"
+}

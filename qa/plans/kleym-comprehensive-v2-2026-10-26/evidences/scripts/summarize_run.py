@@ -29,6 +29,10 @@ def upsert(sheet,values,key_columns):
     if existing:
         for n,value in enumerate(values,1):sheet.cell(existing,n,value)
     else:sheet.append(values)
+protocol_path=EV/'runs/release-733d5e1/protocol-matrix.json'
+if protocol_path.exists():
+    protocol=json.loads(protocol_path.read_text(encoding='utf-8-sig'))
+    upsert(wb['Existing Proof'],['evidences/runs/release-733d5e1/protocol-matrix.json',protocol['commit'],f"{len(protocol['results'])}/{len(protocol['results'])} protocol checks passed; {len(protocol['transactions'])} successful Testnet transactions",protocol['assetQualification']+'; '+protocol['wallet']],[0])
 for r in records:upsert(ws,['hosted-20261026',r['id'],r['candidate'],r['platform'],'26 October 2026; exact capture times in evidence file metadata','Codex supervised tools',r['scope'],r['expected'],json.dumps(r['actual']) if isinstance(r['actual'],dict) else r['actual'],r['status'],r['evidence'],'',r['limitation']],[0,1])
 d=wb['Defects']
 upsert(d,['KLM-QA-20261026-01','KLM-V2-EMAIL-012','Unavailable reminder controls in local-link creator','P2 usability',BASE,'Open new local-link campaign stage2','No reminder option that cannot send a useful reminder','Remind by email checkboxes visible for OPEN and disabled but visible for EMAIL','evidences/runs/hosted-20261026/prepatch-recipient-controls.png; source steps.tsx','Product UI','Fixed in source; hosted retest after deployment','3 focused tests pass'],[0])

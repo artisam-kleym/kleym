@@ -1,0 +1,200 @@
+{
+  "status": "PASS",
+  "reason": "Disposable protocol spike passed; not full application/official-USDC qualification",
+  "checkedAt": "2026-10-26T13:51:07.559Z",
+  "commit": "6be95b9e18f2ead1dc98f2b9f021f63cb651161e",
+  "network": "testnet",
+  "horizon": "https://horizon-testnet.stellar.org",
+  "issuer": "GBXV2ZNWKBVH5Y3BQHEZF23HEWEDCKSGBBP5BXYG6MOKIKBA7ZLGJ5IJ",
+  "assetQualification": "disposable custom issuer; not official Circle USDC",
+  "wallet": "disposable Node signers; not Freighter/Lantern wallet acceptance",
+  "transactions": [
+    {
+      "hash": "04513c9193937e5ad5436edf484a4202fea297122e279b1bc18e520fd853eab4",
+      "ledger": 5399775,
+      "successful": true
+    },
+    {
+      "hash": "8b827ed3df40ac7e6c0f4857b342535be55b3f3bc853693dc8239cb91cb8f446",
+      "ledger": 5399776,
+      "successful": true
+    },
+    {
+      "hash": "0de41fdd00c0ca7273949d5619eab80239fb0df50861a7785cf300f53c8adf2c",
+      "ledger": 5399777,
+      "successful": true
+    },
+    {
+      "hash": "2e0bdce4ec20c17acc85bc880508e6c674eceb0cef03feb450e5d629c364001b",
+      "ledger": 5399778,
+      "successful": true
+    },
+    {
+      "hash": "68f57b0d591abf0fbc3f009131c92bdabbdfaf972230a0902e308b1eec451f31",
+      "ledger": 5399780,
+      "successful": true
+    },
+    {
+      "hash": "4cef49092d04d48fbc0be3c2ff678dcc616fd17c573ae2fb1de7a4617b66af42",
+      "ledger": 5399782,
+      "successful": true
+    },
+    {
+      "hash": "94f04fa678614b033912a939fe636781e439014fabd24852bfb3b51c8bc71942",
+      "ledger": 5399783,
+      "successful": true
+    },
+    {
+      "hash": "c622091a4af31ad13b62f254239736db572170f2042d6cf30a6280100fede3d9",
+      "ledger": 5399785,
+      "successful": true
+    },
+    {
+      "hash": "e4e5a44fffabab84915e723b38e8bb369e2a243a87584cf04ba3c64ea37298f2",
+      "ledger": 5399787,
+      "successful": true
+    },
+    {
+      "hash": "7e72f7d1793c7a9fa51613fe1ebde5ab700423bccc61d5d95b4626c9700bbab2",
+      "ledger": 5399788,
+      "successful": true
+    },
+    {
+      "hash": "aec7def4a18fe0a2ab2bbd7a178334ac5640727329c66e4a783e77b4ff139b8c",
+      "ledger": 5399790,
+      "successful": true
+    },
+    {
+      "hash": "c534ce9834fc9639f2c0735f6bd3fc4ba28f2be1e75c3ec33366751d904238df",
+      "ledger": 5399792,
+      "successful": true
+    },
+    {
+      "hash": "abdaf1c461bae3f904573e289a1736f00a32fdfe43435c8158082b58b659c6b8",
+      "ledger": 5399793,
+      "successful": true
+    },
+    {
+      "hash": "2ae553969438ccbbf526a4cb08aff534facb93031f3ae775d66b4a3fa467924f",
+      "ledger": 5399794,
+      "successful": true
+    },
+    {
+      "hash": "2e52289b40ba013040d4f9a7803908e41a6cd239ff116da301107897982f5aa4",
+      "ledger": 5399796,
+      "successful": true
+    },
+    {
+      "hash": "58ab4d465e11a12812c61af942c38ed35d5310ae21ba859c2c2f61693a738ffe",
+      "ledger": 5399800,
+      "successful": true
+    },
+    {
+      "hash": "d6748c46a0b8aef6f19f88128b6b8e7332d7c99c6753609ccdc39a190820e6e2",
+      "ledger": 5399801,
+      "successful": true
+    },
+    {
+      "hash": "a697a4ec6fa40d43077f22b14da5e6b4c3ef6d23493079ca2a693ca015d45910",
+      "ledger": 5399803,
+      "successful": true
+    },
+    {
+      "hash": "36d013705b12d925b939a933a85762f8432b2a5f9f6169d15999c226c78ec395",
+      "ledger": 5399804,
+      "successful": true
+    },
+    {
+      "hash": "7a95e944812b5eb7332fa8ad119d493dbb00a4ef051be930552f49a0be5b5228",
+      "ledger": 5399805,
+      "successful": true
+    },
+    {
+      "hash": "168d6917469d87bba4eda219801d0b7e468fae15a193cd58dd25d9bf9df3aeef",
+      "ledger": 5399808,
+      "successful": true
+    },
+    {
+      "hash": "fc8a6c05f292998a7523f656b20fdcd694aa1bf0bc7e3efea4bdfb53e2b83b03",
+      "ledger": 5399809,
+      "successful": true
+    }
+  ],
+  "results": [
+    {
+      "name": "New recipient      x  native (XLM)",
+      "passed": true,
+      "detail": [
+        "balance 00000000cd174e72…  (SDK-extracted ID matched ledger: true)",
+        "TX1 3 ops, 2e0bdce4ec20c17a…",
+        "6 ops, recipient signature required: true",
+        "TX2 6 ops, 68f57b0d591abf0f…",
+        "recipient +500.0000000 XLM exactly",
+        "ephemeral account merged away",
+        "sponsor balance -0.00009 XLM (fees only); reserve obligation +1 XLM for 2 recipient entr(y|ies); ephemeral reserves fully recovered"
+      ]
+    },
+    {
+      "name": "Existing recipient x  native (XLM)",
+      "passed": true,
+      "detail": [
+        "balance 000000004bebf659…  (SDK-extracted ID matched ledger: true)",
+        "TX1 3 ops, 94f04fa678614b03…",
+        "3 ops, recipient signature required: false",
+        "TX2 3 ops, c622091a4af31ad1…",
+        "recipient +500.0000000 XLM exactly",
+        "ephemeral account merged away",
+        "sponsor balance -0.00006 XLM (fees only); reserve obligation +0 XLM for 0 recipient entr(y|ies); ephemeral reserves fully recovered"
+      ]
+    },
+    {
+      "name": "New recipient      x  non-native (USDC)",
+      "passed": true,
+      "detail": [
+        "balance 0000000099315f23…  (SDK-extracted ID matched ledger: true)",
+        "TX1 6 ops, 7e72f7d1793c7a9f…",
+        "10 ops, recipient signature required: true",
+        "TX2 10 ops, aec7def4a18fe0a2…",
+        "recipient +500.0000000 USDC exactly",
+        "ephemeral account merged away",
+        "sponsor balance -0.00016 XLM (fees only); reserve obligation +1.5 XLM for 3 recipient entr(y|ies); ephemeral reserves fully recovered"
+      ]
+    },
+    {
+      "name": "Existing recipient x  non-native (USDC)",
+      "passed": true,
+      "detail": [
+        "balance 000000004ae1bf3d…  (SDK-extracted ID matched ledger: true)",
+        "TX1 6 ops, 2ae553969438ccbb…",
+        "4 ops, recipient signature required: false",
+        "TX2 4 ops, 2e52289b40ba0130…",
+        "recipient +500.0000000 USDC exactly",
+        "ephemeral account merged away",
+        "sponsor balance -0.0001 XLM (fees only); reserve obligation +0 XLM for 0 recipient entr(y|ies); ephemeral reserves fully recovered"
+      ]
+    },
+    {
+      "name": "Signature discipline — over-signed transaction",
+      "passed": true,
+      "detail": [
+        "unnecessary recipient signature rejected with tx_bad_auth_extra",
+        "same transaction succeeds without it — rejection was the signature, not the ops"
+      ]
+    },
+    {
+      "name": "Predicate — after expiry",
+      "passed": true,
+      "detail": [
+        "recipient claim after expiry rejected with op_cannot_claim",
+        "sender reclaim after expiry succeeded"
+      ]
+    },
+    {
+      "name": "Predicate — before expiry",
+      "passed": true,
+      "detail": [
+        "sender claim before expiry rejected with op_cannot_claim"
+      ]
+    }
+  ]
+}
