@@ -1,312 +1,100 @@
+<div align="center">
+
 # Kleym
 
-Kleym turns Stellar assets into one-time claim links. A sender generates a batch of links, distributes them through whatever channel they already use, and each recipient opens their link, connects a wallet, and claims the asset — without ever handing over a wallet address in advance.
-
-Recipients need no XLM: Kleym sponsors account creation and trustlines.
-
-The current app also sponsors new USDC campaigns: the sender supplies USDC,
-and Kleym pays funding, claim and expiry-reclaim fees and reserves. See the
-[app sending guide](docs/app-sending.md) for the implementation and Testnet test.
-
-## The one rule
-
-**Kleym never stores, logs, transmits, or persists a Stellar secret seed.**
-
-Ephemeral keypairs are generated in the sender's browser and exist only inside URL fragments and a CSV the sender downloads. The database stores the ephemeral *public* key — enough to index a link, useless for spending it.
-
-Read [`AGENT.md`](AGENT.md) §1 before writing any line that touches a keypair.
-
-## Documentation
-
-| Document | Purpose |
-|---|---|
-| [`SPEC.md`](SPEC.md) | Technical specification — protocol, data model, API, jobs, acceptance criteria |
-| [`docs/app-sending.md`](docs/app-sending.md) | Current sponsored USDC app flow, recovery and Testnet testing |
-| [`BRAND.md`](BRAND.md) | Design system — tokens, components, voice, accessibility floor |
-| [`AGENT.md`](AGENT.md) | Engineering rules and working practice |
-| [`docs/features.md`](docs/features.md) | Running log of shipped features |
-| [`docs/release.md`](docs/release.md) | Release readiness — the SPEC §10 acceptance matrix, walked by execution |
-| [`docs/migrations.md`](docs/migrations.md) | Database and migration conventions |
-| [`docs/railway.md`](docs/railway.md) | Deployment topology and secret handling |
-| [`docs/zender-email-verification.md`](docs/zender-email-verification.md) | OTP-only Zender mail with private CSV distribution |
-| [`docs/design-system.md`](docs/design-system.md) | Tokens, components, and the §10 contrast audit |
-
-## Stack
-
-| Concern | Choice |
-|---|---|
-| Framework | Next.js, App Router, TypeScript strict |
-| Package manager | pnpm |
-| ORM | Prisma + PostgreSQL |
-| Queue / cache | BullMQ on Redis |
-| Styling | Tailwind CSS |
-| Stellar | `@stellar/stellar-sdk` |
-| Wallets | Official Freighter API, WalletConnect and Lantern bridge |
-| Hosting | Railway |
-
-### Runtime pin
-
-Node **24.22.1** is pinned in both Dockerfiles, CI, engine declarations and local version files. Rebuilding a floating builder image is not evidence of a patched runtime. Verify web and worker containers with `railway ssh ... node --version`; `railway run` executes locally.
-
-### Resolved versions
-
-Resolved at install time, not assumed (`AGENT.md` §3.1). Verified against each library's
-changelog before use.
-
-| Package | Version |
-|---|---|
-| `next` | 16.4.3 |
-| `react` / `react-dom` | 19.2.8 |
-| `tailwindcss` | 4.3.3 |
-| `typescript` | **5.9.3** — pinned, see below |
-| `prisma` / `@prisma/client` | 7.10.0 |
-| `@stellar/freighter-api` | 6.0.0 |
-| `argon2` | 0.45.1 |
-| `zod` | 4.6.7 |
-| `@stellar/stellar-sdk` | 16.2.0 |
-| `eslint` | 10.8.1 |
-| `pino` | 10.3.1 |
-| `decimal.js` | 10.6.0 |
-
-#### Prisma 7 deviates from SPEC.md §4 in two places
-
-`SPEC.md` §4 shows a schema written for Prisma 5/6. Two things in it are rejected or
-broken by Prisma 7, so the schema here differs. The **models, fields and indexes are
-unchanged** — only the generator and datasource plumbing.
-
-1. **`url` is gone from the `datasource` block.** Prisma 7 reads the connection string
-   from `prisma.config.ts`. Leaving it in the schema fails validation outright
-   (`P1012`). `DATABASE_URL` is read there straight from the environment rather than
-   through `src/lib/config/env.ts` — the CLI runs outside the app, and pulling in the
-   full Zod schema would make `prisma migrate` require every unrelated key, including
-   `SPONSOR_SECRET_KEY`, to run a migration.
-2. **`prisma-client-js` emits CommonJS only**, so `import { PrismaClient }` fails at
-   runtime under ESM. The generator is `prisma-client` (Prisma 7's own default) with
-   output to `src/generated/prisma`, which is gitignored and rebuilt by `postinstall`.
-
-#### Pinned: TypeScript 5, not 7
-
-`typescript@latest` resolves to 7.0.2, and `typescript-eslint` (a transitive dependency of
-`eslint-config-next`) refuses to load against it: *"typescript-eslint does not support TS
-7.0."* Linting fails outright.
-
-Per `AGENT.md` §3.1 this is pinned to the lower version with the conflict named rather
-than silently downgraded. Revisit when `typescript-eslint` ships TS 7 support.
-
-#### Pinned: deepmerge-ts >= 8
-
-`prisma@7.9.1 > @prisma/config` depends on `deepmerge-ts@7.1.5`, which carries a **high**
-advisory ([GHSA-ggr8-5vv4-36mx](https://github.com/advisories/GHSA-ggr8-5vv4-36mx) — stack
-exhaustion on recursive object graphs). No fixed Prisma release exists yet; `@prisma/config@latest`
-still pins 7.1.5.
-
-A `pnpm.overrides` entry forces `>=8.0.0`. Verified that `@prisma/config` resolves to 8.0.1
-and that `prisma validate`, `generate`, `migrate deploy` and the seed script all still work
-under it. Remove the override once Prisma ships a release that no longer needs it.
-
-#### Pinned transitives for advisories published after 22 Aug 2026
-
-`pnpm audit --audit-level=moderate` is a CI gate, so advisories published against a
-lockfile that has not changed turn every open PR red. The 12 Sep bump moved `next` to
-16.3.5 (two critical unauthenticated-RCE advisories, fixed in 16.3.3, plus `sharp`),
-`prisma` / `@prisma/client` to 7.10.0 and the wallet kit to 2.6.0 (which cleared `toml`),
-and added same-major `pnpm.overrides` for the three transitives their maintainers still
-pin low: `mysql2` (via prisma, for a driver Kleym never loads), `fast-uri` (via
-`@prisma/dev`) and `stream-json` (via the wallet kit's Trezor adapter). Each override
-carries its reason in `package.json` under `overridesReason`. Remove an override when the
-package above it ships a release that no longer needs it.
-
-#### October 25 security refresh
-
-Node is pinned to 24.22.1, Next to 16.4.3 and application Zod to 4.6.7. The broad wallet kit has been replaced by the official Freighter API already used by its previous adapter. Lantern and phone WalletConnect transports remain separate. This removes vulnerable nested Zod 3 copies and the unpatched `elliptic` transitive rather than suppressing their advisories. The moderate audit gate is unchanged. See [security qualification](docs/reviews/2026-10-25/security-136/README.md) for evidence and remaining operational work.
-
-#### Two toolchain notes
-
-- **Tailwind is v4, which is CSS-first.** There is no `tailwind.config.ts` — tokens are
-  declared with `@theme` in `src/app/globals.css`. Resolved in #4; see
-  [`docs/design-system.md`](docs/design-system.md).
-- **`next lint` was removed in Next 16.** The `lint` script calls `eslint` directly, and
-  `eslint-config-next` 16 ships flat config natively (no `FlatCompat`). `eslint-plugin-react`
-  cannot auto-detect the React version under pnpm's layout, so it is pinned in
-  `eslint.config.mjs`.
-
-## Setup
-
-```bash
-pnpm install
-cp .env.example .env        # fill in every key; startup validates the full set
-docker compose up -d        # Postgres 17 + Redis 7, both with healthchecks
-pnpm dev                    # http://localhost:3000
-```
-
-```bash
-pnpm db:migrate             # apply migrations
-pnpm db:seed                # requires SEED_ADMIN_USERNAME and SEED_ADMIN_PASSWORD
-```
-
-| Script | Purpose |
-|---|---|
-| `pnpm dev` | Next.js dev server |
-| `pnpm build` / `pnpm start` | Production build and serve |
-| `pnpm worker` | `kleym-worker` process — BullMQ consumers and cron |
-| `pnpm typecheck` | `tsc --noEmit`, strict |
-| `pnpm lint` | ESLint over `src`, `scripts` and `tests` |
-| `pnpm test` | Vitest unit tests (no network; integration runs on a schedule). `tests/setup.ts` supplies a placeholder environment, since some modules validate config on import |
-| `pnpm db:migrate` / `db:deploy` | Apply migrations locally / in CI |
-| `pnpm db:seed` | Create the admin user (refuses without explicit credentials) |
-| `pnpm db:generate` | Regenerate the Prisma client |
-| `pnpm spike` | Testnet claim-transaction spike (#1) |
-| `pnpm diagnose` | Isolates the two `AccountMerge` constraints behind the two-transaction design |
-
-Startup validates the whole environment through a Zod schema and exits with a readable
-list of what is missing. It also refuses to boot if any `NEXT_PUBLIC_*` variable *contains*
-a Stellar secret seed — anywhere in the value, not just as the whole of it — since Next.js
-inlines those into the client bundle.
-
-Validation happens on first access rather than at import, so **`pnpm build`, `pnpm typecheck`
-and `pnpm lint` all run with no environment at all.**
-
-#### Verifying the no-secret build locally
-
-`env -i pnpm build` is **not sufficient on its own**. Next auto-loads `.env` from disk, and
-a warm `.next` can skip page-data collection entirely — so the check passes while the
-coupling is still there. Remove both first:
-
-```bash
-rm -rf .next && mv .env .env.bak
-env -i PATH="$PATH" HOME="$HOME" pnpm build
-```
-
-This has regressed four times. CI is the reliable check because it starts from a clean
-checkout with no `.env` at all. The sponsor's secret key is needed by
-the running service, never by the build or by CI.
-
-`.env` is gitignored. `SPONSOR_SECRET_KEY` belongs in Railway's secret store and never in the repo.
-
-## Public API
-
-Read-only. Three endpoints, all scoped to the key's owner.
-
-| Method | Path | Returns |
-|---|---|---|
-| GET | `/api/v1/campaigns` | Campaign list, paginated (`page`, `perPage`, `status`) |
-| GET | `/api/v1/campaigns/{id}` | Campaign detail with claim stats |
-| GET | `/api/v1/campaigns/{id}/links` | Link statuses, paginated |
-
-```bash
-curl -H "Authorization: Bearer klm_1a2b3c4d_..." https://kleym.app/api/v1/campaigns
-```
-
-**Why there is no write endpoint.** Creating a campaign means generating one Ed25519
-keypair per link. Those keys are generated in the sender's browser and exist nowhere
-else — not in the database, not in a log, not in a request body. An API that accepted
-them would move the secrets through a server, which is the one thing this product
-promises not to do. This is a design boundary, not a gap in v1; CI fails the build if
-a `POST`, `PUT`, `PATCH` or `DELETE` handler appears under `src/app/api/v1/`.
-
-**Keys.** Issue and revoke on `/settings`. A key is displayed exactly once, at
-creation — only an argon2id hash is stored, so nothing can hand it back later. The
-8-character prefix is a lookup handle, not a secret, and is what the UI shows
-afterwards. Revocation takes effect on the next request.
-
-**Rate limit.** 100 requests per minute per key, counted per key rather than per
-account: revoking a leaked key must not leave your remaining keys already spent.
-Responses carry `X-RateLimit-Limit` and `X-RateLimit-Remaining`; a 429 carries
-`Retry-After`.
-
-**Amounts are strings.** `"amountPerLink": "2.5000000"`, never `2.5`. A JSON number is
-an IEEE 754 double and cannot hold Stellar's seven decimal places across its full
-range — `922337203685.4775807` becomes `922337203685.4775`. Parse them with a decimal
-library, not `Number`.
-
-**Errors** are RFC 9457 `application/problem+json` with a `correlationId` to quote to
-support. Every authentication failure — absent, malformed, wrong, revoked — returns an
-identical 401; distinguishing them would confirm half of a guess. A campaign belonging
-to another account returns 404, not 403, for the same reason.
-
-## End-to-end tests
-
-```bash
-pnpm exec playwright install chromium
-pnpm test:e2e
-```
-
-Needs Postgres, Redis and a seeded account (`SEED_ADMIN_USERNAME` /
-`SEED_ADMIN_PASSWORD`, matched by `E2E_USERNAME` / `E2E_PASSWORD`). Runs against a
-production build, because the CSP that governs the real page is the one worth
-testing against and `next dev` relaxes it. The two Horizon-backed lookups are
-stubbed, so the suite needs no network beyond localhost.
-
-## CI
-
-`.github/workflows/ci.yml` runs on every pull request to `develop` or `main`.
-
-| Job | Steps |
-|---|---|
-| `check` | `typecheck` · `lint` · `test` · `build` · `audit` · CSP has no inline/eval · `/claim` gets `no-referrer` |
-| `secrets` | schema stores no secrets · no seed extraction in `src/` · no secret-shaped `NEXT_PUBLIC_*` committed · every env secret is redacted |
-
-**The build step runs with no environment on purpose.** Config validation is deferred to
-first access precisely so no secret is needed to compile; if that step ever starts
-requiring one, the decoupling has regressed.
-
-Integration tests are deliberately absent — `AGENT.md` §7.2 forbids tests that submit to
-the public network, and the testnet spike depends on Horizon being reachable, so it runs
-on a schedule rather than per-commit.
-
-### Recovery phrases are seeds too (#77)
-
-Ephemeral keys are derived in the browser from a twelve-word BIP39 phrase the sender keeps
-(`src/lib/campaign/derive.ts`, SLIP-0010 at `m/44'/148'/<campaign>'/<link>'`), so a lost
-secrets CSV can be regenerated from the campaign page. A phrase matches none of the
-`S[A-Z2-7]{55}` guards, so `containsSecretSeed` also refuses any string containing a
-checksum-valid phrase — request bodies, audit metadata, webhook payloads — and CI runs
-`scripts/check-no-mnemonic.ts` over `src/`, `prisma/` and the docs. `derive.ts` carries
-`import 'client-only'` like `keygen.ts`, and the same CI step checks that nothing on the
-server imports either.
-
-### A note on the §1 grep guard
-
-`AGENT.md` §1 suggests grepping for identifier *names*:
-
-```bash
-grep -rn "secretKey\|SECRET_SEED\|\.secret()\|rawSecretKey" src/ prisma/ | grep -v "SPONSOR_SECRET_KEY"
-```
-
-Run literally against this codebase it returns **seven false positives**, every one inside
-the logger's redaction allowlist or the leak-detection regexes — the code whose job is
-preventing leaks. It also would not have caught the real leak fixed in `ff1beb7`, where
-`logger.info({ env })` printed four secrets in plaintext with no offending identifier on
-the line.
-
-CI therefore checks the dangerous *operation* (`.secret()` in `src/`) rather than the
-naming, plus redaction coverage. `scripts/` is exempt: the testnet spike legitimately
-holds ephemeral seeds in memory, exactly as the sender's browser does.
-
-## Branch model
-
-For the current two-service website/application deployment and senior developer's domain handoff, see [Website and app architecture](docs/website-app-architecture.md). The owner-authorized release branch is `develop-ade`; the senior developer's `develop` remains separate.
-
-| Branch | Role |
-|---|---|
-| `main` | Released state |
-| `develop` | Integration branch — all issue branches base off this |
-
-Issue branches are created with `gh issue develop <number> --base develop`. PRs target `develop` and are never auto-merged.
-
-## Tracker
-
-Work is organised into sprints matching the build order in `SPEC.md` §11.
-
-| Label | Scope |
-|---|---|
-| `sprint-0` | Protocol spike — de-risks everything downstream |
-| `sprint-1` | Foundation: scaffold, schema, design system, auth, security guards |
-| `sprint-2` | Campaign creation and batching |
-| `sprint-3` | Claim flow |
-| `sprint-4` | Lifecycle: reconciliation, expiry, reclaim |
-| `sprint-5` | Delivery, admin, public API, hardening |
-
-`area:*` labels mark the surface touched. `blocker` marks work that gates others.
-
-**`sprint-0` must complete before anything else starts.** The claim transaction in `SPEC.md` §3.3 is unverified until it does.
+### A prize for everyone. A link for each.
+
+Distribute USDC prizes and community rewards on Stellar through individual claim links.
+
+[Explore Kleym](https://kleym-home-testnet.up.railway.app/) · [Open the Testnet app](https://kleym-testnet.up.railway.app/login) · [Documentation](docs/README.md)
+
+**An Artisam Labs product · Working MVP · Stellar Testnet**
+
+</div>
+
+---
+
+## Make rewards easier to distribute
+
+Running a competition or rewarding a community should not require collecting every
+wallet address and sending payments one at a time. Kleym lets an organiser fund
+one campaign, create a link for each recipient and distribute those links through
+the channels they already use.
+
+Recipients open their link, connect a wallet and claim. Kleym sponsors the required
+Stellar fees and reserves, so recipients do not need an XLM top-up.
+
+## From campaign to claim
+
+1. **Create a campaign.** Choose the asset, recipient count, amounts and expiry.
+2. **Choose who may claim.** Use an open link, add a claim code or email verification,
+   or restrict each link to an assigned wallet address.
+3. **Save the private export and fund.** Generate links in the browser, download the
+   recovery material and approve the funding batch in your wallet.
+4. **Share each person's link.** Keep the complete export private and give each
+   recipient only their own link.
+5. **Track the outcome.** Review claims and reclaim expired, unclaimed funds with
+   the sender's authorisation.
+
+## Built for real distribution workflows
+
+| For organisers | For recipients |
+| --- | --- |
+| Equal or individual prize amounts | A personal claim link |
+| CSV recipient import and private link export | Desktop and Android browser flows |
+| Expiry settings and sender-authorised reclaim | Freighter wallet connection |
+| Claim codes, email verification and assigned-wallet claims | No XLM top-up required for supported sponsored claims |
+| Campaign status and transaction history | A transaction receipt after a successful claim |
+
+An assigned-wallet claim restricts the destination on-chain. Email verification and
+claim codes add application checks; they do not replace that wallet restriction.
+
+## Try the MVP
+
+- **Website:** [kleym-home-testnet.up.railway.app](https://kleym-home-testnet.up.railway.app/)
+- **Application:** [kleym-testnet.up.railway.app/login](https://kleym-testnet.up.railway.app/login)
+
+Campaign creation requires a Kleym account. For an evaluation, request a guided
+Testnet demonstration from the Artisam Labs team. Login credentials are not
+published in this repository.
+
+**The current deployment uses Stellar Testnet, not real funds. Mainnet is disabled.**
+Kleym is undergoing internal validation and has not yet onboarded external users.
+Desktop and physical Android Freighter flows have been demonstrated; the complete
+release test matrix and operational readiness work are still in progress. Lantern
+integration is being prepared and is not advertised as a completed live integration.
+
+## How Kleym handles funds and keys
+
+Claim keys and recovery phrases are generated on the sender's device. The current
+local-link flow keeps them out of Kleym's backend; the backend works with public
+keys and signed transactions. Email verification sends an OTP, never a private
+claim link. Organisers must keep their phrase and private export safe.
+
+The sender supplies the campaign asset. Kleym's operational accounts sponsor XLM
+fees and required reserves. Settlement is verified against Stellar rather than
+accepted from a browser's success message.
+
+Read the [data-handling boundaries](docs/data-handling.md) and
+[release requirements](docs/mainnet-pilot.md) for the technical scope and remaining
+qualification. Earlier development evidence is retained separately and is not a
+blanket Mainnet assurance.
+
+## Explore the repository
+
+| Start here | What you will find |
+| --- | --- |
+| [Documentation](docs/README.md) | Product guides, architecture and testing |
+| [Developer setup](docs/development.md) | Local environment, commands and contribution workflow |
+| [Technical specification](SPEC.md) | Claim protocol, data model and application requirements |
+| [Website and app architecture](docs/website-app-architecture.md) | Separate public website, application and worker |
+| [QA plan and results](qa/plans/kleym-comprehensive-v2-2026-10-26/README.md) | Detailed test cases, scoped results and evidence |
+| [Issues](https://github.com/webnxt-2030/kleym/issues) | Remaining implementation and release work |
+
+The application uses Next.js and TypeScript, Stellar SDK, PostgreSQL and Prisma,
+and BullMQ with Redis. Deployments run on Railway. Runtime and dependency versions
+are pinned in the repository; see the [developer guide](docs/development.md).
+
+**Branches:** `develop` is the integration and Railway release branch.
+`develop-ade` preserves the pre-cleanup development backup. Development archives
+live under [`docs/archive`](docs/archive/README.md).
