@@ -105,7 +105,7 @@ For installed Freighter 5.48.0, the public application source exposes **Wallets 
 
 ## Reuse and protocol gate
 
-Reuse `src/lib/wallet/signing.ts`, the installed wallet kit, `scripts/spike-claim.ts`, `scripts/spike-diagnose.ts` and `SPIKE-FINDINGS.md`. The existing helper passes the selected address and network passphrase to the wallet kit. Historical Node keypair signatures establish neither current Freighter signing nor the sender sponsorship extension.
+Reuse `src/lib/wallet/signing.ts`, the installed wallet integration, `scripts/spike-claim.ts`, `scripts/spike-diagnose.ts` and the [archived spike findings](archive/SPIKE-FINDINGS.md). The signing helper passes the selected address and network passphrase to the wallet integration. Historical Node keypair signatures establish neither current Freighter signing nor the sender sponsorship extension.
 
 Prototype the proposed sponsor-sourced funding transaction with sender-sourced principal operations and a reserve-sponsorship bracket. Inspect the exact operations and required signer addresses before any testnet submission. Select the production envelope only after actual Freighter approval and independent ledger proof. A sender-sourced fee-bump alternative remains a comparison if the proposed envelope fails wallet compatibility; neither design is selected by this document.
 

@@ -1,6 +1,6 @@
 # Kleym website and app
 
-Kleym follows the two-service structure demonstrated by HeyPay: a static public website with **Open App**, and a separate authenticated application. Both services use `webnxt-2030/kleym`, branch `develop-ade`. Domain attachment belongs to Artisam Labs' senior developer.
+Kleym follows the two-service structure demonstrated by HeyPay: a static public website with **Open App**, and a separate authenticated application. Both services use `webnxt-2030/kleym`, release branch `develop`. The `develop-ade` branch preserves the owner's development backup. Domain attachment belongs to Artisam Labs' senior developer.
 
 ## Destinations
 
